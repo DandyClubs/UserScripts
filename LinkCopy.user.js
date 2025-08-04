@@ -166,7 +166,7 @@ margin: .25em;
     transition: height 0.4s ease, opacity 0.4s ease;
 }
 
-.CenterBox {
+.LinkCopyCenterBox {
 	right: 50%;
 	left: auto;
 	top: 0;
@@ -186,7 +186,7 @@ margin: .25em;
     text-wrap: nowrap;
     z-index: var(--dynamic-zindex);
 }
-.CenterBox * {
+.LinkCopyCenterBox * {
 	margin: 0 .25em;
 	padding: 0 .25em;
 }
@@ -305,14 +305,14 @@ const SkipFileName = /demosaic|\.UMR|iris2/
 
 
 const RegexFrom = (strings, flags) =>
-new RegExp(
-    strings
-    .filter(e => e.trim())
-    .map(t => t.replace(/\s+/g, '\\s'))
-    // Escape special characters
-    .join("|"),
-    flags
-)
+    new RegExp(
+        strings
+            .filter(e => e.trim())
+            .map(t => t.replace(/\s+/g, '\\s'))
+            // Escape special characters
+            .join("|"),
+        flags
+    )
 
 
 const SkipModelEx = RegexFrom(SkipModel.split(/\r?\n/), 'gi')
@@ -322,7 +322,7 @@ const SkipWordEx = RegexFrom(SkipWord.split(/\r?\n/), 'gi')
 let ShortUrl
 let AllowDirect
 
-let CenterBoxFontSize, StateFontSize, StateLineHeight, CenterBox, toTopBtn, clearBtn, copyBtn, stateEl
+let CenterBoxFontSize, StateFontSize, StateLineHeight, LinkCopyCenterBox
 
 const SkipClassNames = ['adead_link', 'autohyperlink', 'social-icon']
 //const JapaneseChar = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/g
@@ -374,8 +374,8 @@ const GetDirectLink = (url, data) => {
 const io = new IntersectionObserver((entries, self) => {
     for (const entry of entries) {
         if (entry.isIntersecting) {
-            CenterBox = entry.target
-            //console.log(CenterBox)
+            LinkCopyCenterBox = entry.target
+            //console.log(LinkCopyCenterBox)
 
             if (entry.target.complete) {
                 self.unobserve(entry.target)
@@ -521,7 +521,7 @@ async function Start() {
                             console.log('Special case found:', CopyTitleRaw);
                             CoverImage = '';
                             MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast);
-                        }else{
+                        } else {
                             // `Cast` 정보 찾기
                             const MatchTitle = MatchWebPoint !== -1 ? CopyTitleRaw.substring(MatchWebPoint + 3) : CopyTitleRaw;
                             const FindMatchCast = MatchTitle.split(/\s+/).filter(e => e && isNaN(e) && e.length > 1);
@@ -601,7 +601,7 @@ async function Start() {
                         const finalDownloadLinks = getDownloadLinks(DownloadArea);
                         window.DownloadArea = createDownloadArea(finalDownloadLinks.map(link => link.outerHTML));
 
-                        if(!document.querySelector('div.SearchBox')){
+                        if (!document.querySelector('div.SearchBox')) {
 
                             const titleEl = document.querySelector('.post-title.entry-title');
                             const searchTitle = titleEl ? searchTerms(titleEl.innerText) : '';
@@ -620,7 +620,7 @@ async function Start() {
 
                             SearchBox.style.maxWidth = rem(3);
                             SearchBox.style.top = `${Math.floor(CopyOffSetArea.offsetTop + (CopyOffSetArea.offsetHeight / 20))}px`;
-                            SearchBox.style.left = `${Math.floor(CopyOffSetArea.offsetLeft + CopyOffSetArea.offsetWidth -  baseScale * 16)}px`;
+                            SearchBox.style.left = `${Math.floor(CopyOffSetArea.offsetLeft + CopyOffSetArea.offsetWidth - baseScale * 16)}px`;
                             SearchBox.style.height = rem(1);
 
                             const ICONS = [
@@ -1199,8 +1199,8 @@ async function Start() {
 
                         if (!Title.match(/^Collection/)) {
                             const InfoArea = Array.from(document.querySelectorAll('div#content > div > .entry > p')).flatMap(p =>
-                                                                                                                             p.innerText.replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n').split(/\n\n|\n/).filter(Boolean)
-                                                                                                                            );
+                                p.innerText.replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n').split(/\n\n|\n/).filter(Boolean)
+                            );
 
                             let IDMatch = Title.match(SearchIDRegExp)?.[1] ?? InfoArea.find(line => line.match(SearchIDRegExp))?.match(SearchIDRegExp)?.[1];
                             ID = IDMatch ? IDMatch.trim() : '';
@@ -1232,8 +1232,8 @@ async function Start() {
                         CoverImage = DownloadArea?.[0]?.querySelector('p img')?.src || '';
 
                         const InfoArea = Array.from(DownloadArea).flatMap(block =>
-                                                                          block.innerText.replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n').split(/\n\n|\n/).filter(Boolean)
-                                                                         );
+                            block.innerText.replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n').split(/\n\n|\n/).filter(Boolean)
+                        );
                         Series = InfoArea.find(line => /^シリーズ：?.*/.test(line))?.replace(/^シリーズ：?/, '').trim() || '';
                         Title = mbConvertKana(Title, 'rans');
                         CopyTitle = byteLengthOf(Title, 241).trim();
@@ -1567,20 +1567,20 @@ async function Start() {
                 {
                     regex: /girlscanner\.org/,
                     handler: (title) =>
-                    title
-                    .replace(/^(new|Watch\/Download:)/i, '')
-                    .replace(/\\’/, "'")
-                    .replace(/[[:blank:]]{3,}.+/i, '')
-                    .trim(),
+                        title
+                            .replace(/^(new|Watch\/Download:)/i, '')
+                            .replace(/\\’/, "'")
+                            .replace(/[[:blank:]]{3,}.+/i, '')
+                            .trim(),
                 },
                 {
                     regex: /(clubwarp|downloaddex)\.com/,
                     handler: (title, CopyOffSetArea) => {
                         let cleanedTitle = Array.from(CopyOffSetArea.childNodes)
-                        .reduce((acc, node) => acc + (node.nodeType === 3 ? node.textContent : ''), '')
-                        .trim()
-                        .replace(/[ๅภถุึคตจขชๆไำพะัีรนยบลฃฟหกดเ้่าสวงผปแอิืทมใฝ๑๒๓๔ู฿๕๖๗๘๙๐ฎฑธํ๊ณฯญฐฅฤฆฏโฌ็๋ษศซฉฮฺ์ฒฬฦ]/g, '')
-                        .replace(/\s+/g, ' ');
+                            .reduce((acc, node) => acc + (node.nodeType === 3 ? node.textContent : ''), '')
+                            .trim()
+                            .replace(/[ๅภถุึคตจขชๆไำพะัีรนยบลฃฟหกดเ้่าสวงผปแอิืทมใฝ๑๒๓๔ู฿๕๖๗๘๙๐ฎฑธํ๊ณฯญฐฅฤฆฏโฌ็๋ษศซฉฮฺ์ฒฬฦ]/g, '')
+                            .replace(/\s+/g, ' ');
                         return /^fc2/.test(cleanedTitle) ? cleanedTitle.toUpperCase() : cleanedTitle;
                     },
                 },
@@ -1592,20 +1592,20 @@ async function Start() {
                         let newTitle = h3 ? h3.textContent.trim() : title;
 
                         const GetFileNameLink =
-                              DownloadArea[0].querySelector('a[href*="https://katfile.com/"]')?.href ||
-                              DownloadArea[0].querySelector('a[href*="https://ddownload.com/"]')?.href || '';
+                            DownloadArea[0].querySelector('a[href*="https://katfile.com/"]')?.href ||
+                            DownloadArea[0].querySelector('a[href*="https://ddownload.com/"]')?.href || '';
 
                         const needsFilenameFetch =
-                              (!SearchIDRegExp.test(newTitle) && !/^\[.*?\]/.test(newTitle) && GetFileNameLink) ||
-                              (!SearchIDRegExp.test(newTitle) && !JapaneseChar.test(newTitle) && GetFileNameLink);
+                            (!SearchIDRegExp.test(newTitle) && !/^\[.*?\]/.test(newTitle) && GetFileNameLink) ||
+                            (!SearchIDRegExp.test(newTitle) && !JapaneseChar.test(newTitle) && GetFileNameLink);
 
                         if (needsFilenameFetch) {
                             try {
                                 const service = /katfile/.test(GetFileNameLink)
-                                ? 'katfile'
-                                : /ddownload/.test(GetFileNameLink)
-                                ? 'ddl'
-                                : null;
+                                    ? 'katfile'
+                                    : /ddownload/.test(GetFileNameLink)
+                                        ? 'ddl'
+                                        : null;
                                 if (service) {
                                     newTitle = await GetFileName(GetFileNameLink, service);
                                     CopyOffSetArea.textContent = newTitle;
@@ -1796,9 +1796,9 @@ async function GetFileName(targetLink, host) {
 
                 // 파일명 정리: '.partN' 또는 '.rar' 이후의 문자열 제거
                 const cleanedTitle = filenameElement.textContent
-                .replace(/\.(part\d+|rar).*/i, '')
-                .replace(/^\//, '')
-                .trim();
+                    .replace(/\.(part\d+|rar).*/i, '')
+                    .replace(/^\//, '')
+                    .trim();
 
                 resolve(cleanedTitle);
             },
@@ -1854,7 +1854,7 @@ function updateUI(GetState, PackageCount) {
         }
     } catch {
         // UI 요소가 없거나 오류가 발생했을 때 재시작 로직
-            if (CopyOffSetArea && !CenterBox) {
+        if (CopyOffSetArea && !LinkCopyCenterBox) {
             setTimeout(() => {
                 document.location.reload();
             }, 60000);
@@ -1946,21 +1946,21 @@ function FirstStep() {
     GetState = RootDomainDB
     PackageCount = PackageList(RootDomainDB)
 
-    if (!CenterBox) {
+    if (!LinkCopyCenterBox) {
         mainIcon('First Run')
     }
 
     Start()
         .then((e) => {
-        console.log('First Step OK: ', e);
-        return SecondProcess();
-    })
+            console.log('First Step OK: ', e);
+            return SecondProcess();
+        })
         .then((result) => {
-        console.log('Second Process OK', result);
-    })
+            console.log('Second Process OK', result);
+        })
         .catch((err) => {
-        console.error(err.message);
-    });
+            console.error(err.message);
+        });
 
 }
 
@@ -1981,16 +1981,16 @@ function RefreshIcon(Run) {
     CenterBoxFontSize = rem(baseScale);
     StateFontSize = rem(baseScale * 0.65);
     StateLineHeight = rem(baseScale);
-    if (!CenterBox) return;  // safety check
-    CenterBox.style.setProperty('font-size', CenterBoxFontSize, 'important');
+    if (!LinkCopyCenterBox) return;  // safety check
+    LinkCopyCenterBox.style.setProperty('font-size', CenterBoxFontSize, 'important');
 
     const iconSet = document.querySelector('.IconSet');
     if (iconSet) {
         const iconSetFontSize = rem(baseScale * 0.95);
         Object.assign(iconSet.style, { fontSize: iconSetFontSize });
 
-        iconSet.style.setProperty('--SetTop', `${Math.floor(CenterBox.offsetTop + (CenterBox.offsetHeight - iconSet.offsetHeight) / 2)}px`);
-        iconSet.style.setProperty('--SetLeft', `${Math.floor(CenterBox.offsetLeft + CenterBox.offsetWidth + CenterBox.offsetHeight)}px`);
+        iconSet.style.setProperty('--SetTop', `${Math.floor(LinkCopyCenterBox.offsetTop + (LinkCopyCenterBox.offsetHeight - iconSet.offsetHeight) / 2)}px`);
+        iconSet.style.setProperty('--SetLeft', `${Math.floor(LinkCopyCenterBox.offsetLeft + LinkCopyCenterBox.offsetWidth + LinkCopyCenterBox.offsetHeight)}px`);
 
         if (isElementCovered(iconSet)) {
             bringElementToFrontWithSteps(iconSet);
@@ -2022,9 +2022,9 @@ function mainIcon(Run) {
     console.log('GetDPI:', GetDPI, 'DefaultFontSize:', DefaultFontSize, Run);
 
     // Avoid duplicate insertion
-    if (!document.querySelector('.CenterBox')) {
-        document.body.insertAdjacentHTML('afterbegin', `
-            <div class="CenterBox">
+    if (!document.querySelector('.LinkCopyCenterBox')) {
+        document.body.insertAdjacentHTML('beforeend', `
+            <div class="LinkCopyCenterBox">
                 <i class="ToTop fa-solid fa-circle-chevron-up"></i>
                 <i class="ClearButton far fa-minus-square"></i>
                 <i class="CopyButton fas fa-paste"></i>
@@ -2033,10 +2033,13 @@ function mainIcon(Run) {
         `);
     }
 
-    CenterBox = document.querySelector('.
+    LinkCopyCenterBox = document.querySelector('.LinkCopyCenterBox');
+    if (!LinkCopyCenterBox) return; // safety
+    LinkCopyCenterBox.style.setProperty('font-size', ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)) + 'rem', 'important');
+    io.observe(LinkCopyCenterBox);
 
     // Scroll to top button
-    toTopBtn.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+    LinkCopyCenterBox.querySelector('.ToTop').onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
     window.visualViewport.addEventListener('resize', () => {
         io.observe(LinkCopyCenterBox);
@@ -2061,7 +2064,12 @@ function mainIcon(Run) {
             lastExecutionTime = now;
         }
     });
-    myObserver.observe(toTopBtn);
+    myObserver.observe(LinkCopyCenterBox.querySelector('.ToTop'));
+
+    // Update State and button opacity
+    const stateEl = LinkCopyCenterBox.querySelector('.State');
+    const clearBtn = LinkCopyCenterBox.querySelector('.ClearButton');
+    const copyBtn = LinkCopyCenterBox.querySelector('.CopyButton');
 
     stateEl.textContent = `${GetState?.length || 0} | ${PackageCount?.length || 0}`;
 
@@ -2313,7 +2321,7 @@ function CheckOnline(TargetLink) {
 
 
 function CheckSkipTitle() {
-    console.log('Check CheckSkipTitle:',  CopyTitle)
+    console.log('Check CheckSkipTitle:', CopyTitle)
     if (!CopyTitle) return false;  // Early exit if no title
 
     // Find skip word/model matches
@@ -2332,7 +2340,7 @@ function CheckSkipTitle() {
             LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
         }
         let copyStateEl = document.querySelector('.CopyState');
-        let CopyStateFontSize = Number(((1/(GetDPI/1.5))*0.65*(16/DefaultFontSize)).toFixed(2))
+        let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2))
         copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important')
 
         // Set flags indicating skip conditions
@@ -2360,11 +2368,11 @@ function CheckSkipTitle() {
 }
 
 
-async function CopyGo() {    
+async function CopyGo() {
     if (!SkipTitle) return;
 
     const shortUrlExists = () =>
-    Array.from(document.querySelectorAll("a")).some(a => WaitChangeLink.test(a.href));
+        Array.from(document.querySelectorAll("a")).some(a => WaitChangeLink.test(a.href));
 
     if (shortUrlExists()) {
         const observer = new MutationObserver(async (mutations, obs) => {
@@ -2522,13 +2530,13 @@ async function CollectionLinks(DownloadArea) {
 
     // 2) Apply skip-class filter
     let links = CollectionATag.filter(a =>
-                                      !SkipClassNames.some(cls => a.classList.contains(cls))
-                                     );
+        !SkipClassNames.some(cls => a.classList.contains(cls))
+    );
 
     // 2a) If special nicesss/nicewww/xtvtv pattern and a “short” link found, open in background
     const shortCandidate = links.find(a =>
-                                      /(ouo\.|katfile\.com\/users|77file\.com)/.test(a.href)
-                                     );
+        /(ouo\.|katfile\.com\/users|77file\.com)/.test(a.href)
+    );
     if (/(nicesss|nicewww|xtvtv)\.com\/archives/.test(PageURL) && shortCandidate) {
         GM_openInTab(shortCandidate.href, { active: false });
         return;
@@ -2538,16 +2546,16 @@ async function CollectionLinks(DownloadArea) {
     links = links
         .filter(a => !skipFilters.test(a.href))
         .filter(a => {
-        const name = a.href.split('/').pop();
-        return !(skipFileNameRegex.test(name) || skipFileNameRegex.test(a.textContent));
-    });
+            const name = a.href.split('/').pop();
+            return !(skipFileNameRegex.test(name) || skipFileNameRegex.test(a.textContent));
+        });
 
     // 2c) Skip links whose children are images (unless they pass your emoji/class test)
     if (!/models-nudeteen\.org|girlscanner\.org/.test(PageURL)) {
         links = links.filter(a =>
-                             /uploadgig\.com\/file\/download|alfafile\.net\/file/.test(a.href) ||
-                             ![...a.children].some(img => img.tagName === 'IMG' && !MatchRegexElement(img, /emoji/, 'class'))
-                            );
+            /uploadgig\.com\/file\/download|alfafile\.net\/file/.test(a.href) ||
+            ![...a.children].some(img => img.tagName === 'IMG' && !MatchRegexElement(img, /emoji/, 'class'))
+        );
     }
 
     // 2d) Optionally filter for quality (4K vs 1080p) if CopyTitle and not a “Collection”
@@ -2556,19 +2564,19 @@ async function CollectionLinks(DownloadArea) {
         const FHD = /\.1080p/i;
         const allNames = links.map(a => GetName(a.href));
         const uniqueBases = UHD.test(allNames.join(''))
-        ? [...new Set(allNames.map(n => n.replace(UHD, '')))]
-        : FHD.test(allNames.join(''))
-        ? [...new Set(allNames.filter(n => FHD.test(n)).map(n => n.replace(FHD, '')))]
-        : [];
+            ? [...new Set(allNames.map(n => n.replace(UHD, '')))]
+            : FHD.test(allNames.join(''))
+                ? [...new Set(allNames.filter(n => FHD.test(n)).map(n => n.replace(FHD, '')))]
+                : [];
 
         if (uniqueBases.length) {
             links = links.filter(a => {
                 const nm = GetName(a.href);
                 return UHD.test(nm)
                     ? uniqueBases.includes(nm.replace(UHD, ''))
-                : FHD.test(nm)
-                    ? uniqueBases.includes(nm.replace(FHD, ''))
-                : false;
+                    : FHD.test(nm)
+                        ? uniqueBases.includes(nm.replace(FHD, ''))
+                        : false;
             });
         }
     }
@@ -2887,11 +2895,11 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
     for (let link of AllLinks) {
         // Remove quality/resolution suffix like ".xxx.1080p" then split into filename parts
         let fileNameParts = link.innerText
-        .replace(/\.xxx\.\d+p.*/i, '')
-        .split('/')
-        .pop()
-        .split(/\./)
-        .filter(e => e.trim());
+            .replace(/\.xxx\.\d+p.*/i, '')
+            .split('/')
+            .pop()
+            .split(/\./)
+            .filter(e => e.trim());
 
         FileNameDB.push({ fileName: fileNameParts, link });
     }
@@ -2901,7 +2909,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
 
     const AllLinksCount = AllLinks.length;
     const SortedInfoAreaCastCount = SortedInfoAreaCast.length;
-    if(SortedInfoAreaCastCount <= 1){
+    if (SortedInfoAreaCastCount <= 1) {
         for (let link of AllLinks) {
             let U = link.href;
             let T = FilenameConvert(CopyTitle);
@@ -2909,7 +2917,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
             TmpLinksDB.push({ U, T, S });
         }
     }
-    else{
+    else {
         const CompareCount = AllLinksCount / SortedInfoAreaCastCount;
 
         // Process each InfoAreaCast string (usually cast or subtitle info)
@@ -2970,16 +2978,16 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
 
             // Build cast title string with episode info removed
             let CastTitle = IAC && Episode
-            ? '- ' + IAC.replace(/-\sE\d{2,5}/i, '').trim()
-            : IAC && !Episode
-            ? '- ' + IAC
-            : '';
+                ? '- ' + IAC.replace(/-\sE\d{2,5}/i, '').trim()
+                : IAC && !Episode
+                    ? '- ' + IAC
+                    : '';
             console.log('CastTitle: ', CastTitle);
 
             // Compose full title string
             Title = (Episode || Released)
                 ? MatchWeb + Episode + Released + IAC.replace(/(-\s)?E\d+/, '').trim()
-            : MatchWeb + IAC;
+                : MatchWeb + IAC;
             Title = Title.replace(/(S\d+):(E\d+)/i, '$1$2');
             Title = FilenameConvert(Title);
 
@@ -3139,8 +3147,8 @@ function onElementLoaded(elementToObserve, parentStaticElement) {
             }
             else {
                 const parentElement = parentStaticElement
-                ? document.querySelector(parentStaticElement)
-                : document;
+                    ? document.querySelector(parentStaticElement)
+                    : document;
 
                 const Onobserver = new MutationObserver((mutationList, obsrvr) => {
                     const divToCheck = document.querySelector(elementToObserve);
