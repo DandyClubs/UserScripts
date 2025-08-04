@@ -1,0 +1,1105 @@
+// ==UserScript==
+// @name         [TEST] Copy Links & Title
+// @namespace    http://tampermonkey.net/
+// @version      1.2
+// @description  try to take over the world!
+// @author       You
+// @include      /gm\d+.xyz/
+// @include      /pornbb\.org\/newsearch\.php/
+// @include      /pornbb\.org\/.*\.html/
+// @include      /forumophilia\.com/
+// @include      /akiba-online\.com/
+// @include      /sexfetishforum\.com\/index.php\?topic/
+// @include      http://www.planetsuzy.org/*.html
+// @include      /planetsuzy\.org\/showthread\.php/
+// @include      https://x-idol.net/*
+// @include      https://www.porn-w.org/search.php*
+// @exclude      https://x-idol.net/?p=*
+// @grant        GM_setClipboard
+// @grant		 GM_addStyle
+// @grant		 GM_xmlhttpRequest
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js
+// @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
+// @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
+// @run-at       document-start
+// @noframes
+// ==/UserScript==
+
+const FontAwesomeCSS = function() {
+    let css = document.createElement('link')
+    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css'
+    css.rel = 'stylesheet'
+    css.type = 'text/css'
+    document.getElementsByTagName('head')[0].appendChild(css)
+}
+
+
+GM_addStyle (`
+
+
+@import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c&family=Nanum+Gothic&family=Nanum+Gothic+Coding&family=Noto+Sans&display=swap');
+:root {
+  --IconSize: 1em;
+  --dynamic-zindex: 0;
+}
+
+.dynamic-z {
+  z-index: var(--dynamic-zindex);
+}
+
+.IconSet, .CloseIcon, .AllCopy {
+    text-align: center;
+    cursor: pointer;
+    word-spacing: .5em;
+    white-space : nowrap;
+    background-color: transparent !important;
+    top: var(--SetTop, auto);
+    left: var(--SetLeft, auto);
+    right: var(--SetRight, auto);
+    transform: rotate(360deg);
+    text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 0px -1px white;
+}
+
+.CopyIcon, .Minus {
+    font-size: var(--IconSize) !important;
+     padding: .5em;
+     cursor: pointer;
+     text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 0px -1px white;
+     z-index: var(--dynamic-zindex);
+}
+
+.CopyIcon.Copyed, .Minus.NotCopyed {
+    display: none !important;
+}
+
+.Copyed , .Minus{
+    color: Orange !important;
+}
+
+
+
+.noticeArea {
+    font-family: 'Nanum Gothic', 'M PLUS Rounded 1c', 'ZCOOL KuaiLe', sans-serif !important;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: .25em;
+    color: white !important;
+    background: rgba(255, 165, 0, .95) !important;
+    padding: .5em;
+    white-space: pre;
+ 	text-shadow: initial !important;
+    text-align: left;
+    line-height: 1em;
+	font-weight: 500 !important;
+	font-style: initial !important;
+    display: -webkit-box;
+    -webkit-line-clamp: 15;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--NFontSize, 0.6rem);
+    z-index: var(--dynamic-zindex);
+}
+.CenterBox {
+	right: 50%;
+	left: auto;
+	top: 0;
+	max-width: max-content;
+	position: fixed !important;
+	display: flex;
+	flex-wrap: nowrap;
+	justify-content: space-around;
+	align-items: baseline;
+	color: LimeGreen !important;
+    padding: 0 .25em;
+    margin: .25em;
+	border-radius: .25em !important;
+	-webkit-box-sizing: border-box !important;
+	box-sizing: border-box !important;
+	background-color: rgba(0,0,0,0.5) !important;
+    z-index: var(--dynamic-zindex);
+}
+
+.CenterBox * {
+    margin: .25em;
+    padding: .25em;
+}
+
+.ToTop {
+    font-style: initial !important;
+    text-align: center;
+    cursor: pointer;
+    margin: .25em;
+    color: LimeGreen !important;
+    background-color:transparent !important;
+    text-shadow: 1px 1px 1px red, 0 0 2px blue, 0 0 1px black;
+}
+
+
+.State , .AllCopyState{
+    display: inline-block;
+    font-weight: bold;
+    text-align: right;
+    vertical-align: middle;
+    font-family: 'Noto Sans', sans-serif !important;
+    font-style: italic !important;
+    max-width: 12ch;
+    color: WhiteSmoke !important;
+    background-color:transparent !important;
+}
+
+.CopyButton, .ClearButton {
+    font-style: initial !important;
+    word-spacing: .5em;
+    cursor: pointer;
+    background-color:transparent !important;
+    text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 0px -1px white;
+}
+
+`);
+
+const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+const RootDomain = extractRootDomain(PageURL)
+const rootDomain = RootDomain
+
+let GetDPI, DefaultFontSize, elementPosition
+let GetState, searchDB
+let CopyLinks = ''
+let Copyed = ''
+
+let RootDomainDB = JSON.parse(localStorage.getItem(RootDomain) || '[]');
+
+function MakeIcon() {
+    // 1. 필요한 변수 및 요소 초기화
+    const GetDPI = window.devicePixelRatio;
+    const DefaultFontSize = parseInt(getComputedStyle(document.documentElement).fontSize);
+
+    console.log('GetDPI: ', GetDPI, 'DefaultFontSize: ', DefaultFontSize);
+
+    // 2. CenterBox 생성 및 변수에 할당
+    document.querySelector("body").insertAdjacentHTML('afterbegin', '<div class="CenterBox"></div>');
+    const centerBox = document.querySelector("div.CenterBox");
+
+    if (!centerBox) {
+        console.error("CenterBox 요소를 찾을 수 없습니다.");
+        return; // 요소가 없으면 함수 종료
+    }
+
+    if (isElementCovered(centerBox)) {
+        bringElementToFrontWithSteps(centerBox);
+    }
+
+    // 3. 폰트 크기 계산을 변수에 저장하여 재사용
+    const baseFontSizeRem = (1 / (GetDPI / 1.5)) * (16 / DefaultFontSize);
+    const stateFontSizeRem = (baseFontSizeRem * 0.65).toFixed(2) + 'rem';
+
+    // 4. 아이콘 데이터와 이벤트 핸들러를 객체 배열로 정의
+    const icons = [
+        { className: 'ToTop fa-solid fa-circle-chevron-up', event: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
+        { className: 'ClearButton far fa-minus-square', event: (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            if (JSON.parse(localStorage.getItem('NewAdded')) && window.confirm("Not Yet Copy! Clear?")) {
+                localStorage.setItem('NewAdded', JSON.stringify(false));
+                ClearUrls();
+            } else if (!JSON.parse(localStorage.getItem('NewAdded'))) {
+                ClearUrls();
+            }
+        }},
+        { className: 'CopyButton fas fa-paste', event: (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            localStorage.setItem('NewAdded', JSON.stringify(false));
+            ClipPaste();
+        }},
+        { className: 'AllCopy fa-solid fa-box', event: (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            AllCopy();
+        }},
+        // State와 AllCopyState는 별도 로직으로 처리
+        { className: 'State', event: null },
+        { className: 'AllCopyState', event: null }
+    ];
+
+    // 5. 반복문을 사용하여 아이콘 추가 및 이벤트 연결
+    icons.forEach(icon => {
+        centerBox.insertAdjacentHTML('beforeend', `<i class="${icon.className}"></i>`);
+        if (icon.event) {
+            centerBox.querySelector(`.${icon.className.split(' ')[0]}`).addEventListener('click', icon.event);
+        }
+    });
+
+    // 6. 스타일 적용
+    centerBox.style.setProperty('font-size', baseFontSizeRem + 'rem', 'important');
+    document.querySelector('.State').style.setProperty('font-size', stateFontSizeRem, 'important');
+    document.querySelector('.AllCopyState').style.setProperty('font-size', stateFontSizeRem, 'important');
+
+    // 7. 상태 정보 표시
+    RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : [];
+    GetState = RootDomainDB;
+    document.querySelector('.State').innerText = `${GetState?.length || 0} | ${PackageList(RootDomainDB)?.length || 0}`;
+}
+
+
+var MakerCfg = false
+var Maker
+var UrlTitle = ''
+var DirectCopy = true
+
+
+let Target, DownloadArea, CopyTitle, CopyTitleArea, noticeArea, CopyTitleSelector, Series, TitleID, ID, CoverImage
+const SkipFilter = new RegExp('filejoker\\.net\/file\/q25fhzi4k86y|sendurl\\.me|xufile\\.com|pixhost\\.to|imgbox\\.com|utm_source|safedl\\.net|upgrade|\\.jpg$|javascript|SKIP|#|^\/|^(?=.*' + window.location.origin + ')(?!.*\\?site).*$')
+const SkipID = /C_\d+/i
+const JapaneseChar = /[ぁ-んァ-ン一-龯]/
+const SkipClassNames = ['adead_link', 'autohyperlink', 'social-icon', 'postdetails']
+const SearchID = /^([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})(.*)/
+const SearchFC2ID = /(^FC2.+\d{6})(.*)/
+const SearchIDRegExp = /^(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}))(?!(C_\d+|file\d+))(.*)$/
+const ExcludeChar = /[<\/:>*?"|\\]/g
+const SkipTitle = [
+    'assfuck',
+    'busty',
+    'amateur',
+    'big tits',
+    'bigass',
+    'boobs',
+    'butt',
+    'anal',
+    'sex',
+    'porn video',
+    'blowjob',
+    'brunette',
+    'skinny',
+    'stockings',
+    'cumshot on big tits'
+]
+var DuplicateLink = []
+
+console.log(SkipFilter)
+
+
+function ClearCopyed(){
+    console.log('Start Delete Copyed!')
+    Copyed = Object.keys(localStorage).filter(k => k.includes(RootDomain + '/') && /\d{4}-\d{2}-\d{2}/.test(localStorage.getItem(k)))
+    for (let key of Copyed) {
+        if(localStorage.getItem(key)){
+            let Now = new Date(Date.now()).toISOString().slice(0,10)
+
+            let AddedDay = new Date(localStorage.getItem(key)).toISOString().slice(0,10)
+            const oneDay = 1000 * 60 * 60 * 24;
+            if(((new Date(Now) - new Date(AddedDay))/oneDay) > 180){
+                localStorage.removeItem(key)
+                console.log('Delete Item: ', key, AddedDay)
+            }
+        }
+    }
+}
+
+function setClearCopyed(name, value, expiresDay) {
+    const NowTime = new Date();
+    const MidNight = new Date(NowTime.getFullYear(), NowTime.getMonth(), NowTime.getDate() + expiresDay , 9)
+    document.cookie = escape(name) + "=" + escape(value) + "; expires=" + MidNight.toUTCString();
+}
+
+const SkipMakers = [
+    'Tubanomi', 'New World Harlem', 'Anikuramogusex',
+    'Toshiaki', 'Buena Vista', 'Punimoe!', 'palupunte'
+];
+
+// 사용자 제공 정규식
+const ReleaseDateRegex = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/;
+
+function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
+    const {
+        preferJapanese = false,
+        skipKeywords = [],
+        rawMode = false, // ← 추가
+    } = options;
+
+    let CopyTitle = fallbackTitle
+    .replace(/^(UNCENSORED|CENSORED)\s/, '')
+    .replace(/amp;/g, '')
+    .trim();
+
+    if (rawMode) return CopyTitle; // ← 여기서 바로 반환
+
+    let Title = '';
+    let ID = '';
+    let Maker = '';
+    let ModelName = '';
+    let ReleaseDate = '';
+
+    // Featuring 값 추출 (여러 줄 중 Featuring: 포함된 줄 찾기)
+    const FeaturingLine = infoLines.find(line => line.match(/특집\s*:/i));
+    const Featuring = FeaturingLine ? FeaturingLine.replace(/Featuring\s*:/i, '').trim() : '';
+
+    infoLines.some((line) => {
+        if (!ID) {
+            const idMatch = line.match(SearchID);
+            if (idMatch && !line.match(SkipID)) {
+                ID = idMatch[1];
+            }
+        }
+
+        if (!Title) {
+            const titleMatchRaw = line.match(SearchID);
+            const copyMatchRaw = CopyTitle.match(SearchID);
+
+            const titleMatch = titleMatchRaw ? titleMatchRaw.pop().trim() : null;
+            const copyMatch = copyMatchRaw ? copyMatchRaw.pop().trim() : null;
+
+            if (titleMatch && copyMatch) {
+                if (preferJapanese) {
+                    const titleJapaneseCount = (titleMatch.match(JapaneseChar) || []).length;
+                    const copyJapaneseCount = (copyMatch.match(JapaneseChar) || []).length;
+
+                    Title = titleJapaneseCount >= copyJapaneseCount ? titleMatch : copyMatch;
+                } else {
+                    Title = titleMatch || copyMatch;
+                }
+            } else if (titleMatch) {
+                Title = titleMatch;
+            } else if (copyMatch) {
+                Title = copyMatch;
+            } else {
+                Title = line;
+            }
+
+            Title = Title.trim() + ' ';
+        }
+
+
+        if (!Maker && /(Circle|Label)\s?:/.test(line)) {
+            const raw = line.match(/(Circle|Label)\s?:(.*)/)[2].trim();
+            const cleaned = SkipMakers.reduce((acc, keyword) => {
+                return acc.replace(new RegExp(keyword, 'gi'), '');
+            }, raw).trim();
+            if (cleaned) Maker = `[${cleaned}] `;
+        }
+
+        if (!ModelName && /(Actress|Model|Author)\s?:/.test(line)) {
+            ModelName = line.match(/(Actress|Model|Author)\s?:(.*)/)[2].trim();
+        }
+
+        if (!ReleaseDate) {
+            const dateMatch = line.match(ReleaseDateRegex);
+            if (dateMatch) {
+                // 여기서 날짜 포맷 정제 예시 (원하는 형태로 가공 가능)
+                // dateMatch[0]은 전체 매칭된 문자열
+                // 예) '2021-12-25' 또는 '25.12.2021' 등 다양한 포맷 대응
+
+                // YYYY-MM-DD 형태 우선 변환 시도
+                // 정규식에서 그룹별 분리 가능하면 가공도 가능
+                const ymdMatch = dateMatch[0].match(/(19|20)?\d{2}[.\/-]([0]?[1-9]|1[0-2])[.\/-]([0]?[1-9]|[12][0-9]|3[01])/);
+                if (ymdMatch) {
+                    const year = ymdMatch[0].slice(0,4);
+                    const month = ymdMatch[0].slice(5,7).replace(/^0/, '');
+                    const day = ymdMatch[0].slice(8,10).replace(/^0/, '');
+                    ReleaseDate = `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')} `;
+                } else {
+                    // 매칭된 문자열 그대로 저장
+                    ReleaseDate = dateMatch[0].trim() + ' ';
+                }
+            }
+        }
+
+        return ID && ModelName && ReleaseDate;
+    });
+
+    if (ModelName) {
+        let ModelNameList = ModelName.split(/[,|]/).map(s => s.trim()).filter(Boolean);
+
+        ModelNameList = ModelNameList.filter(name => {
+            if (name.length <= 1) return false;
+            if (new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(Title)) return false;
+            return true;
+        });
+
+        ModelName = ModelNameList.length ? `[${ModelNameList.join(' ')}]` : '';
+    }
+    if (Featuring) {
+        Title = `${Featuring} - ${Title}`;
+    }
+
+    const FinalTitle = `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim();
+    return FinalTitle;
+}
+
+
+function parseForumTitle(DownloadArea, selector) {
+    const isPlanetsuzy = /planetsuzy\.org/.test(window.location.host);
+
+    // --- 1. 사이트별 변수 설정 ---
+    // 게시물 본문에서 불필요한 키워드를 제거하기 위한 정규식
+    const cleanupRegex = isPlanetsuzy
+        ? /Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Title:|File\s?Name\s?:?|File|Size/gi
+        : /Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|.*Subject:|File:/gi;
+
+    // 게시물 본문을 찾기 위한 공통 선택자
+    const infoAreaSelector = 'div.message-body, div.inner, div.post-text, div[id^="post_message_"]';
+
+    // --- 2. 사이트 특성에 따라 초기 제목 추출 ---
+    const titleElem = DownloadArea.querySelector(selector);
+    let CopyTitle = '';
+
+    if (isPlanetsuzy && titleElem) {
+        // planetsuzy.org: 이미지의 부모 요소에서 제목을 가져오는 특별 케이스
+        const titleText = titleElem.parentElement?.textContent.replace(/amp;/g, '').trim() || '';
+        if (titleText) {
+            // 이 제목이 충분히 완전하므로, 여기서 처리 후 바로 반환
+            const cleaned = titleText.split(',')
+                .map(s => s.trim())
+                .filter(s => !SkipTitle.includes(s));
+            return byteLengthOf(cleaned.join(','), 250);
+        }
+    }
+
+    CopyTitle = titleElem?.innerText.replace(/amp;|.*Subject:|File:/g, '').replaceAll('"', '').trim() || '';
+
+    // --- 3. 게시물 본문에서 상세 정보 추출 ---
+    const InfoAreaRaw = DownloadArea.querySelector(infoAreaSelector)?.innerText || '';
+
+    // 본문 내용이 없으면, 지금까지 추출한 제목을 반환
+    if (!InfoAreaRaw) {
+        return CopyTitle;
+    }
+
+    const InfoArea = InfoAreaRaw
+        .replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n')
+        .replace(cleanupRegex, '') // 사이트별로 설정된 정규식 사용
+        .replaceAll('"|：', '')
+        .split(/\n\n|\n/)
+        .filter(e => e && !e.match(/^(http|Resolution|Duration|Download|Categories|About)/));
+
+    // --- 4. 공통 로직을 사용하여 최종 제목 완성 ---
+    let finalTitle = extractInfoFromText(InfoArea, CopyTitle);
+
+    const TitleID = finalTitle?.match(SearchID) && !finalTitle?.match(SkipID)
+        ? finalTitle.match(SearchID)[1]
+        : '';
+    const Title = finalTitle?.match(SearchID) && !finalTitle?.match(SkipID)
+        ? finalTitle.match(SearchID).pop().trim()
+        : finalTitle;
+
+    return TitleID && Title ? `${TitleID} ${Title}` : finalTitle;
+}
+
+const DomainHandlers = {
+    'gm\\d+\\.xyz': {
+        selectors: {
+            copyTitle: '.entry-title a',
+            visitedLink: 'h2.entry-title a',
+        },
+        getTitleArea: (el) => el.closest('.inside-article'),
+        getCopyTitle: (area, selector) => area.querySelector(selector)?.textContent.trim(),
+        getCoverImage: (area) => area.querySelector('p img')?.getAttribute('data-src') || '',
+        getCopyID: (modArea) => /gm\d+\.xyz\/\d+\.html$/.test(window.location.href) ? window.location.href : modArea.querySelector('a')?.href,
+        iconPosition: (iconSet, modArea) => {
+            const offset = getRelativeOffset(modArea);
+            const iconSetOffset = getRelativeOffset(iconSet);
+            iconSet.style.setProperty('top', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
+            iconSet.style.setProperty('right', `${(-iconSetOffset.width / 4).toFixed(0)}px`);
+        },
+    },
+    'pornbb\\.org': {
+        selectors: {
+            copyTitle: 'div.search-post-subj a.postdetails, span.postdetails.subject',
+            visitedLink: null,
+        },
+        titleAreaSelector: 'div.postbody', // Add a selector for the title area
+        getTitleArea: (el) => el.closest('div.postbody'),
+        getCopyTitle: (el, selector) => parseForumTitle(el.closest('div.messageinfo'), selector),
+        getCopyID: (modArea, pageURL) => {
+            if (/newsearch\.php/.test(pageURL)) return window.location.origin + '/' + modArea.querySelector('a')?.href;
+            if (/\.html#\d+/.test(pageURL)) return pageURL;
+            return window.location.origin + '/' + modArea.querySelector('a.inl-bl')?.href;
+        },
+        iconPosition: (iconSet) => iconSet.style.setProperty('z-index', '99999'),
+    },
+    'x-idol\\.net': {
+        selectors: {
+            copyTitle: 'h2.post-title.entry-title a',
+            visitedLink: 'h2.post-title.entry-title a',
+        },
+        getTitleArea: (el) => el.closest('div.post.hentry:not(.sticky)')?.querySelector('div.entry') || el.closest('div.post.hentry:not(.sticky)'),
+        getCopyTitle: (area, selector) => {
+            const rawTitle = area.closest('div.post.hentry:not(.sticky)')?.querySelector(selector)?.textContent.trim() || '';
+            const infoRaw = area.closest('div.post.hentry:not(.sticky)')?.querySelector('div.entry-content')?.innerText || '';
+            const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
+            return extractInfoFromText(infoLines, rawTitle, { rawMode: true });
+        },
+        getCopyID: (modArea) => modArea?.getAttribute('href'),
+        iconPosition: (iconSet, modArea) => {
+            const offset = getRelativeOffset(modArea);
+            const iconSetOffset = getRelativeOffset(iconSet);
+            iconSet.style.setProperty('vertical-align', window.getComputedStyle(modArea).getPropertyValue('vertical-align'));
+            iconSet.style.setProperty('line-height', window.getComputedStyle(modArea).getPropertyValue('line-height'));
+            iconSet.style.setProperty('top', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
+            iconSet.style.setProperty('right', `${(-iconSetOffset.width / 5).toFixed(0)}px`);
+        },
+    },
+    'forumophilia\\.com': {
+        selectors: {
+            copyTitle: 'div.messageinfo div.message-header div div.post_subj div.postdetails > a.bold, .messageinfo div.message-header div div.post_subj span.postdetails',
+            visitedLink: null,
+        },
+        titleAreaSelector: 'div.messageinfo', // Add a selector for the title area
+        getTitleArea: (el) => el.closest('div.messageinfo'),
+        getCopyTitle: (area, selector) => parseForumTitle(area, selector),
+        getCopyID: (modArea) => {
+            const anchor = modArea.closest('.postdetails')?.querySelector('a.bold');
+            return anchor ? window.location.origin + '/' + anchor.getAttribute('href') : null;
+        },
+        iconPosition: (iconSet, modArea) => {
+            const titleArea = modArea.closest('.message-header');
+            const offset = getRelativeOffset(titleArea);
+            iconSet.style.setProperty('top', `${(offset.height / 5).toFixed(0)}px`);
+            iconSet.style.setProperty('right', `${(-getRelativeOffset(iconSet).width / 4).toFixed(0)}px`);
+        },
+    },
+    'sexfetishforum\\.com': {
+        selectors: {
+            copyTitle: 'div.post_wrapper div.postarea div.flow_hidden div.keyinfo h5',
+            visitedLink: null,
+        },
+        getTitleArea: (el) => el.closest('div.postarea'),
+        getCopyTitle: (area, selector) => parseForumTitle(area.closest('div.messageinfo'), selector),
+        iconPosition: (iconSet) => {
+            const titleArea = iconSet.closest('.postarea');
+            iconSet.style.setProperty('top', `${getRelativeOffset(iconSet).height}px`);
+            iconSet.style.setProperty('left', `${getRelativeOffset(titleArea.querySelector('.keyinfo')).width}px`);
+        },
+    },
+    'planetsuzy\\.org': {
+        selectors: {
+            copyTitle: 'table.tborder > tbody > tr > td > div.smallfont > img.inlineimg',
+            visitedLink: null,
+        },
+        // 컨텍스트 영역을 게시물 전체를 포함하는 table.tborder로 변경
+        getTitleArea: (el) => el.closest('table.tborder'),
+        // 통합된 parseForumTitle 함수를 호출하도록 변경
+        getCopyTitle: (area, selector) => parseForumTitle(area, selector),
+        getCopyID: (modArea) => window.location.origin + '/' + /t(=)?\d+/.exec(window.location.href)[0] + '-' + modArea.closest('table.tborder').id,
+        iconPosition: (iconSet) => {
+            const modArea = iconSet.closest('.tborder').querySelector('td.alt1 > div'); // 적절한 선택자로 수정
+            console.log(modArea)
+            const offset = getRelativeOffset(modArea);
+            const iconSetOffset = getRelativeOffset(iconSet);
+
+            iconSet.style.setProperty('--SetTop', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
+            iconSet.style.setProperty('--SetRight', `${(-iconSetOffset.width / 4).toFixed(0)}px`);
+        },
+    },
+};
+
+
+const getDomainConfig = (rootDomain) => {
+    for (const [pattern, config] of Object.entries(DomainHandlers)) {
+        if (new RegExp(pattern).test(rootDomain)) {
+            return config;
+        }
+    }
+    return null;
+};
+
+// UI 업데이트 로직을 별도의 함수로 분리합니다.
+async function showCopyNotice(noticeArea, copyTitleArea, finalTitle, copyLinks) {
+    console.log('finalTitle:', finalTitle, '\ncopyLinks:', copyLinks)
+    GetDPI = window.devicePixelRatio;
+    DefaultFontSize = getDefaultFontSize();
+    const isCospl = /cospl\.net/.test(RootDomain);
+
+    $(noticeArea).css({
+        "--NFontSize": ((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2) + 'rem',
+        "top": isCospl ? getRelativeOffset(copyTitleArea).top + getRelativeOffset(copyTitleArea).height : getRelativeOffset(copyTitleArea).height,
+        "left": 0,
+    });
+
+    if(copyLinks){
+        noticeArea.textContent = `${finalTitle}\n${copyLinks}`;
+    }else{
+        noticeArea.textContent = `Empty......`;
+    }
+
+    $(noticeArea).slideToggle('fast', 'linear');
+    await sleep(750);
+    $(noticeArea).slideToggle('slow');
+    await sleep(1000);
+    noticeArea.textContent = '';
+}
+
+
+// 이벤트 위임을 사용하여 클릭 리스너를 통합합니다.
+function addEventListeners(container) {
+
+    container.addEventListener('click', async function(event) {
+        //console.log(event.target)
+        // Copy 아이콘 클릭 처리
+        if (event.target.matches('.CopyIcon')) {
+            event.preventDefault();
+
+            const copyIcon = event.target;
+            const copyId = copyIcon.getAttribute("id");
+            noticeArea = copyIcon.closest('article, .entry, .postbody, .messageinfo, .postrow, .inside-article')?.querySelector('.noticeArea') || copyIcon.parentElement.parentElement.querySelector('.noticeArea');
+            const copyTitleArea = copyIcon.parentElement;
+
+            copyIcon.style.setProperty('color', 'Orange', 'important');
+            copyIcon.classList.add('Copyed');
+
+            // CopyLink 함수 실행
+            const CopyTitleSelector = DomainRules.selectors.copyTitle;
+            console.log(copyIcon, CopyTitleSelector, noticeArea, copyId)
+            const { finalTitle, copyLinks } = await CopyLink(copyIcon, CopyTitleSelector, noticeArea, copyId);
+
+            // UI 업데이트 함수 호출
+            await showCopyNotice(noticeArea, copyTitleArea, finalTitle, copyLinks);
+
+            // 기타 후처리
+            getNextSibling(copyIcon, '.Minus')?.classList.remove('NotCopyed');
+
+            const addDate = new Date().toISOString().slice(0, 10);
+            localStorage.setItem(copyId, addDate);
+
+            if (DomainRules.selectors.visitedLink) {
+                event.target.closest('article, .entry, .postbody, .messageinfo, .postrow, .inside-article')?.querySelector(DomainRules.selectors.visitedLink)?.classList.add('Copyed');
+            }
+
+            console.log('AddTitle: ', copyId, '\nAddDate: ', addDate);
+
+        }
+
+        // Minus 아이콘 클릭 처리
+        else if (event.target.matches('.Minus')) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+
+            const minusIcon = event.target;
+            const copyIcon = getPreviousSibling(minusIcon, '.CopyIcon');
+            const copyId = copyIcon?.getAttribute("id");
+
+            if (copyIcon) {
+                minusIcon.classList.add('NotCopyed');
+                copyIcon.style.removeProperty('color');
+                copyIcon.classList.remove('Copyed');
+
+                if (DomainRules.selectors.visitedLink) {
+                    copyIcon.closest('article, .entry, .postbody, .messageinfo, .postrow, .inside-article')?.querySelector(DomainRules.selectors.visitedLink)?.classList.remove('Copyed');
+                }
+
+                localStorage.removeItem(copyId);
+                RemoveDB(copyId);
+                RootDomainDB = JSON.parse(localStorage.getItem(RootDomain)) || [];
+                document.querySelector('.State').innerText = `${RootDomainDB?.length || 0} | ${PackageList(RootDomainDB)?.length || 0}`;
+            }
+        }
+    });
+}
+
+
+// CopyLink 함수는 이전 답변의 개선된 코드를 그대로 사용합니다.
+async function CopyLink(el, CopyTitleSelector, noticeArea, CopyID) {
+    // ... (이전 답변의 CopyLink 개선 코드) ...
+    // 다만, 마지막 부분의 UI 업데이트 로직은 showCopyNotice 함수로 대체합니다.
+    // CopyLink 함수는 finalTitle과 copyLinks를 반환하도록 수정해야 합니다.
+
+    console.log(DomainRules.getTitleArea(el))
+    const downloadArea = DomainRules.getTitleArea?.(el);
+    const titleArea = DomainRules.getTitleArea?.(el);
+    let copyTitle = DomainRules.getCopyTitle?.(titleArea, DomainRules.selectors.copyTitle);
+    const coverImage = DomainRules.getCoverImage?.(downloadArea) || '';
+    const copyID = DomainRules.getCopyID?.(el, window.location.href);
+    console.log(downloadArea, copyTitle, coverImage, copyID)
+
+
+    copyTitle = byteLengthOf(copyTitle.replace(/amp;/g, '').trim(), 250);
+    // ... (이전 로직) ...
+    let finalTitle = FilenameConvert(nameCorrection(copyTitle));
+    // ... (이전 로직) ...
+
+    const linkItems = querySelectorAllRegex(downloadArea, SkipFilter, 'href', { notMatch: true });
+    console.log(linkItems)
+    let copyLinks = '';
+    const duplicateLink = [];
+    let urlTitle = finalTitle;
+
+    if (!linkItems?.length) {
+        return { finalTitle, copyLinks }
+    } else {
+        linkItems.forEach(async (linkEntry) => {
+            const target = linkEntry.href.replace(/\?site=.+/, '');
+            if (duplicateLink.indexOf(target) === -1) {
+                duplicateLink.push(target);
+                const isSkip = SkipClassNames.some(skip => linkEntry.classList.contains(skip));
+                const hasChildrenImg = [...linkEntry.children].some(e => e.matches('img'));
+
+                if (!isSkip && !hasChildrenImg) {
+                    copyLinks += target + "\n";
+                    await UpdateDB(target, urlTitle, linkEntry.getAttribute("id") || PageURL, CopyID);
+                }
+            }
+        });
+    }
+
+    if (coverImage && !/imagetwist\.com/.test(coverImage) && duplicateLink.indexOf(coverImage) === -1) {
+        copyLinks += coverImage;
+        await UpdateDB(coverImage, urlTitle, el.getAttribute("id") || PageURL, CopyID);
+    }
+
+    localStorage.setItem(RootDomain, JSON.stringify(RootDomainDB))
+    GetState = RootDomainDB
+    document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageList(RootDomainDB)?.length
+    if(!JSON.parse(localStorage.getItem('NewAdded'))){
+        localStorage.setItem('NewAdded', JSON.stringify(true))
+    }
+    return { finalTitle, copyLinks };
+}
+
+function PackageList(LinksDB){
+    if(LinksDB?.length > 0){
+        let uniqueTitle = [...new Set(LinksDB.map( x => x.T ))]
+        //console.log(uniqueTitle)
+        return uniqueTitle
+    }
+    else{
+        return []
+    }
+}
+
+//window.onhashchange = () => console.log(`Hash changed -> ${window.location.hash}`)
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function SearchMatch(Array, Search, ReplaceSTR) {
+    const SearchRegEx = new RegExp(Search, "i")
+    //console.log(SearchRegEx)
+    const MatchItem = Array.find((e) => e.match(SearchRegEx))
+    console.log('MatchItem:', MatchItem)
+    if(MatchItem){
+        if(ReplaceSTR){
+            return MatchItem.match(SearchRegEx).pop().replace(ReplaceSTR).trim()
+        }
+        else{
+            return MatchItem.match(SearchRegEx).pop().trim()
+        }
+    }
+    else{ return '' }
+}
+
+
+function UpdateDB(Target, UrlTitle, Source, CopyID){
+    searchDB = RootDomainDB.find( ({ U }) => U === Target )
+    if(searchDB){
+        searchDB.T = UrlTitle
+    }
+    else{
+        RootDomainDB.push({U : Target , T : UrlTitle, S : Source ? Source : '', I : CopyID ? CopyID : ''})
+    }
+    //console.log(RootDomainDB)
+    return RootDomainDB
+}
+
+function RemoveDB(CopyID){
+    RootDomainDB = RootDomainDB.filter( ({ I }) => I !== CopyID )
+    localStorage.setItem(RootDomain, JSON.stringify(RootDomainDB))
+}
+
+
+async function ClearUrls(){
+    document.querySelector('.ClearButton').style = "color: Purple !important;";
+    document.querySelector('.ClearButton').style.setProperty('font-size', ((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2) + 'rem', 'important');
+    localStorage.removeItem(RootDomain)
+    RootDomainDB = JSON.parse(localStorage.getItem(RootDomain)) || []
+    GetState = RootDomainDB
+    //console.log(GetState)
+    document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageList(RootDomainDB)?.length
+}
+
+async function ClipPaste(){
+    document.querySelector('.CopyButton').style = "color: Purple !important;";
+    document.querySelector('.CopyButton').style.setProperty('font-size', ((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2) + 'rem', 'important');
+    var ClipPasteData = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
+    JDownloaderDB(ClipPasteData)
+    //updateClipboard(ClipPasteData)
+}
+
+
+async function AddCopyIcon(node) {
+
+    const CopyTitleArea = node.querySelectorAll(DomainRules.selectors.copyTitle);
+
+    if (!CopyTitleArea?.length) {
+        // CopyTitleArea가 없을 때 의도적으로 오류를 발생시킵니다.
+        throw new TypeError("CopyTitleArea가 존재하지 않거나 배열이 아닙니다.");
+    }
+
+    const copiedUrls = Object.keys(localStorage).filter(k => k.includes(RootDomain) && /\d{4}-\d{2}-\d{2}/.test(localStorage.getItem(k)));
+    const iconBaseHtml = '<div class="IconSet" style="position: absolute;"></div>';
+    const copyIconHtml = '<span class="CopyIcon fa-solid fa-clone"></span>';
+    const minusIconHtml = '<span class="Minus fa-regular fa-square-minus"></span>';
+    const noticeHtml = '<div class="noticeArea" style="display: none; position: absolute;"></div>';
+
+
+    for (const el of CopyTitleArea) {
+        const modArea = el;
+        const titleArea = DomainRules.titleAreaSelector
+        ? modArea.closest(DomainRules.titleAreaSelector)
+        : modArea.parentElement;
+
+        if (!titleArea) continue;
+
+        // 아이콘 세트 삽입
+        if(titleArea.closest('div.post.hentry.sticky')) continue
+
+        titleArea.style.setProperty('position', 'relative');
+        titleArea.insertAdjacentHTML('beforeend', iconBaseHtml);
+        const iconSet = titleArea.querySelector('div.IconSet');
+
+        if (!iconSet) continue;
+
+        // 아이콘 삽입 및 스타일 적용
+        iconSet.insertAdjacentHTML('beforeend', copyIconHtml);
+        iconSet.style.setProperty('color', 'dodgerblue');
+        modArea.insertAdjacentHTML('afterend', noticeHtml);
+        addEventListeners(iconSet)
+
+        // 도메인별 스타일 적용
+        DomainRules.iconPosition(iconSet, modArea);
+
+        // ID 생성 및 아이콘 상태 업데이트
+        let copyID = DomainRules.getCopyID?.(modArea, window.location.href) || null;
+        console.log(copyID)
+        if (copyID) {
+            iconSet.insertAdjacentHTML('beforeend', minusIconHtml);
+            const copyIcon = titleArea.querySelector('.CopyIcon');
+            const minusIcon = iconSet.querySelector('.Minus');
+
+            copyIcon.setAttribute("id", copyID);
+            minusIcon.classList.add('NotCopyed');
+
+            if (copiedUrls.includes(copyID)) {
+                copyIcon.classList.add('Copyed');
+                minusIcon.classList.remove('NotCopyed');
+                if (DomainRules.selectors.visitedLink) {
+                    titleArea.querySelector(DomainRules.selectors.visitedLink)?.classList.add('Copyed');
+                }
+            }
+        }
+    }
+}
+
+function JDownloader(JdownloaderData, PackageName, sourceURL){
+    console.log(PackageName + '\n' + JdownloaderData)
+    if(JdownloaderData){
+        let data = new URLSearchParams();
+        data.append(`urls`, JdownloaderData);
+        if(sourceURL){
+            data.append(`source`, sourceURL)
+        }
+        data.append(`referer`, PageURL)
+        if(PackageName){
+            data.append(`package`, PackageName)
+        }
+        //console.log(data)
+        fetch('http://localhost:9666/flash/add', {
+            method: 'POST',
+            //mode: 'cors',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'Access-Control-Allow-Origin': 'http://localhost:9666',
+            },
+            body: data
+        })
+    }
+}
+
+function JDownloaderDB(LinksDB){
+    //console.log(LinksDB)
+    let uniqueTitle = [...new Set(LinksDB.map( x => x.T ))] || [...new Set(LinksDB.map( x => x.U ))]
+    //console.log('uniqueTitle : ', uniqueTitle, uniqueTitle?.length)
+    if(uniqueTitle?.length){
+        uniqueTitle.forEach(async x => {
+            JDownloader(GetMatchLinks(x, LinksDB), x, GetMatchSource(x, LinksDB))
+            await sleep(1000)
+        })
+    }
+}
+
+function GetMatchSource(text, LinksDB){
+    try {
+        let S = LinksDB.find(u => text.includes(u.T) && u.S)
+        return S ? S.S : false
+    } catch(err) {
+        console.log(err, text, LinksDB)
+    }
+}
+
+
+function GetMatchLinks(text, LinksDB){
+    try {
+        return LinksDB.filter(u => text.includes(u.T)).map(l => l.U).join('\n')
+    } catch(err) {
+        console.log(err, text, LinksDB)
+    }
+}
+
+function getCookie(name) {
+    var cookie = document.cookie;
+    if (document.cookie != "") {
+        var cookie_array = cookie.split("; ");
+        for ( var index in cookie_array) {
+            var cookie_name = cookie_array[index].split("=")
+            if (cookie_name[0] == name) {
+                return cookie_name[1];
+            }
+        }
+    }
+    return null;
+}
+
+function RefreshIcon(){
+    GetDPI = window.devicePixelRatio
+    //var DefaultFontSize = getDefaultFontSize()
+    DefaultFontSize = parseInt(getComputedStyle(document.documentElement).fontSize)
+    console.log('GetDPI: ', GetDPI, 'DefaultFontSize: ', DefaultFontSize)
+    const centerBox = document.querySelector("div.CenterBox");
+    centerBox.style.setProperty('font-size', ((1/(GetDPI/1.5))*(16/DefaultFontSize)) + 'rem', 'important');
+    document.querySelector('.State').style.setProperty('font-size', ((1/(GetDPI/1.5))*0.65*(16/DefaultFontSize)).toFixed(2) + 'rem', 'important');
+    document.querySelector('.AllCopyState').style.setProperty('font-size', ((1/(GetDPI/1.5))*0.65*(16/DefaultFontSize)).toFixed(2) + 'rem', 'important');
+    document.querySelector(':root').style.setProperty('--IconSize', ((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2) + 'rem')
+    //console.log(document.querySelector(':root'))
+
+}
+
+let DomainRules
+document.addEventListener("DOMContentLoaded", () => {
+    let cookieCheck = getCookie("ClearCopyed")
+    if(!cookieCheck || cookieCheck != "Y"){
+        console.log('ClearCopyed')
+        ClearCopyed()
+        setClearCopyed("ClearCopyed", "Y", 1)
+    }
+
+    DomainRules = getDomainConfig(RootDomain);
+    if (!DomainRules) {
+        console.error("해당 도메인에 대한 설정이 없습니다.");
+        return
+    }
+
+
+    FontAwesomeCSS()
+
+    MakeIcon()
+
+    try {
+        AddCopyIcon(document.body);
+    } catch (error) {
+        let errorMessage = "아이콘 추가 중 예상치 못한 오류가 발생했습니다.";
+
+        // 오류 종류에 따라 메시지를 더 구체적으로 설정합니다.
+        if (error instanceof TypeError) {
+            errorMessage = error.message;
+        } else if (error instanceof ReferenceError) {
+            errorMessage = "아이콘 추가에 필요한 함수 또는 변수가 정의되지 않았습니다.";
+        }
+        // 오류 메시지와 함께 상세 정보(스택)를 출력합니다.
+        console.error(errorMessage);
+        console.error("오류 상세 정보:", error.stack);
+    }
+
+    const myObserver = new ResizeObserver(entries => {
+        RefreshIcon('ResizeObserver')
+        //console.log(entries)
+    });
+
+    window.visualViewport.addEventListener("resize", function(e){
+        //console.log(e)
+        RefreshIcon('Window Resize Event')
+    })
+    myObserver.observe(document.querySelector(".ToTop"))
+
+
+    document.addEventListener("AutoPagerize_DOMNodeInserted", function (event) {
+        //console.log(event.target)
+        let node = event.target;
+        AddCopyIcon(node)
+    }, false);
+
+}, { once: true })
+
+
+
+window.addEventListener('storage', (e) => {
+
+    RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
+    //console.log("window is active!" )
+    GetState = RootDomainDB
+    if(document.querySelector('.CenterBox')){
+        document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageList(RootDomainDB)?.length
+        document.querySelector('.ClearButton').style = "color: dodgerblue !important;";
+        document.querySelector('.CopyButton').style = "color: dodgerblue !important;";
+    }
+
+});
+
+
+
+
+
+async function AllCopy(){
+    document.querySelector('.AllCopy').style = "color: White !important;";
+
+    let AllItems = document.querySelectorAll('.CopyIcon')
+    for (let i = 0; i < AllItems.length; i++) {
+        AllItems[i].click()
+        var d = new Date(Date.now())
+        var n = d.toLocaleTimeString()
+        //console.log(n)
+        document.querySelector('.AllCopyState').innerText = i+1 + '/ ' + AllItems.length
+        await sleep(100)
+    }
+}
+
+
+function getNextSibling (elem, selector) {
+
+    // Get the next sibling element
+    var sibling = elem.nextElementSibling;
+
+    // If there's no selector, return the first sibling
+    if (!selector) return sibling;
+
+    // If the sibling matches our selector, use it
+    // If not, jump to the next sibling and continue the loop
+    while (sibling) {
+        if (sibling.matches(selector)) return sibling;
+        sibling = sibling.nextElementSibling
+    }
+};
+
+
+function getPreviousSibling (elem, selector) {
+
+    // Get the next sibling element
+    var sibling = elem.previousElementSibling;
+
+    // If there's no selector, return the first sibling
+    if (!selector) return sibling;
+
+    // If the sibling matches our selector, use it
+    // If not, jump to the next sibling and continue the loop
+    while (sibling) {
+        if (sibling.matches(selector)) return sibling;
+        sibling = sibling.previousElementSibling;
+    }
+
+};
+
+
+
