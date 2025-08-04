@@ -503,26 +503,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         Title = `${Featuring} - ${Title}`;
     }
 
-    const infoLinesFinalTitle = `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim();
-    console.log({ CopyTitle, infoLinesFinalTitle});
-    //preferJapanese: true 일 때, 두 문장을 비교하여 일본어가 많이 포함된 경우 우선순위를 두고, 그렇지 않으면 원본 제목을 사용합니다.
-    if(preferJapanese){
-        return compareJapaneseCharacters(CopyTitle, infoLinesFinalTitle);
-    }    
-    return compareSentencesByWordMatch(CopyTitle, infoLinesFinalTitle);
-}
-
-
-function parseForumTitle(infoLines, rawTitle) {
-    const {
-        preferJapanese = false,
-        skipKeywords = [],
-        rawMode = false,
-    } = options;
-
-    rawTitle = copyTitle.replace(/amp;/gi, '').trim();
-
-    const cleanedinfoLines = infoLines
+    const cleanedinfoLines = infoLines.join('\n')
         .replace(/(Actress|Model|Label|Circle|Featuring)\s*:?/gi, '')
         .replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n')
         .replace(/Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re:/gi, '')
@@ -531,7 +512,30 @@ function parseForumTitle(infoLines, rawTitle) {
         .split('\n')
         .filter(line => line.trim() && !/^(http|Download|Duration|Resolution|Categories|About)/i.test(line));
 
-    const finalTitle = extractInfoFromText(cleanedinfoLines, rawTitle, ...options)
+
+    const infoLinesFinalTitle = `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim();
+    const InfofinalTitle = compareSentencesByWordMatch(cleanedinfoLines[0], infoLinesFinalTitle)
+
+    console.log({ CopyTitle, infoLinesFinalTitle});
+    //preferJapanese: true 일 때, 두 문장을 비교하여 일본어가 많이 포함된 경우 우선순위를 두고, 그렇지 않으면 원본 제목을 사용합니다.
+    if(preferJapanese){
+        return compareJapaneseCharacters(CopyTitle, InfofinalTitle);
+    }    
+    return compareSentencesByWordMatch(CopyTitle, InfofinalTitle);
+}
+
+
+function parseForumTitle(infoLines, rawTitle, options = {}) {
+    const {
+        preferJapanese = false,
+        skipKeywords = [],
+        rawMode = false,
+    } = options;
+
+    rawTitle = rawTitle.replace(/amp;/gi, '').replace(/^Re:/i, '').trim();
+
+    
+    const finalTitle = extractInfoFromText(infoLines, rawTitle, ...options)
     const TitleID = finalTitle?.match(SearchID)?.[1] || '';
     const Title = finalTitle?.match(SearchID)?.pop()?.trim() || finalTitle;
     console.log({ finalTitle, TitleID, Title });
