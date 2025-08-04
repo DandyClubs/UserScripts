@@ -234,48 +234,50 @@ const DomainHandlers = {
             copyTitle: '.entry-title a',
             visitedLink: 'h2.entry-title a',
         },
-        getTitleArea: (el) => el.closest('.inside-article'),
-        getCopyTitle: (area, selector) => area.querySelector(selector)?.textContent.trim(),
-        getCoverImage: (area) => area.querySelector('p img')?.getAttribute('data-src') || '',
-        getCopyID: (el) => el.href,
+        getPostArea: (el) => el.closest('.inside-article'),
+        GetInfo: (relativeArea, selector) => relativeArea.querySelector(selector)?.textContent.trim(),
+        getCoverImage: (downloadArea) => downloadArea.querySelector('p img')?.getAttribute('data-src') || '',
+        getCopyID: (relativeArea) => relativeArea.querySelector('.entry-title a')?.href,
         iconPosition: (iconSet, modArea) => {
             const offset = getRelativeOffset(modArea);
             const iconSetOffset = getRelativeOffset(iconSet);
             iconSet.style.setProperty('top', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
             iconSet.style.setProperty('right', `${(-iconSetOffset.width / 4).toFixed(0)}px`);
-        },
-        infoSelector: 'div.inside-article',
+        },        
+        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('div.inside-article') || '',
+        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('div.message-header') || '',
     },
     'pornbb\\.org': {
         selectors: {
             copyTitle: 'div.search-post-subj a.postdetails, span.postdetails.subject',
             visitedLink: null,
         },
-        getTitleArea: (el) => el.closest('div.postbody'),
-        getCopyTitle: (el, selector) => parseForumTitle(el.closest('div.messageinfo'), selector),
-        getCopyID: (el, pageURL) => {
-            if (/newsearch\.php/.test(pageURL)) return window.location.origin + '/' + el.querySelector('a')?.href;
+        getPostArea: (el) => el.closest('div.postbody'),
+        GetInfo: (relativeArea, selector) => parseForumTitle(relativeArea, selector),
+        getCopyID: (relativeArea, pageURL) => {
+            if (/newsearch\.php/.test(pageURL)) return window.location.origin + '/' + relativeArea.querySelector('a')?.href;
             if (/\.html#\d+/.test(pageURL)) return pageURL;
-            return window.location.origin + '/' + el.querySelector('a.inl-bl')?.href;
+            return window.location.origin + '/' + relativeArea.querySelector('a.inl-bl')?.href;
         },
         iconPosition: (iconSet) => {
             iconSet.style.setProperty('z-index', '99999');
-        },
-        infoSelector: '.content',
+        },            
+        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.content') || '',
+        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('messageinfo') || '',
     },
     'x-idol\\.net': {
         selectors: {
             copyTitle: 'h2.post-title.entry-title a',
             visitedLink: 'h2.post-title.entry-title a',
         },
-        getTitleArea: (el) => el.closest('div.post.hentry:not(.sticky)')?.querySelector('div.entry') || el.closest('div.post.hentry:not(.sticky)'),
-        getCopyTitle: (area, selector) => {
-            const rawTitle = area.closest('div.post.hentry:not(.sticky)')?.querySelector(selector)?.textContent.trim() || '';
-            const infoRaw = area.closest('div.post.hentry:not(.sticky)')?.querySelector('div.entry-content')?.innerText || '';
+        getPostArea: (el) => el.closest('div.post.hentry:not(.sticky)')?.querySelector('div.entry') || el.closest('div.post.hentry:not(.sticky)'),
+        GetInfo: (relativeArea, selector) => {
+            const rawTitle = relativeArea?.querySelector(selector)?.textContent.trim() || '';
+            const infoRaw = relativeArea?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
             return extractInfoFromText(infoLines, rawTitle, { rawMode: true });
         },
-        getCopyID: (el) => el?.getAttribute('href'),
+        getCopyID: (relativeArea) => relativeArea?.querySelector('h2.post-title.entry-title a')?.getAttribute('href'),
         iconPosition: (iconSet, modArea) => {
             const offset = getRelativeOffset(modArea);
             const iconSetOffset = getRelativeOffset(iconSet);
@@ -284,17 +286,18 @@ const DomainHandlers = {
             iconSet.style.setProperty('top', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
             iconSet.style.setProperty('right', `${(-iconSetOffset.width / 5).toFixed(0)}px`);
         },
-        infoSelector: '.entry-content',
+        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.entry-content') || '',
+        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('div.message-header') || '',
     },
     'forumophilia\\.com': {
         selectors: {
             copyTitle: 'div.messageinfo div.message-header div div.post_subj div.postdetails > a.bold, .messageinfo div.message-header div div.post_subj span.postdetails',
             visitedLink: null,
         },
-        getTitleArea: (el) => el.closest('div.messageinfo'),
-        getCopyTitle: (area, selector) => parseForumTitle(area, selector),
-        getCopyID: (el) => {
-            const anchor = el.closest('.postdetails')?.querySelector('a.bold');
+        getPostArea: (el) => el.closest('div.messageinfo'),
+        GetInfo: (relativeArea, selector) => parseForumTitle(relativeArea, selector),
+        getCopyID: (relativeArea) => {
+            const anchor = relativeArea.closest('.postdetails')?.querySelector('a.bold');
             return anchor ? window.location.origin + '/' + anchor.getAttribute('href') : null;
         },
         iconPosition: (iconSet, modArea) => {
@@ -303,16 +306,17 @@ const DomainHandlers = {
             iconSet.style.setProperty('top', `${(offset.height / 5).toFixed(0)}px`);
             iconSet.style.setProperty('right', `${(-getRelativeOffset(iconSet).width / 4).toFixed(0)}px`);
         },
-        infoSelector: '.postbody',
+        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.postbody') || '',
+        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('div.message-header') || '',
     },
     'sexfetishforum\\.com': {
         selectors: {
             copyTitle: 'div.post_wrapper div.postarea div.flow_hidden div.keyinfo h5',
             visitedLink: null,
         },
-        getTitleArea: (el) => el.closest('div.postarea'),
-        getCopyTitle: (area, selector) => parseForumTitle(area.querySelector(DomainRules.infoSelector), selector),
-        getCopyID: (el) => el.querySelector('div.keyinfo > [id^="subject_"] > a')?.href || '',
+        getPostArea: (el) => el.closest('div.postarea'),
+        GetInfo: (relativeArea, selector) => parseForumTitle(relativeArea, selector),
+        getCopyID: (relativeArea) => relativeArea.querySelector('div.keyinfo > [id^="subject_"] > a')?.href || '',
         iconPosition: (iconSet) => {
             const relativeArea = iconSet.closest('.flow_hidden');
             const relativeAreaPosition = getElementMetrics(relativeArea, { mode: 'relative' });
@@ -320,44 +324,43 @@ const DomainHandlers = {
             iconSet.style.setProperty('top', `${(relativeAreaPosition.height / 2 - iconSetPosition.height) / 2}px`);
             iconSet.style.setProperty('right', `${iconSetPosition.width * 2}px`);
         },
-        infoSelector: '.post',
-        relativeSelector: '.flow_hidden',
+        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.post') || '',
+        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('.flow_hidden') || '', 
     },
     'planetsuzy\\.org': {
         selectors: {
-            copyTitle: 'table.tborder > tbody > tr > td > div.smallfont > img.inlineimg',
+            copyTitle: 'table.tborder tbody tr td[id^="td_post_"].alt1 div.smallfont',
             visitedLink: null,
         },
-        getTitleArea: (el) => el.closest('table.tborder'),
-        getCopyTitle: (area, selector) => parseForumTitle(area, selector),
-        getCopyID: (el) => window.location.origin + '/' + /t(=)?\d+/.exec(window.location.href)[0] + '-' + modArea.closest('table.tborder').id,
-        iconPosition: (iconSet, titleArea) => {
-            const modArea = iconSet.closest('.tborder').querySelector('td.alt1 > div');
-            const offset = getRelativeOffset(titleArea);
-            const iconSetOffset = getRelativeOffset(iconSet);
-            iconSet.style.setProperty('--SetTop', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
-            iconSet.style.setProperty('--SetRight', `${(-iconSetOffset.width / 4).toFixed(0)}px`);
+        getPostArea: (el) => el.closest('table.tborder'),
+        GetInfo: (relativeArea, selector) => parseForumTitle(relativeArea, selector),
+        getCopyID: (relativeArea) => relativeArea.closest('table.tborder').querySelector('td.thead a[id^="postcount')?.href,
+        iconPosition: (iconSet) => {                        
+            const iconSetPosition = getElementMetrics(iconSet, { mode: 'bounding' });
+            iconSet.style.setProperty('top', `0px`);
+            iconSet.style.setProperty('right', `${iconSetPosition.width}px`);
         },
-        infoSelector: 'div.alt1',
+        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('div[id^="post_message_"]') || '',
+        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('td.alt1 div.smallfont') || '',
     },
     'porn-w\\.org': {
         selectors: {
             copyTitle: 'div.row.list-row.genmed div.postdetails a.topictitle',
             visitedLink: null,
-        },
-        getTitleArea: (el) => el.closest('div.row.list-row.genmed'),
-        getCopyTitle: (area, selector) => parseForumTitle(area.closest('div.row.list-row'), selector),
-        getCopyID: (el) => modArea.closest('div.row.list-row.genmed')?.querySelector('a.topictitle')?.href || '',
+        },        
+        getPostArea: (el) => el.closest('div.row.list-row.genmed'),
+        GetInfo: (relativeArea, selector) => parseForumTitle(relativeArea, selector),
+        getCopyID: (relativeArea) => relativeArea.querySelector('a.topictitle')?.href || '',
         iconPosition: (iconSet, titleArea) => {
             const offset = getRelativeOffset(titleArea);
             const iconSetOffset = getRelativeOffset(iconSet);
             iconSet.style.setProperty('top', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
             iconSet.style.setProperty('right', `${(-iconSetOffset.width / 4).toFixed(0)}px`);
         },
-        infoSelector: '.row.list-row',
+        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.row.list-row') || '',
+        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('div.row.list-row.genmed') || '',
     },
 };
-
 
 const getDomainConfig = (rootDomain) => {
     for (const [pattern, config] of Object.entries(DomainHandlers)) {
@@ -481,16 +484,14 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
 
 function parseForumTitle(downloadArea, selector) {
-    console.log('parseForumTitle:', downloadArea, selector);
-    const hostname = location.hostname;
+    console.log('parseForumTitle:', downloadArea, selector);    
     const domainKey = Object.keys(DomainHandlers).find(pattern => new RegExp(pattern).test(PageURL));
     const domainConfig = DomainHandlers[domainKey] || {};
 
     let titleText = downloadArea.querySelector(selector)?.textContent || '';
     titleText = titleText.replace(/amp;/gi, '').trim();
-
-    const infoSelector = domainConfig.infoSelector || 'div';
-    const rawText = downloadArea.closest(infoSelector)?.innerText || '';
+    
+    const rawText = downloadArea.innerText || '';
 
     const cleaned = rawText
         .replace(/(Actress|Model|Label|Circle|Featuring)\s*:?/gi, '')
@@ -504,11 +505,12 @@ function parseForumTitle(downloadArea, selector) {
     const finalTitle = extractInfoFromText(cleaned, titleText);
     const TitleID = finalTitle?.match(SearchID)?.[1] || '';
     const Title = finalTitle?.match(SearchID)?.pop()?.trim() || finalTitle;
+    console.log('Final Title:', finalTitle, 'TitleID:', TitleID, 'Title:', Title);
 
     return TitleID && Title ? `${TitleID} ${Title}` : finalTitle;
 }
 
-async function showCopyNotice(noticeArea, copyTitleArea, finalTitle, copyLinks) {
+async function showCopyNotice(noticeArea, relativeArea, finalTitle, copyLinks) {
     console.log('finalTitle:', finalTitle, '\ncopyLinks:', copyLinks)
     GetDPI = window.devicePixelRatio;
     DefaultFontSize = getDefaultFontSize();
@@ -516,7 +518,7 @@ async function showCopyNotice(noticeArea, copyTitleArea, finalTitle, copyLinks) 
 
     $(noticeArea).css({
         "--NFontSize": ((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2) + 'rem',
-        "top": isCospl ? getRelativeOffset(copyTitleArea).top + getRelativeOffset(copyTitleArea).height : getRelativeOffset(copyTitleArea).height,
+        "top": isCospl ? getRelativeOffset(relativeArea).top + getRelativeOffset(relativeArea).height : getRelativeOffset(relativeArea).height,
         "left": 0,
     });
 
@@ -542,17 +544,16 @@ function addEventListeners(container) {
 
             const copyIcon = event.target;
             const copyId = copyIcon.getAttribute("id");
-            noticeArea = copyIcon.closest('article, .entry, .postbody, .messageinfo, .postrow, .inside-article')?.querySelector('.noticeArea') || DomainRules.getTitleArea?.(copyIcon)?.querySelector('.noticeArea')
-            const copyTitleArea = copyIcon.parentElement;
+            const relativeArea = DomainRules.relativeSelector ? copyIcon.closest(DomainRules.relativeSelector)?.querySelector('.noticeArea') : copyIcon.parentElement?.(copyIcon)?.querySelector('.noticeArea')
+            noticeArea = copyIcon.closest('article, .entry, .postbody, .messageinfo, .postrow, .inside-article')?.querySelector('.noticeArea') || relativeArea
+            
 
             copyIcon.style.setProperty('color', 'Orange', 'important');
             copyIcon.classList.add('Copyed');
 
-            const CopyTitleSelector = DomainRules.selectors.copyTitle;
-            console.log(copyIcon, CopyTitleSelector, noticeArea, copyId)
-            const { finalTitle, copyLinks } = await CopyLink(copyIcon, CopyTitleSelector, noticeArea, copyId);
+            const { finalTitle, copyLinks } = await CopyLink(copyIcon, noticeArea, copyId);
 
-            await showCopyNotice(noticeArea, copyTitleArea, finalTitle, copyLinks);
+            await showCopyNotice(noticeArea, relativeArea, finalTitle, copyLinks);
 
             getNextSibling(copyIcon, '.Minus')?.classList.remove('NotCopyed');
 
@@ -569,9 +570,7 @@ function addEventListeners(container) {
 
         else if (event.target.matches('.Minus')) {
             event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation();
-
+            
             const minusIcon = event.target;
             const copyIcon = getPreviousSibling(minusIcon, '.CopyIcon');
             const copyId = copyIcon?.getAttribute("id");
@@ -595,14 +594,23 @@ function addEventListeners(container) {
 }
 
 
-async function CopyLink(el, CopyTitleSelector, noticeArea, CopyID) {
+async function CopyLink(el, noticeArea, CopyID) {
     console.groupCollapsed(`[CopyLink] Start`);
-    console.log({ el, CopyTitleSelector, noticeArea, CopyID });
+    console.log({ el, noticeArea, CopyID });
     console.groupEnd();
-    const downloadArea = DomainRules.getTitleArea?.(el);
-    const titleArea = DomainRules.getTitleArea?.(el);
-    let copyTitle = DomainRules.getCopyTitle?.(titleArea, DomainRules.selectors.copyTitle);
-    const coverImage = DomainRules.getCoverImage?.(downloadArea) || '';
+
+    // DomainHandlers에 relativeSelector가 정의되어 있으면 해당 선택자를 사용하고,
+    // 그렇지 않으면 .IconSet의 부모 요소를 relativeArea로 설정
+    const relativeArea = DomainRules.relativeSelector(el)    
+    if (!relativeArea) return 
+
+    // relativeArea 내에서 infoSelector를 사용하여 downloadArea를 찾음
+    const downloadArea = DomainRules.infoSelector(el)
+    if (!downloadArea) return 
+
+    const copyTitle = DomainRules.GetInfo(relativeArea, DomainRules.selectors.copyTitle);
+    const coverImage = DomainRules.getCoverImage?.(downloadArea) || '';    
+    
     console.groupCollapsed(`[CopyLink] Processing: ${CopyID || 'No ID'}`);
     console.log({ downloadArea, copyTitle, coverImage, CopyID });
     console.groupEnd();
@@ -706,7 +714,7 @@ function applyClickEffect(selector) {
 }
 
 
-async function ClearUrls() {
+async function clearDB() {
     applyClickEffect('.ClearButton');
     localStorage.removeItem(RootDomain)
     RootDomainDB = JSON.parse(localStorage.getItem(RootDomain)) || []
@@ -714,10 +722,10 @@ async function ClearUrls() {
     document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageList(RootDomainDB)?.length
 }
 
-async function ClipPaste() {
+async function sendJD() {
     applyClickEffect('.CopyButton');
-    var ClipPasteData = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
-    JDownloaderDB(ClipPasteData)
+    var sendJDData = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
+    JDownloaderDB(sendJDData)
 }
 
 function MakeIcon() {
@@ -745,30 +753,24 @@ function MakeIcon() {
         {
             className: 'ClearButton far fa-minus-square', event: (event) => {
                 event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
                 if (JSON.parse(localStorage.getItem('NewAdded')) && window.confirm("Not Yet Copy! Clear?")) {
                     localStorage.setItem('NewAdded', JSON.stringify(false));
-                    ClearUrls();
+                    clearDB();
                 } else if (!JSON.parse(localStorage.getItem('NewAdded'))) {
-                    ClearUrls();
+                    clearDB();
                 }
             }
         },
         {
             className: 'CopyButton fas fa-paste', event: (event) => {
                 event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
                 localStorage.setItem('NewAdded', JSON.stringify(false));
-                ClipPaste();
+                sendJD();
             }
         },
         {
             className: 'AllCopy fa-solid fa-box', event: (event) => {
                 event.preventDefault();
-                event.stopPropagation();
-                event.stopImmediatePropagation();
                 AllCopy();
             }
         },
@@ -793,7 +795,6 @@ function MakeIcon() {
 
 
 async function AddCopyIcon(node) {
-
     const CopyTitleArea = node.querySelectorAll(DomainRules.selectors.copyTitle);
 
     if (!CopyTitleArea?.length) {
@@ -806,18 +807,15 @@ async function AddCopyIcon(node) {
     const minusIconHtml = '<span class="Minus fa-regular fa-square-minus"></span>';
     const noticeHtml = '<div class="noticeArea" style="display: none; position: absolute;"></div>';
 
-
     for (const el of CopyTitleArea) {
-        const modArea = el;
-        const titleArea = DomainRules.titleAreaSelector
-            ? modArea.closest(DomainRules.titleAreaSelector)
-            : modArea.parentElement;
+        const PostArea = DomainRules.getPostArea(el) || el        
 
-        if (!titleArea) continue;
+        if (!PostArea) continue;
 
-        if (titleArea.closest('div.post.hentry.sticky')) continue
+        // DomainRules에 relativeSelector가 정의되어 있으면 해당 선택자를 사용
+        const relativeArea = DomainRules.relativeSelector ? el.closest(DomainRules.relativeSelector) : PostArea;
 
-        const relativeArea = DomainRules.relativeSelector ? modArea.closest(DomainRules.relativeSelector) : titleArea
+        if (!relativeArea) continue;
 
         relativeArea.style.setProperty('position', 'relative');
         relativeArea.insertAdjacentHTML('beforeend', iconBaseHtml);
@@ -825,12 +823,14 @@ async function AddCopyIcon(node) {
 
         if (!iconSet) continue;
 
+        console.log('PostArea:', PostArea, 'relativeArea:', relativeArea, 'iconSet:', iconSet);
+
         iconSet.insertAdjacentHTML('beforeend', copyIconHtml);
         iconSet.style.setProperty('color', 'dodgerblue');
         iconSet.insertAdjacentHTML('afterend', noticeHtml);
-        addEventListeners(iconSet)
+        addEventListeners(iconSet);
 
-        DomainRules.iconPosition(iconSet, titleArea);
+        DomainRules.iconPosition(iconSet, relativeArea);
 
         let copyID = DomainRules.getCopyID?.(relativeArea, window.location.href) || null;
 
