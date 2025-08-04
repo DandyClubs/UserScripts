@@ -8,7 +8,6 @@
 // @include      /pornbb\.org\/newsearch\.php/
 // @include      /pornbb\.org\/.*\.html/
 // @include      /forumophilia\.com/
-// @include      /akiba-online\.com/
 // @include      /sexfetishforum\.com\/index.php\?topic/
 // @include      http://www.planetsuzy.org/*.html
 // @include      /planetsuzy\.org\/showthread\.php/
@@ -313,6 +312,145 @@ const SkipMakers = [
 // 사용자 제공 정규식
 const ReleaseDateRegex = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/;
 
+
+const DomainHandlers = {
+    'gm\\d+\\.xyz': {
+        selectors: {
+            copyTitle: '.entry-title a',
+            visitedLink: 'h2.entry-title a',
+        },
+        getTitleArea: (el) => el.closest('.inside-article'),
+        getCopyTitle: (area, selector) => area.querySelector(selector)?.textContent.trim(),
+        getCoverImage: (area) => area.querySelector('p img')?.getAttribute('data-src') || '',
+        getCopyID: (modArea) => /gm\d+\.xyz\/\d+\.html$/.test(window.location.href) ? window.location.href : modArea.querySelector('a')?.href,
+        iconPosition: (iconSet, modArea) => {
+            const offset = getRelativeOffset(modArea);
+            const iconSetOffset = getRelativeOffset(iconSet);
+            iconSet.style.setProperty('top', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
+            iconSet.style.setProperty('right', `${(-iconSetOffset.width / 4).toFixed(0)}px`);
+        },
+        infoSelector: 'div.inside-article',
+    },
+    'pornbb\\.org': {
+        selectors: {
+            copyTitle: 'div.search-post-subj a.postdetails, span.postdetails.subject',
+            visitedLink: null,
+        },
+        getTitleArea: (el) => el.closest('div.postbody'),
+        getCopyTitle: (el, selector) => parseForumTitle(el.closest('div.messageinfo'), selector),
+        getCopyID: (modArea, pageURL) => {
+            if (/newsearch\.php/.test(pageURL)) return window.location.origin + '/' + modArea.querySelector('a')?.href;
+            if (/\.html#\d+/.test(pageURL)) return pageURL;
+            return window.location.origin + '/' + modArea.querySelector('a.inl-bl')?.href;
+        },
+        iconPosition: (iconSet) => {
+            iconSet.style.setProperty('z-index', '99999');
+        },
+        infoSelector: '.content',
+    },
+    'x-idol\\.net': {
+        selectors: {
+            copyTitle: 'h2.post-title.entry-title a',
+            visitedLink: 'h2.post-title.entry-title a',
+        },
+        getTitleArea: (el) => el.closest('div.post.hentry:not(.sticky)')?.querySelector('div.entry') || el.closest('div.post.hentry:not(.sticky)'),
+        getCopyTitle: (area, selector) => {
+            const rawTitle = area.closest('div.post.hentry:not(.sticky)')?.querySelector(selector)?.textContent.trim() || '';
+            const infoRaw = area.closest('div.post.hentry:not(.sticky)')?.querySelector('div.entry-content')?.innerText || '';
+            const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
+            return extractInfoFromText(infoLines, rawTitle, { rawMode: true });
+        },
+        getCopyID: (modArea) => modArea?.getAttribute('href'),
+        iconPosition: (iconSet, modArea) => {
+            const offset = getRelativeOffset(modArea);
+            const iconSetOffset = getRelativeOffset(iconSet);
+            iconSet.style.setProperty('vertical-align', window.getComputedStyle(modArea).getPropertyValue('vertical-align'));
+            iconSet.style.setProperty('line-height', window.getComputedStyle(modArea).getPropertyValue('line-height'));
+            iconSet.style.setProperty('top', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
+            iconSet.style.setProperty('right', `${(-iconSetOffset.width / 5).toFixed(0)}px`);
+        },
+        infoSelector: '.entry-content',
+    },
+    'forumophilia\\.com': {
+        selectors: {
+            copyTitle: 'div.messageinfo div.message-header div div.post_subj div.postdetails > a.bold, .messageinfo div.message-header div div.post_subj span.postdetails',
+            visitedLink: null,
+        },
+        getTitleArea: (el) => el.closest('div.messageinfo'),
+        getCopyTitle: (area, selector) => parseForumTitle(area, selector),
+        getCopyID: (modArea) => {
+            const anchor = modArea.closest('.postdetails')?.querySelector('a.bold');
+            return anchor ? window.location.origin + '/' + anchor.getAttribute('href') : null;
+        },
+        iconPosition: (iconSet, modArea) => {
+            const titleArea = modArea.closest('.message-header');
+            const offset = getRelativeOffset(titleArea);
+            iconSet.style.setProperty('top', `${(offset.height / 5).toFixed(0)}px`);
+            iconSet.style.setProperty('right', `${(-getRelativeOffset(iconSet).width / 4).toFixed(0)}px`);
+        },
+        infoSelector: '.postbody',
+    },
+    'sexfetishforum\\.com': {
+        selectors: {
+            copyTitle: 'div.post_wrapper div.postarea div.flow_hidden div.keyinfo h5',
+            visitedLink: null,
+        },
+        getTitleArea: (el) => el.closest('div.postarea'),
+        getCopyTitle: (area, selector) => parseForumTitle(area.closest('div.messageinfo'), selector),
+        getCopyID: (modArea) => modArea.closest('div.post')?.id || '',
+        iconPosition: (iconSet) => {
+            const titleArea = iconSet.closest('.postarea');
+            iconSet.style.setProperty('top', `${getRelativeOffset(iconSet).height}px`);
+            iconSet.style.setProperty('left', `${getRelativeOffset(titleArea.querySelector('.keyinfo')).width}px`);
+        },
+        infoSelector: '.post',
+    },
+    'planetsuzy\\.org': {
+        selectors: {
+            copyTitle: 'table.tborder > tbody > tr > td > div.smallfont > img.inlineimg',
+            visitedLink: null,
+        },
+        getTitleArea: (el) => el.closest('table.tborder'),
+        getCopyTitle: (area, selector) => parseForumTitle(area, selector),
+        getCopyID: (modArea) => window.location.origin + '/' + /t(=)?\d+/.exec(window.location.href)[0] + '-' + modArea.closest('table.tborder').id,
+        iconPosition: (iconSet) => {
+            const modArea = iconSet.closest('.tborder').querySelector('td.alt1 > div');
+            const offset = getRelativeOffset(modArea);
+            const iconSetOffset = getRelativeOffset(iconSet);
+            iconSet.style.setProperty('--SetTop', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
+            iconSet.style.setProperty('--SetRight', `${(-iconSetOffset.width / 4).toFixed(0)}px`);
+        },
+        infoSelector: 'div.alt1',
+    },
+    'porn-w\\.org': {
+        selectors: {
+            copyTitle: 'div.row.list-row.genmed div.postdetails a.topictitle',
+            visitedLink: null,
+        },
+        getTitleArea: (el) => el.closest('div.row.list-row.genmed'),
+        getCopyTitle: (area, selector) => parseForumTitle(area.closest('div.row.list-row'), selector),
+        getCopyID: (modArea) => modArea.closest('div.row.list-row.genmed')?.querySelector('a.topictitle')?.href || '',
+        iconPosition: (iconSet, modArea) => {
+            const offset = getRelativeOffset(modArea);
+            const iconSetOffset = getRelativeOffset(iconSet);
+            iconSet.style.setProperty('top', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
+            iconSet.style.setProperty('right', `${(-iconSetOffset.width / 4).toFixed(0)}px`);
+        },
+        infoSelector: '.row.list-row',
+    },
+};
+
+
+const getDomainConfig = (rootDomain) => {
+    for (const [pattern, config] of Object.entries(DomainHandlers)) {
+        if (new RegExp(pattern).test(rootDomain)) {
+            return config;
+        }
+    }
+    return null;
+};
+
+
 function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
     const {
         preferJapanese = false,
@@ -321,9 +459,9 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
     } = options;
 
     let CopyTitle = fallbackTitle
-    .replace(/^(UNCENSORED|CENSORED)\s/, '')
-    .replace(/amp;/g, '')
-    .trim();
+        .replace(/^(UNCENSORED|CENSORED)\s/, '')
+        .replace(/amp;/g, '')
+        .trim();
 
     if (rawMode) return CopyTitle; // ← 여기서 바로 반환
 
@@ -396,10 +534,10 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
                 // 정규식에서 그룹별 분리 가능하면 가공도 가능
                 const ymdMatch = dateMatch[0].match(/(19|20)?\d{2}[.\/-]([0]?[1-9]|1[0-2])[.\/-]([0]?[1-9]|[12][0-9]|3[01])/);
                 if (ymdMatch) {
-                    const year = ymdMatch[0].slice(0,4);
-                    const month = ymdMatch[0].slice(5,7).replace(/^0/, '');
-                    const day = ymdMatch[0].slice(8,10).replace(/^0/, '');
-                    ReleaseDate = `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')} `;
+                    const year = ymdMatch[0].slice(0, 4);
+                    const month = ymdMatch[0].slice(5, 7).replace(/^0/, '');
+                    const day = ymdMatch[0].slice(8, 10).replace(/^0/, '');
+                    ReleaseDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} `;
                 } else {
                     // 매칭된 문자열 그대로 저장
                     ReleaseDate = dateMatch[0].trim() + ' ';
@@ -430,181 +568,32 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 }
 
 
-function parseForumTitle(DownloadArea, selector) {
-    const isPlanetsuzy = /planetsuzy\.org/.test(window.location.host);
+function parseForumTitle(downloadArea, selector) {
+    const hostname = location.hostname;
+    const domainKey = Object.keys(DomainHandlers).find(pattern => new RegExp(pattern).test(PageURL));
+    const domainConfig = DomainHandlers[domainKey] || {};
 
-    // --- 1. 사이트별 변수 설정 ---
-    // 게시물 본문에서 불필요한 키워드를 제거하기 위한 정규식
-    const cleanupRegex = isPlanetsuzy
-        ? /Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Title:|File\s?Name\s?:?|File|Size/gi
-        : /Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|.*Subject:|File:/gi;
+    let titleText = downloadArea.querySelector(selector)?.textContent || '';
+    titleText = titleText.replace(/amp;/gi, '').trim();
 
-    // 게시물 본문을 찾기 위한 공통 선택자
-    const infoAreaSelector = 'div.message-body, div.inner, div.post-text, div[id^="post_message_"]';
+    const infoSelector = domainConfig.infoSelector || 'div';
+    const rawText = downloadArea.closest(infoSelector)?.innerText || '';
 
-    // --- 2. 사이트 특성에 따라 초기 제목 추출 ---
-    const titleElem = DownloadArea.querySelector(selector);
-    let CopyTitle = '';
-
-    if (isPlanetsuzy && titleElem) {
-        // planetsuzy.org: 이미지의 부모 요소에서 제목을 가져오는 특별 케이스
-        const titleText = titleElem.parentElement?.textContent.replace(/amp;/g, '').trim() || '';
-        if (titleText) {
-            // 이 제목이 충분히 완전하므로, 여기서 처리 후 바로 반환
-            const cleaned = titleText.split(',')
-                .map(s => s.trim())
-                .filter(s => !SkipTitle.includes(s));
-            return byteLengthOf(cleaned.join(','), 250);
-        }
-    }
-
-    CopyTitle = titleElem?.innerText.replace(/amp;|.*Subject:|File:/g, '').replaceAll('"', '').trim() || '';
-
-    // --- 3. 게시물 본문에서 상세 정보 추출 ---
-    const InfoAreaRaw = DownloadArea.querySelector(infoAreaSelector)?.innerText || '';
-
-    // 본문 내용이 없으면, 지금까지 추출한 제목을 반환
-    if (!InfoAreaRaw) {
-        return CopyTitle;
-    }
-
-    const InfoArea = InfoAreaRaw
+    const cleaned = rawText
+        .replace(/(Actress|Model|Label|Circle|Featuring)\s*:?/gi, '')    
         .replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n')
-        .replace(cleanupRegex, '') // 사이트별로 설정된 정규식 사용
-        .replaceAll('"|：', '')
-        .split(/\n\n|\n/)
-        .filter(e => e && !e.match(/^(http|Resolution|Duration|Download|Categories|About)/));
+        .replace(/Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]/gi, '')
+        .replaceAll('"|：', '')        
+        .replace(/\n{2,}/g, '\n')
+        .split('\n')        
+        .filter(line => line.trim() && !/^(http|Download|Duration|Resolution|Categories|About)/i.test(line));
 
-    // --- 4. 공통 로직을 사용하여 최종 제목 완성 ---
-    let finalTitle = extractInfoFromText(InfoArea, CopyTitle);
-
-    const TitleID = finalTitle?.match(SearchID) && !finalTitle?.match(SkipID)
-        ? finalTitle.match(SearchID)[1]
-        : '';
-    const Title = finalTitle?.match(SearchID) && !finalTitle?.match(SkipID)
-        ? finalTitle.match(SearchID).pop().trim()
-        : finalTitle;
+    const finalTitle = extractInfoFromText(cleaned, titleText);
+    const TitleID = finalTitle?.match(SearchID)?.[1] || '';
+    const Title = finalTitle?.match(SearchID)?.pop()?.trim() || finalTitle;
 
     return TitleID && Title ? `${TitleID} ${Title}` : finalTitle;
 }
-
-const DomainHandlers = {
-    'gm\\d+\\.xyz': {
-        selectors: {
-            copyTitle: '.entry-title a',
-            visitedLink: 'h2.entry-title a',
-        },
-        getTitleArea: (el) => el.closest('.inside-article'),
-        getCopyTitle: (area, selector) => area.querySelector(selector)?.textContent.trim(),
-        getCoverImage: (area) => area.querySelector('p img')?.getAttribute('data-src') || '',
-        getCopyID: (modArea) => /gm\d+\.xyz\/\d+\.html$/.test(window.location.href) ? window.location.href : modArea.querySelector('a')?.href,
-        iconPosition: (iconSet, modArea) => {
-            const offset = getRelativeOffset(modArea);
-            const iconSetOffset = getRelativeOffset(iconSet);
-            iconSet.style.setProperty('top', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
-            iconSet.style.setProperty('right', `${(-iconSetOffset.width / 4).toFixed(0)}px`);
-        },
-    },
-    'pornbb\\.org': {
-        selectors: {
-            copyTitle: 'div.search-post-subj a.postdetails, span.postdetails.subject',
-            visitedLink: null,
-        },
-        titleAreaSelector: 'div.postbody', // Add a selector for the title area
-        getTitleArea: (el) => el.closest('div.postbody'),
-        getCopyTitle: (el, selector) => parseForumTitle(el.closest('div.messageinfo'), selector),
-        getCopyID: (modArea, pageURL) => {
-            if (/newsearch\.php/.test(pageURL)) return window.location.origin + '/' + modArea.querySelector('a')?.href;
-            if (/\.html#\d+/.test(pageURL)) return pageURL;
-            return window.location.origin + '/' + modArea.querySelector('a.inl-bl')?.href;
-        },
-        iconPosition: (iconSet) => iconSet.style.setProperty('z-index', '99999'),
-    },
-    'x-idol\\.net': {
-        selectors: {
-            copyTitle: 'h2.post-title.entry-title a',
-            visitedLink: 'h2.post-title.entry-title a',
-        },
-        getTitleArea: (el) => el.closest('div.post.hentry:not(.sticky)')?.querySelector('div.entry') || el.closest('div.post.hentry:not(.sticky)'),
-        getCopyTitle: (area, selector) => {
-            const rawTitle = area.closest('div.post.hentry:not(.sticky)')?.querySelector(selector)?.textContent.trim() || '';
-            const infoRaw = area.closest('div.post.hentry:not(.sticky)')?.querySelector('div.entry-content')?.innerText || '';
-            const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return extractInfoFromText(infoLines, rawTitle, { rawMode: true });
-        },
-        getCopyID: (modArea) => modArea?.getAttribute('href'),
-        iconPosition: (iconSet, modArea) => {
-            const offset = getRelativeOffset(modArea);
-            const iconSetOffset = getRelativeOffset(iconSet);
-            iconSet.style.setProperty('vertical-align', window.getComputedStyle(modArea).getPropertyValue('vertical-align'));
-            iconSet.style.setProperty('line-height', window.getComputedStyle(modArea).getPropertyValue('line-height'));
-            iconSet.style.setProperty('top', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
-            iconSet.style.setProperty('right', `${(-iconSetOffset.width / 5).toFixed(0)}px`);
-        },
-    },
-    'forumophilia\\.com': {
-        selectors: {
-            copyTitle: 'div.messageinfo div.message-header div div.post_subj div.postdetails > a.bold, .messageinfo div.message-header div div.post_subj span.postdetails',
-            visitedLink: null,
-        },
-        titleAreaSelector: 'div.messageinfo', // Add a selector for the title area
-        getTitleArea: (el) => el.closest('div.messageinfo'),
-        getCopyTitle: (area, selector) => parseForumTitle(area, selector),
-        getCopyID: (modArea) => {
-            const anchor = modArea.closest('.postdetails')?.querySelector('a.bold');
-            return anchor ? window.location.origin + '/' + anchor.getAttribute('href') : null;
-        },
-        iconPosition: (iconSet, modArea) => {
-            const titleArea = modArea.closest('.message-header');
-            const offset = getRelativeOffset(titleArea);
-            iconSet.style.setProperty('top', `${(offset.height / 5).toFixed(0)}px`);
-            iconSet.style.setProperty('right', `${(-getRelativeOffset(iconSet).width / 4).toFixed(0)}px`);
-        },
-    },
-    'sexfetishforum\\.com': {
-        selectors: {
-            copyTitle: 'div.post_wrapper div.postarea div.flow_hidden div.keyinfo h5',
-            visitedLink: null,
-        },
-        getTitleArea: (el) => el.closest('div.postarea'),
-        getCopyTitle: (area, selector) => parseForumTitle(area.closest('div.messageinfo'), selector),
-        iconPosition: (iconSet) => {
-            const titleArea = iconSet.closest('.postarea');
-            iconSet.style.setProperty('top', `${getRelativeOffset(iconSet).height}px`);
-            iconSet.style.setProperty('left', `${getRelativeOffset(titleArea.querySelector('.keyinfo')).width}px`);
-        },
-    },
-    'planetsuzy\\.org': {
-        selectors: {
-            copyTitle: 'table.tborder > tbody > tr > td > div.smallfont > img.inlineimg',
-            visitedLink: null,
-        },
-        // 컨텍스트 영역을 게시물 전체를 포함하는 table.tborder로 변경
-        getTitleArea: (el) => el.closest('table.tborder'),
-        // 통합된 parseForumTitle 함수를 호출하도록 변경
-        getCopyTitle: (area, selector) => parseForumTitle(area, selector),
-        getCopyID: (modArea) => window.location.origin + '/' + /t(=)?\d+/.exec(window.location.href)[0] + '-' + modArea.closest('table.tborder').id,
-        iconPosition: (iconSet) => {
-            const modArea = iconSet.closest('.tborder').querySelector('td.alt1 > div'); // 적절한 선택자로 수정
-            console.log(modArea)
-            const offset = getRelativeOffset(modArea);
-            const iconSetOffset = getRelativeOffset(iconSet);
-
-            iconSet.style.setProperty('--SetTop', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
-            iconSet.style.setProperty('--SetRight', `${(-iconSetOffset.width / 4).toFixed(0)}px`);
-        },
-    },
-};
-
-
-const getDomainConfig = (rootDomain) => {
-    for (const [pattern, config] of Object.entries(DomainHandlers)) {
-        if (new RegExp(pattern).test(rootDomain)) {
-            return config;
-        }
-    }
-    return null;
-};
 
 // UI 업데이트 로직을 별도의 함수로 분리합니다.
 async function showCopyNotice(noticeArea, copyTitleArea, finalTitle, copyLinks) {
