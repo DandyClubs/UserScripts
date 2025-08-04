@@ -162,12 +162,10 @@ const RootDomain = extractRootDomain(PageURL)
 
 let GetDPI, DefaultFontSize, elementPosition
 let GetState, searchDB
-let CopyLinks = ''
+let copyLinks = ''
 let Copyed = ''
 
 let RootDomainDB = JSON.parse(localStorage.getItem(RootDomain) || '[]');
-
-let MakerCfg = false
 let Maker
 let UrlTitle = ''
 let DirectCopy = true
@@ -604,8 +602,6 @@ async function CopyLink(el, CopyTitleSelector, noticeArea, CopyID) {
     const titleArea = DomainRules.getTitleArea?.(el);
     let copyTitle = DomainRules.getCopyTitle?.(titleArea, DomainRules.selectors.copyTitle);
     const coverImage = DomainRules.getCoverImage?.(downloadArea) || '';
-    // The line above was removed because 'CopyID' is already passed as a parameter,
-    // and 'el' is the icon element, which is the wrong argument for getCopyID.
     console.groupCollapsed(`[CopyLink] Processing: ${CopyID || 'No ID'}`);
     console.log({ downloadArea, copyTitle, coverImage, CopyID });
     console.groupEnd();
@@ -613,7 +609,7 @@ async function CopyLink(el, CopyTitleSelector, noticeArea, CopyID) {
     copyTitle = byteLengthOf(copyTitle.replace(/amp;/g, '').trim(), 250);
     let changedName = nameCorrection(copyTitle)
     let finalTitle = FilenameConvert(changedName);
-    console.log(changedName, finalTitle);
+    console.log({ changedName, finalTitle });
 
     const linkItems = querySelectorAllRegex(downloadArea, SkipFilter, 'href', { notMatch: true });
     console.log({ linkItems });
@@ -834,7 +830,7 @@ async function AddCopyIcon(node) {
         DomainRules.iconPosition(iconSet, modArea);
 
         let copyID = DomainRules.getCopyID?.(modArea, window.location.href) || null;
-        console.log('copyID:', copyID)
+        
         if (copyID) {
             iconSet.insertAdjacentHTML('beforeend', minusIconHtml);
             const copyIcon = titleArea.querySelector('.CopyIcon');
@@ -996,9 +992,6 @@ window.addEventListener('storage', (e) => {
 });
 
 
-
-
-
 async function AllCopy() {
     document.querySelector('.AllCopy').style = "color: White !important;";
 
@@ -1023,7 +1016,7 @@ function getNextSibling(elem, selector) {
         if (sibling.matches(selector)) return sibling;
         sibling = sibling.nextElementSibling
     }
-};
+}
 
 
 function getPreviousSibling(elem, selector) {
@@ -1037,4 +1030,4 @@ function getPreviousSibling(elem, selector) {
         sibling = sibling.previousElementSibling;
     }
 
-};
+}
