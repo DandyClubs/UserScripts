@@ -947,7 +947,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    FontAwesomeCSS()    
+    FontAwesomeCSS()
 
     try {
         MakeIcon()
