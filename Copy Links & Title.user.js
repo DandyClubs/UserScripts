@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         [TEST] Copy Links & Title
+// @name         Copy Links & Title
 // @namespace    http://tampermonkey.net/
 // @version      1.2
 // @description  try to take over the world!
