@@ -235,7 +235,7 @@ const DomainHandlers = {
             visitedLink: 'h2.entry-title a',
         },
         getPostArea: (el) => el.closest('.inside-article'),        
-        GetInfo: (el) => DomainRules.relativeSelector(el)?.querySelector(selector)?.textContent.trim() || '',
+        GetInfo: (el) => DomainRules.relativeSelector(el)?.querySelector('.entry-title a')?.textContent.trim() || '',
         getCoverImage: (downloadArea) => downloadArea.querySelector('p img')?.getAttribute('data-src') || '',
         getCopyID: (relativeArea) => relativeArea.querySelector('.entry-title a')?.href,
         iconPosition: (iconSet, modArea) => {
@@ -254,7 +254,7 @@ const DomainHandlers = {
         },
         getPostArea: (el) => el.closest('div.postbody'),
         GetInfo: (el) => {
-            const rawTitle = DomainRules.relativeSelector(el)?.querySelector(selector)?.textContent.trim() || '';
+            const rawTitle = DomainRules.relativeSelector(el)?.querySelector('a.postdetails, span.postdetails.subject')?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
             return parseForumTitle(infoRaw, rawTitle)
@@ -277,7 +277,7 @@ const DomainHandlers = {
         },
         getPostArea: (el) => el.closest('div.post.hentry:not(.sticky)')?.querySelector('div.entry') || el.closest('div.post.hentry:not(.sticky)'),
         GetInfo: (el) => {
-            const rawTitle = DomainRules.relativeSelector(el)?.querySelector(selector)?.textContent.trim() || '';
+            const rawTitle = DomainRules.relativeSelector(el)?.querySelector('h2.post-title.entry-title a')?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
             return extractInfoFromText(infoLines, rawTitle, { rawMode: true, preferJapanese: true });
@@ -301,7 +301,7 @@ const DomainHandlers = {
         },
         getPostArea: (el) => el.closest('div.messageinfo'),
         GetInfo: (el) => {
-            const rawTitle = DomainRules.relativeSelector(el)?.querySelector(selector)?.textContent.trim() || '';
+            const rawTitle = DomainRules.relativeSelector(el)?.querySelector('div.postdetails, span.postdetails')?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
             return parseForumTitle(infoLines, rawTitle, {preferJapanese: true})
@@ -326,7 +326,7 @@ const DomainHandlers = {
         },
         getPostArea: (el) => el.closest('div.postarea'),
         GetInfo: (el) => {
-            const rawTitle = DomainRules.relativeSelector(el)?.querySelector(selector)?.textContent.trim() || '';
+            const rawTitle = DomainRules.relativeSelector(el)?.querySelector('div.keyinfo h5')?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
             return parseForumTitle(infoLines, rawTitle,{preferJapanese: true})
@@ -349,7 +349,7 @@ const DomainHandlers = {
         },
         getPostArea: (el) => el.closest('table.tborder'),
         GetInfo: (el) => {
-            const rawTitle = DomainRules.relativeSelector(el)?.querySelector(selector)?.textContent.trim() || '';
+            const rawTitle = DomainRules.relativeSelector(el)?.querySelector('div.smallfont')?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
             return parseForumTitle(infoLines, rawTitle, {preferJapanese: true})
@@ -370,7 +370,7 @@ const DomainHandlers = {
         },
         getPostArea: (el) => el.closest('div.row.list-row.genmed'),
         GetInfo: (el) => {
-            const rawTitle = DomainRules.relativeSelector(el)?.querySelector(selector)?.textContent.trim() || '';
+            const rawTitle = DomainRules.relativeSelector(el)?.querySelector('a.topictitle')?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
             return parseForumTitle(infoLines, rawTitle, {preferJapanese: true})
