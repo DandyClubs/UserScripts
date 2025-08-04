@@ -24,7 +24,7 @@
 // @noframes
 // ==/UserScript==
 
-const FontAwesomeCSS = function() {
+const FontAwesomeCSS = function () {
     let css = document.createElement('link')
     css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css'
     css.rel = 'stylesheet'
@@ -33,7 +33,7 @@ const FontAwesomeCSS = function() {
 }
 
 
-GM_addStyle (`
+GM_addStyle(`
 
 
 @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c&family=Nanum+Gothic&family=Nanum+Gothic+Coding&family=Noto+Sans&display=swap');
@@ -159,7 +159,6 @@ GM_addStyle (`
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RootDomain = extractRootDomain(PageURL)
-const rootDomain = RootDomain
 
 let GetDPI, DefaultFontSize, elementPosition
 let GetState, searchDB
@@ -168,86 +167,10 @@ let Copyed = ''
 
 let RootDomainDB = JSON.parse(localStorage.getItem(RootDomain) || '[]');
 
-function MakeIcon() {
-    // 1. 필요한 변수 및 요소 초기화
-    const GetDPI = window.devicePixelRatio;
-    const DefaultFontSize = parseInt(getComputedStyle(document.documentElement).fontSize);
-
-    console.log('GetDPI: ', GetDPI, 'DefaultFontSize: ', DefaultFontSize);
-
-    // 2. CenterBox 생성 및 변수에 할당
-    document.querySelector("body").insertAdjacentHTML('afterbegin', '<div class="CenterBox"></div>');
-    const centerBox = document.querySelector("div.CenterBox");
-
-    if (!centerBox) {
-        console.error("CenterBox 요소를 찾을 수 없습니다.");
-        return; // 요소가 없으면 함수 종료
-    }
-
-    if (isElementCovered(centerBox)) {
-        bringElementToFrontWithSteps(centerBox);
-    }
-
-    // 3. 폰트 크기 계산을 변수에 저장하여 재사용
-    const baseFontSizeRem = (1 / (GetDPI / 1.5)) * (16 / DefaultFontSize);
-    const stateFontSizeRem = (baseFontSizeRem * 0.65).toFixed(2) + 'rem';
-
-    // 4. 아이콘 데이터와 이벤트 핸들러를 객체 배열로 정의
-    const icons = [
-        { className: 'ToTop fa-solid fa-circle-chevron-up', event: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
-        { className: 'ClearButton far fa-minus-square', event: (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation();
-            if (JSON.parse(localStorage.getItem('NewAdded')) && window.confirm("Not Yet Copy! Clear?")) {
-                localStorage.setItem('NewAdded', JSON.stringify(false));
-                ClearUrls();
-            } else if (!JSON.parse(localStorage.getItem('NewAdded'))) {
-                ClearUrls();
-            }
-        }},
-        { className: 'CopyButton fas fa-paste', event: (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation();
-            localStorage.setItem('NewAdded', JSON.stringify(false));
-            ClipPaste();
-        }},
-        { className: 'AllCopy fa-solid fa-box', event: (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            event.stopImmediatePropagation();
-            AllCopy();
-        }},
-        // State와 AllCopyState는 별도 로직으로 처리
-        { className: 'State', event: null },
-        { className: 'AllCopyState', event: null }
-    ];
-
-    // 5. 반복문을 사용하여 아이콘 추가 및 이벤트 연결
-    icons.forEach(icon => {
-        centerBox.insertAdjacentHTML('beforeend', `<i class="${icon.className}"></i>`);
-        if (icon.event) {
-            centerBox.querySelector(`.${icon.className.split(' ')[0]}`).addEventListener('click', icon.event);
-        }
-    });
-
-    // 6. 스타일 적용
-    centerBox.style.setProperty('font-size', baseFontSizeRem + 'rem', 'important');
-    document.querySelector('.State').style.setProperty('font-size', stateFontSizeRem, 'important');
-    document.querySelector('.AllCopyState').style.setProperty('font-size', stateFontSizeRem, 'important');
-
-    // 7. 상태 정보 표시
-    RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : [];
-    GetState = RootDomainDB;
-    document.querySelector('.State').innerText = `${GetState?.length || 0} | ${PackageList(RootDomainDB)?.length || 0}`;
-}
-
-
-var MakerCfg = false
-var Maker
-var UrlTitle = ''
-var DirectCopy = true
+let MakerCfg = false
+let Maker
+let UrlTitle = ''
+let DirectCopy = true
 
 
 let Target, DownloadArea, CopyTitle, CopyTitleArea, noticeArea, CopyTitleSelector, Series, TitleID, ID, CoverImage
@@ -258,7 +181,6 @@ const SkipClassNames = ['adead_link', 'autohyperlink', 'social-icon', 'postdetai
 const SearchID = /^([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})(.*)/
 const SearchFC2ID = /(^FC2.+\d{6})(.*)/
 const SearchIDRegExp = /^(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}))(?!(C_\d+|file\d+))(.*)$/
-const ExcludeChar = /[<\/:>*?"|\\]/g
 const SkipTitle = [
     'assfuck',
     'busty',
@@ -276,21 +198,20 @@ const SkipTitle = [
     'stockings',
     'cumshot on big tits'
 ]
-var DuplicateLink = []
 
 console.log(SkipFilter)
 
 
-function ClearCopyed(){
+function ClearCopyed() {
     console.log('Start Delete Copyed!')
     Copyed = Object.keys(localStorage).filter(k => k.includes(RootDomain + '/') && /\d{4}-\d{2}-\d{2}/.test(localStorage.getItem(k)))
     for (let key of Copyed) {
-        if(localStorage.getItem(key)){
-            let Now = new Date(Date.now()).toISOString().slice(0,10)
+        if (localStorage.getItem(key)) {
+            let Now = new Date(Date.now()).toISOString().slice(0, 10)
 
-            let AddedDay = new Date(localStorage.getItem(key)).toISOString().slice(0,10)
+            let AddedDay = new Date(localStorage.getItem(key)).toISOString().slice(0, 10)
             const oneDay = 1000 * 60 * 60 * 24;
-            if(((new Date(Now) - new Date(AddedDay))/oneDay) > 180){
+            if (((new Date(Now) - new Date(AddedDay)) / oneDay) > 180) {
                 localStorage.removeItem(key)
                 console.log('Delete Item: ', key, AddedDay)
             }
@@ -300,7 +221,7 @@ function ClearCopyed(){
 
 function setClearCopyed(name, value, expiresDay) {
     const NowTime = new Date();
-    const MidNight = new Date(NowTime.getFullYear(), NowTime.getMonth(), NowTime.getDate() + expiresDay , 9)
+    const MidNight = new Date(NowTime.getFullYear(), NowTime.getMonth(), NowTime.getDate() + expiresDay, 9)
     document.cookie = escape(name) + "=" + escape(value) + "; expires=" + MidNight.toUTCString();
 }
 
@@ -309,7 +230,6 @@ const SkipMakers = [
     'Toshiaki', 'Buena Vista', 'Punimoe!', 'palupunte'
 ];
 
-// 사용자 제공 정규식
 const ReleaseDateRegex = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/;
 
 
@@ -322,7 +242,7 @@ const DomainHandlers = {
         getTitleArea: (el) => el.closest('.inside-article'),
         getCopyTitle: (area, selector) => area.querySelector(selector)?.textContent.trim(),
         getCoverImage: (area) => area.querySelector('p img')?.getAttribute('data-src') || '',
-        getCopyID: (modArea) => modArea.querySelector('a')?.href,
+        getCopyID: (modArea) => modArea.href,
         iconPosition: (iconSet, modArea) => {
             const offset = getRelativeOffset(modArea);
             const iconSetOffset = getRelativeOffset(iconSet);
@@ -455,7 +375,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
     const {
         preferJapanese = false,
         skipKeywords = [],
-        rawMode = false, // ← 추가
+        rawMode = false,
     } = options;
 
     let CopyTitle = fallbackTitle
@@ -463,7 +383,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         .replace(/amp;/g, '')
         .trim();
 
-    if (rawMode) return CopyTitle; // ← 여기서 바로 반환
+    if (rawMode) return CopyTitle;
 
     let Title = '';
     let ID = '';
@@ -471,7 +391,6 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
     let ModelName = '';
     let ReleaseDate = '';
 
-    // Featuring 값 추출 (여러 줄 중 Featuring: 포함된 줄 찾기)
     const FeaturingLine = infoLines.find(line => line.match(/특집\s*:/i));
     const Featuring = FeaturingLine ? FeaturingLine.replace(/Featuring\s*:/i, '').trim() : '';
 
@@ -525,13 +444,9 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
         if (!ReleaseDate) {
             const dateMatch = line.match(ReleaseDateRegex);
-            if (dateMatch) {
-                // 여기서 날짜 포맷 정제 예시 (원하는 형태로 가공 가능)
-                // dateMatch[0]은 전체 매칭된 문자열
-                // 예) '2021-12-25' 또는 '25.12.2021' 등 다양한 포맷 대응
+            console.log('ReleaseDate Match:', dateMatch);
 
-                // YYYY-MM-DD 형태 우선 변환 시도
-                // 정규식에서 그룹별 분리 가능하면 가공도 가능
+            if (dateMatch) {
                 const ymdMatch = dateMatch[0].match(/(19|20)?\d{2}[.\/-]([0]?[1-9]|1[0-2])[.\/-]([0]?[1-9]|[12][0-9]|3[01])/);
                 if (ymdMatch) {
                     const year = ymdMatch[0].slice(0, 4);
@@ -539,12 +454,11 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
                     const day = ymdMatch[0].slice(8, 10).replace(/^0/, '');
                     ReleaseDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} `;
                 } else {
-                    // 매칭된 문자열 그대로 저장
                     ReleaseDate = dateMatch[0].trim() + ' ';
                 }
             }
         }
-
+        console.log('ID:', ID, 'ModelName:', ModelName, 'ReleaseDate:', ReleaseDate, 'Title:', Title);
         return ID && ModelName && ReleaseDate;
     });
 
@@ -580,12 +494,12 @@ function parseForumTitle(downloadArea, selector) {
     const rawText = downloadArea.closest(infoSelector)?.innerText || '';
 
     const cleaned = rawText
-        .replace(/(Actress|Model|Label|Circle|Featuring)\s*:?/gi, '')    
+        .replace(/(Actress|Model|Label|Circle|Featuring)\s*:?/gi, '')
         .replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n')
         .replace(/Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]/gi, '')
-        .replaceAll('"|：', '')        
+        .replaceAll('"|：', '')
         .replace(/\n{2,}/g, '\n')
-        .split('\n')        
+        .split('\n')
         .filter(line => line.trim() && !/^(http|Download|Duration|Resolution|Categories|About)/i.test(line));
 
     const finalTitle = extractInfoFromText(cleaned, titleText);
@@ -595,7 +509,6 @@ function parseForumTitle(downloadArea, selector) {
     return TitleID && Title ? `${TitleID} ${Title}` : finalTitle;
 }
 
-// UI 업데이트 로직을 별도의 함수로 분리합니다.
 async function showCopyNotice(noticeArea, copyTitleArea, finalTitle, copyLinks) {
     console.log('finalTitle:', finalTitle, '\ncopyLinks:', copyLinks)
     GetDPI = window.devicePixelRatio;
@@ -608,9 +521,9 @@ async function showCopyNotice(noticeArea, copyTitleArea, finalTitle, copyLinks) 
         "left": 0,
     });
 
-    if(copyLinks){
+    if (copyLinks) {
         noticeArea.textContent = `${finalTitle}\n${copyLinks}`;
-    }else{
+    } else {
         noticeArea.textContent = `Empty......`;
     }
 
@@ -622,12 +535,9 @@ async function showCopyNotice(noticeArea, copyTitleArea, finalTitle, copyLinks) 
 }
 
 
-// 이벤트 위임을 사용하여 클릭 리스너를 통합합니다.
 function addEventListeners(container) {
 
-    container.addEventListener('click', async function(event) {
-        //console.log(event.target)
-        // Copy 아이콘 클릭 처리
+    container.addEventListener('click', async function (event) {
         if (event.target.matches('.CopyIcon')) {
             event.preventDefault();
 
@@ -639,15 +549,12 @@ function addEventListeners(container) {
             copyIcon.style.setProperty('color', 'Orange', 'important');
             copyIcon.classList.add('Copyed');
 
-            // CopyLink 함수 실행
             const CopyTitleSelector = DomainRules.selectors.copyTitle;
             console.log(copyIcon, CopyTitleSelector, noticeArea, copyId)
             const { finalTitle, copyLinks } = await CopyLink(copyIcon, CopyTitleSelector, noticeArea, copyId);
 
-            // UI 업데이트 함수 호출
             await showCopyNotice(noticeArea, copyTitleArea, finalTitle, copyLinks);
 
-            // 기타 후처리
             getNextSibling(copyIcon, '.Minus')?.classList.remove('NotCopyed');
 
             const addDate = new Date().toISOString().slice(0, 10);
@@ -661,7 +568,6 @@ function addEventListeners(container) {
 
         }
 
-        // Minus 아이콘 클릭 처리
         else if (event.target.matches('.Minus')) {
             event.preventDefault();
             event.stopPropagation();
@@ -690,28 +596,27 @@ function addEventListeners(container) {
 }
 
 
-// CopyLink 함수는 이전 답변의 개선된 코드를 그대로 사용합니다.
 async function CopyLink(el, CopyTitleSelector, noticeArea, CopyID) {
-    // ... (이전 답변의 CopyLink 개선 코드) ...
-    // 다만, 마지막 부분의 UI 업데이트 로직은 showCopyNotice 함수로 대체합니다.
-    // CopyLink 함수는 finalTitle과 copyLinks를 반환하도록 수정해야 합니다.
-
-    console.log(DomainRules.getTitleArea(el))
+    console.groupCollapsed(`[CopyLink] Start`);
+    console.log({ el, CopyTitleSelector, noticeArea, CopyID });
+    console.groupEnd();
     const downloadArea = DomainRules.getTitleArea?.(el);
     const titleArea = DomainRules.getTitleArea?.(el);
     let copyTitle = DomainRules.getCopyTitle?.(titleArea, DomainRules.selectors.copyTitle);
     const coverImage = DomainRules.getCoverImage?.(downloadArea) || '';
-    const copyID = DomainRules.getCopyID?.(el, window.location.href);
-    console.log(downloadArea, copyTitle, coverImage, copyID)
-
+    // The line above was removed because 'CopyID' is already passed as a parameter,
+    // and 'el' is the icon element, which is the wrong argument for getCopyID.
+    console.groupCollapsed(`[CopyLink] Processing: ${CopyID || 'No ID'}`);
+    console.log({ downloadArea, copyTitle, coverImage, CopyID });
+    console.groupEnd();
 
     copyTitle = byteLengthOf(copyTitle.replace(/amp;/g, '').trim(), 250);
-    // ... (이전 로직) ...
-    let finalTitle = FilenameConvert(nameCorrection(copyTitle));
-    // ... (이전 로직) ...
+    let changedName = nameCorrection(copyTitle)
+    let finalTitle = FilenameConvert(changedName);
+    console.log(changedName, finalTitle);
 
     const linkItems = querySelectorAllRegex(downloadArea, SkipFilter, 'href', { notMatch: true });
-    console.log(linkItems)
+    console.log({ linkItems });
     let copyLinks = '';
     const duplicateLink = [];
     let urlTitle = finalTitle;
@@ -742,24 +647,21 @@ async function CopyLink(el, CopyTitleSelector, noticeArea, CopyID) {
     localStorage.setItem(RootDomain, JSON.stringify(RootDomainDB))
     GetState = RootDomainDB
     document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageList(RootDomainDB)?.length
-    if(!JSON.parse(localStorage.getItem('NewAdded'))){
+    if (!JSON.parse(localStorage.getItem('NewAdded'))) {
         localStorage.setItem('NewAdded', JSON.stringify(true))
     }
     return { finalTitle, copyLinks };
 }
 
-function PackageList(LinksDB){
-    if(LinksDB?.length > 0){
-        let uniqueTitle = [...new Set(LinksDB.map( x => x.T ))]
-        //console.log(uniqueTitle)
+function PackageList(LinksDB) {
+    if (LinksDB?.length > 0) {
+        let uniqueTitle = [...new Set(LinksDB.map(x => x.T))]
         return uniqueTitle
     }
-    else{
+    else {
         return []
     }
 }
-
-//window.onhashchange = () => console.log(`Hash changed -> ${window.location.hash}`)
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -767,55 +669,129 @@ function sleep(ms) {
 
 function SearchMatch(Array, Search, ReplaceSTR) {
     const SearchRegEx = new RegExp(Search, "i")
-    //console.log(SearchRegEx)
     const MatchItem = Array.find((e) => e.match(SearchRegEx))
     console.log('MatchItem:', MatchItem)
-    if(MatchItem){
-        if(ReplaceSTR){
+    if (MatchItem) {
+        if (ReplaceSTR) {
             return MatchItem.match(SearchRegEx).pop().replace(ReplaceSTR).trim()
         }
-        else{
+        else {
             return MatchItem.match(SearchRegEx).pop().trim()
         }
     }
-    else{ return '' }
+    else { return '' }
 }
 
 
-function UpdateDB(Target, UrlTitle, Source, CopyID){
-    searchDB = RootDomainDB.find( ({ U }) => U === Target )
-    if(searchDB){
+function UpdateDB(Target, UrlTitle, Source, CopyID) {
+    searchDB = RootDomainDB.find(({ U }) => U === Target)
+    if (searchDB) {
         searchDB.T = UrlTitle
     }
-    else{
-        RootDomainDB.push({U : Target , T : UrlTitle, S : Source ? Source : '', I : CopyID ? CopyID : ''})
+    else {
+        RootDomainDB.push({ U: Target, T: UrlTitle, S: Source ? Source : '', I: CopyID ? CopyID : '' })
     }
-    //console.log(RootDomainDB)
     return RootDomainDB
 }
 
-function RemoveDB(CopyID){
-    RootDomainDB = RootDomainDB.filter( ({ I }) => I !== CopyID )
+function RemoveDB(CopyID) {
+    RootDomainDB = RootDomainDB.filter(({ I }) => I !== CopyID)
     localStorage.setItem(RootDomain, JSON.stringify(RootDomainDB))
 }
 
+function applyClickEffect(selector) {
+    const element = document.querySelector(selector);
+    if (!element) return;
 
-async function ClearUrls(){
-    document.querySelector('.ClearButton').style = "color: Purple !important;";
-    document.querySelector('.ClearButton').style.setProperty('font-size', ((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2) + 'rem', 'important');
+    const fontSize = ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)).toFixed(2) + 'rem';
+    element.style.setProperty('color', 'Purple', 'important');
+    element.style.setProperty('font-size', fontSize, 'important');
+}
+
+
+async function ClearUrls() {
+    applyClickEffect('.ClearButton');
     localStorage.removeItem(RootDomain)
     RootDomainDB = JSON.parse(localStorage.getItem(RootDomain)) || []
     GetState = RootDomainDB
-    //console.log(GetState)
     document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageList(RootDomainDB)?.length
 }
 
-async function ClipPaste(){
-    document.querySelector('.CopyButton').style = "color: Purple !important;";
-    document.querySelector('.CopyButton').style.setProperty('font-size', ((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2) + 'rem', 'important');
+async function ClipPaste() {
+    applyClickEffect('.CopyButton');
     var ClipPasteData = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
     JDownloaderDB(ClipPasteData)
-    //updateClipboard(ClipPasteData)
+}
+
+function MakeIcon() {
+    const GetDPI = window.devicePixelRatio;
+    const DefaultFontSize = parseInt(getComputedStyle(document.documentElement).fontSize);
+
+    console.log('GetDPI: ', GetDPI, 'DefaultFontSize: ', DefaultFontSize);
+
+    document.querySelector("body").insertAdjacentHTML('afterbegin', '<div class="CenterBox"></div>');
+    const centerBox = document.querySelector("div.CenterBox");
+
+    if (!centerBox) {
+        throw new TypeError("CenterBox 요소를 찾을 수 없습니다.");
+    }
+
+    if (isElementCovered(centerBox)) {
+        bringElementToFrontWithSteps(centerBox);
+    }
+
+    const baseFontSizeRem = (1 / (GetDPI / 1.5)) * (16 / DefaultFontSize);
+    const stateFontSizeRem = (baseFontSizeRem * 0.65).toFixed(2) + 'rem';
+
+    const icons = [
+        { className: 'ToTop fa-solid fa-circle-chevron-up', event: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
+        {
+            className: 'ClearButton far fa-minus-square', event: (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                if (JSON.parse(localStorage.getItem('NewAdded')) && window.confirm("Not Yet Copy! Clear?")) {
+                    localStorage.setItem('NewAdded', JSON.stringify(false));
+                    ClearUrls();
+                } else if (!JSON.parse(localStorage.getItem('NewAdded'))) {
+                    ClearUrls();
+                }
+            }
+        },
+        {
+            className: 'CopyButton fas fa-paste', event: (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                localStorage.setItem('NewAdded', JSON.stringify(false));
+                ClipPaste();
+            }
+        },
+        {
+            className: 'AllCopy fa-solid fa-box', event: (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                AllCopy();
+            }
+        },
+        { className: 'State', event: null },
+        { className: 'AllCopyState', event: null }
+    ];
+
+    icons.forEach(icon => {
+        centerBox.insertAdjacentHTML('beforeend', `<i class="${icon.className}"></i>`);
+        if (icon.event) {
+            centerBox.querySelector(`.${icon.className.split(' ')[0]}`).addEventListener('click', icon.event);
+        }
+    });
+
+    centerBox.style.setProperty('font-size', baseFontSizeRem + 'rem', 'important');
+    document.querySelector('.State').style.setProperty('font-size', stateFontSizeRem, 'important');
+    document.querySelector('.AllCopyState').style.setProperty('font-size', stateFontSizeRem, 'important');
+    RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : [];
+    GetState = RootDomainDB;
+    document.querySelector('.State').innerText = `${GetState?.length || 0} | ${PackageList(RootDomainDB)?.length || 0}`;
 }
 
 
@@ -824,7 +800,6 @@ async function AddCopyIcon(node) {
     const CopyTitleArea = node.querySelectorAll(DomainRules.selectors.copyTitle);
 
     if (!CopyTitleArea?.length) {
-        // CopyTitleArea가 없을 때 의도적으로 오류를 발생시킵니다.
         throw new TypeError("CopyTitleArea가 존재하지 않거나 배열이 아닙니다.");
     }
 
@@ -838,13 +813,12 @@ async function AddCopyIcon(node) {
     for (const el of CopyTitleArea) {
         const modArea = el;
         const titleArea = DomainRules.titleAreaSelector
-        ? modArea.closest(DomainRules.titleAreaSelector)
-        : modArea.parentElement;
+            ? modArea.closest(DomainRules.titleAreaSelector)
+            : modArea.parentElement;
 
         if (!titleArea) continue;
 
-        // 아이콘 세트 삽입
-        if(titleArea.closest('div.post.hentry.sticky')) continue
+        if (titleArea.closest('div.post.hentry.sticky')) continue
 
         titleArea.style.setProperty('position', 'relative');
         titleArea.insertAdjacentHTML('beforeend', iconBaseHtml);
@@ -852,18 +826,15 @@ async function AddCopyIcon(node) {
 
         if (!iconSet) continue;
 
-        // 아이콘 삽입 및 스타일 적용
         iconSet.insertAdjacentHTML('beforeend', copyIconHtml);
         iconSet.style.setProperty('color', 'dodgerblue');
         modArea.insertAdjacentHTML('afterend', noticeHtml);
         addEventListeners(iconSet)
 
-        // 도메인별 스타일 적용
         DomainRules.iconPosition(iconSet, modArea);
 
-        // ID 생성 및 아이콘 상태 업데이트
         let copyID = DomainRules.getCopyID?.(modArea, window.location.href) || null;
-        console.log(copyID)
+        console.log('copyID:', copyID)
         if (copyID) {
             iconSet.insertAdjacentHTML('beforeend', minusIconHtml);
             const copyIcon = titleArea.querySelector('.CopyIcon');
@@ -883,22 +854,20 @@ async function AddCopyIcon(node) {
     }
 }
 
-function JDownloader(JdownloaderData, PackageName, sourceURL){
+function JDownloader(JdownloaderData, PackageName, sourceURL) {
     console.log(PackageName + '\n' + JdownloaderData)
-    if(JdownloaderData){
+    if (JdownloaderData) {
         let data = new URLSearchParams();
         data.append(`urls`, JdownloaderData);
-        if(sourceURL){
+        if (sourceURL) {
             data.append(`source`, sourceURL)
         }
         data.append(`referer`, PageURL)
-        if(PackageName){
+        if (PackageName) {
             data.append(`package`, PackageName)
         }
-        //console.log(data)
         fetch('http://localhost:9666/flash/add', {
             method: 'POST',
-            //mode: 'cors',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                 'Access-Control-Allow-Origin': 'http://localhost:9666',
@@ -908,11 +877,9 @@ function JDownloader(JdownloaderData, PackageName, sourceURL){
     }
 }
 
-function JDownloaderDB(LinksDB){
-    //console.log(LinksDB)
-    let uniqueTitle = [...new Set(LinksDB.map( x => x.T ))] || [...new Set(LinksDB.map( x => x.U ))]
-    //console.log('uniqueTitle : ', uniqueTitle, uniqueTitle?.length)
-    if(uniqueTitle?.length){
+function JDownloaderDB(LinksDB) {
+    let uniqueTitle = [...new Set(LinksDB.map(x => x.T))] || [...new Set(LinksDB.map(x => x.U))]
+    if (uniqueTitle?.length) {
         uniqueTitle.forEach(async x => {
             JDownloader(GetMatchLinks(x, LinksDB), x, GetMatchSource(x, LinksDB))
             await sleep(1000)
@@ -920,20 +887,20 @@ function JDownloaderDB(LinksDB){
     }
 }
 
-function GetMatchSource(text, LinksDB){
+function GetMatchSource(text, LinksDB) {
     try {
         let S = LinksDB.find(u => text.includes(u.T) && u.S)
         return S ? S.S : false
-    } catch(err) {
+    } catch (err) {
         console.log(err, text, LinksDB)
     }
 }
 
 
-function GetMatchLinks(text, LinksDB){
+function GetMatchLinks(text, LinksDB) {
     try {
         return LinksDB.filter(u => text.includes(u.T)).map(l => l.U).join('\n')
-    } catch(err) {
+    } catch (err) {
         console.log(err, text, LinksDB)
     }
 }
@@ -942,7 +909,7 @@ function getCookie(name) {
     var cookie = document.cookie;
     if (document.cookie != "") {
         var cookie_array = cookie.split("; ");
-        for ( var index in cookie_array) {
+        for (var index in cookie_array) {
             var cookie_name = cookie_array[index].split("=")
             if (cookie_name[0] == name) {
                 return cookie_name[1];
@@ -952,24 +919,22 @@ function getCookie(name) {
     return null;
 }
 
-function RefreshIcon(){
+function RefreshIcon() {
     GetDPI = window.devicePixelRatio
-    //var DefaultFontSize = getDefaultFontSize()
     DefaultFontSize = parseInt(getComputedStyle(document.documentElement).fontSize)
     console.log('GetDPI: ', GetDPI, 'DefaultFontSize: ', DefaultFontSize)
     const centerBox = document.querySelector("div.CenterBox");
-    centerBox.style.setProperty('font-size', ((1/(GetDPI/1.5))*(16/DefaultFontSize)) + 'rem', 'important');
-    document.querySelector('.State').style.setProperty('font-size', ((1/(GetDPI/1.5))*0.65*(16/DefaultFontSize)).toFixed(2) + 'rem', 'important');
-    document.querySelector('.AllCopyState').style.setProperty('font-size', ((1/(GetDPI/1.5))*0.65*(16/DefaultFontSize)).toFixed(2) + 'rem', 'important');
-    document.querySelector(':root').style.setProperty('--IconSize', ((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2) + 'rem')
-    //console.log(document.querySelector(':root'))
+    centerBox.style.setProperty('font-size', ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)) + 'rem', 'important');
+    document.querySelector('.State').style.setProperty('font-size', ((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2) + 'rem', 'important');
+    document.querySelector('.AllCopyState').style.setProperty('font-size', ((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2) + 'rem', 'important');
+    document.querySelector(':root').style.setProperty('--IconSize', ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)).toFixed(2) + 'rem')
 
 }
 
 let DomainRules
 document.addEventListener("DOMContentLoaded", () => {
     let cookieCheck = getCookie("ClearCopyed")
-    if(!cookieCheck || cookieCheck != "Y"){
+    if (!cookieCheck || cookieCheck != "Y") {
         console.log('ClearCopyed')
         ClearCopyed()
         setClearCopyed("ClearCopyed", "Y", 1)
@@ -982,40 +947,34 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 
-    FontAwesomeCSS()
-
-    MakeIcon()
+    FontAwesomeCSS()    
 
     try {
+        MakeIcon()
         AddCopyIcon(document.body);
     } catch (error) {
         let errorMessage = "아이콘 추가 중 예상치 못한 오류가 발생했습니다.";
 
-        // 오류 종류에 따라 메시지를 더 구체적으로 설정합니다.
         if (error instanceof TypeError) {
             errorMessage = error.message;
         } else if (error instanceof ReferenceError) {
             errorMessage = "아이콘 추가에 필요한 함수 또는 변수가 정의되지 않았습니다.";
         }
-        // 오류 메시지와 함께 상세 정보(스택)를 출력합니다.
         console.error(errorMessage);
         console.error("오류 상세 정보:", error.stack);
     }
 
     const myObserver = new ResizeObserver(entries => {
         RefreshIcon('ResizeObserver')
-        //console.log(entries)
     });
 
-    window.visualViewport.addEventListener("resize", function(e){
-        //console.log(e)
+    window.visualViewport.addEventListener("resize", function (e) {
         RefreshIcon('Window Resize Event')
     })
     myObserver.observe(document.querySelector(".ToTop"))
 
 
     document.addEventListener("AutoPagerize_DOMNodeInserted", function (event) {
-        //console.log(event.target)
         let node = event.target;
         AddCopyIcon(node)
     }, false);
@@ -1027,9 +986,8 @@ document.addEventListener("DOMContentLoaded", () => {
 window.addEventListener('storage', (e) => {
 
     RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
-    //console.log("window is active!" )
     GetState = RootDomainDB
-    if(document.querySelector('.CenterBox')){
+    if (document.querySelector('.CenterBox')) {
         document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageList(RootDomainDB)?.length
         document.querySelector('.ClearButton').style = "color: dodgerblue !important;";
         document.querySelector('.CopyButton').style = "color: dodgerblue !important;";
@@ -1041,7 +999,7 @@ window.addEventListener('storage', (e) => {
 
 
 
-async function AllCopy(){
+async function AllCopy() {
     document.querySelector('.AllCopy').style = "color: White !important;";
 
     let AllItems = document.querySelectorAll('.CopyIcon')
@@ -1049,23 +1007,18 @@ async function AllCopy(){
         AllItems[i].click()
         var d = new Date(Date.now())
         var n = d.toLocaleTimeString()
-        //console.log(n)
-        document.querySelector('.AllCopyState').innerText = i+1 + '/ ' + AllItems.length
+        document.querySelector('.AllCopyState').innerText = i + 1 + '/ ' + AllItems.length
         await sleep(100)
     }
 }
 
 
-function getNextSibling (elem, selector) {
+function getNextSibling(elem, selector) {
 
-    // Get the next sibling element
     var sibling = elem.nextElementSibling;
 
-    // If there's no selector, return the first sibling
     if (!selector) return sibling;
 
-    // If the sibling matches our selector, use it
-    // If not, jump to the next sibling and continue the loop
     while (sibling) {
         if (sibling.matches(selector)) return sibling;
         sibling = sibling.nextElementSibling
@@ -1073,22 +1026,15 @@ function getNextSibling (elem, selector) {
 };
 
 
-function getPreviousSibling (elem, selector) {
+function getPreviousSibling(elem, selector) {
 
-    // Get the next sibling element
     var sibling = elem.previousElementSibling;
 
-    // If there's no selector, return the first sibling
     if (!selector) return sibling;
 
-    // If the sibling matches our selector, use it
-    // If not, jump to the next sibling and continue the loop
     while (sibling) {
         if (sibling.matches(selector)) return sibling;
         sibling = sibling.previousElementSibling;
     }
 
 };
-
-
-
