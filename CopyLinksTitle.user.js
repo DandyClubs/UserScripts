@@ -834,7 +834,9 @@ async function AddCopyIcon(node) {
         DomainRules.iconPosition(iconSet, modArea);
 
         let copyID = DomainRules.getCopyID?.(modArea, window.location.href) || null;
-        console.log('copyID:', copyID)
+        if (!copyID) {
+            console.log('copyID이 없습니다.', copyID)
+        }
         if (copyID) {
             iconSet.insertAdjacentHTML('beforeend', minusIconHtml);
             const copyIcon = titleArea.querySelector('.CopyIcon');
