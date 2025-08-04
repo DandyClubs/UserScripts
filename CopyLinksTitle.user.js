@@ -316,12 +316,15 @@ const DomainHandlers = {
         getTitleArea: (el) => el.closest('div.postarea'),
         getCopyTitle: (area, selector) => parseForumTitle(area.closest('div.messageinfo'), selector),
         getCopyID: (modArea) => modArea.closest('div.post')?.id || '',
-        iconPosition: (iconSet) => {
+        iconPosition: (iconSet) => {            
             const titleArea = iconSet.closest('.postarea');
-            iconSet.style.setProperty('top', `${getRelativeOffset(iconSet).height}px`);
-            iconSet.style.setProperty('left', `${getRelativeOffset(titleArea.querySelector('.keyinfo')).width}px`);
+            const titleAreaPosition = getElementMetrics(el, options = { mode: 'relative'});
+            const iconSetPosition = getElementMetrics(el, options = { mode: 'bounding' });
+            iconSet.style.setProperty('top', `${(titleAreaPosition.top - iconSetPosition.height)/ 2}px`); 
+            iconSet.style.setProperty('right', `${ - iconSetPosition.width}px`);
         },
         infoSelector: '.post',
+        relativeSelector: '.postarea',
     },
     'planetsuzy\\.org': {
         selectors: {
@@ -808,9 +811,11 @@ async function AddCopyIcon(node) {
 
     for (const el of CopyTitleArea) {
         const modArea = el;
-        const titleArea = DomainRules.titleAreaSelector
-            ? modArea.closest(DomainRules.titleAreaSelector)
-            : modArea.parentElement;
+        const titleArea = DomainRules.relativeSelector
+            ? modArea.closest(DomainRules.relativeSelector)
+            : DomainRules.titleAreaSelector
+                ? modArea.closest(DomainRules.titleAreaSelector)
+                : modArea.parentElement;
 
         if (!titleArea) continue;
 
