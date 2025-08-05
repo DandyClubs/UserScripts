@@ -169,6 +169,7 @@ GM_addStyle(`
 `);
 
 let AutoClose = true
+let areadyDownloaded = false
 // 전역 또는 UI 이벤트 핸들러가 접근 가능한 위치에 선언
 let userAbortController = null;
 
@@ -277,7 +278,7 @@ async function checkAndStartJob() {
 
     updateJobUI();
 
-    if (JobList.length === 0 || JobList[0] !== PageURL) return;
+    if (JobList.length === 0 || JobList[0] !== PageURL || !areadyDownloaded) return;
 
     try {
         await navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, async () => {
@@ -315,7 +316,7 @@ async function UpdateJobQueue(url, action) {
     }
 
     if (localStorage.getItem('AutoDownload') == 1) {
-        if (localStorage.getItem('AutoDownload') == 1 && JobList[0] === PageURL) {
+        if (localStorage.getItem('AutoDownload') == 1 && JobList[0] === PageURL && !areadyDownloaded) {
             downloadPhotosWithRetry(ImagesDB)
         }
     }
@@ -557,7 +558,14 @@ async function Xfetch(url, fetchInit = {}) {
                     method,
                     headers,
                     responseType: "blob",
-                    onload: (response) => res(response.response),
+                    onload: (response) => {
+                        // Check if response is successful and not an empty file
+                        if (response.status === 200 && response.response.byteLength > 0) {                            
+                            res(response.response)
+                        } else {
+                            rej(new Error(`Status ${response.status} or empty response`));
+                        }                        
+                    },
                     onerror: rej,
                     onreadystatechange: onHeadersReceived,
                 });
@@ -701,7 +709,7 @@ function MakeIcon() {
     // 모든 요소를 한 번에 생성
     document.body.insertAdjacentHTML('afterbegin',
         `
-        <div class="CenterBox" style="max-width: max-content; visibility:hidden; position: fixed;">
+        <div class="CenterBox" style="max-width: max-content; position: fixed;">
             <i class="DownButton fas fa-download"></i>
             <i class="State"></i>
         </div>
@@ -871,7 +879,7 @@ async function secondStep(Title) {
     });
 
     // ✅ 여기서도 lock을 얻은 탭만 자동 시작하도록
-    if (isAutoDownload() && JobList[0] === PageURL) {
+    if (isAutoDownload() && JobList[0] === PageURL && !areadyDownloaded) {
         try {
             await navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, async () => {
                 await downloadPhotosWithRetry(ImagesDB);
@@ -1021,6 +1029,7 @@ function activityTimeoutSignal(ms) {
 async function downloadPhotosWithRetry(ImagesDB) {
     // 다운로드 시작 시 새로운 AbortController 생성
     userAbortController = new AbortController();
+    areadyDownloaded = true;
     const { signal: userSignal } = userAbortController;
     const maxRetries = 3;
     let errorList = [];
@@ -1041,22 +1050,21 @@ async function downloadPhotosWithRetry(ImagesDB) {
 
             console.warn(`[Attempt ${attempt}] 실패 항목 ${errorList.length}개, 재시도 준비`);
 
-            const failedNames = new Set(errorList.map(e => e.F));
-
-            // IndexedDB 임시 데이터 제거 (streamSaver 버퍼 제거)
-            if (typeof cleanupStreamSaverTempFiles === 'function') {
-                await cleanupStreamSaverTempFiles();
-            }
+            const failedNames = new Set(errorList.map(e => e.F));           
 
 
         } catch (fatalErr) {
             if (fatalErr.name === 'AbortError') {
                 console.log("🚫 다운로드가 사용자 요청 또는 타임아웃으로 취소되었습니다.");
-                updateStateText("🚫 다운로드 취소됨");
+                updateStateText("🚫 다운로드 취소됨");                
             } else {
                 console.error("⛔ 치명적 오류:", fatalErr);
                 AutoClose = false
             }
+            // IndexedDB 임시 데이터 제거 (streamSaver 버퍼 제거)
+            if (typeof cleanupStreamSaverTempFiles === 'function') {
+                await cleanupStreamSaverTempFiles();
+            }            
             break;
         }
     }
@@ -1068,14 +1076,16 @@ async function downloadPhotosWithRetry(ImagesDB) {
         updateStateText(`❌ 최종 실패 ${errorList.length} 항목`);
         showErrorPanel(errorList);
         AutoClose = false
+        areadyDownloaded = false
     } else if (userSignal.aborted) {
         UpdateJobQueue(PageURL, 'remove'); // ✅ JobQueue에서 제거
         await sleep(5000);
         UpdateJobQueue(PageURL, 'add'); // ✅ JobQueue에 다시 추가
+        areadyDownloaded = false
     } else {
         updateStateText(`✅ 전체 성공`);
         UpdateJobQueue(PageURL, 'remove'); // ✅ JobQueue에서 제거
-
+        areadyDownloaded = true
         await sleep(5000)
         hideProgressUI()
         if (localStorage.getItem('AutoDownload') == "1" && AutoClose) {
@@ -1189,7 +1199,7 @@ async function cleanupStreamSaverTempFiles() {
 }
 
 
-window.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", async () => {
     console.log('All Images Download Zip!')
     FontAwesomeCSS();
     MakeIcon();
@@ -1449,33 +1459,6 @@ async function generateZIP(DB) {
     return DownloadImagesDB
 }
 
-
-
-
-function JDownloader(JdownloaderData, PackageName, sourceURL) {
-    //console.log(PackageName + '\n' + JdownloaderData)
-    if (JdownloaderData) {
-        let data = new URLSearchParams();
-        data.append(`urls`, JdownloaderData);
-        data.append(`referer`, PageURL)
-        if (sourceURL) {
-            data.append(`source`, sourceURL)
-        }
-        data.append(`referer`, PageURL)
-        if (PackageName) {
-            data.append(`package`, PackageName)
-        }
-        fetch('http://localhost:9666/flash/add', {
-            method: 'POST',
-            //mode: 'cors',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                'Access-Control-Allow-Origin': 'http://localhost:9666',
-            },
-            body: data
-        })
-    }
-}
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
