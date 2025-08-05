@@ -608,14 +608,12 @@ function parseForumTitle(infoLines, rawTitle, options = {}) {
 async function showCopyNotice(noticeArea, relativeArea, finalTitle, copyLinks) {
     console.log('finalTitle:', finalTitle, '\ncopyLinks:', copyLinks)
     GetDPI = window.devicePixelRatio;
-    DefaultFontSize = getDefaultFontSize();
-    const isCospl = /cospl\.net/.test(RootDomain);
-
-    $(noticeArea).css({
-        "--NFontSize": ((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2) + 'rem',
-        "top": isCospl ? getRelativeOffset(relativeArea).top + getRelativeOffset(relativeArea).height : getRelativeOffset(relativeArea).height,
-        "left": 0,
-    });
+    DefaultFontSize = getDefaultFontSize();    
+    const NFontSizeValue = ((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2) + 'rem';
+    const positionPoint = getElementMetrics(relativeArea, { mode: 'relative' });
+    noticeArea.style.setProperty('--NFontSize', NFontSizeValue);
+    noticeArea.style.top = `${positionPoint.height}px`;
+    noticeArea.style.left = '0';
 
     if (copyLinks) {
         noticeArea.textContent = `${finalTitle}\n${copyLinks}`;
