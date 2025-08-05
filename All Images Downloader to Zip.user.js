@@ -249,6 +249,46 @@ const jobDB = new JobQueueDB();
 const bc = new BroadcastChannel('AllImagesChannel');
 
 
+document.addEventListener("readystatechange", async (event) => {
+    if (event.target.readyState === "complete") {
+        console.log('All Images Download Zip!')
+        FontAwesomeCSS();
+        MakeIcon();
+        AddDBResetButton()
+
+        await jobDB.init();
+
+        bc.onmessage = (e) => {
+            if (e.data === 'refresh-jobs') {
+                updateJobUI();
+                checkAndStartJob();
+            }
+        };
+
+        updateJobUI();
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'AutoDownload') {
+                let ev = document.querySelector(".AutoDownload")
+                if (!ev) { return }
+                if (localStorage.getItem('AutoDownload') == 1) {
+                    ev.classList.replace('Off', 'On')
+                }
+                else {
+                    ev.classList.replace('On', 'Off')
+                }
+            }
+        })
+
+
+        Start().then(Title => {
+            if (Title) {
+                secondStep(Title)
+            }
+        });
+    }
+});
+
+
 function AddDBResetButton() {
     const btn = document.createElement('button');
     btn.textContent = '🧹 Reset Job DB';
@@ -1211,48 +1251,6 @@ async function cleanupStreamSaverTempFiles() {
         console.warn("streamSaver cleanup error:", e);
     }
 }
-
-
-
-document.addEventListener("readystatechange", async (event) => {
-    if (event.target.readyState === "complete") {
-        console.log('All Images Download Zip!')
-        FontAwesomeCSS();
-        MakeIcon();
-        AddDBResetButton()
-
-        await jobDB.init();
-
-        bc.onmessage = (e) => {
-            if (e.data === 'refresh-jobs') {
-                updateJobUI();
-                checkAndStartJob();
-            }
-        };
-
-        updateJobUI();
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'AutoDownload') {
-                let ev = document.querySelector(".AutoDownload")
-                if (!ev) { return }
-                if (localStorage.getItem('AutoDownload') == 1) {
-                    ev.classList.replace('Off', 'On')
-                }
-                else {
-                    ev.classList.replace('On', 'Off')
-                }
-            }
-        })
-
-
-        Start().then(Title => {
-            if (Title) {
-                secondStep(Title)
-            }
-        });
-    }
-});
-
 
 function NextPage(url) {
     return new Promise((resolve, reject) => {

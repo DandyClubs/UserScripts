@@ -197,6 +197,69 @@ const SkipTitle = [
 console.log(SkipFilter)
 
 
+document.addEventListener("DOMContentLoaded", () => {
+
+    let cookieCheck = getCookie("ClearCopyed")
+    if (!cookieCheck || cookieCheck != "Y") {
+        console.log('ClearCopyed')
+        ClearCopyed()
+        setClearCopyed("ClearCopyed", "Y", 1)
+    }
+
+    DomainRules = getDomainConfig(RootDomain);
+    if (!DomainRules) {
+        console.error("해당 도메인에 대한 설정이 없습니다.");
+        return
+    }
+
+
+    FontAwesomeCSS()
+
+    try {
+        MakeIcon()
+        AddCopyIcon(document.body);
+    } catch (error) {
+        let errorMessage = "아이콘 추가 중 예상치 못한 오류가 발생했습니다.";
+
+        if (error instanceof TypeError) {
+            errorMessage = error.message;
+        } else if (error instanceof ReferenceError) {
+            errorMessage = "아이콘 추가에 필요한 함수 또는 변수가 정의되지 않았습니다.";
+        }
+        console.error(errorMessage);
+        console.error("오류 상세 정보:", error.stack);
+    }
+
+    const myObserver = new ResizeObserver(entries => {
+        RefreshIcon('ResizeObserver')
+    });
+
+    window.visualViewport.addEventListener("resize", function (e) {
+        RefreshIcon('Window Resize Event')
+    })
+    myObserver.observe(document.querySelector(".ToTop"))
+
+
+    document.addEventListener("AutoPagerize_DOMNodeInserted", function (event) {
+        let node = event.target;
+        AddCopyIcon(node)
+    }, false);
+
+
+}, { once: true })
+
+window.addEventListener('storage', (e) => {
+
+    RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
+    GetState = RootDomainDB
+    if (document.querySelector('.CenterBox')) {
+        document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageList(RootDomainDB)?.length
+        document.querySelector('.ClearButton').style = "color: dodgerblue !important;";
+        document.querySelector('.CopyButton').style = "color: dodgerblue !important;";
+    }
+
+});
+
 function ClearCopyed() {
     console.log('Start Delete Copyed!')
     Copyed = Object.keys(localStorage).filter(k => k.includes(RootDomain + '/') && /\d{4}-\d{2}-\d{2}/.test(localStorage.getItem(k)))
@@ -236,17 +299,17 @@ const DomainHandlers = {
         },
         getPostArea: (el) => el.closest('.inside-article'),
         GetInfo: (el) => DomainRules.relativeSelector(el)?.querySelector('.entry-title a')?.textContent.trim() || '',
-        getCoverImage: (downloadArea) => downloadArea.querySelector('p img')?.getAttribute('data-src') || '',
+        //getCoverImage: (downloadArea) => downloadArea.querySelector('p img')?.getAttribute('data-src') || '',
         getCopyID: (relativeArea) => relativeArea.querySelector('.entry-title a')?.href,
         iconPosition: (iconSet) => {
-            const relativeArea = iconSet.closest('.inside-article');
+            const relativeArea = DomainRules.relativeSelector(iconSet);
             const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
             const iconSetMetrics = getElementMetrics(iconSet, { mode: 'relative' });
             iconSet.style.setProperty('top', `${(relativeAreaMetrics.height / 2 - iconSetMetrics.height / 2).toFixed(0)}px`);
             iconSet.style.setProperty('right', `${(-iconSetMetrics.width / 4).toFixed(0)}px`);
         },
-        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('div.inside-article') || '',
-        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('div.message-header') || '',
+        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.entry-content') || '',
+        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('header.entry-header') || '',
     },
     'pornbb\\.org': {
         selectors: {
@@ -355,7 +418,7 @@ const DomainHandlers = {
             return parseForumTitle(infoLines, rawTitle, { preferJapanese: true })
         },
         getCopyID: (relativeArea) => relativeArea.closest('table.tborder').querySelector('td.thead a[id^="postcount')?.href,
-        iconPosition: (iconSet) => {            
+        iconPosition: (iconSet) => {
             const iconSetMetrics = getElementMetrics(iconSet, { mode: 'bounding' });
             iconSet.style.setProperty('top', `0px`);
             iconSet.style.setProperty('right', `${iconSetMetrics.width}px`);
@@ -983,68 +1046,11 @@ function RefreshIcon() {
 }
 
 let DomainRules
-document.addEventListener("DOMContentLoaded", () => {
-    let cookieCheck = getCookie("ClearCopyed")
-    if (!cookieCheck || cookieCheck != "Y") {
-        console.log('ClearCopyed')
-        ClearCopyed()
-        setClearCopyed("ClearCopyed", "Y", 1)
-    }
-
-    DomainRules = getDomainConfig(RootDomain);
-    if (!DomainRules) {
-        console.error("해당 도메인에 대한 설정이 없습니다.");
-        return
-    }
-
-
-    FontAwesomeCSS()
-
-    try {
-        MakeIcon()
-        AddCopyIcon(document.body);
-    } catch (error) {
-        let errorMessage = "아이콘 추가 중 예상치 못한 오류가 발생했습니다.";
-
-        if (error instanceof TypeError) {
-            errorMessage = error.message;
-        } else if (error instanceof ReferenceError) {
-            errorMessage = "아이콘 추가에 필요한 함수 또는 변수가 정의되지 않았습니다.";
-        }
-        console.error(errorMessage);
-        console.error("오류 상세 정보:", error.stack);
-    }
-
-    const myObserver = new ResizeObserver(entries => {
-        RefreshIcon('ResizeObserver')
-    });
-
-    window.visualViewport.addEventListener("resize", function (e) {
-        RefreshIcon('Window Resize Event')
-    })
-    myObserver.observe(document.querySelector(".ToTop"))
-
-
-    document.addEventListener("AutoPagerize_DOMNodeInserted", function (event) {
-        let node = event.target;
-        AddCopyIcon(node)
-    }, false);
-
-}, { once: true })
 
 
 
-window.addEventListener('storage', (e) => {
 
-    RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
-    GetState = RootDomainDB
-    if (document.querySelector('.CenterBox')) {
-        document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageList(RootDomainDB)?.length
-        document.querySelector('.ClearButton').style = "color: dodgerblue !important;";
-        document.querySelector('.CopyButton').style = "color: dodgerblue !important;";
-    }
 
-});
 
 
 async function AllCopy() {
