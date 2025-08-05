@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy
-// @version      1.01
+// @version      1.02
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.org/
@@ -274,8 +274,8 @@ let CopyLinks = []
 let AllCopyLinks = []
 let TmpLinksDB = []
 let DoCopied
-let AutoCopy = localStorage.getItem('AutoCopy') ? JSON.parse(localStorage.getItem('AutoCopy')) : false
-let AutoClose = localStorage.getItem('AutoClose') ? JSON.parse(localStorage.getItem('AutoClose')) : false
+let AutoCopy = JSON.parse(localStorage.getItem('AutoCopy')) || false
+let AutoClose = JSON.parse(localStorage.getItem('AutoClose')) || false
 let CopyLinksBackup
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RootDomain = extractRootDomain(PageURL)
@@ -302,6 +302,37 @@ const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|shar
 const WaitChangeLink = new RegExp('TestTest\\.cx\/', 'i')
 
 const SkipFileName = /demosaic|\.UMR|iris2/
+
+
+
+// Storage 이벤트 리스너
+window.addEventListener('storage', (e) => {
+    // 토글 관련 이벤트 처리
+    if (toggleConfigs[e.key]) {
+        handleToggle(e.key, toggleConfigs[e.key]);
+    }
+    // RootDomain 관련 이벤트 처리
+    else if (e.key === RootDomain && (e.newValue || e.oldValue)) {
+        RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
+
+        if (DownloadArea?.length) {
+            CheckDB(listToDo(DownloadArea));
+        }
+
+        const GetState = RootDomainDB;
+        const PackageCount = PackageList(RootDomainDB);
+
+        updateUI(GetState, PackageCount);
+    }
+});
+
+
+
+document.addEventListener("DOMContentLoaded", () => {
+    console.log('Start Link Copy!')
+    FontAwesomeCSS()
+    FirstStep()
+}, { once: true })
 
 
 const RegexFrom = (strings, flags) =>
@@ -1899,36 +1930,6 @@ function handleToggle(key, className) {
     }
 }
 
-// Storage 이벤트 리스너
-window.addEventListener('storage', (e) => {
-    // 토글 관련 이벤트 처리
-    if (toggleConfigs[e.key]) {
-        handleToggle(e.key, toggleConfigs[e.key]);
-    }
-    // RootDomain 관련 이벤트 처리
-    else if (e.key === RootDomain && (e.newValue || e.oldValue)) {
-        RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
-
-        if (DownloadArea?.length) {
-            CheckDB(listToDo(DownloadArea));
-        }
-
-        const GetState = RootDomainDB;
-        const PackageCount = PackageList(RootDomainDB);
-
-        updateUI(GetState, PackageCount);
-    }
-});
-
-
-
-//document.addEventListener("DOMContentLoaded", function (event) {
-
-document.addEventListener("DOMContentLoaded", () => {
-    console.log('Start Link Copy!')
-    FontAwesomeCSS()
-    FirstStep()
-}, { once: true })
 
 
 function FirstStep() {
@@ -2692,10 +2693,9 @@ async function CheckDB(listTo) {
             // 매칭이 발견되었을 때만 AutoClose 로직을 실행합니다.
             if (isMatchFound) {
                 setTimeout(() => {
-                    const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));
-                    console.log(isAutoCloseEnabled, AutoClose)
+                    const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));                    
                     // AutoClose 변수와 localStorage 값을 모두 확인하여 실행합니다.
-                    if (isAutoCloseEnabled && AutoClose) {
+                    if (isAutoCloseEnabled) {
                         console.log('AutoClose: ', AutoClose, '\nlocalStorage: ', isAutoCloseEnabled);
                         self.close();
                     }
