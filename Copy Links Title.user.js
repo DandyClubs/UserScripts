@@ -529,7 +529,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         }
 
         if (!ReleaseDate) {
-            ReleaseDate = DateRegEx.test(line) ? DateRegEx.match(line) : '';
+            ReleaseDate = DateRegEx.test(line) ? line.match(DateRegEx).replace(/\/|-|_/g,'.') : '';
         }
         return ID && ModelName && ReleaseDate && Title && Maker;
     });
