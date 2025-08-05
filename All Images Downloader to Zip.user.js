@@ -22,7 +22,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @connect      *
-// @run-at       document-start
+// @run-at       document-body
 // @noframes
 // ==/UserScript==
 
@@ -61,7 +61,7 @@ GM_addStyle(`
     border-radius: .25em !important;
     -webkit-box-sizing: border-box !important;
     box-sizing: border-box !important;
-      z-index: var(--dynamic-zindex);
+    z-index: var(--dynamic-zindex);
 }
 
 .DownButton {
@@ -169,12 +169,27 @@ GM_addStyle(`
 `);
 
 let AutoClose = true
+// 전역 또는 UI 이벤트 핸들러가 접근 가능한 위치에 선언
+let userAbortController = null;
+
+const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+const RootDomain = extractRootDomain(PageURL)
+
+let GetDPI, DefaultFontSize, CneterBoxFontSize, StateFontSize, StateLineHeight, maxLength, minLength
+
+
+let JobList = []
+let ImagesDB = []
+let DownloadImagesDB = []
+let Title, Author, Images, ZipFileName, ArchivesFileName, Tag
+let AddCount = 0
+let ErrorImages = []
 
 
 class JobQueueDB {
     constructor() {
         this.dbName = 'AllImagesJobQueueDB';
-        this.storeName = 'AllImagesDownloadertoZip';
+        this.storeName = 'AllImagesStore';
         this.db = null;
     }
 
@@ -221,20 +236,60 @@ class JobQueueDB {
     }
 }
 
-const bc = new BroadcastChannel('AllImagesDownloadertoZip');
+
 const jobDB = new JobQueueDB();
 
+const bc = new BroadcastChannel('AllImagesChannel');  
 
-// DB 초기화
-(async () => {
-    try {
-        await jobDB.init();
-        console.log(`✅ 데이터베이스가 초기화되었습니다.`);
-    } catch (err) {
-        console.error(`❌ Database initialization failed:`, err);
+
+function AddDBResetButton() {
+    const btn = document.createElement('button');
+    btn.textContent = '🧹 Reset Job DB';
+    btn.style = 'position:fixed;bottom:10px;right:10px;z-index:9999;';
+    btn.onclick = () => {
+        indexedDB.deleteDatabase('AllImagesJobQueueDB');
+        alert('JobQueue DB가 삭제되었습니다. 페이지를 새로고침하세요.');
+    };
+    document.body.appendChild(btn);
+}
+
+async function updateJobUI() {
+    const jobs = await jobDB.getAllJobs();
+    JobList = jobs.map(j => j.url);
+
+    const jobStateEl = document.querySelector('.JobState');
+    if (jobStateEl) jobStateEl.textContent = JobList.length;
+
+    const autoBtn = document.querySelector('.AutoDownload');
+    if (autoBtn) {
+        const isOn = localStorage.getItem('AutoDownload') == '1';
+        autoBtn.classList.toggle('On', isOn);
+        autoBtn.classList.toggle('Off', !isOn);
     }
-})();
+}
 
+
+async function checkAndStartJob() {
+    if (!isAutoDownload()) return;
+
+    const jobs = await jobDB.getAllJobs();
+    JobList = jobs.map(j => j.url);
+
+    updateJobUI();
+
+    if (JobList.length === 0 || JobList[0] !== PageURL) return;
+
+    try {
+        await navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, async () => {
+            console.log('🚀 Lock 확보 - 다운로드 시작:', PageURL);
+            await downloadPhotosWithRetry(ImagesDB);
+        });
+    } catch (err) {
+        console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
+    }
+}
+
+// JobQueue 변경 발생 시 Broadcast
 function broadcastJobChange() {
     bc.postMessage('refresh-jobs');
 }
@@ -249,6 +304,21 @@ async function UpdateJobQueue(url, action) {
     const isAdding = action === 'add';
     const methodName = isAdding ? 'addJob' : 'removeJob';
     const actionName = isAdding ? '추가' : '제거';
+
+
+    // 자동 다운로드 조건 확인 (탭 1번만)
+    const allJobs = await jobDB.getAllJobs();
+    JobList = allJobs.map(j => j.url);
+    let JobState = document.querySelector('.JobState')
+    if (JobState) {
+        JobState.innerText = JobList?.length
+    }
+
+    if (localStorage.getItem('AutoDownload') == 1) {
+        if (localStorage.getItem('AutoDownload') == 1 && JobList[0] === PageURL) {
+            downloadPhotosWithRetry(ImagesDB)
+        }
+    }
 
     try {
         // Call the method directly on the jobDB object inside the retry function.
@@ -427,51 +497,6 @@ function createProgressUI() {
 
 
 
-// 전역 또는 UI 이벤트 핸들러가 접근 가능한 위치에 선언
-let userAbortController = null; 
-let isDownloading = false; // 다운로드 중 상태를 나타내는 변수
-// === 이벤트 핸들러 함수 ===
-
-/**
- * '재시도' 버튼 클릭 시 호출됩니다.
- * 실패한 항목만 다시 다운로드하도록 다운로드 로직을 시작합니다.
- */
-function handleRetryClick() {
-    if (isDownloading) {
-        console.warn("이미 다운로드 중입니다.");
-        return;
-    }
-
-    // 이전에 실패한 항목 목록을 불러옵니다.
-    const itemsToRetry = loadFailedItems();
-    if (itemsToRetry.length > 0) {
-        console.log(`✅ ${itemsToRetry.length}개의 실패 항목 재시도 시작`);
-        updateStateText("재시도 중...");
-        // 실제 다운로드 로직 호출 (예: downloadPhotosWithRetry 함수)
-        // downloadPhotosWithRetry(itemsToRetry);
-        clearFailedItems(); // 재시도 시작 시 목록 초기화
-    } else {
-        console.warn("재시도할 실패 항목이 없습니다.");
-    }
-
-    // === 이벤트 리스너 추가 ===
-    ProgressUI.retryBtn.addEventListener('click', handleRetryClick);
-    ProgressUI.stopBtn.addEventListener('click', handleStopClick);
-}
-
-/**
- * '중지' 버튼 클릭 시 호출됩니다.
- * 진행 중인 모든 다운로드를 취소합니다.
- */
-function handleStopClick() {
-    if (isDownloading && userAbortController) {
-        console.log("⏹ 다운로드 중지 요청");
-        userAbortController.abort();
-    } else {
-        console.log("현재 진행 중인 다운로드가 없습니다.");
-    }
-}
-
 // === 사용 함수 ===
 function updateProgressUI(done, total) {
     if (!window.ProgressUI) return;
@@ -491,18 +516,6 @@ function updateStateText(text) {
 
 function showErrorPanel() {
     ProgressUI.errorText.style.color = 'red';
-}
-
-function saveFailedItems(list) {
-    localStorage.setItem('FailedDownloads', JSON.stringify(list));
-}
-
-function loadFailedItems() {
-    return JSON.parse(localStorage.getItem('FailedDownloads') || '[]');
-}
-
-function clearFailedItems() {
-    localStorage.removeItem('FailedDownloads');
 }
 
 // UI 숨기기 함수 예시
@@ -606,13 +619,6 @@ async function Xfetch(url, fetchInit = {}) {
 
 
 
-let JobList = localStorage.getItem('Job') ? JSON.parse(localStorage.getItem('Job')) : [];
-let ImagesDB = []
-let DownloadImagesDB = []
-let Title, Author, Images, ZipFileName, ArchivesFileName, Tag, AreadyDownload = false
-let AddCount = 0
-let ErrorImages = []
-
 function ImageToBlob(url) {
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
@@ -642,14 +648,6 @@ function ImageToBlob(url) {
         });
     });
 }
-
-
-
-let GetDPI, DefaultFontSize, CneterBoxFontSize, StateFontSize, StateLineHeight, maxLength, minLength
-
-const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
-const RootDomain = extractRootDomain(PageURL)
-
 
 function onElementLoaded(elementToObserve, parentStaticElement) {
     const promise = new Promise((resolve, reject) => {
@@ -701,7 +699,7 @@ function MakeIcon() {
     }
 
     // 모든 요소를 한 번에 생성
-    document.body.insertAdjacentHTML('beforeend',
+    document.body.insertAdjacentHTML('afterbegin',
         `
         <div class="CenterBox" style="max-width: max-content; visibility:hidden; position: fixed;">
             <i class="DownButton fas fa-download"></i>
@@ -753,9 +751,8 @@ function MakeIcon() {
     autoDownloadBox.insertAdjacentHTML('beforeend', jobStateHTML);
     const jobStateEl = document.querySelector('.JobState');
 
-    // JobList 초기화 및 텍스트 설정
-    const JobList = JSON.parse(localStorage.getItem('Job') || '[]');
-    jobStateEl.textContent = JobList.length;
+    // JobList 초기화 및 텍스트 설정    
+    jobStateEl.textContent = JobList.length || 0;
 
     // AutoDownloadBox 위치 설정
     if (centerBox.offsetLeft > 0) {
@@ -791,28 +788,28 @@ function GetRequiredElement(selector, label = 'Element') {
 
 
 async function Start() {
-    MakeIcon();
+    await jobDB.init();
+
+    const allJobs = await jobDB.getAllJobs();
+    JobList = allJobs.map(j => j.url);
 
     window.addEventListener('beforeunload', async () => {
-        await UpdateJobQueue(PageURL, 'remove'); // ✅ JobQueue에서 제거
+        await UpdateJobQueue(PageURL, 'remove');
     });
 
     let Title, Images, Author;
-
 
     if (/everia\.club/.test(PageURL)) {
         Title = GetRequiredElement("article header.entry-header .single-post-title.entry-title", "Title");
         if (!Title) return console.warn('Title not found for everia.club');
         Images = Array.from(document.querySelectorAll('article > div.entry-content img'));
         Images.forEach(img => UpdateDB(img.getAttribute('data-src') || img.src, ''));
-    }
-    else if (/ilovexs\.com/.test(PageURL)) {
+    } else if (/ilovexs\.com/.test(PageURL)) {
         Title = GetRequiredElement("#content.site-content h4.entry-title", "Title");
         if (!Title) return console.warn('Title not found for ilovexs.com');
         Images = Array.from(document.querySelectorAll('#content.site-content .entry-content img'));
         Images.forEach(img => UpdateDB(img.src, ''));
-    }
-    else if (/girlgirlgo\.org/.test(PageURL)) {
+    } else if (/girlgirlgo\.org/.test(PageURL)) {
         await onElementLoaded('article div.post-body h1.post-title.entry-title');
         Title = GetRequiredElement("article div.post-body h1.post-title.entry-title", "Title");
         if (!Title) return console.warn('Title not found for girlgirlgo.org');
@@ -820,8 +817,7 @@ async function Start() {
         Images = Array.from(document.querySelectorAll('article div.post-body div.post-media-body img'));
         Images.forEach(img => UpdateDB(img.getAttribute('data-src')));
         if (/girlgirlgo\.org\/random/.test(PageURL)) return console.log('Random images - no processing');
-    }
-    else if (/foamgirl\.net\/\d+\.html/.test(PageURL)) {
+    } else if (/foamgirl\.net\/\d+\.html/.test(PageURL)) {
         Title = GetRequiredElement(".single_mianimage .item_title h1", "Title");
         if (!Title) return console.warn('Title not found for foamgirl.net');
         Images = Array.from(document.querySelectorAll('.single_mianimage #content img'));
@@ -841,41 +837,75 @@ async function Start() {
         }
     }
 
-    // URL 패턴에 따라 JobList에 등록
     if ((!/\/page/.test(PageURL) && /\/(\d+|id-.+)\.html/.test(PageURL)) ||
         /everia\.club\/\d+/.test(PageURL) ||
         /girlgirlgo\.org\/a\/.+/.test(PageURL)) {
-        await UpdateJobQueue(PageURL, 'add')
+        await UpdateJobQueue(PageURL, 'add');
     }
 
     if (!Title) return console.warn('Title not found');
+
+return Title
+}
+
+
+async function secondStep(Title) {
 
     document.querySelector('.CenterBox').style.visibility = 'visible';
 
     Title = Title.textContent.trim();
     Title = Title.endsWith(`(${ImagesDB.length}P)`) ? Title : `${Title}(${ImagesDB.length}P)`;
     ZipFileName = byteLengthOf(FilenameConvert(Author ? `[${Author.innerText.trim()}] ${Title}` : Title), 240);
+
     const nameLengths = ImagesDB.filter(e => getExtensionOfFilename(e.U) !== '.webp').map(x => GetFileName(x.U).length);
     maxLength = Math.max(...nameLengths);
     minLength = Math.min(...nameLengths);
+
     console.log('ZipFileName:', ZipFileName, '\nnameLengths:', nameLengths, '\nmaxLength:', maxLength, '\nminLength:', minLength);
 
     document.querySelector('.DownButton').addEventListener('click', e => {
         e.preventDefault();
-        e.target.style.color = 'Orange';
-        AreadyDownload = true;
-        downloadPhotosWithRetry(ImagesDB);
+        navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, async () => {
+            await downloadPhotosWithRetry(ImagesDB);
+        });
     });
 
-    // 자동 다운로드 조건 확인 (탭 1번만)
-    const allJobs = await jobDB.getAllJobs();
-    JobList = allJobs.map(j => j.url);
-
-    if (!AreadyDownload && localStorage.getItem('AutoDownload') == "1" &&
-        JobList.length && JobList[0] === PageURL) {
-        AreadyDownload = true;
-        downloadPhotosWithRetry(ImagesDB);
+    // ✅ 여기서도 lock을 얻은 탭만 자동 시작하도록
+    if (isAutoDownload() && JobList[0] === PageURL) {
+        try {
+            await navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, async () => {
+                await downloadPhotosWithRetry(ImagesDB);
+            });
+        } catch (e) {
+            console.log("다른 탭이 다운로드 중이거나 Lock 실패");
+        }
     }
+
+
+
+    document.querySelector('.StopAll').addEventListener('click', () => {
+        navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, () => {
+            
+        });
+        if (userAbortController) {
+            console.log("⏹ 다운로드 중지 요청");
+            userAbortController.abort();
+        } 
+    });
+
+    document.querySelector('.RetryFailed').addEventListener('click', () => {
+        navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, () => {
+            if (ErrorImages.length > 0) {
+                console.log("🔄 실패한 이미지 재시도");
+                downloadPhotosWithRetry(ImagesDB)
+            } else {
+                console.log("❌ 재시도할 실패 이미지 없음");
+            }          
+        });
+    });
+
+
+
 }
 
 
@@ -989,7 +1019,6 @@ function activityTimeoutSignal(ms) {
 
 
 async function downloadPhotosWithRetry(ImagesDB) {
-    isDownloading = true; // 다운로드 시작 상태 설정
     // 다운로드 시작 시 새로운 AbortController 생성
     userAbortController = new AbortController();
     const { signal: userSignal } = userAbortController;
@@ -1023,7 +1052,7 @@ async function downloadPhotosWithRetry(ImagesDB) {
         } catch (fatalErr) {
             if (fatalErr.name === 'AbortError') {
                 console.log("🚫 다운로드가 사용자 요청 또는 타임아웃으로 취소되었습니다.");
-                updateStateText("🚫 다운로드 취소됨");                
+                updateStateText("🚫 다운로드 취소됨");
             } else {
                 console.error("⛔ 치명적 오류:", fatalErr);
                 AutoClose = false
@@ -1034,7 +1063,6 @@ async function downloadPhotosWithRetry(ImagesDB) {
 
     // 다운로드 종료 후 AbortController 초기화
     userAbortController = null;
-    isDownloading = false; // 다운로드 종료 상태 설정
 
     if (errorList.length) {
         updateStateText(`❌ 최종 실패 ${errorList.length} 항목`);
@@ -1063,8 +1091,8 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
     const zip = new fflate.Zip();
     let addCount = 0;
     // streamSaver에도 사용자 취소 신호 전달
-    const fileStream = streamSaver.createWriteStream(ArchivesFileName, { signal: userSignal });    
-    
+    const fileStream = streamSaver.createWriteStream(ArchivesFileName, { signal: userSignal });
+
     const rs = new ReadableStream({
         start(controller) {
             zip.ondata = (err, chunk, final) => {
@@ -1083,7 +1111,7 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
     });
 
     for (const meta of DB) {
-        
+
         // 루프 시작 시 사용자 취소 신호 확인
         if (userSignal.aborted) {
             zip.terminate();
@@ -1117,7 +1145,7 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
                 if (done) break;
 
                 // 데이터 수신 시 타임아웃 재설정
-                activityController.resetTimeout(); 
+                activityController.resetTimeout();
                 file.push(value);
             }
             file.push(new Uint8Array(0), true);
@@ -1161,65 +1189,32 @@ async function cleanupStreamSaverTempFiles() {
 }
 
 
-async function Ziping(ImagesDB) {
-    try {
-        const DB = await generateZIP(ImagesDB);
-        console.log(DB);
-
-        const zip = await mergeZips(DB);
-
-        const blob = await zip.generateAsync({
-            type: 'blob',
-            compression: "DEFLATE",
-            compressionOptions: { level: 9 }
-        }, function updateCallback(metadata) {
-            const stateEl = document.querySelector('.State');
-            const errorEl = document.querySelector('.ErrorImages');
-
-            if (ErrorImages?.length) {
-                // 에러 상태 표시
-                stateEl.innerText = ` S:${AddCount} / E:${ErrorImages.length} / T:${ImagesDB.length}`;
-                errorEl.innerText = ErrorImages.join('\n');
-
-                const fontSizeRem = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2)) + 'rem';
-                const centerBox = document.querySelector(".CenterBox");
-
-                $(errorEl).css({
-                    fontSize: fontSizeRem,
-                    top: centerBox.offsetTop + centerBox.offsetHeight * 1.2,
-                    left: window.innerWidth / 2 - centerBox.offsetWidth,
-                    display: "block"
-                });
-            } else {
-                // 정상 진행률 표시
-                const progress = metadata.percent.toFixed(1);
-                const filename = metadata.currentFile ? ` ${metadata.currentFile}` : '';
-                stateEl.innerText = ` ${AddCount}/${ImagesDB.length}${filename} ${progress}%`;
-            }
-        });
-
-        // 최종 완료 처리
-        if (!ErrorImages?.length) {
-            UpdateJobQueue(PageURL, 'remove'); // ✅ JobQueue에서 제거
-            saveAs(blob, ArchivesFileName);
-
-            if (localStorage.getItem('AutoDownload') == "1" && AutoClose) {
-                await sleep(5000);
-                self.close();
-            }
-        }
-
-    } catch (err) {
-        console.error("Ziping() Error:", err);
-        document.querySelector('.State').innerText = '❌ 압축 도중 오류 발생';
-    }
-}
-
-
-document.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
     console.log('All Images Download Zip!')
-    FontAwesomeCSS()
-    Start()
+    FontAwesomeCSS();
+    MakeIcon();
+    AddDBResetButton()
+      
+    await jobDB.init();
+
+    bc.onmessage = (e) => {
+        if (e.data === 'refresh-jobs') {
+            updateJobUI();
+            checkAndStartJob();
+        }
+    };
+
+    updateJobUI();
+
+  
+
+    await Start().then(Title => {
+        if (Title) {
+            secondStep(Title)
+        }
+    });
+    
+    await checkAndStartJob();
 
     window.addEventListener('storage', (e) => {
         if (e.key === 'AutoDownload') {
@@ -1231,19 +1226,7 @@ document.addEventListener("DOMContentLoaded", () => {
             else {
                 ev.classList.replace('On', 'Off')
             }
-        }
-        else if (e.key === 'Job') {
-            JobList = localStorage.getItem('Job') ? JSON.parse(localStorage.getItem('Job')) : []
-            if (document.querySelector('.JobState')) {
-                document.querySelector('.JobState').innerText = JobList?.length
-            }
-            if (localStorage.getItem('AutoDownload') == 1) {
-                if (localStorage.getItem('AutoDownload') == 1 && JobList.length && JobList[0] === PageURL && !AreadyDownload) {
-                    AreadyDownload = true
-                    downloadPhotosWithRetry(ImagesDB)
-                }
-            }
-        }
+        } 
     })
 }, { once: true });
 
