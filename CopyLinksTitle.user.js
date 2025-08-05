@@ -234,7 +234,7 @@ const DomainHandlers = {
             copyTitle: '.entry-title a',
             visitedLink: 'h2.entry-title a',
         },
-        getPostArea: (el) => el.closest('.inside-article'),        
+        getPostArea: (el) => el.closest('.inside-article'),
         GetInfo: (el) => DomainRules.relativeSelector(el)?.querySelector('.entry-title a')?.textContent.trim() || '',
         getCoverImage: (downloadArea) => downloadArea.querySelector('p img')?.getAttribute('data-src') || '',
         getCopyID: (relativeArea) => relativeArea.querySelector('.entry-title a')?.href,
@@ -304,7 +304,7 @@ const DomainHandlers = {
             const rawTitle = DomainRules.relativeSelector(el)?.querySelector('div.postdetails, span.postdetails')?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return parseForumTitle(infoLines, rawTitle, {preferJapanese: true})
+            return parseForumTitle(infoLines, rawTitle, { preferJapanese: true })
         },
         getCopyID: (relativeArea) => {
             const anchor = relativeArea.closest('.postdetails')?.querySelector('a.bold');
@@ -329,7 +329,7 @@ const DomainHandlers = {
             const rawTitle = DomainRules.relativeSelector(el)?.querySelector('div.keyinfo h5')?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return parseForumTitle(infoLines, rawTitle,{preferJapanese: true})
+            return parseForumTitle(infoLines, rawTitle, { preferJapanese: true })
         },
         getCopyID: (relativeArea) => relativeArea.querySelector('div.keyinfo > [id^="subject_"] > a')?.href || '',
         iconPosition: (iconSet) => {
@@ -349,10 +349,10 @@ const DomainHandlers = {
         },
         getPostArea: (el) => el.closest('table.tborder'),
         GetInfo: (el) => {
-            const rawTitle = DomainRules.relativeSelector(el)?.querySelector('div.smallfont')?.textContent.trim() || '';
+            const rawTitle = DomainRules.relativeSelector(el)?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return parseForumTitle(infoLines, rawTitle, {preferJapanese: true})
+            return parseForumTitle(infoLines, rawTitle, { preferJapanese: true })
         },
         getCopyID: (relativeArea) => relativeArea.closest('table.tborder').querySelector('td.thead a[id^="postcount')?.href,
         iconPosition: (iconSet) => {
@@ -373,7 +373,7 @@ const DomainHandlers = {
             const rawTitle = DomainRules.relativeSelector(el)?.querySelector('a.topictitle')?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return parseForumTitle(infoLines, rawTitle, {preferJapanese: true})
+            return parseForumTitle(infoLines, rawTitle, { preferJapanese: true })
         },
         getCopyID: (relativeArea) => relativeArea.querySelector('a.topictitle')?.href || '',
         iconPosition: (iconSet, titleArea) => {
@@ -437,10 +437,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
             if (titleMatch && copyMatch) {
                 if (preferJapanese) {
-                    const titleJapaneseCount = (titleMatch.match(JapaneseChar) || []).length;
-                    const copyJapaneseCount = (copyMatch.match(JapaneseChar) || []).length;
-
-                    Title = titleJapaneseCount >= copyJapaneseCount ? titleMatch : copyMatch;
+                    Title = compareJapaneseCharacters(titleMatch, copyMatch);
                 } else {
                     Title = titleMatch || copyMatch;
                 }
@@ -448,11 +445,9 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
                 Title = titleMatch;
             } else if (copyMatch) {
                 Title = copyMatch;
-            } else {
-                Title = line;
             }
 
-            Title = Title.trim() + ' ';
+            Title = Title ? Title.trim() + ' ' : '';
         }
 
 
@@ -470,7 +465,6 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
         if (!ReleaseDate) {
             const dateMatch = line.match(ReleaseDateRegex);
-            console.log('ReleaseDate Match:', dateMatch);
 
             if (dateMatch) {
                 const ymdMatch = dateMatch[0].match(/(19|20)?\d{2}[.\/-]([0]?[1-9]|1[0-2])[.\/-]([0]?[1-9]|[12][0-9]|3[01])/);
@@ -484,9 +478,10 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
                 }
             }
         }
-        console.log({ ID, ModelName, ReleaseDate, Title });
-        return ID && ModelName && ReleaseDate;
+        return ID && ModelName && ReleaseDate && Title && Maker;
     });
+
+    console.log({ ID, ModelName, ReleaseDate, Title });
 
     if (ModelName) {
         let ModelNameList = ModelName.split(/[,|]/).map(s => s.trim()).filter(Boolean);
@@ -513,14 +508,17 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         .filter(line => line.trim() && !/^(http|Download|Duration|Resolution|Categories|About)/i.test(line));
 
 
-    const infoLinesFinalTitle = `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim();
-    const InfofinalTitle = compareSentencesByWordMatch(cleanedinfoLines[0], infoLinesFinalTitle)
 
-    console.log({ CopyTitle, infoLinesFinalTitle});
+    const infoLinesFinalTitle = `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim();
+    
+    
+    const InfofinalTitle = infoLinesFinalTitle ? compareSentencesByWordMatch(cleanedinfoLines[0], infoLinesFinalTitle) : cleanedinfoLines[0] || '';
+
+    console.log({ CopyTitle, InfofinalTitle });
     //preferJapanese: true 일 때, 두 문장을 비교하여 일본어가 많이 포함된 경우 우선순위를 두고, 그렇지 않으면 원본 제목을 사용합니다.
-    if(preferJapanese){
+    if (preferJapanese) {
         return compareJapaneseCharacters(CopyTitle, InfofinalTitle);
-    }    
+    }
     return compareSentencesByWordMatch(CopyTitle, InfofinalTitle);
 }
 
@@ -531,11 +529,11 @@ function parseForumTitle(infoLines, rawTitle, options = {}) {
         skipKeywords = [],
         rawMode = false,
     } = options;
-
+    console.log('parseForumTitle:', { infoLines, rawTitle, options });
     rawTitle = rawTitle.replace(/amp;/gi, '').replace(/^Re:/i, '').trim();
 
-    
-    const finalTitle = extractInfoFromText(infoLines, rawTitle, ...options)
+
+    const finalTitle = extractInfoFromText(infoLines, rawTitle, options)
     const TitleID = finalTitle?.match(SearchID)?.[1] || '';
     const Title = finalTitle?.match(SearchID)?.pop()?.trim() || finalTitle;
     console.log({ finalTitle, TitleID, Title });
