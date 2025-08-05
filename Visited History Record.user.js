@@ -378,7 +378,7 @@ function MakeIcon() {
     let DefaultFontSize = getDefaultFontSize()
     console.log('GetDPI: ', GetDPI, 'DefaultFontSize: ', DefaultFontSize)
     let CenterBoxZIndex = 99999
-    //let CenterBoxFontSize = Number(((1/(GetDPI/1.5))*0.9*(16/DefaultFontSize)).toFixed(2)) + 'rem'
+    let CenterBoxFontSize = Number(((1/(GetDPI/1.5))*0.9*(16/DefaultFontSize)).toFixed(2)) + 'rem'
 
     if(document.querySelector("div.VisitedCenterBox")){ return }
     document.querySelector("body").insertAdjacentHTML('afterbegin', '<div class="VisitedCenterBox" style="max-width: max-content; position: fixed;"></div>')
