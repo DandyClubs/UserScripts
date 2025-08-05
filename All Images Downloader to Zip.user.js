@@ -57,7 +57,7 @@ GM_addStyle(`
     word-spacing: .5em;
     font-style: initial !important;
     text-align: center;
-    color: dodgerblue !important;    
+    color: dodgerblue !important;
     border-radius: .25em !important;
     -webkit-box-sizing: border-box !important;
     box-sizing: border-box !important;
@@ -70,6 +70,7 @@ GM_addStyle(`
     padding: .5em;
     margin: .25em;
     background-color:transparent !important;
+    z-index: var(--dynamic-zindex);
 }
 
 
@@ -93,6 +94,7 @@ GM_addStyle(`
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
+    z-index: var(--dynamic-zindex);
 }
 
 .CopyNotice {
@@ -126,6 +128,7 @@ GM_addStyle(`
     padding: .25em !important;
     font-style: italic !important;
     background-color:transparent !important;
+    z-index: var(--dynamic-zindex);
 }
 
 .JobState {
@@ -135,6 +138,7 @@ GM_addStyle(`
     vertical-align: middle;
     padding: 0 .5em 0 0 !important;
     font-family: 'Noto Sans', sans-serif !important;
+    z-index: var(--dynamic-zindex);
 }
 
 .AutoDownloadBox {
@@ -150,11 +154,13 @@ GM_addStyle(`
     background-color: rgba(0,0,0,0.5) !important;
     cursor: pointer;
     text-align: center;
+    z-index: var(--dynamic-zindex);
 }
 
 .ToTop, .AutoDownload {
     cursor: pointer;
     color: LawnGreen !important;
+    z-index: var(--dynamic-zindex);
 }
 
 .AutoDownload.On {
@@ -240,7 +246,7 @@ class JobQueueDB {
 
 const jobDB = new JobQueueDB();
 
-const bc = new BroadcastChannel('AllImagesChannel');  
+const bc = new BroadcastChannel('AllImagesChannel');
 
 
 function AddDBResetButton() {
@@ -278,7 +284,7 @@ async function checkAndStartJob() {
 
     updateJobUI();
 
-    if (JobList.length === 0 || JobList[0] !== PageURL || !areadyDownloaded) return;
+    if (JobList.length === 0 || JobList[0] !== PageURL || areadyDownloaded) return;
 
     try {
         await navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, async () => {
@@ -560,11 +566,11 @@ async function Xfetch(url, fetchInit = {}) {
                     responseType: "blob",
                     onload: (response) => {
                         // Check if response is successful and not an empty file
-                        if (response.status === 200 && response.response.byteLength > 0) {                            
+                        if (response.status === 200 && response.response.byteLength > 0) {
                             res(response.response)
                         } else {
                             rej(new Error(`Status ${response.status} or empty response`));
-                        }                        
+                        }
                     },
                     onerror: rej,
                     onreadystatechange: onHeadersReceived,
@@ -703,11 +709,11 @@ function MakeIcon() {
 
     // CenterBox가 이미 존재하면 함수 실행 중단
     if (document.querySelector("div.CenterBox")) {
-        return;
+        return true;
     }
 
     // 모든 요소를 한 번에 생성
-    document.body.insertAdjacentHTML('afterbegin',
+    document.body.insertAdjacentHTML('beforeend',
         `
         <div class="CenterBox" style="max-width: max-content; position: fixed;">
             <i class="DownButton fas fa-download"></i>
@@ -720,6 +726,7 @@ function MakeIcon() {
         </div>
         `
     );
+    console.log('MakeIcon() 실행됨')
 
     // DOM 요소를 한 번만 선택하고 변수에 할당
     const centerBox = document.querySelector(".CenterBox");
@@ -745,6 +752,9 @@ function MakeIcon() {
     if (isElementCovered(centerBox)) {
         bringElementToFrontWithSteps(centerBox);
     }
+    if (isElementCovered(autoDownloadBox)) {
+        bringElementToFrontWithSteps(autoDownloadBox);
+    }
 
     // AutoDownload 상태 토글 UI 설정
     const isAutoDownload = localStorage.getItem('AutoDownload') == 1;
@@ -759,7 +769,7 @@ function MakeIcon() {
     autoDownloadBox.insertAdjacentHTML('beforeend', jobStateHTML);
     const jobStateEl = document.querySelector('.JobState');
 
-    // JobList 초기화 및 텍스트 설정    
+    // JobList 초기화 및 텍스트 설정
     jobStateEl.textContent = JobList.length || 0;
 
     // AutoDownloadBox 위치 설정
@@ -798,9 +808,6 @@ function GetRequiredElement(selector, label = 'Element') {
 async function Start() {
     await jobDB.init();
 
-    const allJobs = await jobDB.getAllJobs();
-    JobList = allJobs.map(j => j.url);
-
     window.addEventListener('beforeunload', async () => {
         await UpdateJobQueue(PageURL, 'remove');
     });
@@ -834,8 +841,10 @@ async function Start() {
         const navRight = document.querySelector('.mbx-nav-right');
         const maxPage = Number(navRight?.innerText.replace(/^.*[\\/]/, '')) || 1;
         const baseUrl = PageURL.replace(/\.html$/, '');
+
         for (let i = 2; i <= maxPage; i++) {
             try {
+                console.log('Max Page:', maxPage, 'Base URL:', baseUrl);
                 await NextPage(`${baseUrl}_${i}.html`);
                 navRight.innerText = `Page Load ${i}/${maxPage}`;
             } catch (e) {
@@ -853,7 +862,7 @@ async function Start() {
 
     if (!Title) return console.warn('Title not found');
 
-return Title
+    return Title
 }
 
 
@@ -871,6 +880,10 @@ async function secondStep(Title) {
 
     console.log('ZipFileName:', ZipFileName, '\nnameLengths:', nameLengths, '\nmaxLength:', maxLength, '\nminLength:', minLength);
 
+    const allJobs = await jobDB.getAllJobs();
+    JobList = allJobs.map(j => j.url);
+    checkAndStartJob();
+
     document.querySelector('.DownButton').addEventListener('click', e => {
         e.preventDefault();
         navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, async () => {
@@ -879,6 +892,7 @@ async function secondStep(Title) {
     });
 
     // ✅ 여기서도 lock을 얻은 탭만 자동 시작하도록
+    console
     if (isAutoDownload() && JobList[0] === PageURL && !areadyDownloaded) {
         try {
             await navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, async () => {
@@ -888,32 +902,32 @@ async function secondStep(Title) {
             console.log("다른 탭이 다운로드 중이거나 Lock 실패");
         }
     }
+    
 
+    await onElementLoaded('.StopAll').then(() => {
+        console.log('StopAll 버튼이 로드되었습니다.');
 
+        document.querySelector('.StopAll').addEventListener('click', () => {
+            navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, () => {
 
-    document.querySelector('.StopAll').addEventListener('click', () => {
-        navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, () => {
-            
+            });
+            if (userAbortController) {
+                console.log("⏹ 다운로드 중지 요청");
+                userAbortController.abort();
+            }
         });
-        if (userAbortController) {
-            console.log("⏹ 다운로드 중지 요청");
-            userAbortController.abort();
-        } 
-    });
 
-    document.querySelector('.RetryFailed').addEventListener('click', () => {
-        navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, () => {
-            if (ErrorImages.length > 0) {
-                console.log("🔄 실패한 이미지 재시도");
-                downloadPhotosWithRetry(ImagesDB)
-            } else {
-                console.log("❌ 재시도할 실패 이미지 없음");
-            }          
+        document.querySelector('.RetryFailed').addEventListener('click', () => {
+            navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, () => {
+                if (ErrorImages.length > 0) {
+                    console.log("🔄 실패한 이미지 재시도");
+                    downloadPhotosWithRetry(ImagesDB)
+                } else {
+                    console.log("❌ 재시도할 실패 이미지 없음");
+                }
+            });
         });
-    });
-
-
-
+    })
 }
 
 
@@ -1050,13 +1064,13 @@ async function downloadPhotosWithRetry(ImagesDB) {
 
             console.warn(`[Attempt ${attempt}] 실패 항목 ${errorList.length}개, 재시도 준비`);
 
-            const failedNames = new Set(errorList.map(e => e.F));           
+            const failedNames = new Set(errorList.map(e => e.F));
 
 
         } catch (fatalErr) {
             if (fatalErr.name === 'AbortError') {
                 console.log("🚫 다운로드가 사용자 요청 또는 타임아웃으로 취소되었습니다.");
-                updateStateText("🚫 다운로드 취소됨");                
+                updateStateText("🚫 다운로드 취소됨");
             } else {
                 console.error("⛔ 치명적 오류:", fatalErr);
                 AutoClose = false
@@ -1064,7 +1078,7 @@ async function downloadPhotosWithRetry(ImagesDB) {
             // IndexedDB 임시 데이터 제거 (streamSaver 버퍼 제거)
             if (typeof cleanupStreamSaverTempFiles === 'function') {
                 await cleanupStreamSaverTempFiles();
-            }            
+            }
             break;
         }
     }
@@ -1199,56 +1213,46 @@ async function cleanupStreamSaverTempFiles() {
 }
 
 
-document.addEventListener("DOMContentLoaded", async () => {
-    console.log('All Images Download Zip!')
-    FontAwesomeCSS();
-    MakeIcon();
-    AddDBResetButton()
-      
-    await jobDB.init();
 
-    bc.onmessage = (e) => {
-        if (e.data === 'refresh-jobs') {
-            updateJobUI();
-            checkAndStartJob();
-        }
-    };
+document.addEventListener("readystatechange", async (event) => {
+    if (event.target.readyState === "complete") {
+        console.log('All Images Download Zip!')
+        FontAwesomeCSS();
+        MakeIcon();
+        AddDBResetButton()
 
-    updateJobUI();
+        await jobDB.init();
 
-  
-
-    await Start().then(Title => {
-        if (Title) {
-            secondStep(Title)
-        }
-    });
-    
-    await checkAndStartJob();
-
-    window.addEventListener('storage', (e) => {
-        if (e.key === 'AutoDownload') {
-            let ev = document.querySelector(".AutoDownload")
-            if (!ev) { return }
-            if (localStorage.getItem('AutoDownload') == 1) {
-                ev.classList.replace('Off', 'On')
+        bc.onmessage = (e) => {
+            if (e.data === 'refresh-jobs') {
+                updateJobUI();
+                checkAndStartJob();
             }
-            else {
-                ev.classList.replace('On', 'Off')
+        };
+
+        updateJobUI();        
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'AutoDownload') {
+                let ev = document.querySelector(".AutoDownload")
+                if (!ev) { return }
+                if (localStorage.getItem('AutoDownload') == 1) {
+                    ev.classList.replace('Off', 'On')
+                }
+                else {
+                    ev.classList.replace('On', 'Off')
+                }
             }
-        } 
-    })
+        })
+
+
+        Start().then(Title => {
+            if (Title) {
+                secondStep(Title)
+            }
+        });
+    }
 }, { once: true });
 
-/*
-document.addEventListener("readystatechange", (event) => {
-    if (event.target.readyState === "interactive") {
-        console.log('All Images Download Zip!')
-        FontAwesomeCSS()
-        Start()
-    }
-}, {once : true});
-*/
 
 function NextPage(url) {
     return new Promise((resolve, reject) => {
