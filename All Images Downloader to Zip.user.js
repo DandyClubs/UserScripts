@@ -422,6 +422,54 @@ function createProgressUI() {
             this.errorText.textContent = `❌ ${this.failed}`;
         }
     };
+
+}
+
+
+
+// 전역 또는 UI 이벤트 핸들러가 접근 가능한 위치에 선언
+let userAbortController = null; 
+let isDownloading = false; // 다운로드 중 상태를 나타내는 변수
+// === 이벤트 핸들러 함수 ===
+
+/**
+ * '재시도' 버튼 클릭 시 호출됩니다.
+ * 실패한 항목만 다시 다운로드하도록 다운로드 로직을 시작합니다.
+ */
+function handleRetryClick() {
+    if (isDownloading) {
+        console.warn("이미 다운로드 중입니다.");
+        return;
+    }
+
+    // 이전에 실패한 항목 목록을 불러옵니다.
+    const itemsToRetry = loadFailedItems();
+    if (itemsToRetry.length > 0) {
+        console.log(`✅ ${itemsToRetry.length}개의 실패 항목 재시도 시작`);
+        updateStateText("재시도 중...");
+        // 실제 다운로드 로직 호출 (예: downloadPhotosWithRetry 함수)
+        // downloadPhotosWithRetry(itemsToRetry);
+        clearFailedItems(); // 재시도 시작 시 목록 초기화
+    } else {
+        console.warn("재시도할 실패 항목이 없습니다.");
+    }
+
+    // === 이벤트 리스너 추가 ===
+    ProgressUI.retryBtn.addEventListener('click', handleRetryClick);
+    ProgressUI.stopBtn.addEventListener('click', handleStopClick);
+}
+
+/**
+ * '중지' 버튼 클릭 시 호출됩니다.
+ * 진행 중인 모든 다운로드를 취소합니다.
+ */
+function handleStopClick() {
+    if (isDownloading && userAbortController) {
+        console.log("⏹ 다운로드 중지 요청");
+        userAbortController.abort();
+    } else {
+        console.log("현재 진행 중인 다운로드가 없습니다.");
+    }
 }
 
 // === 사용 함수 ===
@@ -911,8 +959,7 @@ function GetFileName(url) {
 const downloadedFiles = new Set();
 
 
-// 전역 또는 UI 이벤트 핸들러가 접근 가능한 위치에 선언
-let userAbortController = null;
+
 
 function activityTimeoutSignal(ms) {
     const controller = new AbortController();
@@ -942,6 +989,7 @@ function activityTimeoutSignal(ms) {
 
 
 async function downloadPhotosWithRetry(ImagesDB) {
+    isDownloading = true; // 다운로드 시작 상태 설정
     // 다운로드 시작 시 새로운 AbortController 생성
     userAbortController = new AbortController();
     const { signal: userSignal } = userAbortController;
@@ -986,6 +1034,7 @@ async function downloadPhotosWithRetry(ImagesDB) {
 
     // 다운로드 종료 후 AbortController 초기화
     userAbortController = null;
+    isDownloading = false; // 다운로드 종료 상태 설정
 
     if (errorList.length) {
         updateStateText(`❌ 최종 실패 ${errorList.length} 항목`);
@@ -1034,6 +1083,7 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
     });
 
     for (const meta of DB) {
+        
         // 루프 시작 시 사용자 취소 신호 확인
         if (userSignal.aborted) {
             zip.terminate();
