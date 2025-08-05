@@ -529,12 +529,10 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         }
 
         if (!ReleaseDate) {
-            ReleaseDate = DateRegEx.test(line) ? line.match(DateRegEx).replace(/\/|-|_/g,'.') : '';
+            ReleaseDate = DateRegEx.test(line) ? line.match(DateRegEx)[1].replace(/\/|-|_/g, '.') : '';
         }
         return ID && ModelName && ReleaseDate && Title && Maker;
-    });
-
-    console.log({ ID, ModelName, ReleaseDate, Title });
+    });    
 
     if (ModelName) {
         let ModelNameList = ModelName.split(/[,|]/).map(s => s.trim()).filter(Boolean);
@@ -562,17 +560,26 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
 console.log('cleanedinfoLines:', cleanedinfoLines);
 
-    const infoLinesFinalTitle = `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim();
+    const infoLinesFinalTitle = Title ? `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim() : ''
 
 
     const InfofinalTitle = infoLinesFinalTitle ? compareSentencesByWordMatch(cleanedinfoLines[0], infoLinesFinalTitle) : cleanedinfoLines[0] || '';
 
     console.log({ CopyTitle, InfofinalTitle });
     //preferJapanese: true 일 때, 두 문장을 비교하여 일본어가 많이 포함된 경우 우선순위를 두고, 그렇지 않으면 원본 제목을 사용합니다.
+    let preferText = ''
+    let compareText = ''
     if (preferJapanese) {
-        return compareJapaneseCharacters(CopyTitle, InfofinalTitle);
+        preferText = compareJapaneseCharacters(CopyTitle, InfofinalTitle);
     }
-    return compareSentencesByWordMatch(CopyTitle, InfofinalTitle);
+        compareText = compareSentencesByWordMatch(CopyTitle, InfofinalTitle);
+    
+    const compareLast = compareSentencesByWordMatch(preferText, compareText)
+    if (ReleaseDate && (Maker || ID)) {
+        return `${Maker}${ID ? ID + ' ' : ''}.${ReleaseDate}.${compareLast}`
+    } else {
+        return `${compareLast} ${ReleaseDate}`
+    }
 }
 
 
