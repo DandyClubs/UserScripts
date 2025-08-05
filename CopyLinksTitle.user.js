@@ -238,11 +238,12 @@ const DomainHandlers = {
         GetInfo: (el) => DomainRules.relativeSelector(el)?.querySelector('.entry-title a')?.textContent.trim() || '',
         getCoverImage: (downloadArea) => downloadArea.querySelector('p img')?.getAttribute('data-src') || '',
         getCopyID: (relativeArea) => relativeArea.querySelector('.entry-title a')?.href,
-        iconPosition: (iconSet, modArea) => {
-            const offset = getRelativeOffset(modArea);
-            const iconSetOffset = getRelativeOffset(iconSet);
-            iconSet.style.setProperty('top', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
-            iconSet.style.setProperty('right', `${(-iconSetOffset.width / 4).toFixed(0)}px`);
+        iconPosition: (iconSet) => {
+            const relativeArea = iconSet.closest('.inside-article');
+            const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
+            const iconSetMetrics = getElementMetrics(iconSet, { mode: 'relative' });
+            iconSet.style.setProperty('top', `${(relativeAreaMetrics.height / 2 - iconSetMetrics.height / 2).toFixed(0)}px`);
+            iconSet.style.setProperty('right', `${(-iconSetMetrics.width / 4).toFixed(0)}px`);
         },
         infoSelector: (el) => DomainRules.getPostArea(el).querySelector('div.inside-article') || '',
         relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('div.message-header') || '',
@@ -283,13 +284,14 @@ const DomainHandlers = {
             return extractInfoFromText(infoLines, rawTitle, { rawMode: true, preferJapanese: true });
         },
         getCopyID: (relativeArea) => relativeArea?.querySelector('h2.post-title.entry-title a')?.getAttribute('href'),
-        iconPosition: (iconSet, modArea) => {
-            const offset = getRelativeOffset(modArea);
-            const iconSetOffset = getRelativeOffset(iconSet);
-            iconSet.style.setProperty('vertical-align', window.getComputedStyle(modArea).getPropertyValue('vertical-align'));
-            iconSet.style.setProperty('line-height', window.getComputedStyle(modArea).getPropertyValue('line-height'));
-            iconSet.style.setProperty('top', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
-            iconSet.style.setProperty('right', `${(-iconSetOffset.width / 5).toFixed(0)}px`);
+        iconPosition: (iconSet) => {
+            const relativeArea = iconSet.closest('.post-title');
+            const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
+            const iconSetMetrics = getElementMetrics(iconSet, { mode: 'relative' });
+            iconSet.style.setProperty('vertical-align', window.getComputedStyle(relativeArea).getPropertyValue('vertical-align'));
+            iconSet.style.setProperty('line-height', window.getComputedStyle(relativeArea).getPropertyValue('line-height'));
+            iconSet.style.setProperty('top', `${(relativeAreaMetrics.height / 2 - iconSetMetrics.height / 2).toFixed(0)}px`);
+            iconSet.style.setProperty('right', `${(-iconSetMetrics.width / 5).toFixed(0)}px`);
         },
         infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.entry-content') || '',
         relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('div.message-header') || '',
@@ -301,22 +303,20 @@ const DomainHandlers = {
         },
         getPostArea: (el) => el.closest('div.messageinfo'),
         GetInfo: (el) => {
-            const rawTitle = DomainRules.relativeSelector(el)?.querySelector('div.postdetails, span.postdetails')?.textContent.trim() || '';
+            const rawTitle = DomainRules.relativeSelector(el)?.querySelector('div.post_subj span.postdetails span')?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
             return parseForumTitle(infoLines, rawTitle, { preferJapanese: true })
         },
-        getCopyID: (relativeArea) => {
-            const anchor = relativeArea.closest('.postdetails')?.querySelector('a.bold');
-            return anchor ? window.location.origin + '/' + anchor.getAttribute('href') : null;
+        getCopyID: (relativeArea) => relativeArea?.querySelector('div.post_subj a[href]').href || '',
+        iconPosition: (iconSet) => {
+            const relativeArea = DomainRules.relativeSelector(iconSet);
+            const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
+            const iconSetMetrics = getElementMetrics(iconSet, { mode: 'relative' });
+            iconSet.style.setProperty('top', `${(relativeAreaMetrics.height / 5).toFixed(0)}px`);
+            iconSet.style.setProperty('right', `${(-iconSetMetrics.width / 4).toFixed(0)}px`);
         },
-        iconPosition: (iconSet, modArea) => {
-            const titleArea = modArea.closest('.message-header');
-            const offset = getRelativeOffset(titleArea);
-            iconSet.style.setProperty('top', `${(offset.height / 5).toFixed(0)}px`);
-            iconSet.style.setProperty('right', `${(-getRelativeOffset(iconSet).width / 4).toFixed(0)}px`);
-        },
-        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.postbody') || '',
+        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.message-body') || '',
         relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('div.message-header') || '',
     },
     'sexfetishforum\\.com': {
@@ -333,11 +333,11 @@ const DomainHandlers = {
         },
         getCopyID: (relativeArea) => relativeArea.querySelector('div.keyinfo > [id^="subject_"] > a')?.href || '',
         iconPosition: (iconSet) => {
-            const relativeArea = iconSet.closest('.flow_hidden');
-            const relativeAreaPosition = getElementMetrics(relativeArea, { mode: 'relative' });
-            const iconSetPosition = getElementMetrics(iconSet, { mode: 'bounding' });
-            iconSet.style.setProperty('top', `${(relativeAreaPosition.height / 2 - iconSetPosition.height) / 2}px`);
-            iconSet.style.setProperty('right', `${iconSetPosition.width * 2}px`);
+            const relativeArea = DomainRules.relativeSelector(iconSet)
+            const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
+            const iconSetMetrics = getElementMetrics(iconSet, { mode: 'bounding' });
+            iconSet.style.setProperty('top', `${(relativeAreaMetrics.height / 2 - iconSetMetrics.height) / 2}px`);
+            iconSet.style.setProperty('right', `${iconSetMetrics.width * 2}px`);
         },
         infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.post') || '',
         relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('.flow_hidden') || '',
@@ -355,10 +355,10 @@ const DomainHandlers = {
             return parseForumTitle(infoLines, rawTitle, { preferJapanese: true })
         },
         getCopyID: (relativeArea) => relativeArea.closest('table.tborder').querySelector('td.thead a[id^="postcount')?.href,
-        iconPosition: (iconSet) => {
-            const iconSetPosition = getElementMetrics(iconSet, { mode: 'bounding' });
+        iconPosition: (iconSet) => {            
+            const iconSetMetrics = getElementMetrics(iconSet, { mode: 'bounding' });
             iconSet.style.setProperty('top', `0px`);
-            iconSet.style.setProperty('right', `${iconSetPosition.width}px`);
+            iconSet.style.setProperty('right', `${iconSetMetrics.width}px`);
         },
         infoSelector: (el) => DomainRules.getPostArea(el)?.querySelector('div[id^="post_message_"]') || '',
         relativeSelector: (el) => DomainRules.getPostArea(el)?.querySelector('td.alt1 div.smallfont') || '',
@@ -376,11 +376,12 @@ const DomainHandlers = {
             return parseForumTitle(infoLines, rawTitle, { preferJapanese: true })
         },
         getCopyID: (relativeArea) => relativeArea.querySelector('a.topictitle')?.href || '',
-        iconPosition: (iconSet, titleArea) => {
-            const offset = getRelativeOffset(titleArea);
-            const iconSetOffset = getRelativeOffset(iconSet);
-            iconSet.style.setProperty('top', `${(offset.height / 2 - iconSetOffset.height / 2).toFixed(0)}px`);
-            iconSet.style.setProperty('right', `${(-iconSetOffset.width / 4).toFixed(0)}px`);
+        iconPosition: (iconSet) => {
+            const relativeArea = DomainRules.relativeSelector(iconSet);
+            const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
+            const iconSetMetrics = getElementMetrics(iconSet, { mode: 'relative' });
+            iconSet.style.setProperty('top', `${(relativeAreaMetrics.height / 2 - iconSetMetrics.height / 2).toFixed(0)}px`);
+            iconSet.style.setProperty('right', `${(-iconSetMetrics.width / 4).toFixed(0)}px`);
         },
         infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.row.list-row') || '',
         relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('div.row.list-row.genmed') || '',
@@ -510,8 +511,8 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
 
     const infoLinesFinalTitle = `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim();
-    
-    
+
+
     const InfofinalTitle = infoLinesFinalTitle ? compareSentencesByWordMatch(cleanedinfoLines[0], infoLinesFinalTitle) : cleanedinfoLines[0] || '';
 
     console.log({ CopyTitle, InfofinalTitle });
@@ -530,7 +531,7 @@ function parseForumTitle(infoLines, rawTitle, options = {}) {
         rawMode = false,
     } = options;
     console.log('parseForumTitle:', { infoLines, rawTitle, options });
-    rawTitle = rawTitle.replace(/amp;/gi, '').replace(/^Re:/i, '').trim();
+    rawTitle = rawTitle.replace(/amp;/gi, '').replace(/^Re:|Subject:/i, '').trim();
 
 
     const finalTitle = extractInfoFromText(infoLines, rawTitle, options)
@@ -824,72 +825,94 @@ function MakeIcon() {
     document.querySelector('.State').innerText = `${GetState?.length || 0} | ${PackageList(RootDomainDB)?.length || 0}`;
 }
 
+/**
+ * 주어진 요소의 상위 요소 중 특정 selector에 해당하는 요소를 찾아 반환합니다.
+ * @param {Element} el - 기준이 되는 요소
+ * @param {string} selector - 찾고자 하는 상위 요소의 CSS 선택자
+ * @returns {Element|null} - 조건에 맞는 상위 요소 또는 null
+ */
+function getParentWithSelector(el, selector) {
+    if (!el || !selector) return null;
+    let parent = el.closest(selector);
+    return parent;
+}
 
-async function AddCopyIcon(node) {
-    const CopyTitleArea = node.querySelectorAll(DomainRules.selectors.copyTitle);
-
-    if (!CopyTitleArea?.length) {
-        throw new TypeError("CopyTitleArea가 존재하지 않거나 배열이 아닙니다.");
-    }
-
-    const copiedUrls = Object.keys(localStorage).filter(k => k.includes(RootDomain) && /\d{4}-\d{2}-\d{2}/.test(localStorage.getItem(k)));
+/**
+ * 아이콘을 동적으로 생성하고, DOM에 추가하는 함수입니다.
+ * @param {Element} relativeArea - 아이콘이 추가될 기준이 되는 요소
+ * @param {string} copyId - 복사 기능에 사용될 고유 ID
+ * @param {boolean} isCopied - 이미 복사된 상태인지 여부
+ */
+function createAndAddIcons(relativeArea, copyId, isCopied) {
     const iconBaseHtml = '<div class="IconSet" style="position: absolute;"></div>';
     const copyIconHtml = '<span class="CopyIcon fa-solid fa-clone"></span>';
     const minusIconHtml = '<span class="Minus fa-regular fa-square-minus"></span>';
     const noticeHtml = '<div class="noticeArea" style="display: none; position: absolute;"></div>';
 
-    for (const el of CopyTitleArea) {
+    relativeArea.style.setProperty('position', 'relative');
+    relativeArea.insertAdjacentHTML('beforeend', iconBaseHtml);
+    const iconSet = relativeArea.querySelector('div.IconSet');
 
-        // DomainRules에 relativeSelector가 정의되어 있으면 해당 선택자를 사용
-        const relativeArea = DomainRules.relativeSelector(el)
+    if (!iconSet) return;
 
-        if (!relativeArea) continue;
+    iconSet.insertAdjacentHTML('beforeend', copyIconHtml);
+    iconSet.style.setProperty('color', 'dodgerblue');
+    iconSet.insertAdjacentHTML('afterend', noticeHtml);
+    addEventListeners(iconSet);
 
-        relativeArea.style.setProperty('position', 'relative');
-        relativeArea.insertAdjacentHTML('beforeend', iconBaseHtml);
-        const iconSet = relativeArea.querySelector('div.IconSet');
+    DomainRules.iconPosition(iconSet, relativeArea);
 
-        if (!iconSet) continue;
-        //console.log({relativeArea, iconSet});
-        iconSet.insertAdjacentHTML('beforeend', copyIconHtml);
-        iconSet.style.setProperty('color', 'dodgerblue');
-        iconSet.insertAdjacentHTML('afterend', noticeHtml);
-        addEventListeners(iconSet);
+    if (copyId) {
+        iconSet.insertAdjacentHTML('beforeend', minusIconHtml);
+        const copyIcon = relativeArea.querySelector('.CopyIcon');
+        const minusIcon = iconSet.querySelector('.Minus');
 
-        DomainRules.iconPosition(iconSet, relativeArea);
+        copyIcon.setAttribute("id", copyId);
+        minusIcon.classList.add('NotCopyed');
 
-        let copyID = DomainRules.getCopyID?.(relativeArea, window.location.href) || null;
-
-        if (copyID) {
-            iconSet.insertAdjacentHTML('beforeend', minusIconHtml);
-            const copyIcon = relativeArea.querySelector('.CopyIcon');
-            const minusIcon = iconSet.querySelector('.Minus');
-
-            copyIcon.setAttribute("id", copyID);
-            minusIcon.classList.add('NotCopyed');
-
-            if (copiedUrls.includes(copyID)) {
-                copyIcon.classList.add('Copyed');
-                minusIcon.classList.remove('NotCopyed');
-                if (DomainRules.selectors.visitedLink) {
-                    titleArea.querySelector(DomainRules.selectors.visitedLink)?.classList.add('Copyed');
-                }
-            }
+        if (isCopied) {
+            copyIcon.classList.add('Copyed');
+            minusIcon.classList.remove('NotCopyed');
         }
     }
 }
 
+async function AddCopyIcon(node) {
+    if (!DomainRules || !DomainRules.selectors.copyTitle) return;
+
+    const copyTitleAreas = node.querySelectorAll(DomainRules.selectors.copyTitle);
+
+    if (!copyTitleAreas?.length) {
+        throw new TypeError("CcopyTitleAreas가 존재하지 않거나 배열이 아닙니다.");
+    }
+
+    const copiedUrls = Object.keys(localStorage).filter(k => k.includes(RootDomain) && /\d{4}-\d{2}-\d{2}/.test(localStorage.getItem(k)));
+
+    for (const el of copyTitleAreas) {
+        const postArea = getParentWithSelector(el, '.postbody, .inside-article, .messageinfo, .postarea, .tborder, .list-row');
+        if (!postArea) continue;
+
+        const relativeArea = DomainRules.relativeSelector(el);
+        if (!relativeArea) continue;
+
+        const copyID = DomainRules.getCopyID?.(relativeArea, window.location.href) || null;
+        const isCopied = copyID && copiedUrls.includes(copyID);
+
+        createAndAddIcons(relativeArea, copyID, isCopied);
+    }
+}
+
 function JDownloader(JdownloaderData, PackageName, sourceURL) {
-    console.log(PackageName + '\n' + JdownloaderData)
+    console.log(PackageName + '\n' + JdownloaderData);
     if (JdownloaderData) {
         let data = new URLSearchParams();
         data.append(`urls`, JdownloaderData);
         if (sourceURL) {
-            data.append(`source`, sourceURL)
+            data.append(`source`, sourceURL);
         }
-        data.append(`referer`, PageURL)
+        data.append(`referer`, PageURL);
         if (PackageName) {
-            data.append(`package`, PackageName)
+            data.append(`package`, PackageName);
         }
         fetch('http://localhost:9666/flash/add', {
             method: 'POST',
@@ -897,8 +920,11 @@ function JDownloader(JdownloaderData, PackageName, sourceURL) {
                 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                 'Access-Control-Allow-Origin': 'http://localhost:9666',
             },
-            body: data
-        })
+            body: data,
+        }).catch(error => {
+            console.error("JDownloader 통신 오류:", error);
+            alert("JDownloader 통신에 실패했습니다. JDownloader가 실행 중인지 확인하세요.");
+        });
     }
 }
 
