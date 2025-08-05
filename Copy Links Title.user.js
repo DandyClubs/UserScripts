@@ -176,6 +176,7 @@ const SkipClassNames = ['adead_link', 'autohyperlink', 'social-icon', 'postdetai
 const SearchID = /^([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})(.*)/
 const SearchFC2ID = /(^FC2.+\d{6})(.*)/
 const SearchIDRegExp = /^(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}))(?!(C_\d+|file\d+))(.*)$/
+const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/
 const SkipTitle = [
     'assfuck',
     'busty',
@@ -288,7 +289,7 @@ const SkipMakers = [
     'Toshiaki', 'Buena Vista', 'Punimoe!', 'palupunte'
 ];
 
-const ReleaseDateRegex = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/;
+
 
 
 const DomainHandlers = {
@@ -528,19 +529,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         }
 
         if (!ReleaseDate) {
-            const dateMatch = line.match(ReleaseDateRegex);
-
-            if (dateMatch) {
-                const ymdMatch = dateMatch[0].match(/(19|20)?\d{2}[.\/-]([0]?[1-9]|1[0-2])[.\/-]([0]?[1-9]|[12][0-9]|3[01])/);
-                if (ymdMatch) {
-                    const year = ymdMatch[0].slice(0, 4);
-                    const month = ymdMatch[0].slice(5, 7).replace(/^0/, '');
-                    const day = ymdMatch[0].slice(8, 10).replace(/^0/, '');
-                    ReleaseDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')} `;
-                } else {
-                    ReleaseDate = dateMatch[0].trim() + ' ';
-                }
-            }
+            ReleaseDate = DateRegEx.test(line) ? DateRegEx.match(line) : '';
         }
         return ID && ModelName && ReleaseDate && Title && Maker;
     });
@@ -571,7 +560,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         .split('\n')
         .filter(line => line.trim() && !/^(http|Download|Duration|Resolution|Categories|About)/i.test(line));
 
-
+console.log('cleanedinfoLines:', cleanedinfoLines);
 
     const infoLinesFinalTitle = `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim();
 
