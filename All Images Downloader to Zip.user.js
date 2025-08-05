@@ -26,7 +26,7 @@
 // @noframes
 // ==/UserScript==
 
-const FontAwesomeCSS = function() {
+const FontAwesomeCSS = function () {
     let css = document.createElement('link')
     css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css'
     css.rel = 'stylesheet'
@@ -35,7 +35,7 @@ const FontAwesomeCSS = function() {
 }
 
 
-GM_addStyle (`
+GM_addStyle(`
 @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@600&family=Noto+Sans+KR:wght@600&family=Noto+Sans:wght@600&display=swap');
 
 
@@ -572,7 +572,7 @@ function ImageToBlob(url) {
             url: url,
             headers: { referer: url, origin: url },
             responseType: 'blob',
-            onload: function(resp) {
+            onload: function (resp) {
                 const blob = resp.response;
 
                 if (!blob || !blob.type.startsWith("image/")) {
@@ -587,7 +587,7 @@ function ImageToBlob(url) {
 
                 resolve({ url, blobUrl });
             },
-            onerror: function(error) {
+            onerror: function (error) {
                 console.error("ImageToBlob failed:", error);
                 reject(error);
             }
@@ -611,10 +611,10 @@ function onElementLoaded(elementToObserve, parentStaticElement) {
                 resolve(true);
                 //return;
             }
-            else{
+            else {
                 const parentElement = parentStaticElement
-                ? document.querySelector(parentStaticElement)
-                : document;
+                    ? document.querySelector(parentStaticElement)
+                    : document;
 
                 const Onobserver = new MutationObserver((mutationList, obsrvr) => {
                     const divToCheck = document.querySelector(elementToObserve);
@@ -723,7 +723,7 @@ function MakeIcon() {
     myObserver.observe(centerBox);
 
     // AutoDownload 토글 클릭 이벤트
-    autoDownloadBox.addEventListener('click', function(e) {
+    autoDownloadBox.addEventListener('click', function (e) {
         if (e.target.classList.contains("AutoDownload")) {
             const isOff = e.target.classList.contains("Off");
             e.target.classList.replace(isOff ? 'Off' : 'On', isOff ? 'On' : 'Off');
@@ -750,8 +750,8 @@ async function Start() {
     });
 
     let Title, Images, Author;
-    
-    
+
+
     if (/everia\.club/.test(PageURL)) {
         Title = GetRequiredElement("article header.entry-header .single-post-title.entry-title", "Title");
         if (!Title) return console.warn('Title not found for everia.club');
@@ -801,7 +801,7 @@ async function Start() {
     }
 
     if (!Title) return console.warn('Title not found');
-    
+
     document.querySelector('.CenterBox').style.visibility = 'visible';
 
     Title = Title.textContent.trim();
@@ -851,11 +851,11 @@ function showCopyNotice(text) {
     $('.CopyNotice')
         .stop(true, true)
         .css({
-        fontSize: `${((1 / (dpi / 1.5)) * scale * (16 / baseFontSize)).toFixed(2)}rem`,
-        top: box.offsetTop + box.offsetHeight * 1.2,
-        left: window.innerWidth / 2 - box.offsetWidth,        
-        display: 'none' // ensure toggle works as expected
-    })
+            fontSize: `${((1 / (dpi / 1.5)) * scale * (16 / baseFontSize)).toFixed(2)}rem`,
+            top: box.offsetTop + box.offsetHeight * 1.2,
+            left: window.innerWidth / 2 - box.offsetWidth,
+            display: 'none' // ensure toggle works as expected
+        })
         .fadeIn(200)
         .delay(1000)
         .fadeOut(400);
@@ -910,29 +910,61 @@ function GetFileName(url) {
 
 const downloadedFiles = new Set();
 
-function timeoutSignal(ms) {
+
+// 전역 또는 UI 이벤트 핸들러가 접근 가능한 위치에 선언
+let userAbortController = null;
+
+function activityTimeoutSignal(ms) {
     const controller = new AbortController();
-    setTimeout(() => controller.abort(), ms);
+    let timeoutId = null;
+
+    // 타임아웃을 설정/재설정하는 함수
+    const resetTimeout = () => {
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => controller.abort(), ms);
+    };
+
+    // 타임아웃을 즉시 시작
+    resetTimeout();
+
+    // fetch가 진행될 때마다 타임아웃을 재설정하는 기능 추가
+    // 이 부분은 fetch의 'signal'이 아닌, 다운로드 루프 내에서 처리해야 합니다.
+    // 여기서는 컨트롤러 객체에 이 함수를 추가하여 외부에서 호출할 수 있도록 합니다.
+    controller.resetTimeout = resetTimeout;
+
+    // 다운로드가 완료되거나 취소되면 타임아웃을 정리하는 함수
+    controller.clearTimeout = () => {
+        if (timeoutId) clearTimeout(timeoutId);
+    };
+
     return controller;
 }
 
 
 async function downloadPhotosWithRetry(ImagesDB) {
+    // 다운로드 시작 시 새로운 AbortController 생성
+    userAbortController = new AbortController();
+    const { signal: userSignal } = userAbortController;
     const maxRetries = 3;
     let errorList = [];
-    const DB = await generateZIP(ImagesDB)    
+    const DB = await generateZIP(ImagesDB)
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         console.log(`[Attempt ${attempt}] 시작`);
+        if (userSignal.aborted) {
+            console.log("🚫 다운로드가 사용자 요청에 의해 중단되었습니다.");
+            break;
+        }
 
         try {
-            const result = await downloadPhotosAttempt(DB, attempt > 1);
+            // downloadPhotosAttempt에 사용자 취소 신호 전달
+            const result = await downloadPhotosAttempt(DB, userSignal, attempt > 1);
             errorList = result.failed;
 
             if (errorList.length === 0) break;
 
             console.warn(`[Attempt ${attempt}] 실패 항목 ${errorList.length}개, 재시도 준비`);
 
-            const failedNames = new Set(errorList.map(e => e.F));            
+            const failedNames = new Set(errorList.map(e => e.F));
 
             // IndexedDB 임시 데이터 제거 (streamSaver 버퍼 제거)
             if (typeof cleanupStreamSaverTempFiles === 'function') {
@@ -941,18 +973,30 @@ async function downloadPhotosWithRetry(ImagesDB) {
 
 
         } catch (fatalErr) {
-            console.error("⛔ 치명적 오류:", fatalErr);
-            AutoClose = false
+            if (fatalErr.name === 'AbortError') {
+                console.log("🚫 다운로드가 사용자 요청 또는 타임아웃으로 취소되었습니다.");
+                updateStateText("🚫 다운로드 취소됨");                
+            } else {
+                console.error("⛔ 치명적 오류:", fatalErr);
+                AutoClose = false
+            }
             break;
         }
     }
+
+    // 다운로드 종료 후 AbortController 초기화
+    userAbortController = null;
 
     if (errorList.length) {
         updateStateText(`❌ 최종 실패 ${errorList.length} 항목`);
         showErrorPanel(errorList);
         AutoClose = false
+    } else if (userSignal.aborted) {
+        UpdateJobQueue(PageURL, 'remove'); // ✅ JobQueue에서 제거
+        await sleep(5000);
+        UpdateJobQueue(PageURL, 'add'); // ✅ JobQueue에 다시 추가
     } else {
-        updateStateText(`✅ 전체 성공`);        
+        updateStateText(`✅ 전체 성공`);
         UpdateJobQueue(PageURL, 'remove'); // ✅ JobQueue에서 제거
 
         await sleep(5000)
@@ -964,14 +1008,14 @@ async function downloadPhotosWithRetry(ImagesDB) {
 }
 
 
-async function downloadPhotosAttempt(DB, isRetry = false) {
+async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
     injectGraphicProgressLayer();
-
+    let failed = [];
     const zip = new fflate.Zip();
     let addCount = 0;
-    const fileStream = streamSaver.createWriteStream(ArchivesFileName);
-    const failed = [];
-
+    // streamSaver에도 사용자 취소 신호 전달
+    const fileStream = streamSaver.createWriteStream(ArchivesFileName, { signal: userSignal });    
+    
     const rs = new ReadableStream({
         start(controller) {
             zip.ondata = (err, chunk, final) => {
@@ -983,18 +1027,32 @@ async function downloadPhotosAttempt(DB, isRetry = false) {
     });
 
     const pipePromise = rs.pipeTo(fileStream).catch(err => {
-        console.error("❌ 저장 스트림 오류", err);
+        if (err.name !== 'AbortError') {
+            console.error("❌ 저장 스트림 오류", err);
+        }
+        throw err;
     });
 
     for (const meta of DB) {
+        // 루프 시작 시 사용자 취소 신호 확인
+        if (userSignal.aborted) {
+            zip.terminate();
+            break;
+        }
         if (downloadedFiles.has(meta.F)) continue;
 
-        const signalController = timeoutSignal(15000);
+        // 개별 다운로드에 대한 타임아웃 컨트롤러 생성 (30초로 설정)
+        const activityController = activityTimeoutSignal(30000);
+
         try {
+            // 사용자 취소 신호와 활동 감지 타임아웃 신호를 결합
+            const combinedSignal = AbortSignal.any([userSignal, activityController.signal]);
+
+
             const useRoot = extractRootDomain(meta.P) === RootDomain;
             const response = useRoot
-            ? await fetch(meta.P, { signal: signalController.signal })
-            : await Xfetch(meta.P, { signal: signalController.signal });
+                ? await fetch(meta.P, { signal: combinedSignal })
+                : await Xfetch(meta.P, { signal: combinedSignal });
 
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
@@ -1004,22 +1062,33 @@ async function downloadPhotosAttempt(DB, isRetry = false) {
 
             const reader = response.body.getReader();
             while (true) {
+                // 데이터를 읽을 때마다 활동 타임아웃을 재설정
                 const { value, done } = await reader.read();
                 if (done) break;
+
+                // 데이터 수신 시 타임아웃 재설정
+                activityController.resetTimeout(); 
                 file.push(value);
             }
             file.push(new Uint8Array(0), true);
 
+            // 다운로드 완료 시 타임아웃 정리
+            activityController.clearTimeout();
+
             addCount++;
             updateProgressUI(addCount, DB.length);
         } catch (err) {
+            if (err.name === 'AbortError') {
+                zip.terminate();
+                throw err;
+            }
             console.warn(`[실패] ${meta.P}`, err);
             failed.push(meta);
             updateProgressUI(addCount, DB.length);
         }
     }
 
-    if (failed.length) {
+    if (userSignal.aborted || failed.length) {
         zip.terminate(); // 불완전 ZIP 종료
     } else {
         zip.end(); // 완전한 종료
@@ -1103,30 +1172,30 @@ document.addEventListener("DOMContentLoaded", () => {
     Start()
 
     window.addEventListener('storage', (e) => {
-        if(e.key === 'AutoDownload'){
+        if (e.key === 'AutoDownload') {
             let ev = document.querySelector(".AutoDownload")
-            if(!ev){ return }
-            if(localStorage.getItem('AutoDownload') == 1){
+            if (!ev) { return }
+            if (localStorage.getItem('AutoDownload') == 1) {
                 ev.classList.replace('Off', 'On')
             }
-            else{
+            else {
                 ev.classList.replace('On', 'Off')
             }
         }
-        else if(e.key === 'Job'){
+        else if (e.key === 'Job') {
             JobList = localStorage.getItem('Job') ? JSON.parse(localStorage.getItem('Job')) : []
-            if(document.querySelector('.JobState')){
+            if (document.querySelector('.JobState')) {
                 document.querySelector('.JobState').innerText = JobList?.length
             }
-            if(localStorage.getItem('AutoDownload') == 1){
-                if(localStorage.getItem('AutoDownload') == 1 && JobList.length && JobList[0] === PageURL && !AreadyDownload){
+            if (localStorage.getItem('AutoDownload') == 1) {
+                if (localStorage.getItem('AutoDownload') == 1 && JobList.length && JobList[0] === PageURL && !AreadyDownload) {
                     AreadyDownload = true
                     downloadPhotosWithRetry(ImagesDB)
                 }
             }
         }
     })
-}, {once : true });
+}, { once: true });
 
 /*
 document.addEventListener("readystatechange", (event) => {
@@ -1147,7 +1216,7 @@ function NextPage(url) {
                 Referer: document.location.href,
                 Origin: new URL(url).origin
             },
-            onload: function(resp) {
+            onload: function (resp) {
                 const html = document.createElement('html')
                 html.innerHTML = resp.responseText
 
@@ -1164,7 +1233,7 @@ function NextPage(url) {
 
                 resolve(html)
             },
-            onerror: function(error) {
+            onerror: function (error) {
                 console.error(`[NextPage] Failed to load ${url}:`, error)
                 reject(error)
             }
@@ -1182,7 +1251,7 @@ function GetUrl(url) {
                 Referer: document.location.href,
                 Origin: new URL(url).origin
             },
-            onload: function(resp) {
+            onload: function (resp) {
                 try {
                     const html = document.createElement('html')
                     html.innerHTML = resp.responseText
@@ -1197,7 +1266,7 @@ function GetUrl(url) {
                     reject(err)
                 }
             },
-            onerror: function(error) {
+            onerror: function (error) {
                 reject(error)
             }
         })
@@ -1211,11 +1280,11 @@ function CheckOnline(url) {
         GM_xmlhttpRequest({
             method: "GET",
             url: url,
-            onload: function(resp) {
+            onload: function (resp) {
                 console.log(`[CheckOnline] ${url} -> Status: ${resp.status}`)
                 resolve(resp.status >= 200 && resp.status < 400) // success range
             },
-            onerror: function(error) {
+            onerror: function (error) {
                 console.warn(`[CheckOnline] Error fetching ${url}:`, error)
                 resolve(false)
             }
@@ -1225,13 +1294,13 @@ function CheckOnline(url) {
 
 
 
-function UpdateDB(Target, DownloadUrl){
-    let searchDB = ImagesDB.find( ({ U }) => U === Target )
-    if(searchDB){
+function UpdateDB(Target, DownloadUrl) {
+    let searchDB = ImagesDB.find(({ U }) => U === Target)
+    if (searchDB) {
         searchDB.T = DownloadUrl
     }
-    else{
-        ImagesDB.push({U : Target , T : DownloadUrl})
+    else {
+        ImagesDB.push({ U: Target, T: DownloadUrl })
     }
     //console.log(ImagesDB)
     return ImagesDB
@@ -1255,7 +1324,7 @@ async function mergeZips(sources) {
 // into a single promise with Promise.all()
 function readSources(files, zip) {
     return Promise.allSettled(
-        files.map(function(file){
+        files.map(function (file) {
             return readSource(file, zip);
         })
     );
@@ -1350,17 +1419,17 @@ async function generateZIP(DB) {
 
 
 
-function JDownloader(JdownloaderData, PackageName, sourceURL){
+function JDownloader(JdownloaderData, PackageName, sourceURL) {
     //console.log(PackageName + '\n' + JdownloaderData)
-    if(JdownloaderData){
+    if (JdownloaderData) {
         let data = new URLSearchParams();
         data.append(`urls`, JdownloaderData);
         data.append(`referer`, PageURL)
-        if(sourceURL){
+        if (sourceURL) {
             data.append(`source`, sourceURL)
         }
         data.append(`referer`, PageURL)
-        if(PackageName){
+        if (PackageName) {
             data.append(`package`, PackageName)
         }
         fetch('http://localhost:9666/flash/add', {
