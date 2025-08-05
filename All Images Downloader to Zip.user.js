@@ -709,7 +709,7 @@ function MakeIcon() {
 
     // CenterBox가 이미 존재하면 함수 실행 중단
     if (document.querySelector("div.CenterBox")) {
-        return true;
+        return console.warn('CenterBox already exists, skipping MakeIcon()');
     }
 
     // 모든 요소를 한 번에 생성
@@ -902,7 +902,7 @@ async function secondStep(Title) {
             console.log("다른 탭이 다운로드 중이거나 Lock 실패");
         }
     }
-    
+
 
     await onElementLoaded('.StopAll').then(() => {
         console.log('StopAll 버튼이 로드되었습니다.');
@@ -1230,7 +1230,7 @@ document.addEventListener("readystatechange", async (event) => {
             }
         };
 
-        updateJobUI();        
+        updateJobUI();
         window.addEventListener('storage', (e) => {
             if (e.key === 'AutoDownload') {
                 let ev = document.querySelector(".AutoDownload")
@@ -1251,7 +1251,7 @@ document.addEventListener("readystatechange", async (event) => {
             }
         });
     }
-}, { once: true });
+});
 
 
 function NextPage(url) {
