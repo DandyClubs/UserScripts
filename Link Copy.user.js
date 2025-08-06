@@ -1361,9 +1361,7 @@ async function Start() {
                 const element = targetNode.querySelector(selector);
                 if (element) {
                     resolve(element);
-                    return;
                 }
-
                 const observer = new MutationObserver((mutations, obs) => {
                     const found = targetNode.querySelector(selector);
                     if (found) {
@@ -1495,6 +1493,7 @@ async function Start() {
                     }
 
                     const downloadContainer = await waitElement('div#content div.post_singular div.entry');
+                    console.log({downloadContainer});
                     DownloadArea = [downloadContainer];
 
                     CoverImage = document.querySelector('div.entry p a img')?.src || '';
@@ -2694,7 +2693,7 @@ async function CheckDB(listTo) {
             // 매칭이 발견되었을 때만 AutoClose 로직을 실행합니다.
             if (isMatchFound) {
                 setTimeout(() => {
-                    const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));                    
+                    const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));
                     // AutoClose 변수와 localStorage 값을 모두 확인하여 실행합니다.
                     if (isAutoCloseEnabled) {
                         console.log('AutoClose: ', AutoClose, '\nlocalStorage: ', isAutoCloseEnabled);
