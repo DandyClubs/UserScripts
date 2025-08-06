@@ -147,8 +147,7 @@ margin: .25em;
     border-radius: .25em;
     color: white !important;
     background: rgba(255, 165, 0, .95) !important;
-    position: fixed !important;
-    padding: .25em 1rem;
+    position: fixed !important;    
     white-space: pre;
  	text-shadow: initial !important;
     text-align: left;
@@ -164,6 +163,10 @@ margin: .25em;
     height: 0;
     opacity: 0;
     transition: height 0.4s ease, opacity 0.4s ease;
+}
+
+.CopyNotice .copyText {
+  padding: .25rem .5rem;
 }
 
 .LinkCopyCenterBox {
@@ -2156,7 +2159,7 @@ function SecondProcess() {
                 <i class="Minus fa-solid fa-magnifying-glass-minus" style="color: goldenrod !important; visibility: hidden;"></i>
             </div>
         `);
-            document.body.insertAdjacentHTML('beforeend', `<div class="CopyNotice" style="display: none;"></div>`);
+            document.body.insertAdjacentHTML('beforeend', `<div class="CopyNotice" style="display: none;"><div class="copyText"></i></div>`);
 
             IconSetBox = document.querySelector(".IconSet");
 
@@ -2400,6 +2403,7 @@ async function CopyGo() {
     if (LinkCopyCenterBox) {
         // 대상 요소를 찾습니다.
         const copyNotice = document.querySelector('.CopyNotice');
+        const copyText = document.querySelector('.CopyNotice .copyText');
         const linkCopyCenterBox = document.querySelector('.LinkCopyCenterBox'); // LinkCopyCenterBox는 기존 코드에 있는 변수라고 가정합니다.
 
         // 변수들을 미리 계산합니다.
@@ -2411,6 +2415,7 @@ async function CopyGo() {
         copyNotice.style.fontSize = `${fontSizeValue}rem`;
         copyNotice.style.top = `${topValue}px`;
         copyNotice.style.left = `${leftValue}px`;
+        copyNotice.style.height = copyText.scrollHeight + "px";
     }
 
     const copyIcon = document.querySelector(".CopyIcon");
@@ -2418,11 +2423,7 @@ async function CopyGo() {
 
     if (!document.hidden) {
         const notice = document.querySelector('.CopyNotice');
-        fadeSlideDown(notice, 400); // 빠르게 표시
-        await sleep(750)
-        fadeSlideUp(notice, 1000)
-        await sleep(1000);
-        notice.textContent = '';
+        await showThenHide(notice, { duration: 500, pause: 1000 });
     }
     const closeIcon = document.querySelector(".CloseIcon");
     if (closeIcon) closeIcon.style.visibility = "visible";
@@ -2765,7 +2766,7 @@ async function CopyLink() {
     }
 
     // 3) Update UI notice
-    const noticeEl = document.querySelector('.CopyNotice');
+    const noticeEl = document.querySelector('.CopyNotice .copyText');
     noticeEl.textContent = noticeLines.join("\n");
 
     // 4) Persist state & refresh counters
