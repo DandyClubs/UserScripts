@@ -952,7 +952,7 @@ const siteConfigs = [
     {
         regex: /fapfiles\.org\/\d+|teenbox\.org\/\?p=\d+/,
         config: {
-            postProcess: () => {
+            postProcess: (config) => {
                 if (/fapfiles\.org\/\d+/.test(PageURL)) {
                     config.copyOffsetArea = 'div#title_post';
                     config.downloadAreaSelector = 'div#content';
@@ -961,7 +961,7 @@ const siteConfigs = [
                     config.downloadAreaSelector = 'div#entry';
                 }
 
-                copyOffsetArea = document.querySelector(config.copyOffsetArea);
+                copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
                 DownloadArea = document.querySelectorAll(config.downloadAreaSelector);
 
                 if (copyOffsetArea) {
@@ -1295,8 +1295,8 @@ const siteConfigs = [
 
                     let fc = SearchFC2ID?.exec(Title)
                     if (fc) {
-                        let fcId = fc.groups ? fcId.groups.url : fcId[1]
-                        Title = `${fcId} InfoArea[0]`
+                        let fcId = fc.groups ? fc.groups[1] : fc[1]
+                        Title = `${fcId} ${InfoArea[0]}`
                     } else {
                         let entryID = Title.match(SearchIDRegExp)?.[2]
                         let infoAreaID = InfoArea.find(line => line.match(SearchIDRegExp))?.match(SearchIDRegExp)?.[2]
@@ -1626,10 +1626,11 @@ async function Start() {
             currentConfig.postProcess(currentConfig)
         }
 
-        //console.log({ copyOffsetArea, CopyOffsetArea })
+
         // Step 2: `copyOffsetArea`가 이미 설정되지 않았으면 기본 셀렉터로 찾기
-        if (!copyOffsetArea && currentConfig.copyOffsetArea) {
-            copyOffsetArea = document.querySelector(currentConfig.copyOffsetArea);
+
+        if (!copyOffsetArea && currentConfig.copyOffsetAreaSelector) {
+            copyOffsetArea = document.querySelector(currentConfig.copyOffsetAreaSelector);
             if (!copyOffsetArea) {
                 throw new Error('필수 요소 copyOffsetArea를 찾을 수 없습니다.');
             }
