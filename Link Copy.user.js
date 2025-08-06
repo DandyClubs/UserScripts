@@ -1288,6 +1288,7 @@ const siteConfigs = [
                     const InfoArea = Array.from(document.querySelectorAll('div#content > div > .entry > p')).flatMap(p =>
                         p.innerText.replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n').split(/\n\n|\n/).filter(Boolean)
                     );
+                    console.log(InfoArea);
 
                     let IDMatch = Title.match(SearchIDRegExp)?.[1] ?? InfoArea.find(line => line.match(SearchIDRegExp))?.match(SearchIDRegExp)?.[1];
                     ID = IDMatch ? IDMatch.trim() : '';
@@ -1305,6 +1306,7 @@ const siteConfigs = [
                 CopyTitle = (Maker ? '[' + Maker + '] ' : '') + (ID ? ID + ' ' : '') + (ReleaseDate ? '(' + ReleaseDate + ') ' : '') + Title;
                 CopyTitle = byteLengthOf(CopyTitle, 241).trim();
                 CoverImage = DownloadArea?.[0]?.querySelector('p img')?.src || '';
+                console.log({ CopyTitle, CoverImage, ID, ReleaseDate, Maker, DownloadArea });
             }
         }
     },
@@ -1587,7 +1589,7 @@ const waitDownloadArea = [
     }
 ];
 async function Start() {
-    console.log('Link Copy Start!')    
+    console.log('Link Copy Start!')
     let currentConfig = null;
     for (const site of siteConfigs) {
         if (site.regex.test(PageURL) && (!site.condition || site.condition())) {
@@ -1636,6 +1638,11 @@ async function Start() {
             if (resMatch) Resolution = ' ' + resMatch[0];
         }
     }
+    console.log({ DownloadArea })
+    console.log('Final CopyTitle:', CopyOffSetArea, CopyTitle);
+    console.log('Final CoverImage:', CoverImage);
+    console.log('Final DownloadArea:', DownloadArea);
+
 
     if (!DownloadArea || DownloadArea?.length === 0) {
         const matchingConfig = waitDownloadArea.find(config => config.regex.test(PageURL));
@@ -1643,6 +1650,7 @@ async function Start() {
             await matchingConfig.handler();
         }
     }
+
 
     if (CopyOffSetArea) {
         // 메인 처리 로직 (비동기 함수로 변경)
@@ -1710,8 +1718,6 @@ async function Start() {
         }
 
         processCopyTitle(PageURL, CopyOffSetArea, DownloadArea)
-
-
     }
 
     console.log('Final CopyTitle:', CopyOffSetArea, CopyTitle);
@@ -1724,7 +1730,7 @@ async function Start() {
     } else {
         SkipTitle = CheckSkipTitle();
         return { CopyOffSetArea, CopyTitle, DownloadArea }
-    }    
+    }
 }
 
 function createDownloadArea(DB) {
