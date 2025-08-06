@@ -159,7 +159,7 @@ margin: .25em;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
-    z-index: var(--dynamic-zindex);
+    z-index: 999999;
     height: 0;
     opacity: 0;
     transition: height 0.4s ease, opacity 0.4s ease;
@@ -167,6 +167,7 @@ margin: .25em;
 
 .CopyNotice .copyText {
   padding: .25rem .5rem;
+  z-index: 999999;
 }
 
 .LinkCopyCenterBox {
@@ -2159,7 +2160,7 @@ function SecondProcess() {
                 <i class="Minus fa-solid fa-magnifying-glass-minus" style="color: goldenrod !important; visibility: hidden;"></i>
             </div>
         `);
-            document.body.insertAdjacentHTML('beforeend', `<div class="CopyNotice" style="display: none;"><div class="copyText"></i></div>`);
+            document.body.insertAdjacentHTML('beforeend', `<div class="CopyNotice" style="display: none;"><div class="copyText"></div></div>`);
 
             IconSetBox = document.querySelector(".IconSet");
 
@@ -2423,7 +2424,7 @@ async function CopyGo() {
 
     if (!document.hidden) {
         const notice = document.querySelector('.CopyNotice');
-        await showThenHide(notice, { duration: 500, pause: 1000 });
+        await showThenHide(notice, { duration: 800, pause: 2000 });
     }
     const closeIcon = document.querySelector(".CloseIcon");
     if (closeIcon) closeIcon.style.visibility = "visible";
