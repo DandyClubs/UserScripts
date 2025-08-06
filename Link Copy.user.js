@@ -418,6 +418,231 @@ const io = new IntersectionObserver((entries, self) => {
 }, { root: null, rootMargin: "0px 0px 0px 0px" })
 
 
+/**
+* MutationObserver를 사용하여 특정 요소가 DOM에 나타날 때까지 기다립니다.
+* @param {string} selector - 관찰할 HTML 요소의 선택자.
+* @param {Element} [targetNode=document.body] - MutationObserver를 적용할 상위 요소.
+* @returns {Promise<Element>} 요소가 발견되면 해결되는 프로미스.
+*/
+function waitElement(selector, targetNode = document.body) {
+    return new Promise((resolve, reject) => {
+        const element = targetNode.querySelector(selector);
+        if (element) {
+            resolve(element);
+        }
+        const observer = new MutationObserver((mutations, obs) => {
+            const found = targetNode.querySelector(selector);
+            if (found) {
+                obs.disconnect();
+                resolve(found);
+            }
+        });
+
+        observer.observe(targetNode, {
+            childList: true,
+            subtree: true
+        });
+    });
+}
+
+
+/**
+* 특정 영역에 변경이 발생하면 콜백 함수를 실행합니다.
+* @param {string} targetSelector - 관찰할 HTML 요소의 선택자.
+* @param {Function} callback - 변경이 발생했을 때 실행할 콜백 함수.
+* @returns {MutationObserver} 생성된 옵저버 인스턴스.
+*/
+function observeChanges(targetSelector, callback) {
+    const targetElement = document.querySelector(targetSelector);
+    if (!targetElement) {
+        console.warn(`Target element not found: ${targetSelector}`);
+        return null;
+    }
+
+    const observer = new MutationObserver((mutations) => {
+        callback(mutations, observer);
+    });
+
+    observer.observe(targetElement, {
+        attributes: true,
+        childList: true,
+        subtree: true
+    });
+    return observer;
+}
+
+// 사이트별 다운로드 영역 처리 규칙을 정의하는 배열
+const waitDownloadArea = [
+    {
+        regex: /ultoporn\.com\/\d+/,
+        handler: async () => {
+            CopyOffSetArea = document.querySelector('div.storyhead > h1.shead');
+            Array.from(document.querySelectorAll('button.click_show')).forEach(element => element.click());
+
+            const downloadContainer = await waitElement('div#dle-content');
+            const observer = observeChanges('div#dle-content', (mutations, obs) => {
+                const DownloadAreaSelector = 'div.quote:has(a)';
+                DownloadArea = downloadContainer.querySelectorAll(DownloadAreaSelector);
+
+                if (DownloadArea?.length >= 1) {
+                    obs.disconnect();
+                    RefreshIconSet();
+                    const DoCopied = RootDomainDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
+                    if (!DoCopied && document.querySelector(".Minus").style.visibility === "hidden") {
+                        CopyGo();
+                    }
+                }
+            });
+        }
+    },
+    {
+        regex: /(hpjav|hpav).tv\/(ja\/)?\d+/,
+        handler: async () => {
+            CopyOffSetArea = document.querySelector('section div ol li.active');
+            CoverImage = document.querySelector('#JKDiv_0') ? GetBackGroundUrl(document.querySelector('#JKDiv_0')) : '';
+
+            await sleep(1000);
+            document.querySelector('#download_div.btn.btn-info')?.click();
+
+            const downloadContainer = await waitElement('div#down_server');
+            const downloadList = await waitElement('ul.pricing-table', downloadContainer);
+
+            DownloadArea = [downloadList];
+            Array.from(DownloadArea).forEach((linkEntry) => {
+                Array.from(linkEntry.querySelectorAll('a')).forEach((aEntry) => {
+                    if (RootDomain !== extractRootDomain(aEntry.href)) {
+                        aEntry.classList.remove("dbtn");
+                        aEntry.removeAttribute('type');
+                        aEntry.textContent = aEntry.href;
+                        aEntry.insertAdjacentHTML('beforebegin', '<img src=https://www.google.com/s2/favicons?domain=' + extractRootDomain(aEntry.href) + ' >');
+                    }
+                });
+            });
+            scrollToTop();
+            RefreshIconSet();
+        }
+    },
+    {
+        regex: /0xxx\.(ws|li)\/articles\/\d+/,
+        handler: async () => {
+            CopyOffSetArea = document.querySelector('div.container table#detail-table tbody tr td.taj:not(.levo)');
+
+            if (await waitElement('form#captcha', document.body, { timeout: 1000 })) {
+                // await sleep(5000);
+                // document.querySelector('button.h-captcha')?.click();
+                // await sleep(60000);
+            } else {
+                const downloadContainer = await waitElement('div.container table#detail-table tbody tr td.dlinks.taj');
+                DownloadArea = [downloadContainer];
+            }
+
+            if (/#show$/.test(PageURL)) {
+                window.addEventListener("scroll", () => {
+                    window.scrollTo({
+                        top: 0,
+                        behavior: 'auto'
+                    });
+                }, {
+                    once: true
+                });
+            }
+        }
+    },
+    {
+        regex: /cosplay\.jav\.pw\/\d+/,
+        handler: async () => {
+            CopyOffSetArea = document.querySelector('div#content div.post_singular .title');
+
+            const checkRedirects = document.querySelectorAll('a[href*="https://cosplay.jav.pw/goto/"]');
+            const allCollectionLinks = Array.from(checkRedirects).map(el => el.href);
+            const uniqueLinks = [...new Set(allCollectionLinks)];
+
+            if (uniqueLinks?.length) {
+                await Promise.allSettled(uniqueLinks.map((x) => DirectLink(x)));
+            }
+
+            const downloadContainer = await waitElement('div#content div.post_singular div.entry');
+            console.log({ downloadContainer });
+            DownloadArea = [downloadContainer];
+
+            CoverImage = document.querySelector('div.entry p a img')?.src || '';
+            console.log('DownloadArea: ', DownloadArea, '\nCoverImage: ', CoverImage);
+        }
+    },
+    {
+        regex: /models-nudeteen\.org\/.*\.html/,
+        handler: async () => {
+            CopyOffSetArea = document.querySelector('div#dle-content article.full div.m-title h1');
+            let DownloadAreaSelector;
+
+            if (await waitElement('div.title_spoiler', document.querySelector('div#dle-content'), { timeout: 500 })) {
+                DownloadAreaSelector = 'div#dle-content article.full .text_spoiler';
+            } else {
+                DownloadAreaSelector = 'div#dle-content article.full div.sub-wrap';
+            }
+
+            const downloadArea = await waitElement(DownloadAreaSelector);
+            DownloadArea = [downloadArea];
+            RefreshIconSet();
+        }
+    },
+    {
+        regex: /pornobunny\.org\/.+/,
+        handler: async () => {
+            CopyOffSetArea = document.querySelector('.titlesf');
+            document.querySelector('a.quote-hider-trigger')?.click();
+
+            const downloadContainer = await waitElement('div.sstory');
+            const observer = observeChanges('div.sstory', (mutations, obs) => {
+                mutations.forEach(mutation => {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('quote')) {
+                            const DownloadAreaSelector = 'div.quote';
+                            DownloadArea = downloadContainer.querySelectorAll(DownloadAreaSelector);
+                            if (DownloadArea?.length) {
+                                obs.disconnect();
+                                scrollToTop();
+                                RefreshIconSet();
+                            }
+                        }
+                    });
+                });
+            });
+
+            Resolution = !Resolution && CopyOffSetArea?.innerText.match(/[0-9]{3,4}p/) ? ' ' + CopyOffSetArea.innerText.match(/[0-9]{3,4}p/)[0] : '';
+        }
+    },
+    {
+        regex: /pornrip\.cc\/.+\.html/,
+        handler: async () => {
+            CopyOffSetArea = document.querySelector('.title.ularge');
+            const downloadContainer = await waitElement('article.main-article section.post-content');
+
+            const observer = observeChanges('article.main-article section.post-content', (mutations, obs) => {
+                mutations.forEach(mutation => {
+                    mutation.addedNodes.forEach(node => {
+                        if (node.nodeName === 'A') {
+                            const DownloadAreaSelector = 'div.su-spoiler-content';
+                            DownloadArea = downloadContainer.querySelectorAll(DownloadAreaSelector);
+                            if (DownloadArea?.length) {
+                                obs.disconnect();
+                                Array.from(document.querySelectorAll('a')).forEach((aEntry) => {
+                                    if (/\?site.+$/.test(aEntry.href)) {
+                                        aEntry.setAttribute('href', aEntry.href.replace(/\?site.+$/, ''));
+                                    }
+                                });
+                                scrollToTop();
+                                RefreshIconSet();
+                            }
+                        }
+                    });
+                });
+            });
+
+            Resolution = !Resolution && CopyOffSetArea?.innerText.match(/[0-9]{3,4}p/) ? ' ' + CopyOffSetArea.innerText.match(/[0-9]{3,4}p/)[0] : '';
+        }
+    }
+];
 async function Start() {
     console.log('Link Copy Start!')
     return new Promise((resolve, reject) => {
@@ -1289,291 +1514,62 @@ async function Start() {
             }
         ];
 
-        // --- 메인 로직 ---
-        (function () {
 
-            let currentConfig = null;
-            for (const site of siteConfigs) {
-                if (site.regex.test(PageURL) && (!site.condition || site.condition())) {
-                    currentConfig = site.config;
-                    break;
-                }
+        let currentConfig = null;
+        for (const site of siteConfigs) {
+            if (site.regex.test(PageURL) && (!site.condition || site.condition())) {
+                currentConfig = site.config;
+                break;
             }
-
-
-            if (currentConfig) {
-
-                // Step 1: `copyOffsetArea`가 이미 설정되지 않았으면 기본 셀렉터로 찾기
-                if (!CopyOffSetArea && currentConfig.copyOffsetArea) {
-                    CopyOffSetArea = document.querySelector(currentConfig.copyOffsetArea);
-                    if (!CopyOffSetArea) {
-                        throw new Error('필수 요소 CopyOffSetArea를 찾을 수 없습니다.');
-                    }
-                }
-                // Step 2: `postProcess`에서 동적 셀렉터를 설정할 경우를 대비해 먼저 실행
-                if (currentConfig.postProcess) {
-                    currentConfig.postProcess(currentConfig);
-                }
-
-                // Step 3: `DownloadArea`가 이미 설정되지 않았으면 기본 셀렉터나 동적 함수로 찾기
-                if (!DownloadArea) {
-                    if (typeof currentConfig.getDownloadArea === 'function') {
-                        DownloadArea = currentConfig.getDownloadArea(CopyOffSetArea);
-                    } else if (currentConfig.downloadAreaSelector) {
-                        DownloadArea = document.querySelectorAll(currentConfig.downloadAreaSelector);
-                    }
-                }
-
-                // Step 4: `CoverImage` 결정
-                if (!CoverImage && currentConfig.coverImageSelector) {
-                    const imgEl = document.querySelector(currentConfig.coverImageSelector);
-                    if (imgEl) {
-                        CoverImage = imgEl.getAttribute(currentConfig.coverImageAttribute) ||
-                            imgEl.getAttribute(currentConfig.coverImageFallbackAttribute || currentConfig.coverImageAttribute) ||
-                            imgEl.src;
-                    }
-                }
-
-                // Step 5: `Resolution` 결정
-                if (!Resolution && currentConfig.resolutionFromCopyOffset && CopyOffSetArea) {
-                    const resMatch = CopyOffSetArea.innerText.match(/[0-9]{3,4}p/);
-                    if (resMatch) Resolution = ' ' + resMatch[0];
-                }
-            }
-
-
-            console.log('Final CopyTitle:', CopyTitle);
-            console.log('Final CoverImage:', CoverImage);
-            console.log('Final DownloadArea:', DownloadArea);
-
-        })();
-
-
-
-        /**
- * MutationObserver를 사용하여 특정 요소가 DOM에 나타날 때까지 기다립니다.
- * @param {string} selector - 관찰할 HTML 요소의 선택자.
- * @param {Element} [targetNode=document.body] - MutationObserver를 적용할 상위 요소.
- * @returns {Promise<Element>} 요소가 발견되면 해결되는 프로미스.
- */
-        function waitElement(selector, targetNode = document.body) {
-            return new Promise((resolve, reject) => {
-                const element = targetNode.querySelector(selector);
-                if (element) {
-                    resolve(element);
-                }
-                const observer = new MutationObserver((mutations, obs) => {
-                    const found = targetNode.querySelector(selector);
-                    if (found) {
-                        obs.disconnect();
-                        resolve(found);
-                    }
-                });
-
-                observer.observe(targetNode, {
-                    childList: true,
-                    subtree: true
-                });
-            });
         }
 
-        /**
- * 특정 영역에 변경이 발생하면 콜백 함수를 실행합니다.
- * @param {string} targetSelector - 관찰할 HTML 요소의 선택자.
- * @param {Function} callback - 변경이 발생했을 때 실행할 콜백 함수.
- * @returns {MutationObserver} 생성된 옵저버 인스턴스.
- */
-        function observeChanges(targetSelector, callback) {
-            const targetElement = document.querySelector(targetSelector);
-            if (!targetElement) {
-                console.warn(`Target element not found: ${targetSelector}`);
-                return null;
+
+        if (currentConfig) {
+
+            // Step 1: `copyOffsetArea`가 이미 설정되지 않았으면 기본 셀렉터로 찾기
+            if (!CopyOffSetArea && currentConfig.copyOffsetArea) {
+                CopyOffSetArea = document.querySelector(currentConfig.copyOffsetArea);
+                if (!CopyOffSetArea) {
+                    throw new Error('필수 요소 CopyOffSetArea를 찾을 수 없습니다.');
+                }
+            }
+            // Step 2: `postProcess`에서 동적 셀렉터를 설정할 경우를 대비해 먼저 실행
+            if (currentConfig.postProcess) {
+                currentConfig.postProcess(currentConfig);
             }
 
-            const observer = new MutationObserver((mutations) => {
-                callback(mutations, observer);
-            });
+            // Step 3: `DownloadArea`가 이미 설정되지 않았으면 기본 셀렉터나 동적 함수로 찾기
+            if (!DownloadArea) {
+                if (typeof currentConfig.getDownloadArea === 'function') {
+                    DownloadArea = currentConfig.getDownloadArea(CopyOffSetArea);
+                } else if (currentConfig.downloadAreaSelector) {
+                    DownloadArea = document.querySelectorAll(currentConfig.downloadAreaSelector);
+                }
+            }
 
-            observer.observe(targetElement, {
-                attributes: true,
-                childList: true,
-                subtree: true
-            });
-            return observer;
+            // Step 4: `CoverImage` 결정
+            if (!CoverImage && currentConfig.coverImageSelector) {
+                const imgEl = document.querySelector(currentConfig.coverImageSelector);
+                if (imgEl) {
+                    CoverImage = imgEl.getAttribute(currentConfig.coverImageAttribute) ||
+                        imgEl.getAttribute(currentConfig.coverImageFallbackAttribute || currentConfig.coverImageAttribute) ||
+                        imgEl.src;
+                }
+            }
+
+            // Step 5: `Resolution` 결정
+            if (!Resolution && currentConfig.resolutionFromCopyOffset && CopyOffSetArea) {
+                const resMatch = CopyOffSetArea.innerText.match(/[0-9]{3,4}p/);
+                if (resMatch) Resolution = ' ' + resMatch[0];
+            }
         }
 
-        // 사이트별 다운로드 영역 처리 규칙을 정의하는 배열
-        const waitDownloadArea = [
-            {
-                regex: /ultoporn\.com\/\d+/,
-                handler: async () => {
-                    CopyOffSetArea = document.querySelector('div.storyhead > h1.shead');
-                    Array.from(document.querySelectorAll('button.click_show')).forEach(element => element.click());
 
-                    const downloadContainer = await waitElement('div#dle-content');
-                    const observer = observeChanges('div#dle-content', (mutations, obs) => {
-                        const DownloadAreaSelector = 'div.quote:has(a)';
-                        DownloadArea = downloadContainer.querySelectorAll(DownloadAreaSelector);
+        console.log('Final CopyTitle:', CopyTitle);
+        console.log('Final CoverImage:', CoverImage);
+        console.log('Final DownloadArea:', DownloadArea);
 
-                        if (DownloadArea?.length >= 1) {
-                            obs.disconnect();
-                            RefreshIconSet();
-                            const DoCopied = RootDomainDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
-                            if (!DoCopied && document.querySelector(".Minus").style.visibility === "hidden") {
-                                CopyGo();
-                            }
-                        }
-                    });
-                }
-            },
-            {
-                regex: /(hpjav|hpav).tv\/(ja\/)?\d+/,
-                handler: async () => {
-                    CopyOffSetArea = document.querySelector('section div ol li.active');
-                    CoverImage = document.querySelector('#JKDiv_0') ? GetBackGroundUrl(document.querySelector('#JKDiv_0')) : '';
 
-                    await sleep(1000);
-                    document.querySelector('#download_div.btn.btn-info')?.click();
-
-                    const downloadContainer = await waitElement('div#down_server');
-                    const downloadList = await waitElement('ul.pricing-table', downloadContainer);
-
-                    DownloadArea = [downloadList];
-                    Array.from(DownloadArea).forEach((linkEntry) => {
-                        Array.from(linkEntry.querySelectorAll('a')).forEach((aEntry) => {
-                            if (RootDomain !== extractRootDomain(aEntry.href)) {
-                                aEntry.classList.remove("dbtn");
-                                aEntry.removeAttribute('type');
-                                aEntry.textContent = aEntry.href;
-                                aEntry.insertAdjacentHTML('beforebegin', '<img src=https://www.google.com/s2/favicons?domain=' + extractRootDomain(aEntry.href) + ' >');
-                            }
-                        });
-                    });
-                    scrollToTop();
-                    RefreshIconSet();
-                }
-            },
-            {
-                regex: /0xxx\.(ws|li)\/articles\/\d+/,
-                handler: async () => {
-                    CopyOffSetArea = document.querySelector('div.container table#detail-table tbody tr td.taj:not(.levo)');
-
-                    if (await waitElement('form#captcha', document.body, { timeout: 1000 })) {
-                        // await sleep(5000);
-                        // document.querySelector('button.h-captcha')?.click();
-                        // await sleep(60000);
-                    } else {
-                        const downloadContainer = await waitElement('div.container table#detail-table tbody tr td.dlinks.taj');
-                        DownloadArea = [downloadContainer];
-                    }
-
-                    if (/#show$/.test(PageURL)) {
-                        window.addEventListener("scroll", () => {
-                            window.scrollTo({
-                                top: 0,
-                                behavior: 'auto'
-                            });
-                        }, {
-                            once: true
-                        });
-                    }
-                }
-            },
-            {
-                regex: /cosplay\.jav\.pw\/\d+/,
-                handler: async () => {
-                    CopyOffSetArea = document.querySelector('div#content div.post_singular .title');
-
-                    const checkRedirects = document.querySelectorAll('a[href*="https://cosplay.jav.pw/goto/"]');
-                    const allCollectionLinks = Array.from(checkRedirects).map(el => el.href);
-                    const uniqueLinks = [...new Set(allCollectionLinks)];
-
-                    if (uniqueLinks?.length) {
-                        await Promise.allSettled(uniqueLinks.map((x) => DirectLink(x)));
-                    }
-
-                    const downloadContainer = await waitElement('div#content div.post_singular div.entry');
-                    console.log({downloadContainer});
-                    DownloadArea = [downloadContainer];
-
-                    CoverImage = document.querySelector('div.entry p a img')?.src || '';
-                    console.log('DownloadArea: ', DownloadArea, '\nCoverImage: ', CoverImage);
-                }
-            },
-            {
-                regex: /models-nudeteen\.org\/.*\.html/,
-                handler: async () => {
-                    CopyOffSetArea = document.querySelector('div#dle-content article.full div.m-title h1');
-                    let DownloadAreaSelector;
-
-                    if (await waitElement('div.title_spoiler', document.querySelector('div#dle-content'), { timeout: 500 })) {
-                        DownloadAreaSelector = 'div#dle-content article.full .text_spoiler';
-                    } else {
-                        DownloadAreaSelector = 'div#dle-content article.full div.sub-wrap';
-                    }
-
-                    const downloadArea = await waitElement(DownloadAreaSelector);
-                    DownloadArea = [downloadArea];
-                    RefreshIconSet();
-                }
-            },
-            {
-                regex: /pornobunny\.org\/.+/,
-                handler: async () => {
-                    CopyOffSetArea = document.querySelector('.titlesf');
-                    document.querySelector('a.quote-hider-trigger')?.click();
-
-                    const downloadContainer = await waitElement('div.sstory');
-                    const observer = observeChanges('div.sstory', (mutations, obs) => {
-                        mutations.forEach(mutation => {
-                            mutation.addedNodes.forEach(node => {
-                                if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('quote')) {
-                                    const DownloadAreaSelector = 'div.quote';
-                                    DownloadArea = downloadContainer.querySelectorAll(DownloadAreaSelector);
-                                    if (DownloadArea?.length) {
-                                        obs.disconnect();
-                                        scrollToTop();
-                                        RefreshIconSet();
-                                    }
-                                }
-                            });
-                        });
-                    });
-
-                    Resolution = !Resolution && CopyOffSetArea?.innerText.match(/[0-9]{3,4}p/) ? ' ' + CopyOffSetArea.innerText.match(/[0-9]{3,4}p/)[0] : '';
-                }
-            },
-            {
-                regex: /pornrip\.cc\/.+\.html/,
-                handler: async () => {
-                    CopyOffSetArea = document.querySelector('.title.ularge');
-                    const downloadContainer = await waitElement('article.main-article section.post-content');
-
-                    const observer = observeChanges('article.main-article section.post-content', (mutations, obs) => {
-                        mutations.forEach(mutation => {
-                            mutation.addedNodes.forEach(node => {
-                                if (node.nodeName === 'A') {
-                                    const DownloadAreaSelector = 'div.su-spoiler-content';
-                                    DownloadArea = downloadContainer.querySelectorAll(DownloadAreaSelector);
-                                    if (DownloadArea?.length) {
-                                        obs.disconnect();
-                                        Array.from(document.querySelectorAll('a')).forEach((aEntry) => {
-                                            if (/\?site.+$/.test(aEntry.href)) {
-                                                aEntry.setAttribute('href', aEntry.href.replace(/\?site.+$/, ''));
-                                            }
-                                        });
-                                        scrollToTop();
-                                        RefreshIconSet();
-                                    }
-                                }
-                            });
-                        });
-                    });
-
-                    Resolution = !Resolution && CopyOffSetArea?.innerText.match(/[0-9]{3,4}p/) ? ' ' + CopyOffSetArea.innerText.match(/[0-9]{3,4}p/)[0] : '';
-                }
-            }
-        ];
 
 
 
