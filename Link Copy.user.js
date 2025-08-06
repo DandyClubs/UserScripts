@@ -147,7 +147,7 @@ margin: .25em;
     border-radius: .25em;
     color: white !important;
     background: rgba(255, 165, 0, .95) !important;
-    position: fixed !important;    
+    position: fixed !important;
     white-space: pre;
  	text-shadow: initial !important;
     text-align: left;
@@ -298,7 +298,7 @@ let Maker = '', ReleaseDate = ''
 let SkipTitle
 
 let GetDPI, DefaultFontSize
-let Target, DownloadArea, CopyTitle = '', CopyOffSetArea, InfoArea, Resolution = '', TitleLast = '', Series = '', Title, ID = '', TitleID, CopyTitleTmp, InfoTitleTmp, CoverImage, MatchWebRegExp, Gallery, DownloadAreaSelector
+let Target, DownloadArea, CopyTitle = '', copyOffsetArea, InfoArea, Resolution = '', TitleLast = '', Series = '', Title, ID = '', TitleID, CopyTitleTmp, InfoTitleTmp, CoverImage, MatchWebRegExp, Gallery, DownloadAreaSelector
 let UrlTitle = ''
 const SkipFilter = new RegExp('katfile\\.com\/\?op=registration|77file\\.com|xtvtv\\.com\/explanation|niceff\.com|fboom\\.me\/code|k2s\\.cc\/(pr|code)|facebook\\.com|magnet:|fireget\\.com\/premium\\.html|tezfiles\\.com\/.+\/premium|nyaa\\.si|twitter\\.com|ouo\\.io|tma\\.cx|3xplanetpremium|clubwarp\\.com|clubwarp\\.top/|teraboxapp\\.com|turb\\.cc|turbobit\\.net|terabox\\.com|keep2share\\.cc\/pr\/|javascript|pixhost\\.to\/gallery\/|imgchili\\.net\/show|#$|^\/|^(?=.*' + window.location.origin + ')(?!.*\\?site).*$', 'i')
 const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i')
@@ -518,16 +518,16 @@ const siteConfigs = [
             return false;
         },
         config: {
-            copyOffsetArea: '.post-title.entry-title',
+            copyOffsetAreaSelector: '.post-title.entry-title',
             downloadAreaSelector: 'div#download, div#downloadhidden',
             coverImageSelector: 'div.post-content-single a > img',
             coverImageAttribute: 'src',
-            postProcess: () => {
+            postProcess: (config) => {
                 // 이 함수는 'DownloadAreaUnlocked' 이벤트가 발생했을 때 호출될 것입니다.
                 // 또는 페이지 로드 시 바로 다운로드 영역이 보일 때 호출됩니다.
 
-                const CopyOffSetArea = document.querySelector('.post-title.entry-title');
-                const DownloadArea = document.querySelectorAll('div#download, div#downloadhidden, div.DownloadArea');
+                copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
+                DownloadArea = document.querySelectorAll('div#download, div#downloadhidden, div.DownloadArea');
 
                 //Extracting Text Before Each <br> and the Last Line
                 let EachTitle = getTextLinesWithIconTag('div.post-content-single p strong', 'br')
@@ -593,7 +593,7 @@ const siteConfigs = [
                 console.log('InfoArea:', InfoArea, 'InfoAreaCast:', InfoAreaCast)
 
                 // `CopyTitle`에서 `MatchWeb` 추출
-                const CopyTitleRaw = CopyOffSetArea.innerText.trim();
+                const CopyTitleRaw = copyOffsetArea.innerText.trim();
                 const MatchWebPoint = CopyTitleRaw.search(/\s-\s/);
                 MatchWeb = MatchWebPoint !== -1 ? CopyTitleRaw.substring(0, MatchWebPoint).replace(/\s|\./g, '') : CopyTitleRaw;
                 console.log('MatchWeb:', MatchWeb, 'MatchWebPoint:', MatchWebPoint)
@@ -692,22 +692,22 @@ const siteConfigs = [
 
                     const titleEl = document.querySelector('.post-title.entry-title');
                     const searchTitle = titleEl ? searchTerms(titleEl.innerText) : '';
-                    const offsetParent = CopyOffSetArea.parentElement;
+                    const offsetParent = copyOffsetArea.parentElement;
                     offsetParent.style.position = 'relative';
 
                     // create SearchBox
                     const SearchBox = document.createElement('div');
                     SearchBox.className = 'SearchBox';
                     SearchBox.style.position = 'absolute';
-                    offsetParent.insertBefore(SearchBox, CopyOffSetArea.nextSibling);
+                    offsetParent.insertBefore(SearchBox, copyOffsetArea.nextSibling);
 
 
                     const baseScale = (1 / (GetDPI / 1.5)) * (16 / DefaultFontSize);
                     const rem = (value) => `${value.toFixed(2)}rem`;
 
                     SearchBox.style.maxWidth = rem(3);
-                    SearchBox.style.top = `${Math.floor(CopyOffSetArea.offsetTop + (CopyOffSetArea.offsetHeight / 20))}px`;
-                    SearchBox.style.left = `${Math.floor(CopyOffSetArea.offsetLeft + CopyOffSetArea.offsetWidth - baseScale * 16)}px`;
+                    SearchBox.style.top = `${Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20))}px`;
+                    SearchBox.style.left = `${Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - baseScale * 16)}px`;
                     SearchBox.style.height = rem(1);
 
                     const ICONS = [
@@ -748,8 +748,8 @@ const siteConfigs = [
 
                     const searchBoxStyle = SearchBox.style;
                     searchBoxStyle.maxWidth = rem(baseScale * 0.9 * 3);
-                    searchBoxStyle.top = Math.floor(CopyOffSetArea.offsetTop + (CopyOffSetArea.offsetHeight / 20)) + 'px';
-                    searchBoxStyle.left = Math.floor(CopyOffSetArea.offsetLeft + CopyOffSetArea.offsetWidth - SearchBox.offsetWidth * 1.5) + 'px';
+                    searchBoxStyle.top = Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20)) + 'px';
+                    searchBoxStyle.left = Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - SearchBox.offsetWidth * 1.5) + 'px';
                     searchBoxStyle.height = rem(baseScale * 0.9);
 
                     // img.Favicon 모두 선택
@@ -788,17 +788,17 @@ const siteConfigs = [
     {
         regex: /top-modelz\.org\/.+html/,
         config: {
-            copyOffsetArea: '.news-detalis h2',
+            copyOffsetAreaSelector: '.news-detalis h2',
             downloadAreaSelector: 'div#content div#l-content div#dle-content div.news-block div.newspad div.quote, div#dle-content div.news-block div.newspad div div',
             coverImageSelector: 'div#dle-content div.news-block div.newspad div.news-text p img',
             coverImageAttribute: 'src',
             postProcess: (config) => {
-                const CopyOffSetArea = document.querySelector(config.copyOffsetArea);
-                const DownloadArea = document.querySelectorAll(config.downloadAreaSelector);
+                copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
+                DownloadArea = document.querySelectorAll(config.downloadAreaSelector);
 
-                if (!CopyOffSetArea) return;
+                if (!copyOffsetArea) return;
 
-                let Title = CopyOffSetArea.textContent.trim() || '';
+                let Title = copyOffsetArea.textContent.trim() || '';
                 const SkipFilter = /SkipFilterPattern/; // 기존 코드에 정의된 SkipFilter 패턴을 사용해야 합니다.
 
                 let LinkDBAll = [];
@@ -845,16 +845,16 @@ const siteConfigs = [
                     throw new Error('No suitable links found after filtering');
                 }
 
-                CopyOffSetArea = CopyOffSetArea; // 이 부분은 선택한 요소를 다시 할당하는 용도로 유지
             }
         }
     },
     {
         regex: /8kcosplay\.com|blogjav\.net\/\d+|javfree\.me\/\d+/,
         config: {
-            copyOffsetArea: '.entry-title',
+            copyOffsetAreaSelector: '.entry-title',
             downloadAreaSelector: '.entry-content',
-            postProcess: () => {
+            postProcess: (config) => {
+                copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
                 const is8kcosplay = /8kcosplay\.com/.test(PageURL);
                 const isBlogjav = /blogjav\.net/.test(PageURL);
                 const isJavfree = /javfree\.me/.test(PageURL);
@@ -876,7 +876,7 @@ const siteConfigs = [
                     CoverImage = imgTag?.getAttribute('data-lazy-src') ?? imgTag?.src ?? '';
                 }
 
-                let rawTitle = CopyOffSetArea?.textContent.trim() ?? '';
+                let rawTitle = copyOffsetArea?.textContent.trim() ?? '';
                 rawTitle = rawTitle
                     .replace(/amp;|\(\s?ブルーレイ版\s?\)|\(ブルーレイディスク版\)|（ブルーレイディスク）/g, '')
                     .replace('***y*xjyyqxn', '')
@@ -931,17 +931,18 @@ const siteConfigs = [
     {
         regex: /nitroflareporn\.com/,
         config: {
-            copyOffsetArea: 'div#dle-content article.singlecont.slideRight h1 span#news-title',
+            copyOffsetAreaSelector: 'div#dle-content article.singlecont.slideRight h1 span#news-title',
             downloadAreaSelector: 'article.singlecont.slideRight div.cont',
-            postProcess: () => {
+            postProcess: (config) => {
+                copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
                 document.querySelectorAll('a > img[src*="/uploads/download.gif"]').forEach((img) => {
                     const icon = document.createElement('i');
                     icon.classList.add('fa-solid', 'fa-link');
                     img.replaceWith(icon);
                 });
 
-                if (CopyOffSetArea) {
-                    CopyTitle = CopyOffSetArea.innerText.replace(/\((UltraHD|Full|HD|SD).+/, '').replace(/\s+/g, ' ').trim();
+                if (copyOffsetArea) {
+                    CopyTitle = copyOffsetArea.innerText.replace(/\((UltraHD|Full|HD|SD).+/, '').replace(/\s+/g, ' ').trim();
                     CopyTitle = capitalize(CopyTitle);
                     CopyTitle = CopyTitle.replace(/\*/g, '＊').replace(/\?/g, '？');
                 }
@@ -951,7 +952,7 @@ const siteConfigs = [
     {
         regex: /fapfiles\.org\/\d+|teenbox\.org\/\?p=\d+/,
         config: {
-            postProcess: (config) => {
+            postProcess: () => {
                 if (/fapfiles\.org\/\d+/.test(PageURL)) {
                     config.copyOffsetArea = 'div#title_post';
                     config.downloadAreaSelector = 'div#content';
@@ -960,11 +961,11 @@ const siteConfigs = [
                     config.downloadAreaSelector = 'div#entry';
                 }
 
-                CopyOffSetArea = document.querySelector(config.copyOffsetArea);
+                copyOffsetArea = document.querySelector(config.copyOffsetArea);
                 DownloadArea = document.querySelectorAll(config.downloadAreaSelector);
 
-                if (CopyOffSetArea) {
-                    CopyTitle = nameCorrection(CopyOffSetArea.textContent.replace(/amp;/g, '').trim());
+                if (copyOffsetArea) {
+                    CopyTitle = nameCorrection(copyOffsetArea.textContent.replace(/amp;/g, '').trim());
                 }
             }
         }
@@ -972,9 +973,10 @@ const siteConfigs = [
     {
         regex: /^https?:\/\/wetholefans\.com\/.*\/\d+(?!.*page\/\d+)/,
         config: {
-            copyOffsetArea: '.post-title #news-title h1',
+            copyOffsetAreaSelector: '.post-title #news-title h1',
             downloadAreaSelector: '.story .quote',
-            postProcess: () => {
+            postProcess: (config) => {
+                copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
                 let SearchLinks = [];
                 if (DownloadArea) {
                     Array.from(DownloadArea).forEach((LinkEntry) => {
@@ -987,14 +989,14 @@ const siteConfigs = [
                     ReleaseDate = match ? match[1] : '';
                 }
 
-                if (!Resolution && CopyOffSetArea) {
-                    const resMatch = CopyOffSetArea.innerText.match(/[0-9]{3,4}p/);
+                if (!Resolution && copyOffsetArea) {
+                    const resMatch = copyOffsetArea.innerText.match(/[0-9]{3,4}p/);
                     if (resMatch) Resolution = ' ' + resMatch[0];
                 }
 
-                console.log(CopyOffSetArea)
-                if (CopyOffSetArea) {
-                    let tempTitle = CopyOffSetArea.innerText.replace(/\((UltraHD|Full|HD|SD).+/i, '').replace(/\s+/g, ' ').trim();
+                console.log(copyOffsetArea)
+                if (copyOffsetArea) {
+                    let tempTitle = copyOffsetArea.innerText.replace(/\((UltraHD|Full|HD|SD).+/i, '').replace(/\s+/g, ' ').trim();
                     tempTitle = capitalize(tempTitle);
                     const MatchWebPoint = tempTitle.indexOf(' - ');
                     const MatchWeb = MatchWebPoint !== -1 ? tempTitle.substring(0, MatchWebPoint).replace(/\s/g, '') : tempTitle;
@@ -1008,56 +1010,56 @@ const siteConfigs = [
     {
         regex: /(pornchil\.com\/)(?!$).*$/,
         config: {
-            copyOffsetArea: '.inside-article > .entry-content strong > span',
+            copyOffsetAreaSelector: '.inside-article > .entry-content strong > span',
             downloadAreaSelector: '.inside-article > div.entry-content'
         }
     },
     {
         regex: /(nicesss|nicewww)\.com\/archives.+\.html/,
         config: {
-            copyOffsetArea: 'header.entry-header h1.entry-title a',
+            copyOffsetAreaSelector: 'header.entry-header h1.entry-title a',
             downloadAreaSelector: 'article.article-content div.container div.entry-wrapper div.entry-content center'
         }
     },
     {
         regex: /tvtv\.com\/archives.+\.html/,
         config: {
-            copyOffsetArea: 'div.single-center header.single-header .entry-title',
+            copyOffsetAreaSelector: 'div.single-center header.single-header .entry-title',
             downloadAreaSelector: 'div.entry-content center'
         }
     },
     {
         regex: /fapit\.org\/\d+/,
         config: {
-            copyOffsetArea: '.entry-title',
+            copyOffsetAreaSelector: '.entry-title',
             downloadAreaSelector: 'main#site-content article div.entry-content'
         }
     },
     {
         regex: /pornofetishx\.com\/\d+/,
         config: {
-            copyOffsetArea: 'div.content-single h1.ftitle',
+            copyOffsetAreaSelector: 'div.content-single h1.ftitle',
             downloadAreaSelector: 'div.content-single div.quote'
         }
     },
     {
         regex: /(clubwarp|downloaddex)\.com\/threads/,
         config: {
-            copyOffsetArea: 'h1.p-title-value',
+            copyOffsetAreaSelector: 'h1.p-title-value',
             downloadAreaSelector: 'article.message-body.js-selectToQuote div.bbWrapper'
         }
     },
     {
         regex: /jtiny\.org\/\?p=\d+/,
         config: {
-            copyOffsetArea: 'div#container h2#titl a',
+            copyOffsetAreaSelector: 'div#container h2#titl a',
             downloadAreaSelector: 'div#container div.post div#entry center'
         }
     },
     {
         regex: /javarchive\.com\/\d{4,6}/,
         config: {
-            copyOffsetArea: '.menudd > h1',
+            copyOffsetAreaSelector: '.menudd > h1',
             downloadAreaSelector: '.link_archive_innew',
             coverImageSelector: 'div.category_news_phai_chinh > div.news > div > img:not([src^="data"])',
             coverImageAttribute: 'src',
@@ -1067,14 +1069,14 @@ const siteConfigs = [
     {
         regex: /(k2sporn\.com|hidefporn\.ws)\/\d+/,
         config: {
-            copyOffsetArea: 'div.story-head > h1.title',
+            copyOffsetAreaSelector: 'div.story-head > h1.title',
             downloadAreaSelector: 'div.story-cont div.quote'
         }
     },
     {
         regex: /cosplay-jav\.com/,
         config: {
-            copyOffsetArea: 'div.title h1.posttitle a.entry-title',
+            copyOffsetAreaSelector: 'div.title h1.posttitle a.entry-title',
             downloadAreaSelector: 'div.entry-container div.entry p',
             coverImageSelector: 'div.entry-container div.entry p.first-para img.size-full',
             coverImageAttribute: 'src'
@@ -1083,7 +1085,7 @@ const siteConfigs = [
     {
         regex: /kbjme\.com\/\d+/,
         config: {
-            copyOffsetArea: '.article_container h1',
+            copyOffsetAreaSelector: '.article_container h1',
             downloadAreaSelector: 'div.article_container div.context div#post_content',
             postProcess: () => {
                 const link = document.querySelector('.article_container a');
@@ -1097,14 +1099,14 @@ const siteConfigs = [
     {
         regex: /pornrips\.cc\/.+/,
         config: {
-            copyOffsetArea: 'div#dle-content article div.head h1.title',
+            copyOffsetAreaSelector: 'div#dle-content article div.head h1.title',
             downloadAreaSelector: 'div#dle-content article div.story_cont .screenshots, div#dle-content article div.story_cont'
         }
     },
     {
         regex: /javpop\.(link|mov)/,
         config: {
-            copyOffsetArea: 'main.detail article.post h2.post-title',
+            copyOffsetAreaSelector: 'main.detail article.post h2.post-title',
             downloadAreaSelector: 'main.detail article.post div div.text-center'
         }
     },
@@ -1112,14 +1114,14 @@ const siteConfigs = [
         regex: /thotsgirls\.com\/(?!.*page)/,
         condition: () => document.querySelector('div#primary > div#content > article'),
         config: {
-            copyOffsetArea: '.entry-title',
+            copyOffsetAreaSelector: '.entry-title',
             downloadAreaSelector: 'div.entry-content'
         }
     },
     {
         regex: /fhdporn\.video\/.+/,
         config: {
-            copyOffsetArea: 'h1.post-title',
+            copyOffsetAreaSelector: 'h1.post-title',
             downloadAreaSelector: 'div.post-content'
         }
     },
@@ -1127,14 +1129,14 @@ const siteConfigs = [
         regex: /(bestgirlsexy|bestvideosexy)\.com\/.+/,
         condition: () => document.querySelector('div#content.site-content div.elementor.elementor-location-single'),
         config: {
-            copyOffsetArea: 'div#content.site-content div.elementor-widget-container h1.elementor-heading-title',
+            copyOffsetAreaSelector: 'div#content.site-content div.elementor-widget-container h1.elementor-heading-title',
             downloadAreaSelector: 'div#content.site-content div.elementor-widget-container'
         }
     },
     {
         regex: /all4jp\.com/,
         config: {
-            copyOffsetArea: 'article.post > h1#post-title',
+            copyOffsetAreaSelector: 'article.post > h1#post-title',
             downloadAreaSelector: 'article p',
             getDownloadArea: (copyOffsetArea) => copyOffsetArea ? copyOffsetArea.closest('article').querySelectorAll('p') : null
         }
@@ -1142,7 +1144,7 @@ const siteConfigs = [
     {
         regex: /av18plus\.com/,
         config: {
-            copyOffsetArea: 'div#content div.post-single h2.title',
+            copyOffsetAreaSelector: 'div#content div.post-single h2.title',
             downloadAreaSelector: 'div#content div.post-single div.entry p',
             getDownloadArea: () => document.querySelectorAll('div#content div.post-single div.entry p')
         }
@@ -1150,7 +1152,7 @@ const siteConfigs = [
     {
         regex: /(siteripbb\.org|freepornstreams\.org)\/.+/,
         config: {
-            copyOffsetArea: 'h1.entry-title',
+            copyOffsetAreaSelector: 'h1.entry-title',
             downloadAreaSelector: 'div.entry-content'
         }
     },
@@ -1158,21 +1160,21 @@ const siteConfigs = [
         regex: /xscandals\.com/,
         condition: () => document.querySelector('div#page.site div#content.site-content div#primary.content-area main#main.site-main article header.entry-header h1.entry-title a'),
         config: {
-            copyOffsetArea: 'div#page.site div#content.site-content div#primary.content-area main#main.site-main article header.entry-header h1.entry-title a',
+            copyOffsetAreaSelector: 'div#page.site div#content.site-content div#primary.content-area main#main.site-main article header.entry-header h1.entry-title a',
             downloadAreaSelector: 'div#page.site div#content.site-content div#primary.content-area main#main.site-main article div.entry-content blockquote p'
         }
     },
     {
         regex: /asianscan\.biz\/.*\.html/,
         config: {
-            copyOffsetArea: 'div div.content div#dle-content div.mainf3',
+            copyOffsetAreaSelector: 'div div.content div#dle-content div.mainf3',
             downloadAreaSelector: 'div.content div#dle-content div.sscn div.quote'
         }
     },
     {
         regex: /adult-porno\.org\/.+/,
         config: {
-            copyOffsetArea: 'div.full-in h1',
+            copyOffsetAreaSelector: 'div.full-in h1',
             downloadAreaSelector: 'div.quote',
             resolutionFromCopyOffset: true
         }
@@ -1181,14 +1183,14 @@ const siteConfigs = [
         regex: /aincest\.com\/.+/,
         condition: () => !document.querySelector('article'),
         config: {
-            copyOffsetArea: 'div#main-content div#content div.entry-headline-wrapper div.entry-headline-wrapper-inner h1.entry-headline',
+            copyOffsetAreaSelector: 'div#main-content div#content div.entry-headline-wrapper div.entry-headline-wrapper-inner h1.entry-headline',
             downloadAreaSelector: 'div#main-content div#content div.entry-content div.entry-content-inner > p'
         }
     },
     {
         regex: /(sharepornlink\.com\/)(?!($|page))(.*)$/,
         config: {
-            copyOffsetArea: 'div.wpb_wrapper div.td_block_wrap.tdb-single-title div.tdb-block-inner h1.tdb-title-text, article div.td-post-header header.td-post-title h1.entry-title',
+            copyOffsetAreaSelector: 'div.wpb_wrapper div.td_block_wrap.tdb-single-title div.tdb-block-inner h1.tdb-title-text, article div.td-post-header header.td-post-title h1.entry-title',
             downloadAreaSelector: 'div.tdb_single_content div.tdb-block-inner.td-fix-index, article div.td-post-content',
             resolutionFromCopyOffset: true
         }
@@ -1196,7 +1198,7 @@ const siteConfigs = [
     {
         regex: /(softmodels\.net\/)(?!($|page))(.*)$/,
         config: {
-            copyOffsetArea: 'article div.story-head .title',
+            copyOffsetAreaSelector: 'article div.story-head .title',
             downloadAreaSelector: 'article div.quote'
         }
     },
@@ -1204,7 +1206,7 @@ const siteConfigs = [
         regex: /3xplanet\.net/,
         condition: () => document.querySelector('article'),
         config: {
-            copyOffsetArea: 'article .entry-title',
+            copyOffsetAreaSelector: 'article .entry-title',
             downloadAreaSelector: '.td-post-content'
         }
     },
@@ -1212,14 +1214,14 @@ const siteConfigs = [
         regex: /girlscanner\.org/,
         condition: () => document.querySelector('div#content'),
         config: {
-            copyOffsetArea: 'div#content div#full_post span.span_h2 h1',
+            copyOffsetAreaSelector: 'div#content div#full_post span.span_h2 h1',
             downloadAreaSelector: 'div#content div#full_post center'
         }
     },
     {
         regex: /epicomg\.com\/\?p/,
         config: {
-            copyOffsetArea: 'a.title',
+            copyOffsetAreaSelector: 'a.title',
             downloadAreaSelector: 'div#cont > center'
         }
     },
@@ -1233,7 +1235,7 @@ const siteConfigs = [
             return true;
         },
         config: {
-            copyOffsetArea: 'article.hentry header.entry-header > .entry-title',
+            copyOffsetAreaSelector: 'article.hentry header.entry-header > .entry-title',
             downloadAreaSelector: 'article.hentry div.entry-content.post_content figure a',
             getDownloadArea: () => {
                 const figureLinks = document.querySelectorAll('article.hentry div.entry-content.post_content figure a');
@@ -1255,14 +1257,14 @@ const siteConfigs = [
             return true;
         },
         config: {
-            copyOffsetArea: 'article.hentry header.entry-header > h1.entry-title',
+            copyOffsetAreaSelector: 'article.hentry header.entry-header > h1.entry-title',
             downloadAreaSelector: 'article.hentry div.entry-content'
         }
     },
     {
         regex: /x-idol\.net\//,
         config: {
-            copyOffsetArea: 'h1.post-title.entry-title',
+            copyOffsetAreaSelector: 'h1.post-title.entry-title',
             downloadAreaSelector: 'div.hentry div.entry-content'
         }
     },
@@ -1270,11 +1272,13 @@ const siteConfigs = [
         regex: /maxjav\.(com|xyz)\/\d+/,
         condition: () => window.top === window.self,
         config: {
-            copyOffsetArea: 'div#content > div > .title',
-            downloadAreaSelector: 'div#content > div > div.entry p',
-            postProcess: () => {
-                let initialTitle = CopyOffSetArea.innerText;
+            copyOffsetAreaSelector: '.post-single h2.title',
+            downloadAreaSelector: 'div.entry p',
+            postProcess: (config) => {
+                copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
+                let initialTitle = copyOffsetArea.innerText;
                 const subtitleMatch = initialTitle.match(/\[.+Subtitle\](.+)/);
+
                 let Title = subtitleMatch ? subtitleMatch[1] : initialTitle;
 
                 Title = Title
@@ -1285,25 +1289,41 @@ const siteConfigs = [
                     .trim();
 
                 if (!Title.match(/^Collection/)) {
-                    const InfoArea = Array.from(document.querySelectorAll('div#content > div > .entry > p')).flatMap(p =>
+                    const InfoArea = Array.from(document.querySelectorAll('.post-single div.entry p')).flatMap(p =>
                         p.innerText.replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n').split(/\n\n|\n/).filter(Boolean)
                     );
-                    console.log(InfoArea);
 
-                    let IDMatch = Title.match(SearchIDRegExp)?.[1] ?? InfoArea.find(line => line.match(SearchIDRegExp))?.match(SearchIDRegExp)?.[1];
-                    ID = IDMatch ? IDMatch.trim() : '';
+                    let fc = SearchFC2ID?.exec(Title)
+                    if (fc) {
+                        let fcId = fc.groups ? fcId.groups.url : fcId[1]
+                        Title = `${fcId} InfoArea[0]`
+                    } else {
+                        let entryID = Title.match(SearchIDRegExp)?.[2]
+                        let infoAreaID = InfoArea.find(line => line.match(SearchIDRegExp))?.match(SearchIDRegExp)?.[2]
+                        let IDMatch = entryID ?? infoAreaID
+                        let ID = IDMatch ? IDMatch.trim() : '';
+                        if (ID) {
+                            ID = ID ? ID + ' ' : ''
+                        }
+                        let compareInfoAreaID = entryID === infoAreaID ? infoAreaID : /-/.test(entryID) ? entryID.replace(/-/g, '') : ''
+                        let newTitle = compareInfoAreaID ? InfoArea.find(line => line.match(compareInfoAreaID))?.replace(compareInfoAreaID, '').trim() ?? Title.replace(SearchIDRegExp, '').trim() : compareJapaneseCharacters(Title, InfoArea)
 
-                    let newTitle = InfoArea.find(line => line.match(SearchIDRegExp))?.replace(SearchIDRegExp, '').trim() ?? Title.replace(SearchIDRegExp, '').trim();
-                    if (!newTitle || newTitle === 'No title') newTitle = Title.replace(SearchIDRegExp, '').trim();
-                    Title = newTitle;
+                        if (!newTitle || newTitle === 'No title') newTitle = Title.replace(SearchIDRegExp, '').trim();
+                        Title = newTitle;
 
-                    Title = mbConvertKana(Title.trim(), 'rans');
+                        console.log({ newTitle })
 
-                    ReleaseDate = InfoArea.find(line => /Release Date:/.test(line))?.match(/Release Date:(.+)/)?.[1].replace(/\//g, '.').trim() ?? '';
-                    Maker = InfoArea.find(line => /(Maker|Studio)\s?:/.test(line))?.match(/(Maker|Studio)\s?:(.+)/)?.[2].trim() ?? '';
+                        Title = mbConvertKana(Title.trim(), 'rans');
+                    }
+
+                    //ReleaseDate = InfoArea.find(line => /Release Date:/.test(line))?.match(/Release Date:(.+)/)?.[1].replace(/\//g, '.').trim() ?? '';
+                    //ReleaseDate = ReleaseDate ? '(' + ReleaseDate + ') ' : ''
+
+                    //Maker = InfoArea.find(line => /(Maker|Studio)\s?:/.test(line))?.match(/(Maker|Studio)\s?:(.+)/)?.[2].trim() ?? '';
+                    //Maker = Maker ? '[' + Maker + '] ' : ''
                 }
 
-                CopyTitle = (Maker ? '[' + Maker + '] ' : '') + (ID ? ID + ' ' : '') + (ReleaseDate ? '(' + ReleaseDate + ') ' : '') + Title;
+                CopyTitle = `${ID}${Title}`;
                 CopyTitle = byteLengthOf(CopyTitle, 241).trim();
                 CoverImage = DownloadArea?.[0]?.querySelector('p img')?.src || '';
                 console.log({ CopyTitle, CoverImage, ID, ReleaseDate, Maker, DownloadArea });
@@ -1313,10 +1333,10 @@ const siteConfigs = [
     {
         regex: /javpink\.com\/\?p/,
         config: {
-            copyOffsetArea: '.item > .title',
+            copyOffsetAreaSelector: '.item > .title',
             downloadAreaSelector: '.item > .content',
             postProcess: () => {
-                let Title = CopyOffSetArea?.textContent.trim() || '';
+                let Title = copyOffsetArea?.textContent.trim() || '';
                 DownloadArea = document.querySelectorAll('.item > .content');
                 CoverImage = DownloadArea?.[0]?.querySelector('p img')?.src || '';
 
@@ -1333,10 +1353,10 @@ const siteConfigs = [
         regex: /maddawgjav.net\/.+/,
         condition: () => document.querySelector('div#content div.post-single'),
         config: {
-            copyOffsetArea: 'div.entry > h2',
+            copyOffsetAreaSelector: 'div.entry > h2',
             downloadAreaSelector: 'div.entry > p',
             postProcess: () => {
-                let Title = CopyOffSetArea?.textContent.trim() || '';
+                let Title = copyOffsetArea?.textContent.trim() || '';
                 DownloadArea = document.querySelectorAll('div.entry > p');
                 CoverImage = DownloadArea?.[0]?.querySelector('img')?.src || '';
                 Title = mbConvertKana(Title, 'rans');
@@ -1363,8 +1383,8 @@ const siteRules = [
     },
     {
         regex: /(clubwarp|downloaddex)\.com/,
-        handler: (title, CopyOffSetArea) => {
-            let cleanedTitle = Array.from(CopyOffSetArea.childNodes)
+        handler: (title, copyOffsetArea) => {
+            let cleanedTitle = Array.from(copyOffsetArea.childNodes)
                 .reduce((acc, node) => acc + (node.nodeType === 3 ? node.textContent : ''), '')
                 .trim()
                 .replace(/[ๅภถุึคตจขชๆไำพะัีรนยบลฃฟหกดเ้่าสวงผปแอิืทมใฝ๑๒๓๔ู฿๕๖๗๘๙๐ฎฑธํ๊ณฯญฐฅฤฆฏโฌ็๋ษศซฉฮฺ์ฒฬฦ]/g, '')
@@ -1375,7 +1395,7 @@ const siteRules = [
     {
         // cosplay.jav.pw 규칙 추가
         regex: /cosplay\.jav\.pw\/\d+/,
-        handler: async (title, CopyOffSetArea, DownloadArea) => {
+        handler: async (title, copyOffsetArea, DownloadArea) => {
             const h3 = document.querySelector('div#content div.post_singular div.entry h3');
             let newTitle = h3 ? h3.textContent.trim() : title;
 
@@ -1396,7 +1416,7 @@ const siteRules = [
                             : null;
                     if (service) {
                         newTitle = await GetFileName(GetFileNameLink, service);
-                        CopyOffSetArea.textContent = newTitle;
+                        copyOffsetArea.textContent = newTitle;
                         console.log('GetFileName :', newTitle);
                     }
                 } catch (e) {
@@ -1421,7 +1441,7 @@ const waitDownloadArea = [
     {
         regex: /ultoporn\.com\/\d+/,
         handler: async () => {
-            CopyOffSetArea = document.querySelector('div.storyhead > h1.shead');
+            copyOffsetArea = document.querySelector('div.storyhead > h1.shead');
             Array.from(document.querySelectorAll('button.click_show')).forEach(element => element.click());
 
             const downloadContainer = await waitElement('div#dle-content');
@@ -1443,7 +1463,7 @@ const waitDownloadArea = [
     {
         regex: /(hpjav|hpav).tv\/(ja\/)?\d+/,
         handler: async () => {
-            CopyOffSetArea = document.querySelector('section div ol li.active');
+            copyOffsetArea = document.querySelector('section div ol li.active');
             CoverImage = document.querySelector('#JKDiv_0') ? GetBackGroundUrl(document.querySelector('#JKDiv_0')) : '';
 
             await sleep(1000);
@@ -1470,7 +1490,7 @@ const waitDownloadArea = [
     {
         regex: /0xxx\.(ws|li)\/articles\/\d+/,
         handler: async () => {
-            CopyOffSetArea = document.querySelector('div.container table#detail-table tbody tr td.taj:not(.levo)');
+            copyOffsetArea = document.querySelector('div.container table#detail-table tbody tr td.taj:not(.levo)');
 
             if (await waitElement('form#captcha', document.body, { timeout: 1000 })) {
                 // await sleep(5000);
@@ -1496,7 +1516,7 @@ const waitDownloadArea = [
     {
         regex: /cosplay\.jav\.pw\/\d+/,
         handler: async () => {
-            CopyOffSetArea = document.querySelector('div#content div.post_singular .title');
+            copyOffsetArea = document.querySelector('div#content div.post_singular .title');
 
             const checkRedirects = document.querySelectorAll('a[href*="https://cosplay.jav.pw/goto/"]');
             const allCollectionLinks = Array.from(checkRedirects).map(el => el.href);
@@ -1517,7 +1537,7 @@ const waitDownloadArea = [
     {
         regex: /models-nudeteen\.org\/.*\.html/,
         handler: async () => {
-            CopyOffSetArea = document.querySelector('div#dle-content article.full div.m-title h1');
+            copyOffsetArea = document.querySelector('div#dle-content article.full div.m-title h1');
             let DownloadAreaSelector;
 
             if (await waitElement('div.title_spoiler', document.querySelector('div#dle-content'), { timeout: 500 })) {
@@ -1534,7 +1554,7 @@ const waitDownloadArea = [
     {
         regex: /pornobunny\.org\/.+/,
         handler: async () => {
-            CopyOffSetArea = document.querySelector('.titlesf');
+            copyOffsetArea = document.querySelector('.titlesf');
             document.querySelector('a.quote-hider-trigger')?.click();
 
             const downloadContainer = await waitElement('div.sstory');
@@ -1554,13 +1574,13 @@ const waitDownloadArea = [
                 });
             });
 
-            Resolution = !Resolution && CopyOffSetArea?.innerText.match(/[0-9]{3,4}p/) ? ' ' + CopyOffSetArea.innerText.match(/[0-9]{3,4}p/)[0] : '';
+            Resolution = !Resolution && copyOffsetArea?.innerText.match(/[0-9]{3,4}p/) ? ' ' + copyOffsetArea.innerText.match(/[0-9]{3,4}p/)[0] : '';
         }
     },
     {
         regex: /pornrip\.cc\/.+\.html/,
         handler: async () => {
-            CopyOffSetArea = document.querySelector('.title.ularge');
+            copyOffsetArea = document.querySelector('.title.ularge');
             const downloadContainer = await waitElement('article.main-article section.post-content');
 
             const observer = observeChanges('article.main-article section.post-content', (mutations, obs) => {
@@ -1584,7 +1604,7 @@ const waitDownloadArea = [
                 });
             });
 
-            Resolution = !Resolution && CopyOffSetArea?.innerText.match(/[0-9]{3,4}p/) ? ' ' + CopyOffSetArea.innerText.match(/[0-9]{3,4}p/)[0] : '';
+            Resolution = !Resolution && copyOffsetArea?.innerText.match(/[0-9]{3,4}p/) ? ' ' + copyOffsetArea.innerText.match(/[0-9]{3,4}p/)[0] : '';
         }
     }
 ];
@@ -1601,22 +1621,25 @@ async function Start() {
 
     if (currentConfig) {
 
-        // Step 1: `copyOffsetArea`가 이미 설정되지 않았으면 기본 셀렉터로 찾기
-        if (!CopyOffSetArea && currentConfig.copyOffsetArea) {
-            CopyOffSetArea = document.querySelector(currentConfig.copyOffsetArea);
-            if (!CopyOffSetArea) {
-                throw new Error('필수 요소 CopyOffSetArea를 찾을 수 없습니다.');
+        // Step 1: `postProcess`에서 동적 셀렉터를 설정할 경우를 대비해 먼저 실행
+        if (currentConfig.postProcess) {
+            currentConfig.postProcess(currentConfig)
+        }
+
+        //console.log({ copyOffsetArea, CopyOffsetArea })
+        // Step 2: `copyOffsetArea`가 이미 설정되지 않았으면 기본 셀렉터로 찾기
+        if (!copyOffsetArea && currentConfig.copyOffsetArea) {
+            copyOffsetArea = document.querySelector(currentConfig.copyOffsetArea);
+            if (!copyOffsetArea) {
+                throw new Error('필수 요소 copyOffsetArea를 찾을 수 없습니다.');
             }
         }
-        // Step 2: `postProcess`에서 동적 셀렉터를 설정할 경우를 대비해 먼저 실행
-        if (currentConfig.postProcess) {
-            currentConfig.postProcess(currentConfig);
-        }
+
 
         // Step 3: `DownloadArea`가 이미 설정되지 않았으면 기본 셀렉터나 동적 함수로 찾기
         if (!DownloadArea) {
             if (typeof currentConfig.getDownloadArea === 'function') {
-                DownloadArea = currentConfig.getDownloadArea(CopyOffSetArea);
+                DownloadArea = currentConfig.getDownloadArea(copyOffsetArea);
             } else if (currentConfig.downloadAreaSelector) {
                 DownloadArea = document.querySelectorAll(currentConfig.downloadAreaSelector);
             }
@@ -1633,13 +1656,13 @@ async function Start() {
         }
 
         // Step 5: `Resolution` 결정
-        if (!Resolution && currentConfig.resolutionFromCopyOffset && CopyOffSetArea) {
-            const resMatch = CopyOffSetArea.innerText.match(/[0-9]{3,4}p/);
+        if (!Resolution && currentConfig.resolutionFromCopyOffset && copyOffsetArea) {
+            const resMatch = copyOffsetArea.innerText.match(/[0-9]{3,4}p/);
             if (resMatch) Resolution = ' ' + resMatch[0];
         }
     }
     console.log({ DownloadArea })
-    console.log('Final CopyTitle:', CopyOffSetArea, CopyTitle);
+    console.log('Final CopyTitle:', copyOffsetArea, CopyTitle);
     console.log('Final CoverImage:', CoverImage);
     console.log('Final DownloadArea:', DownloadArea);
 
@@ -1652,85 +1675,85 @@ async function Start() {
     }
 
 
-    if (CopyOffSetArea) {
-        // 메인 처리 로직 (비동기 함수로 변경)
-        async function processCopyTitle(PageURL, CopyOffSetArea, DownloadArea) {
-            console.log('processCopyTitle CopyTitle:', CopyTitle)
-            CopyTitle = CopyTitle || CopyOffSetArea?.textContent.trim() || '';
-
-
-            // 사이트별 특별 규칙 적용
-            const rule = siteRules.find((r) => r.regex.test(PageURL));
-            if (rule) {
-                CopyTitle = await rule.handler(CopyTitle, CopyOffSetArea, DownloadArea);
-            }
-
-            // 공통 제목 정리 로직
-            CopyTitle = CopyTitle.trim() || getDirectInnerText(CopyOffSetArea)?.trim()
-                .replace('–', '-')
-                .replace('[KBJ]', '')
-                .replace(/\s+/g, ' ')
-                .replace(/(?!^)\[(UltraHD|FullHD|HD).+\].*/, '')
-                .replace(/^\[(UltraHD|FullHD|HD).+\]/, '')
-                .replace(/^(Japanese\sporn\s-|6000Kbps\sFHD|4K\sFHD|Download)/, '')
-                .replace('[FHD/4K]', '')
-                .replace('[4K/FHD]', '')
-                .replace(/^\[4K\]/i, '')
-                .replace(/^6000KbpsFHD/i, '')
-                .replace('[FHD/SD]', '')
-                .replace('[FHD-SD]', '')
-                .replace(/^\[FHD\]/, '')
-                .replace(/\[SD\s\d+p\]/, '')
-                .replace(/^(FC2-PPV-|FC2\sPPV-|FC2PPV-)/i, 'FC2 PPV ')
-                .trim();
-
-
-
-            // 모든 사이트에 공통으로 적용되는 최종 정리
-            CopyTitle = /(–\sSiterip)\s–.+/.test(CopyTitle) ? CopyTitle.match(/(.+Siterip)\s–.+/)[1] : CopyTitle;
-            CopyTitle = CopyTitle.replace(/\.mp4-\w+/i, '');
-            CopyTitle = /FC2/.test(CopyTitle) ? CopyTitle : nameCorrection(CopyTitle);
-
-            // 길이 제한 및 ID 처리
-            if (byteLengthOfCheck(CopyTitle) > 241) {
-                const titleIdMatch = CopyTitle.match(MatchID);
-                if (titleIdMatch) {
-                    ID = titleIdMatch[0];
-                    CopyTitle = CopyTitle.replace(ID, '').trim();
-                }
-
-                const titleLast = getLastText(CopyTitle);
-                let finalTitle;
-
-                if (!titleLast || !/[^\s]/.test(titleLast)) {
-                    finalTitle = byteLengthOf(CopyTitle, 241 - (ID ? byteLengthOfCheck(ID) + 1 : 0)).trim();
-                } else {
-                    let tempTitle = CopyTitle.split(titleLast)[0].trim();
-                    tempTitle = byteLengthOf(tempTitle, 241 - (ID ? byteLengthOfCheck(ID) + 1 : 0) - byteLengthOfCheck(titleLast));
-                    finalTitle = (tempTitle + titleLast).trim();
-                }
-                CopyTitle = ID ? `${ID} ${finalTitle}`.trim() : finalTitle;
-            }
-
-
-            // 최종 공백 제거
-            return CopyTitle.trim();
-        }
-
-        processCopyTitle(PageURL, CopyOffSetArea, DownloadArea)
+    // 메인 처리 로직 (비동기 함수로 변경)
+    if (copyOffsetArea) {
+        processCopyTitle(PageURL, copyOffsetArea, DownloadArea)
     }
 
-    console.log('Final CopyTitle:', CopyOffSetArea, CopyTitle);
+    console.log('Final CopyTitle:', copyOffsetArea, CopyTitle);
     console.log('Final CoverImage:', CoverImage);
     console.log('Final DownloadArea:', DownloadArea);
 
 
-    if (!CopyOffSetArea || !CopyTitle) {
+    if (!copyOffsetArea || !CopyTitle) {
         new Error('No CopyTitle')
     } else {
         SkipTitle = CheckSkipTitle();
-        return { CopyOffSetArea, CopyTitle, DownloadArea }
+        return { CopyTitle, DownloadArea }
     }
+}
+
+async function processCopyTitle(PageURL, copyOffsetArea, DownloadArea) {
+    console.log('processCopyTitle CopyTitle:', CopyTitle)
+    CopyTitle = CopyTitle || copyOffsetArea?.textContent.trim() || '';
+
+
+    // 사이트별 특별 규칙 적용
+    const rule = siteRules.find((r) => r.regex.test(PageURL));
+    if (rule) {
+        CopyTitle = await rule.handler(CopyTitle, copyOffsetArea, DownloadArea);
+    }
+
+    // 공통 제목 정리 로직
+    CopyTitle = CopyTitle.trim() || getDirectInnerText(copyOffsetArea)?.trim()
+        .replace('–', '-')
+        .replace('[KBJ]', '')
+        .replace(/\s+/g, ' ')
+        .replace(/(?!^)\[(UltraHD|FullHD|HD).+\].*/, '')
+        .replace(/^\[(UltraHD|FullHD|HD).+\]/, '')
+        .replace(/^(Japanese\sporn\s-|6000Kbps\sFHD|4K\sFHD|Download)/, '')
+        .replace('[FHD/4K]', '')
+        .replace('[4K/FHD]', '')
+        .replace(/^\[4K\]/i, '')
+        .replace(/^6000KbpsFHD/i, '')
+        .replace('[FHD/SD]', '')
+        .replace('[FHD-SD]', '')
+        .replace(/^\[FHD\]/, '')
+        .replace(/\[SD\s\d+p\]/, '')
+        .replace(/^(FC2-PPV-|FC2\sPPV-|FC2PPV-)/i, 'FC2 PPV ')
+        .trim();
+
+
+
+    // 모든 사이트에 공통으로 적용되는 최종 정리
+    CopyTitle = /(–\sSiterip)\s–.+/.test(CopyTitle) ? CopyTitle.match(/(.+Siterip)\s–.+/)[1] : CopyTitle;
+    CopyTitle = CopyTitle.replace(/\.mp4-\w+/i, '');
+    CopyTitle = /FC2/.test(CopyTitle) ? CopyTitle : nameCorrection(CopyTitle);
+
+    // 길이 제한 및 ID 처리
+    if (byteLengthOfCheck(CopyTitle) > 241) {
+        const titleIdMatch = CopyTitle.match(MatchID);
+        if (titleIdMatch) {
+            ID = titleIdMatch[0];
+            CopyTitle = CopyTitle.replace(ID, '').trim();
+        }
+
+        const titleLast = getLastText(CopyTitle);
+        let finalTitle;
+
+        if (!titleLast || !/[^\s]/.test(titleLast)) {
+            finalTitle = byteLengthOf(CopyTitle, 241 - (ID ? byteLengthOfCheck(ID) + 1 : 0)).trim();
+        } else {
+            let tempTitle = CopyTitle.split(titleLast)[0].trim();
+            tempTitle = byteLengthOf(tempTitle, 241 - (ID ? byteLengthOfCheck(ID) + 1 : 0) - byteLengthOfCheck(titleLast));
+            finalTitle = (tempTitle + titleLast).trim();
+        }
+        CopyTitle = ID ? `${ID} ${finalTitle}`.trim() : finalTitle;
+    }
+
+
+    // 최종 공백 제거
+    return CopyTitle.trim();
 }
 
 function createDownloadArea(DB) {
@@ -1878,7 +1901,7 @@ function updateUI(GetState, PackageCount) {
         }
     } catch {
         // UI 요소가 없거나 오류가 발생했을 때 재시작 로직
-        if (CopyOffSetArea && !LinkCopyCenterBox) {
+        if (copyOffsetArea && !LinkCopyCenterBox) {
             setTimeout(() => {
                 document.location.reload();
             }, 60000);
@@ -1992,13 +2015,13 @@ function RefreshIcon(Run) {
     }
 
     const searchBox = document.querySelector('div.SearchBox');
-    if (searchBox && CopyOffSetArea) {
+    if (searchBox && copyOffsetArea) {
         // Get a reference to the SearchBox and Favicon elements
 
         const favicon = document.querySelector('img.Favicon');
         searchBox.style.maxWidth = rem(baseScale * 0.9 * 3);
-        searchBox.style.top = `${Math.floor(CopyOffSetArea.offsetTop + (CopyOffSetArea.offsetHeight / 20))}px`;
-        searchBox.style.left = `${Math.floor(CopyOffSetArea.offsetLeft + CopyOffSetArea.offsetWidth - searchBox.offsetWidth * 1.5)}px`;
+        searchBox.style.top = `${Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20))}px`;
+        searchBox.style.left = `${Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - searchBox.offsetWidth * 1.5)}px`;
         searchBox.style.height = rem(baseScale * 0.9);
 
         // Set styles for the Favicon
@@ -2151,8 +2174,8 @@ function mainIcon(Run) {
 
 function SecondProcess() {
     return new Promise((resolve, reject) => {
-        if (!CopyOffSetArea) {
-            reject(new Error('No CopyOffSetArea'));
+        if (!copyOffsetArea) {
+            reject(new Error('No copyOffsetArea'));
         }
 
 
