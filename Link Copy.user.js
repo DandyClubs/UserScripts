@@ -417,8 +417,6 @@ document.addEventListener("readystatechange", (event) => {
 })
 
 document.addEventListener("DOMContentLoaded", () => {
-
-
     console.log('Start Link Copy!')
     FontAwesomeCSS()
     FirstStep()
@@ -2007,7 +2005,8 @@ function handleToggle(key, className) {
             if (hasCopied) {
                 CheckDB(listToDo(DownloadArea));
             } else {
-                FirstStep();
+                //FirstStep();
+                CopyGo()
             }
         } else {
             // AutoCopy 비활성화 시 AutoClose도 비활성화
@@ -2020,7 +2019,8 @@ function handleToggle(key, className) {
         if (hasCopied) {
             CheckDB(listToDo(DownloadArea));
         } else {
-            FirstStep();
+            //FirstStep()
+            CopyGo()
         }
     }
 }
@@ -2214,7 +2214,8 @@ function mainIcon(Run) {
                     AutoClose = true;
                     CheckDB(listToDo(DownloadArea));
                 } else {
-                    FirstStep();
+                    //FirstStep();
+                    CopyGo()
                 }
             }
         } else {
@@ -2490,7 +2491,7 @@ async function CopyGo() {
             childList: true,
             subtree: true,
             attributeFilter: ['href']
-        });
+        })
     } else {
         console.log('No short links detected. Starting copy.');
         await CopyLink();
