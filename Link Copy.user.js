@@ -138,9 +138,6 @@ if (document.visibilityState === 'visible') {
     document.addEventListener('visibilitychange', onVisible);
 }
 
-
-
-
 const FontAwesomeCSS = function () {
     let css = document.createElement('link')
     css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css'
@@ -1735,6 +1732,7 @@ async function Start() {
             } else if (currentConfig.downloadAreaSelector) {
                 DownloadArea = document.querySelectorAll(currentConfig.downloadAreaSelector);
             }
+
         }
 
         // Step 4: `CoverImage` 결정
@@ -1765,13 +1763,15 @@ async function Start() {
     if (!copyOffsetArea) {
         throw new Error('No CopyTitle')
     }
+
+    console.log('Start:', { copyOffsetArea, DownloadArea, CoverImage });
     return { copyOffsetArea, DownloadArea, CoverImage }
 }
 
-async function processCopyTitle(CopyTitle, copyOffsetArea, DownloadArea, PageURL) {
+
+async function processCopyTitle(currentConfig) {
 
     CopyTitle = CopyTitle || copyOffsetArea?.textContent.trim() || '';
-
 
     // 사이트별 특별 규칙 적용
     const rule = siteRules.find((r) => r.regex.test(PageURL));
@@ -2001,27 +2001,35 @@ function handleToggle(key, className) {
             if (JSON.parse(localStorage.getItem('AutoClose'))) {
                 AutoClose = JSON.parse(localStorage.getItem('AutoClose'))
             }
+            /*
             const hasCopied = RootDomainDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
-            if (hasCopied) {
+
+         if (hasCopied) {
                 CheckDB(listToDo(DownloadArea));
             } else {
                 //FirstStep();
                 CopyGo()
             }
+            */
+            CopyGo()
         } else {
             // AutoCopy 비활성화 시 AutoClose도 비활성화
             localStorage.setItem('AutoClose', JSON.stringify('false'));
         }
     } else if (key === 'AutoClose' && isEnabled && JSON.parse(localStorage.getItem('AutoCopy'))) {
         // AutoClose가 활성화되고 AutoCopy가 켜져 있으면 추가 로직 실행
-        const hasCopied = RootDomainDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
         AutoCopy = JSON.parse(localStorage.getItem('AutoCopy'))
+        /**
+        const hasCopied = RootDomainDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
+
         if (hasCopied) {
             CheckDB(listToDo(DownloadArea));
         } else {
             //FirstStep()
             CopyGo()
         }
+        **/
+        CopyGo()
     }
 }
 
@@ -2209,6 +2217,7 @@ function mainIcon(Run) {
             AutoCopyIcon.classList.replace('Off', 'On');
             localStorage.setItem('AutoCopy', JSON.stringify(true));
             if (DownloadArea) {
+                /*
                 DoCopied = RootDomainDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
                 if (DoCopied) {
                     AutoClose = true;
@@ -2217,6 +2226,8 @@ function mainIcon(Run) {
                     //FirstStep();
                     CopyGo()
                 }
+                */
+                CopyGo()
             }
         } else {
             AutoCopyIcon.classList.replace('On', 'Off');
@@ -2252,7 +2263,18 @@ function mainIcon(Run) {
 }
 
 
-function SecondProcess() {
+
+
+
+async function SecondProcess() {
+    console.log('before processCopyTitle CopyTitle:', CopyTitle)
+    if (!CopyTitle && copyOffsetArea && DownloadArea) {
+        await processCopyTitle(currentConfig)
+    }
+    console.log('after processCopyTitle CopyTitle:', CopyTitle)
+
+    console.log('Start SecondProcess!')
+
     return new Promise((resolve, reject) => {
         if (!copyOffsetArea) {
             reject(new Error('No copyOffsetArea'));
@@ -2555,6 +2577,7 @@ function MatchRegexElement(Taget, regex, attributeToSearch) {
     }
 }
 
+
 async function CollectionCoverImage(CoverImage) {
     let result = []
 
@@ -2719,10 +2742,9 @@ function GetName(url) {
     return name.substring(0, lastDot);
 }
 
-
 async function UpdateDB(Target, UrlTitle) {
 
-    console.log(Target, UrlTitle)
+    //console.log(Target, UrlTitle)
     if (Target.match(K2SRegExp)) {
         Target = Target.match(K2SRegExp)[1] + Target.match(K2SRegExp)[2].slice(0, 18)
     }
@@ -2764,44 +2786,35 @@ async function RemoveDB(listToDelete) {
 
 
 async function CheckDB(listTo) {
-    // `try-catch` 블록을 전체 함수가 아닌, 잠재적으로 오류가 발생할 수 있는 부분에만 적용합니다.
-    try {
-        // GetState 변수를 사용하여 로직의 흐름을 단순화합니다.
-        const GetState = RootDomainDB;
-        const minusElement = document.querySelector('.Minus');
 
-        // `GetState`가 존재하고 길이가 0보다 클 때만 로직을 실행합니다.
-        if (GetState?.length > 0) {
-            // `some` 메서드를 사용하여 `listTo`의 항목이 `RootDomainDB`에 포함되는지 확인합니다.
-            const isMatchFound = GetState.some(item => listTo.includes(item.U));
+    const minusElement = document.querySelector('.Minus');
 
-            if (minusElement) {
-                // 매칭 여부에 따라 요소의 가시성을 설정합니다.
-                minusElement.style.visibility = isMatchFound ? 'visible' : 'hidden';
-            }
+    // `GetState`가 존재하고 길이가 0보다 클 때만 로직을 실행합니다.
+    if (RootDomainDB?.length > 0) {
+        // `some` 메서드를 사용하여 `listTo`의 항목이 `RootDomainDB`에 포함되는지 확인합니다.
+        const isMatchFound = RootDomainDB.some(item => listTo.includes(item.U));
 
-            // 매칭이 발견되었을 때만 AutoClose 로직을 실행합니다.
-            if (isMatchFound) {
-                setTimeout(() => {
-                    const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));
-                    // AutoClose 변수와 localStorage 값을 모두 확인하여 실행합니다.
-                    if (isAutoCloseEnabled) {
-                        console.log('AutoClose: ', AutoClose, '\nlocalStorage: ', isAutoCloseEnabled);
-                        self.close();
-                    }
-                }, 5000);
-            }
-        } else {
-            // `GetState`가 없거나 비어 있을 경우, Minus 요소의 가시성을 숨깁니다.
-            if (minusElement) {
-                minusElement.style.visibility = 'hidden';
-            }
+        if (minusElement) {
+            // 매칭 여부에 따라 요소의 가시성을 설정합니다.
+            minusElement.style.visibility = isMatchFound ? 'visible' : 'hidden';
         }
-    } catch (err) {
-        console.error('CheckDB 함수 실행 중 오류 발생:', err);
-    }
 
-    // 이 부분은 try-catch 블록과 별개로 항상 실행됩니다.
+        // 매칭이 발견되었을 때만 AutoClose 로직을 실행합니다.
+        if (isMatchFound) {
+            setTimeout(() => {
+                const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));
+                // AutoClose 변수와 localStorage 값을 모두 확인하여 실행합니다.
+                if (isAutoCloseEnabled) {
+                    console.log('AutoClose: ', AutoClose, '\nlocalStorage: ', isAutoCloseEnabled);
+                    self.close();
+                }
+            }, 5000);
+        }
+    } else {
+        if (minusElement) {
+            minusElement.style.visibility = 'hidden';
+        }
+    }
     PackageCount = PackageList(RootDomainDB);
     return RootDomainDB;
 }
@@ -2818,7 +2831,7 @@ function PackageList(LinksDB) {
 }
 
 async function CopyLink() {
-    console.log(CopyTitle, DownloadArea)
+    console.log('Step CopyLink:', { CopyTitle, DownloadArea })
     // Ensure our DB array exists
     RootDomainDB = RootDomainDB || [];
 
