@@ -70,6 +70,77 @@
 // ==/UserScript==
 
 
+
+// placeholder인지 여부를 떠나 src가 존재하면 임시 저장하고 비워버림
+function preventEarlyImageLoad() {
+    if (document.visibilityState === 'hidden') {
+        document.querySelectorAll('img').forEach(img => {
+            if (img.src && !img.dataset.lazyStoredSrc) {
+                const srcUrl = img.getAttribute('src');
+
+                // 이미 data-*에 저장된 경우 중복 방지
+                if (srcUrl && !srcUrl.startsWith('data:')) {
+                    img.setAttribute('data-lazy-stored-src', srcUrl);
+                    img.src = ''; // 이미지 비우기 → lazy load 차단
+                }
+            }
+        });
+    }
+}
+
+// 예외 처리 포함해서 safe하게 작성하면:
+function safePreventImageLoad() {
+    if (document.visibilityState === 'hidden') {
+        preventEarlyImageLoad();
+    }
+}
+
+if (document.readyState === 'loading') {
+    window.addEventListener("DOMContentLoaded", safePreventImageLoad, { once: true });
+} else {
+    safePreventImageLoad(); // 이미 로딩된 경우 즉시 실행
+}
+// visible 상태가 되면 src 복구
+function loadImages() {
+    document.querySelectorAll('img').forEach(img => {
+        const lazySrc =
+            img.getAttribute('data-lazy-stored-src') ||
+            img.getAttribute('data-src') ||
+            img.getAttribute('data-original') ||
+            img.getAttribute('data-lazy') ||
+            img.getAttribute('data-lazy-src') ||
+            img.getAttribute('data-img');
+
+        if (lazySrc) {
+            img.src = lazySrc;
+            img.removeAttribute('data-lazy-stored-src');
+            img.removeAttribute('data-src');
+            img.removeAttribute('data-original');
+            img.removeAttribute('data-lazy');
+            img.removeAttribute('data-lazy-src');
+            img.removeAttribute('data-img');
+        }
+    });
+}
+
+// 시작 시 히든이라면 강제 초기화
+preventEarlyImageLoad();
+
+if (document.visibilityState === 'visible') {
+    loadImages();
+} else {
+    const onVisible = () => {
+        if (document.visibilityState === 'visible') {
+            loadImages();
+            document.removeEventListener('visibilitychange', onVisible);
+        }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+}
+
+
+
+
 const FontAwesomeCSS = function () {
     let css = document.createElement('link')
     css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css'
@@ -304,6 +375,7 @@ const SkipFilter = new RegExp('katfile\\.com\/\?op=registration|77file\\.com|xtv
 const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i')
 //const WaitChangeLink = new RegExp('tma\\.cx\/', 'i')
 const WaitChangeLink = new RegExp('TestTest\\.cx\/', 'i')
+const HexCode = /x([0-9A-Fa-f]{2})/g   // xYY 타입
 
 const SkipFileName = /demosaic|\.UMR|iris2/
 
@@ -330,9 +402,23 @@ window.addEventListener('storage', (e) => {
     }
 });
 
-
+let currentConfig = null
+document.addEventListener("readystatechange", (event) => {
+    if (event.target.readyState === "interactive") {
+        for (const site of siteConfigs) {
+            if (site.regex.test(PageURL) && (!site.condition || site.condition())) {
+                currentConfig = site.config;
+                break;
+            }
+        }
+        console.log('Current Config:', currentConfig);
+        if (!currentConfig) return
+    }
+})
 
 document.addEventListener("DOMContentLoaded", () => {
+
+
     console.log('Start Link Copy!')
     FontAwesomeCSS()
     FirstStep()
@@ -476,55 +562,64 @@ function observeChanges(targetSelector, callback) {
     return observer;
 }
 
+// 특정 영역에서 사라지는 걸 감시
+function observeremove(config, callback) {
+    const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+            for (const removedNode of mutation.removedNodes) {
+                if (!(removedNode instanceof HTMLElement)) continue;
+                if (removedNode.classList.contains(config.observerSelector)) {
+                    // passster-form이 제거되면 다운로드 영역이 나타난 것으로 간주
+                    observer.disconnect();
+                    const newEvent = new CustomEvent('findWatchSelector');
+                    document.dispatchEvent(newEvent);
+                    return
+                }
+            }
+        }
+    });
+
+    observer.observe(config.watchAreaSelector, { childList: true, subtree: true });
+
+    // 페이지 로드 시 바로 다운로드 영역이 보이면 observer 없이 바로 진행
+    const immediateDownloadArea = document.querySelectorAll(config.downloadAreaSelector);
+    if (immediateDownloadArea.length > 0) {
+        return true;
+    }
+    // 다운로드 영역이 바로 보이지 않으면, 비동기 처리를 위해 false 반환
+    return false;
+}
+
 
 const siteConfigs = [
     {
         regex: /naughtyblog\.org\//,
-        condition: () => {
+        condition: (config) => {
             // 이 사이트는 초기 로딩 시 다운로드 영역이 가려져 있습니다.
             // 따라서 MutationObserver를 통해 변경을 감지하고,
             // 다운로드 영역이 나타났을 때만 나머지 로직을 실행하도록 설정합니다.
-            const WatchElementArea = document.querySelector('div.main-content-single');
-            if (!WatchElementArea) {
+            const watchElementArea = document.querySelector('config.watchAreaSelector');
+            if (!watchElementArea) {
                 AutoClose = false;
                 return false;
             }
 
-            const observer = new MutationObserver((mutations) => {
-                for (const mutation of mutations) {
-                    for (const removedNode of mutation.removedNodes) {
-                        if (!(removedNode instanceof HTMLElement)) continue;
-                        if (removedNode.classList.contains('passster-form')) {
-                            // passster-form이 제거되면 다운로드 영역이 나타난 것으로 간주
-                            observer.disconnect();
-                            const newEvent = new CustomEvent('DownloadAreaUnlocked');
-                            document.dispatchEvent(newEvent);
-                            Start()
-                            return
-                        }
-                    }
-                }
-            });
-
-            observer.observe(WatchElementArea, { childList: true, subtree: true });
-
-            // 페이지 로드 시 바로 다운로드 영역이 보이면 observer 없이 바로 진행
-            const immediateDownloadArea = document.querySelectorAll('div#download, div#downloadhidden');
-            if (immediateDownloadArea.length > 0) {
-                return true;
-            }
-
-            // 다운로드 영역이 바로 보이지 않으면, 비동기 처리를 위해 false 반환
-            return false;
+            observeremove(config)
         },
         config: {
             copyOffsetAreaSelector: '.post-title.entry-title',
             downloadAreaSelector: 'div#download, div#downloadhidden',
             coverImageSelector: 'div.post-content-single a > img',
             coverImageAttribute: 'src',
+            watchAreaSelector: 'div.main-content-single',
+            observerSelector: 'passster-form',
             postProcess: (config) => {
                 // 이 함수는 'DownloadAreaUnlocked' 이벤트가 발생했을 때 호출될 것입니다.
                 // 또는 페이지 로드 시 바로 다운로드 영역이 보일 때 호출됩니다.
+
+                document.addEventListener('findWatchSelector', function (event) {
+                    currentConfig.postProcess(config)
+                })
 
                 copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
                 DownloadArea = document.querySelectorAll('div#download, div#downloadhidden, div.DownloadArea');
@@ -1059,7 +1154,7 @@ const siteConfigs = [
     {
         regex: /javarchive\.com\/\d{4,6}/,
         config: {
-            copyOffsetAreaSelector: '.menudd > h1',
+            copyOffsetAreaSelector: '.menudd h1 a, div.news div.first_des',
             downloadAreaSelector: '.link_archive_innew',
             coverImageSelector: 'div.category_news_phai_chinh > div.news > div > img:not([src^="data"])',
             coverImageAttribute: 'src',
@@ -1369,6 +1464,10 @@ const siteConfigs = [
 
 const siteRules = [
     {
+        regex: /javarchive\.com\/\d{4,6}/,
+        handler: (title) => title.replace(/^\[4K\]/i, ''),
+    },
+    {
         regex: /epicomg\.com\/\?p/,
         handler: (title) => nameCorrection(title.replace(/amp;/g, '')),
     },
@@ -1608,16 +1707,10 @@ const waitDownloadArea = [
         }
     }
 ];
+
+
 async function Start() {
     console.log('Link Copy Start!')
-    let currentConfig = null;
-    for (const site of siteConfigs) {
-        if (site.regex.test(PageURL) && (!site.condition || site.condition())) {
-            currentConfig = site.config;
-            break;
-        }
-    }
-    console.log('Current Config:', currentConfig);
 
     if (currentConfig) {
 
@@ -1662,10 +1755,6 @@ async function Start() {
             if (resMatch) Resolution = ' ' + resMatch[0];
         }
     }
-    console.log({ DownloadArea })
-    console.log('Final CopyTitle:', copyOffsetArea, CopyTitle);
-    console.log('Final CoverImage:', CoverImage);
-    console.log('Final DownloadArea:', DownloadArea);
 
 
     if (!DownloadArea || DownloadArea?.length === 0) {
@@ -1675,33 +1764,21 @@ async function Start() {
         }
     }
 
-
-    // 메인 처리 로직 (비동기 함수로 변경)
-    if (copyOffsetArea) {
-        processCopyTitle(PageURL, copyOffsetArea, DownloadArea)
+    if (!copyOffsetArea) {
+        throw new Error('No CopyTitle')
     }
-
-    console.log('Final CopyTitle:', copyOffsetArea, CopyTitle);
-    console.log('Final CoverImage:', CoverImage);
-    console.log('Final DownloadArea:', DownloadArea);
-
-
-    if (!copyOffsetArea || !CopyTitle) {
-        new Error('No CopyTitle')
-    } else {
-        SkipTitle = CheckSkipTitle();
-        return { CopyTitle, DownloadArea }
-    }
+    return { copyOffsetArea, DownloadArea, CoverImage }
 }
 
-async function processCopyTitle(PageURL, copyOffsetArea, DownloadArea) {
-    console.log('processCopyTitle CopyTitle:', CopyTitle)
+async function processCopyTitle(CopyTitle, copyOffsetArea, DownloadArea, PageURL) {
+
     CopyTitle = CopyTitle || copyOffsetArea?.textContent.trim() || '';
 
 
     // 사이트별 특별 규칙 적용
     const rule = siteRules.find((r) => r.regex.test(PageURL));
     if (rule) {
+        console.log(rule)
         CopyTitle = await rule.handler(CopyTitle, copyOffsetArea, DownloadArea);
     }
 
@@ -1752,9 +1829,10 @@ async function processCopyTitle(PageURL, copyOffsetArea, DownloadArea) {
         CopyTitle = ID ? `${ID} ${finalTitle}`.trim() : finalTitle;
     }
 
-
-    // 최종 공백 제거
-    return CopyTitle.trim();
+    if (CopyTitle) {
+        SkipTitle = CheckSkipTitle();
+    }
+    return CopyTitle
 }
 
 function createDownloadArea(DB) {
@@ -2440,7 +2518,7 @@ async function CopyGo() {
         // 변수들을 미리 계산합니다.
         const fontSizeValue = Number(((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2));
         const topValue = linkCopyCenterBox.offsetTop + linkCopyCenterBox.offsetHeight * 1.2;
-        const leftValue = window.innerWidth / 2 - linkCopyCenterBox.offsetWidth;
+        const leftValue = window.innerWidth / 2 - linkCopyCenterBox.offsetWidth * 2;
 
         // 계산된 값을 요소의 style 속성에 직접 할당합니다.
         copyNotice.style.fontSize = `${fontSizeValue}rem`;
