@@ -345,6 +345,9 @@ let AllCopyLinks = []
 let PackageName = ''
 let AutoCopy = JSON.parse(localStorage.getItem('AutoCopy')) || false
 let AutoClose = JSON.parse(localStorage.getItem('AutoClose')) || false
+let userCopy = JSON.parse(localStorage.getItem('AutoCopy')) || false
+let userClose = JSON.parse(localStorage.getItem('AutoClose')) || false
+
 let CopyLinksBackup
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RootDomain = extractRootDomain(PageURL)
@@ -548,7 +551,95 @@ function observeChanges(targetSelector, callback) {
     return observer;
 }
 
+function makeSearch() {
+    if (!document.querySelector('div.SearchBox')) {
 
+        const titleEl = document.querySelector('.post-title.entry-title');
+        const searchTitle = titleEl ? searchTerms(titleEl.innerText) : '';
+        const offsetParent = copyOffsetArea.parentElement;
+        offsetParent.style.position = 'relative';
+
+        // create SearchBox
+        const SearchBox = document.createElement('div');
+        SearchBox.className = 'SearchBox';
+        SearchBox.style.position = 'absolute';
+        offsetParent.insertBefore(SearchBox, copyOffsetArea.nextSibling);
+
+
+        const baseScale = (1 / (GetDPI / 1.5)) * (16 / DefaultFontSize);
+        const rem = (value) => `${value.toFixed(2)}rem`;
+
+        SearchBox.style.maxWidth = rem(3);
+        SearchBox.style.top = `${Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20))}px`;
+        SearchBox.style.left = `${Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - baseScale * 16)}px`;
+        SearchBox.style.height = rem(1);
+
+        const ICONS = [
+            {
+                class: 'TheRarBG',
+                domain: 'therarbg.com',
+                onClick: () => openInNewTab(`https://therarbg.com/get-posts/keywords:${searchTitle}/`)
+            },
+            {
+                class: 'Zeroxxx',
+                domain: '0xxx.ws',
+                onClick: () => openInNewTab(`https://0xxx.ws/index.php?s="${searchTitle}"`)
+            },
+            {
+                class: 'PornBB',
+                domain: 'pornbb.org',
+                onClick: () => {
+                    const strong = document.querySelector('div.post-content-single p strong');
+                    const term = strong ? strong.innerText.replace(/^EARLY\sLEAK/, '').trim() : '';
+                    openInNewTab(`https://www.pornbb.org/newsearch.php?search_keywords=${term}`);
+                }
+            },
+            {
+                class: 'BT4G',
+                domain: 'bt4g.org',
+                onClick: () => {
+                    const strongEls = [...document.querySelectorAll('div.post-content-single p strong')];
+                    let FindMatchWeb = strongEls.find(e => e.innerText.includes(MatchWeb));
+                    if (FindMatchWeb) {
+                        let parts = FindMatchWeb.innerText.split('.');
+                        let cutIndex = parts.findIndex(e => /^(and|XXX|\d+p|mp4|mkv)$/i.test(e));
+                        let sliced = parts.slice(0, cutIndex > 0 ? cutIndex : parts.length).join(' ');
+                        openInNewTab(`https://bt4g.org/search/${sliced}`);
+                    }
+                }
+            }
+        ];
+
+        const searchBoxStyle = SearchBox.style;
+        searchBoxStyle.maxWidth = rem(baseScale * 0.9 * 3);
+        searchBoxStyle.top = Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20)) + 'px';
+        searchBoxStyle.left = Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - SearchBox.offsetWidth * 1.5) + 'px';
+        searchBoxStyle.height = rem(baseScale * 0.9);
+
+        // img.Favicon 모두 선택
+        const faviconImgs = document.querySelectorAll('img.Favicon');
+        faviconImgs.forEach(img => {
+            img.style.width = rem(baseScale * 0.9);
+            img.style.height = rem(baseScale * 0.9);
+        });
+
+        for (const { class: className, domain, onClick } of ICONS) {
+            const img = document.createElement('img');
+            img.className = `Favicon ${className}`;
+            img.src = `https://www.google.com/s2/favicons?sz=32&domain=${domain}`;
+            img.style.width = rem(1);
+            img.style.height = rem(1);
+            img.style.cursor = 'pointer';
+            img.addEventListener('click', (e) => {
+                e.preventDefault();
+                onClick();
+            });
+
+            SearchBox.appendChild(document.createTextNode('\u00A0\u00A0'));
+            SearchBox.appendChild(img);
+        }
+    }
+}
 
 
 const siteConfigs = [
@@ -567,7 +658,7 @@ const siteConfigs = [
                 // 다운로드 영역이 나타났을 때만 나머지 로직을 실행하도록 설정합니다.
                 const WatchElementArea = document.querySelector('div#downloadhidden');
                 if (!WatchElementArea) {
-                    AutoClose = false;
+                    userClose = false;
                     return false;
                 }
 
@@ -587,6 +678,7 @@ const siteConfigs = [
 
                 copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
                 DownloadArea = document.querySelectorAll('div#download, div#downloadhidden, div.DownloadArea');
+                makeSearch()
 
                 //Extracting Text Before Each <br> and the Last Line
                 let EachTitle = getTextLinesWithIconTag('div.post-content-single p strong', 'br')
@@ -659,7 +751,7 @@ const siteConfigs = [
 
                 // CopyTitle에 'OnlyFans Mix'가 포함된 경우
                 if (/OnlyFans\sMix/i.test(CopyTitleRaw)) {
-                    AutoClose = false;
+                    userClose = false;
                     CoverImage = '';
                 }
                 // 그 외의 경우, 특정 키워드(Updates, SITERIP, Collection)가 포함되어 있고 InfoAreaCast의 길이가 1보다 클 때
@@ -719,127 +811,40 @@ const siteConfigs = [
                         .replace(/(S\d+):(E\d+)/i, '$1$2')
                         .replace(/\s+/g, ' ').trim(); // 다중 공백 제거
 
-                }
-
-                console.log('CopyTitle:', CopyTitle)
-
-                // 다운로드 링크 추출 및 우선순위
-                const getDownloadLinks = (areas) => {
-                    const priorityPatterns = [/1080p|1080\.mp4/i, /2160p/i, /720p/i];
-                    let finalLinks = [];
-
-                    for (const area of areas) {
-                        for (const pattern of priorityPatterns) {
-                            const links = Array.from(area.querySelectorAll('a')).filter(a => pattern.test(a.href));
-                            if (links.length > 0) {
-                                finalLinks.push(...links);
-                                break; // 가장 높은 해상도만 선택
-                            }
-                        }
-                        if (finalLinks.length === 0) {
-                            // 해상도 패턴에 매칭되는 링크가 없을 경우
-                            finalLinks.push(...Array.from(area.querySelectorAll('a')));
-                        }
-                    }
-                    return finalLinks;
-                };
-
-                const finalDownloadLinks = getDownloadLinks(DownloadArea);
-                window.DownloadArea = createDownloadArea(finalDownloadLinks.map(link => link.outerHTML));
-
-                if (!document.querySelector('div.SearchBox')) {
-
-                    const titleEl = document.querySelector('.post-title.entry-title');
-                    const searchTitle = titleEl ? searchTerms(titleEl.innerText) : '';
-                    const offsetParent = copyOffsetArea.parentElement;
-                    offsetParent.style.position = 'relative';
-
-                    // create SearchBox
-                    const SearchBox = document.createElement('div');
-                    SearchBox.className = 'SearchBox';
-                    SearchBox.style.position = 'absolute';
-                    offsetParent.insertBefore(SearchBox, copyOffsetArea.nextSibling);
 
 
-                    const baseScale = (1 / (GetDPI / 1.5)) * (16 / DefaultFontSize);
-                    const rem = (value) => `${value.toFixed(2)}rem`;
+                    console.log('CopyTitle:', CopyTitle)
 
-                    SearchBox.style.maxWidth = rem(3);
-                    SearchBox.style.top = `${Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20))}px`;
-                    SearchBox.style.left = `${Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - baseScale * 16)}px`;
-                    SearchBox.style.height = rem(1);
+                    // 다운로드 링크 추출 및 우선순위
+                    const getDownloadLinks = (areas) => {
+                        const priorityPatterns = [/1080p|1080\.mp4/i, /2160p/i, /720p/i];
+                        let finalLinks = [];
 
-                    const ICONS = [
-                        {
-                            class: 'TheRarBG',
-                            domain: 'therarbg.com',
-                            onClick: () => openInNewTab(`https://therarbg.com/get-posts/keywords:${searchTitle}/`)
-                        },
-                        {
-                            class: 'Zeroxxx',
-                            domain: '0xxx.ws',
-                            onClick: () => openInNewTab(`https://0xxx.ws/index.php?s="${searchTitle}"`)
-                        },
-                        {
-                            class: 'PornBB',
-                            domain: 'pornbb.org',
-                            onClick: () => {
-                                const strong = document.querySelector('div.post-content-single p strong');
-                                const term = strong ? strong.innerText.replace(/^EARLY\sLEAK/, '').trim() : '';
-                                openInNewTab(`https://www.pornbb.org/newsearch.php?search_keywords=${term}`);
-                            }
-                        },
-                        {
-                            class: 'BT4G',
-                            domain: 'bt4g.org',
-                            onClick: () => {
-                                const strongEls = [...document.querySelectorAll('div.post-content-single p strong')];
-                                let FindMatchWeb = strongEls.find(e => e.innerText.includes(MatchWeb));
-                                if (FindMatchWeb) {
-                                    let parts = FindMatchWeb.innerText.split('.');
-                                    let cutIndex = parts.findIndex(e => /^(and|XXX|\d+p|mp4|mkv)$/i.test(e));
-                                    let sliced = parts.slice(0, cutIndex > 0 ? cutIndex : parts.length).join(' ');
-                                    openInNewTab(`https://bt4g.org/search/${sliced}`);
+                        for (const area of areas) {
+                            for (const pattern of priorityPatterns) {
+                                const links = Array.from(area.querySelectorAll('a')).filter(a => pattern.test(a.href));
+                                if (links.length > 0) {
+                                    finalLinks.push(...links);
+                                    break; // 가장 높은 해상도만 선택
                                 }
                             }
+                            if (finalLinks.length === 0) {
+                                // 해상도 패턴에 매칭되는 링크가 없을 경우
+                                finalLinks.push(...Array.from(area.querySelectorAll('a')));
+                            }
                         }
-                    ];
+                        return finalLinks;
+                    };
 
-                    const searchBoxStyle = SearchBox.style;
-                    searchBoxStyle.maxWidth = rem(baseScale * 0.9 * 3);
-                    searchBoxStyle.top = Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20)) + 'px';
-                    searchBoxStyle.left = Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - SearchBox.offsetWidth * 1.5) + 'px';
-                    searchBoxStyle.height = rem(baseScale * 0.9);
+                    const finalDownloadLinks = getDownloadLinks(DownloadArea);
+                    window.DownloadArea = createDownloadArea(finalDownloadLinks.map(link => link.outerHTML));
 
-                    // img.Favicon 모두 선택
-                    const faviconImgs = document.querySelectorAll('img.Favicon');
-                    faviconImgs.forEach(img => {
-                        img.style.width = rem(baseScale * 0.9);
-                        img.style.height = rem(baseScale * 0.9);
-                    });
-
-                    for (const { class: className, domain, onClick } of ICONS) {
-                        const img = document.createElement('img');
-                        img.className = `Favicon ${className}`;
-                        img.src = `https://www.google.com/s2/favicons?sz=32&domain=${domain}`;
-                        img.style.width = rem(1);
-                        img.style.height = rem(1);
-                        img.style.cursor = 'pointer';
-                        img.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            onClick();
-                        });
-
-                        SearchBox.appendChild(document.createTextNode('\u00A0\u00A0'));
-                        SearchBox.appendChild(img);
+                    if (finalDownloadLinks.some(link => /1080p|2160p/.test(link.href))) {
+                        userCopy = true;
+                    } else {
+                        userCopy = false;
+                        userClose = false;
                     }
-                }
-
-                if (finalDownloadLinks.some(link => /1080p|2160p/.test(link.href))) {
-                    AutoCopy = true;
-                } else {
-                    AutoCopy = false;
-                    AutoClose = false;
                 }
             }
         }
@@ -870,7 +875,7 @@ const siteConfigs = [
                 });
 
                 if (LinkDBAll.length === 0) {
-                    AutoClose = false;
+                    userClose = false;
                     throw new Error('No Links found');
                 }
 
@@ -900,7 +905,7 @@ const siteConfigs = [
                     // createDownloadArea 함수가 정의되어 있다고 가정
                     DownloadArea = createDownloadArea(LinkDB);
                 } else {
-                    AutoClose = false;
+                    userClose = false;
                     throw new Error('No suitable links found after filtering');
                 }
 
@@ -1288,7 +1293,7 @@ const siteConfigs = [
         regex: /vipbj\.[a-zA-Z]+\/.+|avtv\..+/,
         condition: () => {
             if (document.querySelector('article.hentry header.entry-header .entry-title')?.children?.length) {
-                AutoClose = false;
+                userClose = false;
                 throw ('Not Single Post');
             }
             return true;
@@ -1310,7 +1315,7 @@ const siteConfigs = [
         condition: () => {
             const copyOffsetArea = document.querySelector('article.hentry header.entry-header > h1.entry-title');
             if (!copyOffsetArea || copyOffsetArea.children[0]) {
-                AutoClose = false;
+                userClose = false;
                 throw ('Not Single Post');
             }
             return true;
@@ -1732,6 +1737,7 @@ async function Start() {
 
 async function processCopyTitle(currentConfig) {
     console.log(`Start processCopyTitle`, currentConfig)
+    if (!CopyTitle) return
     CopyTitle = CopyTitle || copyOffsetArea?.textContent.trim() || '';
 
     // 사이트별 특별 규칙 적용
@@ -2416,8 +2422,8 @@ function CheckSkipTitle() {
         copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important')
 
         // Set flags indicating skip conditions
-        AutoClose = false;
-        AutoCopy = false;
+        userClose = false;
+        userCopy = false;
 
         // Show messages for skip words/models
         copyStateEl.innerText = '';
@@ -2683,16 +2689,22 @@ function GetName(url) {
 async function UpdateDB(Target, UrlTitle) {
 
     PackageName = UrlTitle || '';
-    console.log(`UpdateDB ${Target} ${UrlTitle}`)
-    console.log(Target, UrlTitle)
+    //console.log(`UpdateDB ${Target} ${UrlTitle}`)
     if (Target.match(K2SRegExp)) {
         Target = Target.match(K2SRegExp)[1] + Target.match(K2SRegExp)[2].slice(0, 18)
     }
-    localStorageDB.push({ U: Target, T: UrlTitle, S: PageURL })
-    if (!JSON.parse(localStorage.getItem('NewAdded'))) {
-        localStorage.setItem('NewAdded', JSON.stringify(true))
-    }
+    const searchDB = localStorageDB.find(({ U }) => U === Target)
+    //console.log({searchDB})
 
+    if (searchDB) {
+        searchDB.T = UrlTitle
+    }
+    else {
+        localStorageDB.push({ U: Target, T: UrlTitle, S: PageURL })
+        if (!JSON.parse(localStorage.getItem('NewAdded'))) {
+            localStorage.setItem('NewAdded', JSON.stringify(true))
+        }
+    }
     //console.log(localStorageDB)
     return localStorageDB
 }
@@ -2735,8 +2747,8 @@ async function CheckDB(listTo, fromStep) {
         copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important')
 
         // Set flags indicating skip conditions
-        AutoClose = false;
-        AutoCopy = false;
+        userClose = false;
+        userCopy = false;
 
         // Show messages for skip words/models        
         copyStateEl.innerText += `링크가 없습니다`;
@@ -2758,8 +2770,8 @@ async function CheckDB(listTo, fromStep) {
                 const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));
                 console.log(isAutoCloseEnabled, AutoClose)
                 // AutoClose 변수와 localStorage 값을 모두 확인하여 실행합니다.
-                if (isAutoCloseEnabled && AutoClose) {
-                    console.log('AutoClose: ', AutoClose, '\nlocalStorage: ', isAutoCloseEnabled);
+                if (isAutoCloseEnabled && userClose) {
+                    console.log('AutoClose: ', userClose, '\nlocalStorage: ', isAutoCloseEnabled);
                     self.close();
                 }
             }, 5000);
@@ -2792,12 +2804,10 @@ async function CopyLink() {
     // Ensure our DB array exists
     localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
 
-
-
     // Prepare notice text
     let noticeLines = [];
     let allLinks = [];
-
+    console.log({ pageLinksDB })
 
     // 1) If no temporary links waiting, gather fresh links
     if (pageLinksDB.length === 0) {
@@ -2823,7 +2833,7 @@ async function CopyLink() {
             noticeLines.push(collected.join('\n'));
         } else {
             noticeLines.push('Empty Links');
-            AutoClose = false;
+            userClose = false;
         }
     }
     // 2) Otherwise replay from pageLinksDB
@@ -2874,7 +2884,7 @@ async function CopyLink() {
     if (allLinks.length && JSON.parse(localStorage.getItem('AutoClose'))) {
         if (/naughtyblog\.org/.test(RootDomain) &&
             CopyTitle.match(/SITERIP|OnlyFans|Collection|Updates/i)) {
-            AutoClose = false;
+            userClose = false;
         } else {
             AutoClose = true;
         }
@@ -2930,14 +2940,14 @@ function listToDo(areas, type = 'Default') {
 
 
 async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
-    AutoClose = false;
-    AutoCopy = false;
+    userClose = false;
+    userCopy = false;
     console.log('MutilSubTitle AutoCopy: ', AutoCopy);
     console.log('Mutil SubTitle.... ', MatchWeb, MatchWebPoint, InfoAreaCast);
 
     let Empty = [];
     let AllLinks = [];
-    const pageLinksDB = []; // Store links with titles and URLs
+
 
 
     // Download areas to search for links
@@ -3022,39 +3032,50 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
             }
 
             // Extract base filename without quality or resolution
-            let LinkText = Links[0].innerText.replace(/\.xxx\.\d+p.*/i, '').split('/').pop().trim();
-            console.log('LinkText: ', LinkText);
-
-            // Extract release date or matching pattern based on MatchWeb
-            let Released = '';
-            if (LinkText.match(/(.+)(\.\d+\.\d+.\d+\.)(.+)/)) {
-                Released = LinkText.match(/(\.\d+\.\d+.\d+\.)/)[0];
-            } else if (LinkText.match(new RegExp(MatchWeb + '\\.\\d{4}\\.'))) {
-                Released = LinkText.match(new RegExp(MatchWeb + '\\.\\d{4}\\.'))[0];
-            }
-            console.log('Released: ', Released);
-
-            // Extract episode info if present
-            let EpisodeMatch = LinkText.match(/E\d{2,5}/i);
-            let Episode = EpisodeMatch ? '.' + EpisodeMatch[0] + '.' : '';
-            console.log('Episode: ', Episode);
-
+            const LinkText = Links[0].innerText.replace(/\.xxx\.\d+p.*/i, '').split('/').pop().trim();
             // Extract resolution info (e.g., 1080p, 720p)
             Resolution = LinkText.match(/[0-9]{3,4}p/) ? '.XXX.' + LinkText.match(/[0-9]{3,4}p/)[0] : '';
 
-            // Build cast title string with episode info removed
-            let CastTitle = IAC && Episode
-                ? '- ' + IAC.replace(/-\sE\d{2,5}/i, '').trim()
-                : IAC && !Episode
-                    ? '- ' + IAC
-                    : '';
-            console.log('CastTitle: ', CastTitle);
+            console.log('LinkText: ', LinkText)
+            console.log(MatchWeb, IAC)
 
-            // Compose full title string
-            Title = (Episode || Released)
-                ? MatchWeb + Episode + Released + IAC.replace(/(-\s)?E\d+/, '').trim()
-                : MatchWeb + IAC;
-            Title = Title.replace(/(S\d+):(E\d+)/i, '$1$2');
+            const compareT = compareSentencesByWordMatch(`${MatchWeb} ${IAC}`, LinkText)
+            if (compareT === LinkText) {
+                Title = LinkText
+            } else {
+
+                // Extract release date or matching pattern based on MatchWeb
+                let Released = '';
+                if (LinkText.match(/(\.\d+\.\d+.\d+)/)) {
+                    Released = LinkText.match(/(\d+\.\d+.\d+)/)[0];
+                } else if (LinkText.match(new RegExp(MatchWeb + '\\d{4}'))) {
+                    Released = LinkText.match(new RegExp(MatchWeb + '\\d{4}'))[0];
+                }
+                console.log('Released: ', Released);
+
+                // Extract episode info if present
+                let EpisodeMatch = LinkText.match(/E\d{2,5}/i);
+                let Episode = EpisodeMatch ? '.' + EpisodeMatch[0] + '.' : '';
+                console.log('Episode: ', Episode);
+
+
+                // Build cast title string with episode info removed
+                let CastTitle = IAC && Episode
+                    ? '- ' + IAC.replace(/-\sE\d{2,5}/i, '').trim()
+                    : IAC && !Episode
+                        ? '- ' + IAC
+                        : '';
+                console.log('CastTitle: ', CastTitle);
+
+                // Compose full title string
+
+                console.log(MatchWeb, Episode, Released, IAC)
+                Title = MatchWeb + Episode + Released + IAC.replace(Released, '').trim()
+
+                Title = Title.replace(/(S\d+):(E\d+)/i, '$1$2')
+                console.log({ Title })
+            }
+
             Title = FilenameConvert(Title);
 
             // Store in pageLinksDB for later processing
@@ -3065,6 +3086,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
             for (let j of Links) {
                 let U = j.href;
                 pageLinksDB.push({ U, T, S });
+
             }
         }
     }
