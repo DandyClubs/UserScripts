@@ -363,7 +363,7 @@ let GetState, searchDB, PackageCount
 let MakerCfg = false
 let CfgReleaseDate = false
 let Maker = '', ReleaseDate = ''
-let SkipTitle
+let SkipTitle = []
 
 let GetDPI, DefaultFontSize
 let Target, DownloadArea, CopyTitle = '', copyOffsetArea, InfoArea, Resolution = '', TitleLast = '', Series = '', Title, ID = '', TitleID, CopyTitleTmp, InfoTitleTmp, CoverImage, MatchWebRegExp, Gallery, DownloadAreaSelector
@@ -400,21 +400,17 @@ window.addEventListener('storage', (e) => {
 });
 
 let currentConfig = null
-document.addEventListener("readystatechange", (event) => {
-    if (event.target.readyState === "interactive") {
-        for (const site of siteConfigs) {
-            if (site.regex.test(PageURL) && (!site.condition || site.condition())) {
-                currentConfig = site.config;
-                break;
-            }
-        }
-        console.log('Current Config:', currentConfig);
-        if (!currentConfig) return
-    }
-})
 
 document.addEventListener("DOMContentLoaded", () => {
     console.log('Start Link Copy!')
+    for (const site of siteConfigs) {
+        if (site.regex.test(PageURL) && (!site.condition || site.condition())) {
+            currentConfig = site.config;
+            break;
+        }
+    }
+
+    if (!currentConfig) return
     FontAwesomeCSS()
     FirstStep()
 }, { once: true })
@@ -1388,32 +1384,38 @@ const siteConfigs = [
                         let fcId = fc.groups ? fc.groups[1] : fc[1]
                         Title = `${fcId} ${InfoArea[0]}`
                     } else {
-                        let entryID = Title.match(SearchIDRegExp)?.[2]
-                        let infoAreaID = InfoArea.find(line => line.match(SearchIDRegExp))?.match(SearchIDRegExp)?.[2]
-                        let IDMatch = entryID ?? infoAreaID
-                        let ID = IDMatch ? IDMatch.trim() : '';
-                        if (ID) {
-                            ID = ID ? ID + ' ' : ''
+                        let cleanIDTitle, cleanIDInfoTitle, compareInfoAreaID, newTitle
+                        const InfoTitle = InfoArea.find(line => line.match(SearchIDRegExp))
+                        let entryID = Title.match(SearchIDRegExp)?.[2] || ''
+                        let infoAreaID = InfoTitle?.match(SearchIDRegExp)?.[2] || ''
+                        cleanIDTitle = Title.replace(entryID, '').trim()
+                        cleanIDInfoTitle = InfoTitle.replace(infoAreaID, '').trim()
+
+                        if (entryID && infoAreaID) {
+                            let IDMatch = entryID ?? infoAreaID
+                            let ID = IDMatch ? IDMatch.trim() : '';
+                            if (ID) {
+                                ID = ID ? ID + ' ' : ''
+                            }
+                            compareInfoAreaID = entryID === infoAreaID ? infoAreaID : /-/.test(entryID) ? entryID.replace(/-/g, '') : ''
+                            newTitle = `${entryID}${compareJapaneseCharacters(cleanIDTitle, cleanIDInfoTitle)}`
+                        } else {
+                            newTitle = `${entryID || infoAreaID} ${compareJapaneseCharacters(cleanIDTitle, cleanIDInfoTitle)}`
                         }
-                        let compareInfoAreaID = entryID === infoAreaID ? infoAreaID : /-/.test(entryID) ? entryID.replace(/-/g, '') : ''
-                        let newTitle = compareInfoAreaID ? InfoArea.find(line => line.match(compareInfoAreaID))?.replace(compareInfoAreaID, '').trim() ?? Title.replace(SearchIDRegExp, '').trim() : compareJapaneseCharacters(Title, InfoArea)
-
-                        if (!newTitle || newTitle === 'No title') newTitle = Title.replace(SearchIDRegExp, '').trim();
-                        Title = newTitle;
-
                         console.log({ newTitle })
-
-                        Title = mbConvertKana(Title.trim(), 'rans');
+                        Title = newTitle
                     }
-
-                    //ReleaseDate = InfoArea.find(line => /Release Date:/.test(line))?.match(/Release Date:(.+)/)?.[1].replace(/\//g, '.').trim() ?? '';
-                    //ReleaseDate = ReleaseDate ? '(' + ReleaseDate + ') ' : ''
-
-                    //Maker = InfoArea.find(line => /(Maker|Studio)\s?:/.test(line))?.match(/(Maker|Studio)\s?:(.+)/)?.[2].trim() ?? '';
-                    //Maker = Maker ? '[' + Maker + '] ' : ''
+                    Title = mbConvertKana(Title.trim(), 'rans');
                 }
 
-                CopyTitle = `${ID}${Title}`;
+                //ReleaseDate = InfoArea.find(line => /Release Date:/.test(line))?.match(/Release Date:(.+)/)?.[1].replace(/\//g, '.').trim() ?? '';
+                //ReleaseDate = ReleaseDate ? '(' + ReleaseDate + ') ' : ''
+
+                //Maker = InfoArea.find(line => /(Maker|Studio)\s?:/.test(line))?.match(/(Maker|Studio)\s?:(.+)/)?.[2].trim() ?? '';
+                //Maker = Maker ? '[' + Maker + '] ' : ''
+
+
+                CopyTitle = Title
                 CopyTitle = byteLengthOf(CopyTitle, 241).trim();
                 CoverImage = DownloadArea?.[0]?.querySelector('p img')?.src || '';
                 console.log({ CopyTitle, CoverImage, ID, ReleaseDate, Maker, DownloadArea });
@@ -1546,7 +1548,7 @@ const waitDownloadArea = [
                     RefreshIconSet();
                     const DoCopied = RootDomainDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
                     if (!DoCopied && document.querySelector(".Minus").style.visibility === "hidden") {
-                        CopyGo();
+                        CopyGo(SkipTitle);
                     }
                 }
             });
@@ -1757,7 +1759,7 @@ async function Start() {
 
 
 async function processCopyTitle(currentConfig) {
-
+    console.log(`Start processCopyTitle ${currentConfig}`)
     CopyTitle = CopyTitle || copyOffsetArea?.textContent.trim() || '';
 
     // 사이트별 특별 규칙 적용
@@ -1998,7 +2000,7 @@ function handleToggle(key, className) {
                 CopyGo()
             }
             */
-            CopyGo()
+            CopyGo(SkipTitle)
         } else {
             // AutoCopy 비활성화 시 AutoClose도 비활성화
             localStorage.setItem('AutoClose', JSON.stringify('false'));
@@ -2016,7 +2018,7 @@ function handleToggle(key, className) {
             CopyGo()
         }
         **/
-        CopyGo()
+        CopyGo(SkipTitle)
     }
 }
 
@@ -2047,7 +2049,7 @@ function FirstStep() {
             return SecondProcess();
         })
         .then((result) => {
-            console.log('Second Process OK', result);
+            console.log('Second Process OK', result)
         })
         .catch((err) => {
             console.error(err.message);
@@ -2214,7 +2216,7 @@ function mainIcon(Run) {
                     CopyGo()
                 }
                 */
-                CopyGo()
+                CopyGo(SkipTitle)
             }
         } else {
             AutoCopyIcon.classList.replace('On', 'Off');
@@ -2254,8 +2256,8 @@ function mainIcon(Run) {
 
 
 async function SecondProcess() {
-    console.log('before processCopyTitle CopyTitle:', CopyTitle)
-    if (!CopyTitle && copyOffsetArea && DownloadArea) {
+    console.log('before processCopyTitle CopyTitle:', CopyTitle, copyOffsetArea, DownloadArea)
+    if (CopyTitle && copyOffsetArea && DownloadArea) {
         await processCopyTitle(currentConfig)
     }
     console.log('after processCopyTitle CopyTitle:', CopyTitle)
@@ -2266,8 +2268,6 @@ async function SecondProcess() {
         if (!copyOffsetArea) {
             reject(new Error('No copyOffsetArea'));
         }
-
-
         let IconSetBox = document.querySelector(".IconSet");
 
         if (!IconSetBox) {
@@ -2289,10 +2289,10 @@ async function SecondProcess() {
                 try {
                     if (target.classList.contains('CopyIcon')) {
                         e.preventDefault();
-                        SkipTitle = true;
+                        const SkipTitle = [];
                         AllowDirect = false;
                         if (DownloadArea?.length) {
-                            CopyGo();
+                            CopyGo(SkipTitle);
                         }
                     } else if (target.classList.contains('CloseIcon')) {
                         e.preventDefault();
@@ -2329,10 +2329,11 @@ async function SecondProcess() {
         if (/^((?!(sharepornlink|hpav\.tv|pornrips\.cc|naughtyblog)).)*$/.test(PageURL)) {
             if (document.querySelector(".Minus").style.visibility === "hidden" && AutoCopy && JSON.parse(localStorage.getItem('AutoCopy'))) {
                 console.log('CopyGo');
-                CopyGo();
+                CopyGo(SkipTitle);
             }
         } else if (/naughtyblog/.test(PageURL) && AutoCopy && JSON.parse(localStorage.getItem('AutoCopy'))) {
-            CopyGo();
+            console.log('CopyGo');
+            CopyGo(SkipTitle);
         }
         resolve({ CopyTitle, DownloadArea });
     })
@@ -2423,7 +2424,7 @@ function CheckOnline(TargetLink) {
 
 
 function CheckSkipTitle() {
-    console.log('Check CheckSkipTitle:', CopyTitle)
+    console.log(`Check CheckSkipTitle: ${CopyTitle}`)
     if (!CopyTitle) return false;  // Early exit if no title
 
     // Find skip word/model matches
@@ -2437,6 +2438,8 @@ function CheckSkipTitle() {
     let M = [...new Set(MM)];
 
     if (W.length || M.length) {
+        SkipTitle = [...W, ...M]
+
         // Create or update CopyState div for status
         if (!document.querySelector('.CopyState')) {
             LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
@@ -2448,14 +2451,11 @@ function CheckSkipTitle() {
         // Set flags indicating skip conditions
         AutoClose = false;
         AutoCopy = false;
-        SkipTitle = false;
 
         // Show messages for skip words/models
         copyStateEl.innerText = '';
         if (W.length) copyStateEl.innerText += 'Skip Word: ' + W.join('/');
         if (M.length) copyStateEl.innerText += (W.length ? '\n' : '') + 'Skip Model: ' + M.join('/');
-    } else {
-        SkipTitle = true; // No skip words/models found
     }
 
     // Special handling for titles starting with [Cospuri]
@@ -2470,8 +2470,10 @@ function CheckSkipTitle() {
 }
 
 
-async function CopyGo() {
-    if (!SkipTitle) return;
+async function CopyGo(SkipTitle) {
+
+    console.log(`CopyGo! ${SkipTitle}`, SkipTitle.length)
+    if (SkipTitle.length !== 0) return;
 
     const shortUrlExists = () =>
         Array.from(document.querySelectorAll("a")).some(a => WaitChangeLink.test(a.href));
@@ -2487,8 +2489,8 @@ async function CopyGo() {
 
                 if (CopyLinks?.length > 0 && !DoCopied) {
                     console.log('Retrying CopyGo...');
-                    await sleep(1000)
-                    await CopyGo();  // Use await to avoid unbounded recursion
+                    await sleep(2000)
+                    await CopyGo(SkipTitle);  // Use await to avoid unbounded recursion
                 } else {
                     console.log('Copied! DoCopied:', DoCopied, 'CopyLinks:', CopyLinks);
                 }
@@ -2510,8 +2512,8 @@ async function CopyGo() {
 
         if (CopyLinks?.length > 0 && !DoCopied) {
             console.log('Retrying CopyGo...');
-            await sleep(1000)
-            await CopyGo();
+            await sleep(2000)
+            await CopyGo(SkipTitle);
         } else {
             console.log('Copied! DoCopied:', DoCopied, 'CopyLinks:', CopyLinks);
         }
@@ -2730,7 +2732,7 @@ function GetName(url) {
 }
 
 async function UpdateDB(Target, UrlTitle) {
-
+    console.log(`UpdateDB ${Target} ${UrlTitle}`)
     //console.log(Target, UrlTitle)
     if (Target.match(K2SRegExp)) {
         Target = Target.match(K2SRegExp)[1] + Target.match(K2SRegExp)[2].slice(0, 18)
@@ -2752,6 +2754,7 @@ async function UpdateDB(Target, UrlTitle) {
 
 
 async function RemoveDB(listToDelete) {
+    console.log(`RemoveDB ${listToDelete}`)
     RootDomainDB = RootDomainDB.filter(item => (!listToDelete.includes(item.U)));
     localStorage.setItem(RootDomain, JSON.stringify(RootDomainDB))
     //await GM_setValue(RootDomain, JSON.stringify(RootDomainDB))
@@ -2773,7 +2776,7 @@ async function RemoveDB(listToDelete) {
 
 
 async function CheckDB(listTo) {
-
+    console.log(`CheckDB ${listTo}`)
     const minusElement = document.querySelector('.Minus');
 
     // `GetState`가 존재하고 길이가 0보다 클 때만 로직을 실행합니다.
@@ -3221,7 +3224,7 @@ async function scrollToTop() {
 
     if (/^((?!(sharepornlink|0xxx|naughtyblog|hpav\.tv)).)*$/.test(PageURL)) {
         if (!DoCopied && document.querySelector(".Minus").style.visibility === "hidden") {
-            CopyGo()
+            CopyGo(SkipTitle)
         }
     }
     window.removeEventListener('scroll', scrollToTop)
