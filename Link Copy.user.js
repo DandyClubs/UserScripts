@@ -150,13 +150,6 @@ GM_addStyle(`
 @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c&family=Nanum+Gothic&family=Nanum+Gothic+Coding&family=Noto+Sans&display=swap');
 
 
-:root {
-  --dynamic-zindex: 0;
-}
-
-.dynamic-z {
-  z-index: var(--dynamic-zindex);
-}
 
 .CloseIcon, .CopyIcon, .Minus, .GetTitle, .IDSearch {
     text-align: center;
@@ -184,7 +177,7 @@ GM_addStyle(`
     -webkit-box-sizing: border-box !important;
     box-sizing: border-box !important;
     background-color: rgba(0,0,0,0.5) !important;
-    z-index: var(--dynamic-zindex);
+    z-index: 999999;
 }
 
 .IconSet * {
@@ -236,6 +229,10 @@ margin: .25em;
 .CopyNotice .copyText {
   padding: .25rem .5rem;
   z-index: 999999;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+    -webkit-line-clamp: 15;
+    -webkit-box-orient: vertical;
 }
 
 .LinkCopyCenterBox {
@@ -256,7 +253,7 @@ margin: .25em;
 	box-sizing: border-box !important;
 	background-color: rgba(0,0,0,0.5) !important;
     text-wrap: nowrap;
-    z-index: var(--dynamic-zindex);
+    z-index: 999999;
 }
 .LinkCopyCenterBox * {
 	margin: 0 .25em;
@@ -557,40 +554,6 @@ function observeChanges(targetSelector, callback) {
 const siteConfigs = [
     {
         regex: /naughtyblog\.org\//,
-        condition: (config) => {
-            // 이 사이트는 초기 로딩 시 다운로드 영역이 가려져 있습니다.
-            // 따라서 MutationObserver를 통해 변경을 감지하고,
-            // 다운로드 영역이 나타났을 때만 나머지 로직을 실행하도록 설정합니다.
-            const observer = new MutationObserver((mutations) => {
-                const HiddenDownloadArea = document.querySelectorAll('div#downloadhidden a');
-                if (HiddenDownloadArea.length >= 1) {
-                    observer.disconnect();
-                    DownloadArea = document.querySelectorAll('div#download, div#downloadhidden');
-                    const newEvent = new CustomEvent('DownloadAreaUnlocked');
-                    document.dispatchEvent(newEvent);
-                    console.log(HiddenDownloadArea)
-                    window.DownloadArea = createDownloadArea(HiddenDownloadArea.map(link => link.outerHTML));
-                    Start()
-                    return
-                }
-            });
-
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-
-            // 페이지 로드 시 바로 다운로드 영역이 보이면 observer 없이 바로 진행
-            const immediateDownloadArea = document.querySelectorAll('div#download, div#downloadhidden');
-            if (immediateDownloadArea.length > 0) {
-                return true;
-
-            }
-            // 다운로드 영역이 바로 보이지 않으면, 비동기 처리를 위해 false 반환
-            return false;
-
-
-        },
         config: {
             copyOffsetAreaSelector: '.post-title.entry-title',
             downloadAreaSelector: 'div#download, div#downloadhidden',
@@ -598,10 +561,29 @@ const siteConfigs = [
             coverImageAttribute: 'src',
             postProcess: (config) => {
 
-                document.addEventListener('DownloadAreaUnlocked', function (event) {
-                    console.log('1', currentConfig)
-                    currentConfig.postProcess(config)
-                })
+
+                // 이 사이트는 초기 로딩 시 다운로드 영역이 가려져 있습니다.
+                // 따라서 MutationObserver를 통해 변경을 감지하고,
+                // 다운로드 영역이 나타났을 때만 나머지 로직을 실행하도록 설정합니다.
+                const WatchElementArea = document.querySelector('div#downloadhidden');
+                if (!WatchElementArea) {
+                    AutoClose = false;
+                    return false;
+                }
+
+                const observer = new MutationObserver((mutations) => {
+                    for (const mutation of mutations) {
+                        if (WatchElementArea.querySelectorAll('a').length > 0) {
+                            observer.disconnect();
+                            DownloadArea = document.querySelectorAll('div#download, div#downloadhidden')
+                            document.querySelector('.CopyState').remove()
+                            CheckDB(listToDo(DownloadArea), 'observer CheckDB')
+                        }
+                    }
+                });
+
+                observer.observe(WatchElementArea, { childList: true, subtree: true });
+
 
                 copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
                 DownloadArea = document.querySelectorAll('div#download, div#downloadhidden, div.DownloadArea');
@@ -2133,10 +2115,6 @@ function mainIcon(Run) {
         RefreshIcon('pageshow');
     });
 
-    if (isElementCovered(LinkCopyCenterBox)) {
-        bringElementToFrontWithSteps(LinkCopyCenterBox);
-    }
-
     let lastExecutionTime = performance.now();
     const myObserver = new ResizeObserver(entries => {
         const now = performance.now();
@@ -2290,7 +2268,7 @@ async function SecondProcess() {
                     } else if (target.classList.contains('Minus')) {
                         e.preventDefault();
                         await RemoveDB(listToDo(DownloadArea, 'All'), 'SecondProcess RemoveDB');
-                        await CheckDB(listToDo(DownloadArea, 'A'), 'SecondProcess CheckDB');
+                        await CheckDB(listToDo(DownloadArea), 'SecondProcess CheckDB');
                         CopyLinks = []
                     }
                 } catch (error) {
@@ -2705,22 +2683,16 @@ function GetName(url) {
 async function UpdateDB(Target, UrlTitle) {
 
     PackageName = UrlTitle || '';
-    //console.log(`UpdateDB ${Target} ${UrlTitle}`)
-    //console.log(Target, UrlTitle)
+    console.log(`UpdateDB ${Target} ${UrlTitle}`)
+    console.log(Target, UrlTitle)
     if (Target.match(K2SRegExp)) {
         Target = Target.match(K2SRegExp)[1] + Target.match(K2SRegExp)[2].slice(0, 18)
     }
-    const searchDB = localStorageDB.find(({ U }) => U === Target)
+    localStorageDB.push({ U: Target, T: UrlTitle, S: PageURL })
+    if (!JSON.parse(localStorage.getItem('NewAdded'))) {
+        localStorage.setItem('NewAdded', JSON.stringify(true))
+    }
 
-    if (searchDB) {
-        searchDB.T = UrlTitle
-    }
-    else {
-        localStorageDB.push({ U: Target, T: UrlTitle, S: PageURL })
-        if (!JSON.parse(localStorage.getItem('NewAdded'))) {
-            localStorage.setItem('NewAdded', JSON.stringify(true))
-        }
-    }
     //console.log(localStorageDB)
     return localStorageDB
 }
@@ -2751,7 +2723,6 @@ async function RemoveDB(listToDelete) {
 async function CheckDB(listTo, fromStep) {
     console.log(`CheckDB:`, listTo, fromStep)
 
-    localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
     const minusElement = document.querySelector('.Minus');
 
     if (listTo.length === 0) {
@@ -2767,15 +2738,14 @@ async function CheckDB(listTo, fromStep) {
         AutoClose = false;
         AutoCopy = false;
 
-        // Show messages for skip words/models
-        copyStateEl.innerText = '';
+        // Show messages for skip words/models        
         copyStateEl.innerText += `링크가 없습니다`;
     }
 
     // `GetState`가 존재하고 길이가 0보다 클 때만 로직을 실행합니다.
     if (localStorageDB?.length > 0) {
-        // `some` 메서드를 사용하여 `listTo`의 항목이 `RootDomainDB`에 포함되는지 확인합니다.
-        const isMatchFound = localStorageDB.some(item => listTo.includes(item.U));
+
+        const isMatchFound = await localStorageDB.some(item => listTo.includes(item.U));
         console.log('isMatchFound:', isMatchFound)
         if (minusElement) {
             // 매칭 여부에 따라 요소의 가시성을 설정합니다.
@@ -3224,29 +3194,6 @@ function GetMatchLinks(text, LinksDB) {
 async function scrollToTop() {
     window.scrollTo({ top: 0, behavior: 'auto' })
     AllowDirect = true
-    const minusElement = document.querySelector(".Minus")
-    const isMatchFound = localStorageDB.some(item => listTo.includes(item.U));
-
-    if (minusElement) {
-        // 매칭 여부에 따라 요소의 가시성을 설정합니다.
-        minusElement.style.visibility = isMatchFound ? 'visible' : 'hidden';
-    }
-
-    // 매칭이 발견되었을 때만 AutoClose 로직을 실행합니다.
-    if (isMatchFound) {
-        setTimeout(() => {
-            const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));
-            console.log(isAutoCloseEnabled, AutoClose)
-            // AutoClose 변수와 localStorage 값을 모두 확인하여 실행합니다.
-            if (isAutoCloseEnabled && AutoClose) {
-                console.log('AutoClose: ', AutoClose, '\nlocalStorage: ', isAutoCloseEnabled);
-                self.close();
-            }
-        }, 5000);
-    }
-    else if (minusElement.style.visibility === "hidden") {
-        CopyGo(SkipTitle)
-    }
     window.removeEventListener('scroll', scrollToTop)
 }
 

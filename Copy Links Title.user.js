@@ -207,14 +207,13 @@ document.addEventListener("DOMContentLoaded", () => {
         setClearCopyed("ClearCopyed", "Y", 1)
     }
 
-    DomainRules = getDomainConfig(RootDomain);
+    FontAwesomeCSS()
+
+    const DomainRules = getDomainConfig(RootDomain);
     if (!DomainRules) {
         console.error("해당 도메인에 대한 설정이 없습니다.");
         return
     }
-
-
-    FontAwesomeCSS()
 
     try {
         MakeIcon()
@@ -292,6 +291,9 @@ const SkipMakers = [
 
 
 
+
+
+
 const DomainHandlers = {
     'gm\\d+\\.xyz': {
         selectors: {
@@ -322,18 +324,25 @@ const DomainHandlers = {
             const rawTitle = DomainRules.relativeSelector(el)?.querySelector('a.postdetails, span.postdetails.subject')?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return parseForumTitle(infoRaw, rawTitle)
+            return parseForumTitle(infoLines, rawTitle)
         },
         getCopyID: (relativeArea, pageURL) => {
-            if (/newsearch\.php/.test(pageURL)) return window.location.origin + '/' + relativeArea.querySelector('a')?.href;
+            if (/newsearch\.php/.test(pageURL)) return relativeArea.querySelector('a')?.href;
             if (/\.html#\d+/.test(pageURL)) return pageURL;
-            return window.location.origin + '/' + relativeArea.querySelector('a.inl-bl')?.href;
+            return relativeArea.querySelector('a.inl-bl')?.href;
         },
         iconPosition: (iconSet) => {
+            const relativeArea = DomainRules.relativeSelector(iconSet) || ''
+            const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
+            const iconSetMetrics = getElementMetrics(iconSet, { mode: 'relative' });
             iconSet.style.setProperty('z-index', '99999');
+            iconSet.style.setProperty('vertical-align', window.getComputedStyle(relativeArea).getPropertyValue('vertical-align'));
+            iconSet.style.setProperty('line-height', window.getComputedStyle(relativeArea).getPropertyValue('line-height'));
+            iconSet.style.setProperty('top', `${(relativeAreaMetrics.height / 2 - iconSetMetrics.height / 2).toFixed(0)}px`);
+            iconSet.style.setProperty('left', `${(relativeAreaMetrics.width).toFixed(0)}px`);
         },
-        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.content') || '',
-        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('messageinfo') || '',
+        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.post-text') || '',
+        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('.search-post-subj') || '',
     },
     'x-idol\\.net': {
         selectors: {
@@ -461,6 +470,13 @@ const getDomainConfig = (rootDomain) => {
     return null;
 };
 
+const DomainRules = getDomainConfig(RootDomain);
+if (!DomainRules) {
+    console.error("해당 도메인에 대한 설정이 없습니다.");
+    return
+}
+
+
 
 function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
     const {
@@ -471,7 +487,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
     let CopyTitle = fallbackTitle
         .replace(/^(UNCENSORED|CENSORED)\s/, '')
-        .replace(/amp;/g, '')
+        .replace(/amp;|\(\)/g, '')
         .trim();
 
     if (rawMode) return CopyTitle;
@@ -481,6 +497,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
     let Maker = '';
     let ModelName = '';
     let ReleaseDate = '';
+
 
     const FeaturingLine = infoLines.find(line => line.match(/특집\s*:/i));
     const Featuring = FeaturingLine ? FeaturingLine.replace(/Featuring\s*:/i, '').trim() : '';
@@ -532,7 +549,9 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
             ReleaseDate = DateRegEx.test(line) ? line.match(DateRegEx)[1].replace(/\/|-|_/g, '.') : '';
         }
         return ID && ModelName && ReleaseDate && Title && Maker;
-    });    
+    });
+
+    console.log({ ID, ModelName, ReleaseDate, Title });
 
     if (ModelName) {
         let ModelNameList = ModelName.split(/[,|]/).map(s => s.trim()).filter(Boolean);
@@ -554,11 +573,12 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         .replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n')
         .replace(/Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re:/gi, '')
         .replaceAll('"|：', '')
+        .replace(/\*\*\*/g, '')
         .replace(/\n{2,}/g, '\n')
         .split('\n')
         .filter(line => line.trim() && !/^(http|Download|Duration|Resolution|Categories|About)/i.test(line));
 
-console.log('cleanedinfoLines:', cleanedinfoLines);
+    console.log({ infoLines, cleanedinfoLines });
 
     const infoLinesFinalTitle = Title ? `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim() : ''
 
@@ -572,13 +592,13 @@ console.log('cleanedinfoLines:', cleanedinfoLines);
     if (preferJapanese) {
         preferText = compareJapaneseCharacters(CopyTitle, InfofinalTitle);
     }
-        compareText = compareSentencesByWordMatch(CopyTitle, InfofinalTitle);
-    
+    compareText = compareSentencesByWordMatch(CopyTitle, InfofinalTitle);
+
     const compareLast = compareSentencesByWordMatch(preferText, compareText)
     if (ReleaseDate && (Maker || ID)) {
         return `${Maker}${ID ? ID + ' ' : ''}.${ReleaseDate}.${compareLast}`
     } else {
-        return `${compareLast} ${ReleaseDate}`
+        return ReleaseDate ? `${compareLast}(${ReleaseDate})` : compareLast
     }
 }
 
@@ -589,8 +609,8 @@ function parseForumTitle(infoLines, rawTitle, options = {}) {
         skipKeywords = [],
         rawMode = false,
     } = options;
-    console.log('parseForumTitle:', { infoLines, rawTitle, options });
-    rawTitle = rawTitle.replace(/amp;/gi, '').replace(/^Re:|Subject:/i, '').trim();
+    //console.log('parseForumTitle:', { infoLines, rawTitle, options });
+    rawTitle = rawTitle.replace(/amp;|\(\)/gi, '').replace(/^Re:|Subject:/i, '').trim();
 
 
     const finalTitle = extractInfoFromText(infoLines, rawTitle, options)
@@ -604,7 +624,7 @@ function parseForumTitle(infoLines, rawTitle, options = {}) {
 async function showCopyNotice(noticeArea, relativeArea, finalTitle, copyLinks) {
     console.log('finalTitle:', finalTitle, '\ncopyLinks:', copyLinks)
     GetDPI = window.devicePixelRatio;
-    DefaultFontSize = getDefaultFontSize();    
+    DefaultFontSize = getDefaultFontSize();
     const NFontSizeValue = ((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2) + 'rem';
     const positionPoint = getElementMetrics(relativeArea, { mode: 'relative' });
     noticeArea.style.setProperty('--NFontSize', NFontSizeValue);
@@ -691,10 +711,12 @@ async function CopyLink(el, noticeArea, CopyID) {
     // DomainHandlers에 relativeSelector가 정의되어 있으면 해당 선택자를 사용하고,
     // 그렇지 않으면 .IconSet의 부모 요소를 relativeArea로 설정
     const relativeArea = DomainRules.relativeSelector(el)
+    console.log({ relativeArea })
     if (!relativeArea) return
 
     // relativeArea 내에서 infoSelector를 사용하여 downloadArea를 찾음
     const downloadArea = DomainRules.infoSelector(el)
+    console.log({ downloadArea })
     if (!downloadArea) return
 
     const copyTitle = DomainRules.GetInfo(el);
@@ -935,9 +957,11 @@ function createAndAddIcons(relativeArea, copyId, isCopied) {
 }
 
 async function AddCopyIcon(node) {
+
     if (!DomainRules || !DomainRules.selectors.copyTitle) return;
 
     const copyTitleAreas = node.querySelectorAll(DomainRules.selectors.copyTitle);
+
 
     if (!copyTitleAreas?.length) {
         throw new TypeError("CcopyTitleAreas가 존재하지 않거나 배열이 아닙니다.");
@@ -947,15 +971,18 @@ async function AddCopyIcon(node) {
 
     for (const el of copyTitleAreas) {
         const postArea = getParentWithSelector(el, '.postbody, .inside-article, .messageinfo, .postarea, .tborder, .list-row');
+
         if (!postArea) continue;
 
         const relativeArea = DomainRules.relativeSelector(el);
+        console.log(relativeArea)
         if (!relativeArea) continue;
 
         const copyID = DomainRules.getCopyID?.(relativeArea, window.location.href) || null;
         const isCopied = copyID && copiedUrls.includes(copyID);
 
         createAndAddIcons(relativeArea, copyID, isCopied);
+        console.log(relativeArea, copyID, isCopied)
     }
 }
 
@@ -1038,12 +1065,6 @@ function RefreshIcon() {
     document.querySelector(':root').style.setProperty('--IconSize', ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)).toFixed(2) + 'rem')
 
 }
-
-let DomainRules
-
-
-
-
 
 
 
