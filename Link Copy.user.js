@@ -344,8 +344,8 @@ img.Favicon {
 
 let CopyLinks = []
 let AllCopyLinks = []
-let TmpLinksDB = []
-let DoCopied
+
+let PackageName = ''
 let AutoCopy = JSON.parse(localStorage.getItem('AutoCopy')) || false
 let AutoClose = JSON.parse(localStorage.getItem('AutoClose')) || false
 let CopyLinksBackup
@@ -355,10 +355,10 @@ const RootDomain = extractRootDomain(PageURL)
 
 const linkEreg = /(?:https|http|ftp|file):\/\/.+?(?=[,.]?(?:\s|$))/gi
 
-let RootDomainDB
-//console.log(RootDomainDB)
+let localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
+let pageLinksDB = []
 
-let GetState, searchDB, PackageCount
+let GetState, PackageCount
 //console.log(GetState)
 let MakerCfg = false
 let CfgReleaseDate = false
@@ -367,7 +367,6 @@ let SkipTitle = []
 
 let GetDPI, DefaultFontSize
 let Target, DownloadArea, CopyTitle = '', copyOffsetArea, InfoArea, Resolution = '', TitleLast = '', Series = '', Title, ID = '', TitleID, CopyTitleTmp, InfoTitleTmp, CoverImage, MatchWebRegExp, Gallery, DownloadAreaSelector
-let UrlTitle = ''
 const SkipFilter = new RegExp('katfile\\.com\/\?op=registration|77file\\.com|xtvtv\\.com\/explanation|niceff\.com|fboom\\.me\/code|k2s\\.cc\/(pr|code)|facebook\\.com|magnet:|fireget\\.com\/premium\\.html|tezfiles\\.com\/.+\/premium|nyaa\\.si|twitter\\.com|ouo\\.io|tma\\.cx|3xplanetpremium|clubwarp\\.com|clubwarp\\.top/|teraboxapp\\.com|turb\\.cc|turbobit\\.net|terabox\\.com|keep2share\\.cc\/pr\/|javascript|pixhost\\.to\/gallery\/|imgchili\\.net\/show|#$|^\/|^(?=.*' + window.location.origin + ')(?!.*\\?site).*$', 'i')
 const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i')
 //const WaitChangeLink = new RegExp('tma\\.cx\/', 'i')
@@ -379,21 +378,21 @@ const SkipFileName = /demosaic|\.UMR|iris2/
 
 
 // Storage 이벤트 리스너
-window.addEventListener('storage', (e) => {
+window.addEventListener('storage', async (e) => {
     // 토글 관련 이벤트 처리
     if (toggleConfigs[e.key]) {
         handleToggle(e.key, toggleConfigs[e.key]);
     }
     // RootDomain 관련 이벤트 처리
     else if (e.key === RootDomain && (e.newValue || e.oldValue)) {
-        RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
+        localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
 
         if (DownloadArea?.length) {
-            CheckDB(listToDo(DownloadArea));
+            await CheckDB(listToDo(DownloadArea), 'storage');
         }
 
-        const GetState = RootDomainDB;
-        const PackageCount = PackageList(RootDomainDB);
+        const GetState = localStorageDB;
+        const PackageCount = PackageList(localStorageDB);
 
         updateUI(GetState, PackageCount);
     }
@@ -404,14 +403,14 @@ let currentConfig = null
 document.addEventListener("DOMContentLoaded", () => {
     console.log('Start Link Copy!')
     for (const site of siteConfigs) {
-        if (site.regex.test(PageURL) && (!site.condition || site.condition())) {
+        if (site.regex.test(PageURL) && (!site.condition || site.condition(site.config))) {
             currentConfig = site.config;
             break;
         }
     }
     FontAwesomeCSS()
     FirstStep()
-    if (!currentConfig) return    
+    if (!currentConfig) return
 }, { once: true })
 
 
@@ -552,33 +551,7 @@ function observeChanges(targetSelector, callback) {
     return observer;
 }
 
-// 특정 영역에서 사라지는 걸 감시
-function observeremove(config, callback) {
-    const observer = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-            for (const removedNode of mutation.removedNodes) {
-                if (!(removedNode instanceof HTMLElement)) continue;
-                if (removedNode.classList.contains(config.observerSelector)) {
-                    // passster-form이 제거되면 다운로드 영역이 나타난 것으로 간주
-                    observer.disconnect();
-                    const newEvent = new CustomEvent('findWatchSelector');
-                    document.dispatchEvent(newEvent);
-                    return
-                }
-            }
-        }
-    });
 
-    observer.observe(config.watchAreaSelector, { childList: true, subtree: true });
-
-    // 페이지 로드 시 바로 다운로드 영역이 보이면 observer 없이 바로 진행
-    const immediateDownloadArea = document.querySelectorAll(config.downloadAreaSelector);
-    if (immediateDownloadArea.length > 0) {
-        return true;
-    }
-    // 다운로드 영역이 바로 보이지 않으면, 비동기 처리를 위해 false 반환
-    return false;
-}
 
 
 const siteConfigs = [
@@ -588,26 +561,45 @@ const siteConfigs = [
             // 이 사이트는 초기 로딩 시 다운로드 영역이 가려져 있습니다.
             // 따라서 MutationObserver를 통해 변경을 감지하고,
             // 다운로드 영역이 나타났을 때만 나머지 로직을 실행하도록 설정합니다.
-            const watchElementArea = document.querySelector('config.watchAreaSelector');
-            if (!watchElementArea) {
-                AutoClose = false;
-                return false;
-            }
+            const observer = new MutationObserver((mutations) => {
+                const HiddenDownloadArea = document.querySelectorAll('div#downloadhidden a');
+                if (HiddenDownloadArea.length >= 1) {
+                    observer.disconnect();
+                    DownloadArea = document.querySelectorAll('div#download, div#downloadhidden');
+                    const newEvent = new CustomEvent('DownloadAreaUnlocked');
+                    document.dispatchEvent(newEvent);
+                    console.log(HiddenDownloadArea)
+                    window.DownloadArea = createDownloadArea(HiddenDownloadArea.map(link => link.outerHTML));
+                    Start()
+                    return
+                }
+            });
 
-            observeremove(config)
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+
+            // 페이지 로드 시 바로 다운로드 영역이 보이면 observer 없이 바로 진행
+            const immediateDownloadArea = document.querySelectorAll('div#download, div#downloadhidden');
+            if (immediateDownloadArea.length > 0) {
+                return true;
+
+            }
+            // 다운로드 영역이 바로 보이지 않으면, 비동기 처리를 위해 false 반환
+            return false;
+
+
         },
         config: {
             copyOffsetAreaSelector: '.post-title.entry-title',
             downloadAreaSelector: 'div#download, div#downloadhidden',
             coverImageSelector: 'div.post-content-single a > img',
             coverImageAttribute: 'src',
-            watchAreaSelector: 'div.main-content-single',
-            observerSelector: 'passster-form',
             postProcess: (config) => {
-                // 이 함수는 'DownloadAreaUnlocked' 이벤트가 발생했을 때 호출될 것입니다.
-                // 또는 페이지 로드 시 바로 다운로드 영역이 보일 때 호출됩니다.
 
-                document.addEventListener('findWatchSelector', function (event) {
+                document.addEventListener('DownloadAreaUnlocked', function (event) {
+                    console.log('1', currentConfig)
                     currentConfig.postProcess(config)
                 })
 
@@ -1538,15 +1530,14 @@ const waitDownloadArea = [
             Array.from(document.querySelectorAll('button.click_show')).forEach(element => element.click());
 
             const downloadContainer = await waitElement('div#dle-content');
-            const observer = observeChanges('div#dle-content', (mutations, obs) => {
+            const observer = observeChanges('div#dle-content', async (mutations, obs) => {
                 const DownloadAreaSelector = 'div.quote:has(a)';
                 DownloadArea = downloadContainer.querySelectorAll(DownloadAreaSelector);
 
                 if (DownloadArea?.length >= 1) {
                     obs.disconnect();
                     RefreshIconSet();
-                    const DoCopied = RootDomainDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
-                    if (!DoCopied && document.querySelector(".Minus").style.visibility === "hidden") {
+                    if (document.querySelector(".Minus").style.visibility === "hidden") {
                         CopyGo(SkipTitle);
                     }
                 }
@@ -1758,7 +1749,7 @@ async function Start() {
 
 
 async function processCopyTitle(currentConfig) {
-    console.log(`Start processCopyTitle ${currentConfig}`)
+    console.log(`Start processCopyTitle`, currentConfig)
     CopyTitle = CopyTitle || copyOffsetArea?.textContent.trim() || '';
 
     // 사이트별 특별 규칙 적용
@@ -1990,7 +1981,7 @@ function handleToggle(key, className) {
                 AutoClose = JSON.parse(localStorage.getItem('AutoClose'))
             }
             /*
-            const hasCopied = RootDomainDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
+            const hasCopied = localStorageDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
 
          if (hasCopied) {
                 CheckDB(listToDo(DownloadArea));
@@ -2008,7 +1999,7 @@ function handleToggle(key, className) {
         // AutoClose가 활성화되고 AutoCopy가 켜져 있으면 추가 로직 실행
         AutoCopy = JSON.parse(localStorage.getItem('AutoCopy'))
         /**
-        const hasCopied = RootDomainDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
+        const hasCopied = localStorageDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
 
         if (hasCopied) {
             CheckDB(listToDo(DownloadArea));
@@ -2033,10 +2024,10 @@ function FirstStep() {
         }
     })
 
-    RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
+    localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
 
-    GetState = RootDomainDB
-    PackageCount = PackageList(RootDomainDB)
+    GetState = localStorageDB
+    PackageCount = PackageList(localStorageDB)
 
     if (!LinkCopyCenterBox) {
         mainIcon('First Run')
@@ -2206,8 +2197,8 @@ function mainIcon(Run) {
             localStorage.setItem('AutoCopy', JSON.stringify(true));
             if (DownloadArea) {
                 /*
-                DoCopied = RootDomainDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
-                if (DoCopied) {
+                aredyCopyed = localStorageDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
+                if (aredyCopyed) {
                     AutoClose = true;
                     CheckDB(listToDo(DownloadArea));
                 } else {
@@ -2298,8 +2289,8 @@ async function SecondProcess() {
                         self.close();
                     } else if (target.classList.contains('Minus')) {
                         e.preventDefault();
-                        await RemoveDB(listToDo(DownloadArea, 'All'));
-                        await CheckDB(listToDo(DownloadArea));
+                        await RemoveDB(listToDo(DownloadArea, 'All'), 'SecondProcess RemoveDB');
+                        await CheckDB(listToDo(DownloadArea, 'A'), 'SecondProcess CheckDB');
                         CopyLinks = []
                     }
                 } catch (error) {
@@ -2311,8 +2302,6 @@ async function SecondProcess() {
         if (/0xxx\.ws\/articles|pornrip\.cc\/download/.test(PageURL)) {
             RefreshIconSet();
         }
-
-        RefreshIconSet();
 
         for (const NodeArea of DownloadArea) {
             Array.from(NodeArea.querySelectorAll('a')).forEach((aEntry) => {
@@ -2334,6 +2323,7 @@ async function SecondProcess() {
             console.log('CopyGo');
             CopyGo(SkipTitle);
         }
+        RefreshIconSet()
         resolve({ CopyTitle, DownloadArea });
     })
 }
@@ -2365,7 +2355,7 @@ async function RefreshIconSet() {
     }
 
     if (DownloadArea?.length && iconSet) {
-        CheckDB(listToDo(DownloadArea));
+        await CheckDB(listToDo(DownloadArea), 'RefreshIconSet');
         const copyIcon = document.querySelector('.CopyIcon');
         if (copyIcon) copyIcon.style.visibility = "visible";
     }
@@ -2487,15 +2477,6 @@ async function CopyGo(SkipTitle) {
                 console.log('No more short links. Proceeding with copy.');
                 obs.disconnect();
                 await CopyLink();
-                DoCopied = RootDomainDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
-
-                if (CopyLinks?.length > 0 && !DoCopied) {
-                    console.log('Retrying CopyGo...');
-                    await sleep(2000)
-                    await CopyGo(SkipTitle);  // Use await to avoid unbounded recursion
-                } else {
-                    console.log('Copied! DoCopied:', DoCopied, 'CopyLinks:', CopyLinks);
-                }
             }
         });
 
@@ -2508,18 +2489,6 @@ async function CopyGo(SkipTitle) {
     } else {
         console.log('No short links detected. Starting copy.');
         await CopyLink();
-
-        DoCopied = RootDomainDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
-
-
-        if (CopyLinks?.length > 0 && !DoCopied) {
-            console.log('Retrying CopyGo...');
-            await sleep(2000)
-            await CopyGo(SkipTitle);
-        } else {
-            console.log('Copied! DoCopied:', DoCopied, 'CopyLinks:', CopyLinks);
-        }
-
     }
 
     // Update UI notification styles
@@ -2614,7 +2583,7 @@ async function CollectionLinks(DownloadArea) {
     }
 
     // 1a) If still no links, try auto-injecting from plain text then re-run
-    if (!CollectionATag.length) {
+    if (CollectionATag.length === 0) {
         let injected = 0;
         for (const node of DownloadArea) {
             const text = node.textContent;
@@ -2734,36 +2703,38 @@ function GetName(url) {
 }
 
 async function UpdateDB(Target, UrlTitle) {
-    console.log(`UpdateDB ${Target} ${UrlTitle}`)
+
+    PackageName = UrlTitle || '';
+    //console.log(`UpdateDB ${Target} ${UrlTitle}`)
     //console.log(Target, UrlTitle)
     if (Target.match(K2SRegExp)) {
         Target = Target.match(K2SRegExp)[1] + Target.match(K2SRegExp)[2].slice(0, 18)
     }
-    searchDB = RootDomainDB.find(({ U }) => U === Target)
+    const searchDB = localStorageDB.find(({ U }) => U === Target)
 
     if (searchDB) {
         searchDB.T = UrlTitle
     }
     else {
-        RootDomainDB.push({ U: Target, T: UrlTitle, S: PageURL })
+        localStorageDB.push({ U: Target, T: UrlTitle, S: PageURL })
         if (!JSON.parse(localStorage.getItem('NewAdded'))) {
             localStorage.setItem('NewAdded', JSON.stringify(true))
         }
     }
-    //console.log(RootDomainDB)
-    return RootDomainDB
+    //console.log(localStorageDB)
+    return localStorageDB
 }
 
 
 async function RemoveDB(listToDelete) {
-    console.log(`RemoveDB ${listToDelete}`)
-    RootDomainDB = RootDomainDB.filter(item => (!listToDelete.includes(item.U)));
-    localStorage.setItem(RootDomain, JSON.stringify(RootDomainDB))
-    //await GM_setValue(RootDomain, JSON.stringify(RootDomainDB))
-    //RootDomainDB = JSON.parse(await GM_getValue(RootDomain, "[]"))
-    //RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
-    GetState = RootDomainDB
-    PackageCount = PackageList(RootDomainDB)
+    //console.log(`RemoveDB ${listToDelete}`)
+    localStorageDB = localStorageDB.filter(item => (!listToDelete.includes(item.U)));
+    localStorage.setItem(RootDomain, JSON.stringify(localStorageDB))
+    //await GM_setValue(RootDomain, JSON.stringify(localStorageDB))
+    //localStorageDB = JSON.parse(await GM_getValue(RootDomain, "[]"))
+    //localStorageDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
+    GetState = localStorageDB
+    PackageCount = PackageList(localStorageDB)
     document.querySelector('.State').textContent = GetState?.length + ' | ' + PackageCount?.length
     if (GetState?.length == 0) {
         document.querySelector('.ClearButton').style = "opacity: 0.25;";
@@ -2773,19 +2744,39 @@ async function RemoveDB(listToDelete) {
         document.querySelector('.ClearButton').style = "opacity: 0.25;";
         document.querySelector('.CopyButton').style = "opacity: 1;";
     }
-    return RootDomainDB
+    return localStorageDB
 }
 
 
-async function CheckDB(listTo) {
-    console.log(`CheckDB ${listTo}`)
+async function CheckDB(listTo, fromStep) {
+    console.log(`CheckDB:`, listTo, fromStep)
+
+    localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
     const minusElement = document.querySelector('.Minus');
 
-    // `GetState`가 존재하고 길이가 0보다 클 때만 로직을 실행합니다.
-    if (RootDomainDB?.length > 0) {
-        // `some` 메서드를 사용하여 `listTo`의 항목이 `RootDomainDB`에 포함되는지 확인합니다.
-        const isMatchFound = RootDomainDB.some(item => listTo.includes(item.U));
+    if (listTo.length === 0) {
+        console.warn('No links to check in CheckDB');
+        if (!document.querySelector('.CopyState')) {
+            LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
+        }
+        let copyStateEl = document.querySelector('.CopyState');
+        let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2))
+        copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important')
 
+        // Set flags indicating skip conditions
+        AutoClose = false;
+        AutoCopy = false;
+
+        // Show messages for skip words/models
+        copyStateEl.innerText = '';
+        copyStateEl.innerText += `링크가 없습니다`;
+    }
+
+    // `GetState`가 존재하고 길이가 0보다 클 때만 로직을 실행합니다.
+    if (localStorageDB?.length > 0) {
+        // `some` 메서드를 사용하여 `listTo`의 항목이 `RootDomainDB`에 포함되는지 확인합니다.
+        const isMatchFound = localStorageDB.some(item => listTo.includes(item.U));
+        console.log('isMatchFound:', isMatchFound)
         if (minusElement) {
             // 매칭 여부에 따라 요소의 가시성을 설정합니다.
             minusElement.style.visibility = isMatchFound ? 'visible' : 'hidden';
@@ -2795,20 +2786,24 @@ async function CheckDB(listTo) {
         if (isMatchFound) {
             setTimeout(() => {
                 const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));
+                console.log(isAutoCloseEnabled, AutoClose)
                 // AutoClose 변수와 localStorage 값을 모두 확인하여 실행합니다.
-                if (isAutoCloseEnabled) {
+                if (isAutoCloseEnabled && AutoClose) {
                     console.log('AutoClose: ', AutoClose, '\nlocalStorage: ', isAutoCloseEnabled);
                     self.close();
                 }
             }, 5000);
         }
     } else {
+
         if (minusElement) {
             minusElement.style.visibility = 'hidden';
         }
+
+
     }
-    PackageCount = PackageList(RootDomainDB);
-    return RootDomainDB;
+    PackageCount = PackageList(localStorageDB);
+    return localStorageDB;
 }
 
 function PackageList(LinksDB) {
@@ -2823,9 +2818,11 @@ function PackageList(LinksDB) {
 }
 
 async function CopyLink() {
-    console.log('Step CopyLink:', { CopyTitle, DownloadArea })
+    //console.log('Step CopyLink:', { CopyTitle, DownloadArea })
     // Ensure our DB array exists
-    RootDomainDB = RootDomainDB || [];
+    localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
+
+
 
     // Prepare notice text
     let noticeLines = [];
@@ -2833,18 +2830,18 @@ async function CopyLink() {
 
 
     // 1) If no temporary links waiting, gather fresh links
-    if (TmpLinksDB.length === 0) {
-        let collected = await CollectionLinks(DownloadArea) || '';
-        if (collected) {
+    if (pageLinksDB.length === 0) {
+        let collected = await CollectionLinks(DownloadArea) || [];
+        if (collected.length > 0) {
             // Optionally add cover image link
             if (CoverImage && !/imagetwist\.com/.test(CoverImage)) {
                 const coverLink = await CollectionCoverImage(CoverImage);
-                console.log(coverLink, collected.concat(coverLink))
+                //console.log(coverLink, collected.concat(coverLink))
                 if (coverLink) {
                     collected = collected.concat(coverLink);
                 }
             }
-            console.log('collected : ', collected)
+            //console.log('collected : ', collected)
             allLinks = collected
 
             // Fire off JDownloader if allowed
@@ -2859,13 +2856,13 @@ async function CopyLink() {
             AutoClose = false;
         }
     }
-    // 2) Otherwise replay from TmpLinksDB
+    // 2) Otherwise replay from pageLinksDB
     else {
         // Group by title, then push URLs under each
-        const uniqueTitles = [...new Set(TmpLinksDB.map(e => e.T))].sort();
+        const uniqueTitles = [...new Set(pageLinksDB.map(e => e.T))].sort();
         for (const t of uniqueTitles) {
             noticeLines.push(t);
-            const urls = TmpLinksDB.filter(e => e.T === t).map(e => e.U);
+            const urls = pageLinksDB.filter(e => e.T === t).map(e => e.U);
             for (const u of urls) {
                 UpdateDB(u, t);
                 allLinks.push(u);
@@ -2874,7 +2871,7 @@ async function CopyLink() {
 
         // Fire off JDownloader DB variant if allowed
         if (DirectCopy.test(PageURL) || AllowDirect) {
-            JDownloaderDB(TmpLinksDB);
+            JDownloaderDB(pageLinksDB);
         }
 
         noticeLines = noticeLines.concat(allLinks);
@@ -2885,11 +2882,11 @@ async function CopyLink() {
     noticeEl.textContent = noticeLines.join("\n");
 
     // 4) Persist state & refresh counters
-    localStorage.setItem(RootDomain, JSON.stringify(RootDomainDB));
+    localStorage.setItem(RootDomain, JSON.stringify(localStorageDB));
     await sleep(100);
 
-    GetState = RootDomainDB;
-    PackageCount = PackageList(RootDomainDB);
+    GetState = localStorageDB;
+    PackageCount = PackageList(localStorageDB);
     const stateEl = document.querySelector('.State');
     stateEl.textContent = `${GetState.length} | ${PackageCount.length}`;
 
@@ -2914,7 +2911,9 @@ async function CopyLink() {
     }
 
     // 6) Finally, re-check the DB and return its result
-    return CheckDB(listToDo(DownloadArea));
+    const result = await CheckDB(listToDo(DownloadArea), 'CopyLink');
+    console.log('Final DB state:', result);
+    return allLinks
 }
 
 
@@ -2968,6 +2967,8 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
 
     let Empty = [];
     let AllLinks = [];
+    const pageLinksDB = []; // Store links with titles and URLs
+
 
     // Download areas to search for links
     DownloadArea = document.querySelectorAll('div#download, div#downloadhidden');
@@ -3009,7 +3010,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
             let U = link.href;
             let T = FilenameConvert(CopyTitle);
             let S = PageURL;
-            TmpLinksDB.push({ U, T, S });
+            pageLinksDB.push({ U, T, S });
         }
     }
     else {
@@ -3086,14 +3087,14 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
             Title = Title.replace(/(S\d+):(E\d+)/i, '$1$2');
             Title = FilenameConvert(Title);
 
-            // Store in TmpLinksDB for later processing
+            // Store in pageLinksDB for later processing
             let T = Title + Resolution;
             let S = PageURL;
             console.log('Title: ', Title, Links);
 
             for (let j of Links) {
                 let U = j.href;
-                TmpLinksDB.push({ U, T, S });
+                pageLinksDB.push({ U, T, S });
             }
         }
     }
@@ -3103,13 +3104,14 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
         let U = CoverImage;
         let T = FilenameConvert(CopyTitle) + Resolution;
         let S = PageURL;
-        TmpLinksDB.push({ U, T, S });
+        pageLinksDB.push({ U, T, S });
     }
 
     if (Empty.length) {
         console.log('Some Links Empty...');
-        TmpLinksDB = [];
+        pageLinksDB = [];
     }
+    console.log('MutilSubTitle Final pageLinksDB:', pageLinksDB);
 }
 
 
@@ -3118,11 +3120,11 @@ async function ClearUrls() {
     //document.querySelector('.ClearButton').style.setProperty('font-size', Number(((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2)) + 'rem', 'important');
     //GM_deleteValue(RootDomain)
     localStorage.removeItem(RootDomain)
-    RootDomainDB = []
-    //RootDomainDB = JSON.parse(await GM_getValue(RootDomain, "[]"))
+    localStorageDB = []
+    //localStorageDB = JSON.parse(await GM_getValue(RootDomain, "[]"))
 
-    GetState = RootDomainDB
-    PackageCount = PackageList(RootDomainDB)
+    GetState = localStorageDB
+    PackageCount = PackageList(localStorageDB)
     if (document.querySelector('.Minus')) {
         document.querySelector('.Minus').style.visibility = "hidden"
     }
@@ -3141,8 +3143,8 @@ async function ClipPaste() {
     document.querySelector('.CopyButton').style = "color: White !important;";
     //document.querySelector('.CopyButton').style.setProperty('font-size', Number(((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2)) + 'rem', 'important');
     //let ClipPasteData = JSON.parse(await GM_getValue(RootDomain, '[]'))
-    RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
-    return JDownloaderDB(RootDomainDB).then(e => e)
+    localStorageDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
+    return JDownloaderDB(localStorageDB).then(e => e)
     //updateClipboard(ClipPasteData)
 }
 
@@ -3222,12 +3224,28 @@ function GetMatchLinks(text, LinksDB) {
 async function scrollToTop() {
     window.scrollTo({ top: 0, behavior: 'auto' })
     AllowDirect = true
-    DoCopied = RootDomainDB.some(item => (listToDo(DownloadArea, 'A').includes(item.U)))
+    const minusElement = document.querySelector(".Minus")
+    const isMatchFound = localStorageDB.some(item => listTo.includes(item.U));
 
-    if (/^((?!(sharepornlink|0xxx|naughtyblog|hpav\.tv)).)*$/.test(PageURL)) {
-        if (!DoCopied && document.querySelector(".Minus").style.visibility === "hidden") {
-            CopyGo(SkipTitle)
-        }
+    if (minusElement) {
+        // 매칭 여부에 따라 요소의 가시성을 설정합니다.
+        minusElement.style.visibility = isMatchFound ? 'visible' : 'hidden';
+    }
+
+    // 매칭이 발견되었을 때만 AutoClose 로직을 실행합니다.
+    if (isMatchFound) {
+        setTimeout(() => {
+            const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));
+            console.log(isAutoCloseEnabled, AutoClose)
+            // AutoClose 변수와 localStorage 값을 모두 확인하여 실행합니다.
+            if (isAutoCloseEnabled && AutoClose) {
+                console.log('AutoClose: ', AutoClose, '\nlocalStorage: ', isAutoCloseEnabled);
+                self.close();
+            }
+        }, 5000);
+    }
+    else if (minusElement.style.visibility === "hidden") {
+        CopyGo(SkipTitle)
     }
     window.removeEventListener('scroll', scrollToTop)
 }

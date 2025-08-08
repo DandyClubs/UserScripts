@@ -17,9 +17,9 @@
 // ==/UserScript==
 
 (function () {
-    const scriptCode = `
-    window.addEventListener('load', function() {
-        var hash = window.location.hash;
+    const scriptCode = `    
+    window.addEventListener('DOMContentLoaded', function() {
+        const hash = window.location.hash;
         if (hash.startsWith('#gsc.tab=')) {
             window.history.replaceState({}, document.title, window.location.pathname);
         }
@@ -28,13 +28,16 @@
 
     const script = document.createElement('script');
     script.textContent = scriptCode;
-    document.addEventListener("DOMContentLoaded", () => {
-        document.head.appendChild(script);
-    })
+    const hash = window.location.hash;
+    if (hash.startsWith('#gsc.tab=')) {
+        document.addEventListener("DOMContentLoaded", () => {
+            document.head.appendChild(script);
+        })
+    }
 
 
-// --- 전역 변수 ---
-const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+    // --- 전역 변수 ---
+    const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
     const RootDomain = extractRootDomain(PageURL);
 
     // --- 재사용 가능한 행동(Action) 정의 ---
@@ -59,6 +62,7 @@ const PageURL = window.location !== window.parent.location ? document.referrer :
         /itorrents.+torrent$/,
         /javarchive\.com/,
         /javarchive\.com\/\d{6}.*\.html/,
+        /javfree\.me\/\d+/,
         /javpink\.com\/\?p=/,
         /jpavs.net\/.+htm/,
         /justjavhd\.com\/\d{4}\//,
@@ -79,7 +83,7 @@ const PageURL = window.location !== window.parent.location ? document.referrer :
         /cosplay\.jav\.pw\/\d{4,5}/,
     ];
 
-    const blockNewTabPatterns = [
+    const sameNewTabPatterns = [
         // 특정 프로토콜 및 파일 확장자
         /^javascript/,
         /^magnet:/,
@@ -228,7 +232,7 @@ const PageURL = window.location !== window.parent.location ? document.referrer :
         // 2. 차단 규칙
         {
             name: 'Block New Tab',
-            condition: (el) => blockNewTabPatterns.some(rx => rx.test(el.href)),
+            condition: (el) => sameNewTabPatterns.some(rx => rx.test(el.href)),
             action: RuleActions.REMOVE_TARGET,
         },
 
