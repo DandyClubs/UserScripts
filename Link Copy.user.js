@@ -1468,12 +1468,10 @@ const siteRules = [
     },
     {
         regex: /girlscanner\.org/,
-        handler: (title) =>
-            title
-                .replace(/^(new|Watch\/Download:)/i, '')
-                .replace(/\\’/, "'")
-                .replace(/[[:blank:]]{3,}.+/i, '')
-                .trim(),
+        handler: (title) => title.replace(/^(new|Watch\/Download:)/i, '')
+            .replace(/\\’/, "'")
+            .replace(/[[:blank:]]{3,}.+/i, '')
+            .trim(),
     },
     {
         regex: /(clubwarp|downloaddex)\.com/,
@@ -1552,7 +1550,7 @@ const waitDownloadArea = [
                     }
                 }
             });
-        }
+        },
     },
     {
         regex: /(hpjav|hpav).tv\/(ja\/)?\d+/,
@@ -1579,33 +1577,22 @@ const waitDownloadArea = [
             });
             scrollToTop();
             RefreshIconSet();
-        }
+        },
     },
     {
         regex: /0xxx\.(ws|li)\/articles\/\d+/,
         handler: async () => {
             copyOffsetArea = document.querySelector('div.container table#detail-table tbody tr td.taj:not(.levo)');
-
-            if (await waitElement('form#captcha', document.body, { timeout: 1000 })) {
-                // await sleep(5000);
-                // document.querySelector('button.h-captcha')?.click();
-                // await sleep(60000);
-            } else {
-                const downloadContainer = await waitElement('div.container table#detail-table tbody tr td.dlinks.taj');
-                DownloadArea = [downloadContainer];
-            }
+            const waiting = await waitElement('form#captcha', document.body, { timeout: 1000 })
+            const downloadContainer = await waitElement('div.container table#detail-table tbody tr td.dlinks.taj');
+            DownloadArea = [downloadContainer];
 
             if (/#show$/.test(PageURL)) {
                 window.addEventListener("scroll", () => {
-                    window.scrollTo({
-                        top: 0,
-                        behavior: 'auto'
-                    });
-                }, {
-                    once: true
-                });
+                    window.scrollTo({ top: 0, behavior: 'auto' });
+                }, { once: true })
             }
-        }
+        },
     },
     {
         regex: /cosplay\.jav\.pw\/\d+/,
@@ -1626,15 +1613,15 @@ const waitDownloadArea = [
 
             CoverImage = document.querySelector('div.entry p a img')?.src || '';
             console.log('DownloadArea: ', DownloadArea, '\nCoverImage: ', CoverImage);
-        }
+        },
     },
     {
         regex: /models-nudeteen\.org\/.*\.html/,
         handler: async () => {
             copyOffsetArea = document.querySelector('div#dle-content article.full div.m-title h1');
             let DownloadAreaSelector;
-
-            if (await waitElement('div.title_spoiler', document.querySelector('div#dle-content'), { timeout: 500 })) {
+            const waiting = await waitElement('div.title_spoiler', document.querySelector('div#dle-content'), { timeout: 500 })
+            if (waiting) {
                 DownloadAreaSelector = 'div#dle-content article.full .text_spoiler';
             } else {
                 DownloadAreaSelector = 'div#dle-content article.full div.sub-wrap';
@@ -1643,7 +1630,7 @@ const waitDownloadArea = [
             const downloadArea = await waitElement(DownloadAreaSelector);
             DownloadArea = [downloadArea];
             RefreshIconSet();
-        }
+        },
     },
     {
         regex: /pornobunny\.org\/.+/,
@@ -1669,7 +1656,7 @@ const waitDownloadArea = [
             });
 
             Resolution = !Resolution && copyOffsetArea?.innerText.match(/[0-9]{3,4}p/) ? ' ' + copyOffsetArea.innerText.match(/[0-9]{3,4}p/)[0] : '';
-        }
+        },
     },
     {
         regex: /pornrip\.cc\/.+\.html/,
@@ -1699,8 +1686,8 @@ const waitDownloadArea = [
             });
 
             Resolution = !Resolution && copyOffsetArea?.innerText.match(/[0-9]{3,4}p/) ? ' ' + copyOffsetArea.innerText.match(/[0-9]{3,4}p/)[0] : '';
-        }
-    }
+        },
+    },
 ];
 
 
@@ -2541,7 +2528,7 @@ async function CopyGo() {
         // 변수들을 미리 계산합니다.
         const fontSizeValue = Number(((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2));
         const topValue = linkCopyCenterBox.offsetTop + linkCopyCenterBox.offsetHeight * 1.2;
-        const leftValue = window.innerWidth / 2 - linkCopyCenterBox.offsetWidth * 2;
+        const leftValue = window.innerWidth / 2 - linkCopyCenterBox.offsetWidth * 1.5;
 
         // 계산된 값을 요소의 style 속성에 직접 할당합니다.
         copyNotice.style.fontSize = `${fontSizeValue}rem`;
@@ -2723,7 +2710,7 @@ async function CollectionLinks(DownloadArea) {
         }
 
         CopyLinks.push(href);
-        await UpdateDB(href, `${CopyTitle}${Resolution || ''}`);
+        UpdateDB(href, `${CopyTitle}${Resolution || ''}`);
     }
 
     // Dedupe and return as newline-separated string (or empty array)
@@ -2875,7 +2862,7 @@ async function CopyLink() {
             noticeLines.push(t);
             const urls = TmpLinksDB.filter(e => e.T === t).map(e => e.U);
             for (const u of urls) {
-                await UpdateDB(u, t);
+                UpdateDB(u, t);
                 allLinks.push(u);
             }
         }
@@ -2922,7 +2909,7 @@ async function CopyLink() {
     }
 
     // 6) Finally, re-check the DB and return its result
-    return await CheckDB(listToDo(DownloadArea));
+    return CheckDB(listToDo(DownloadArea));
 }
 
 
