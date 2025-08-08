@@ -409,10 +409,9 @@ document.addEventListener("DOMContentLoaded", () => {
             break;
         }
     }
-
-    if (!currentConfig) return
     FontAwesomeCSS()
     FirstStep()
+    if (!currentConfig) return    
 }, { once: true })
 
 
@@ -2257,7 +2256,7 @@ function mainIcon(Run) {
 
 async function SecondProcess() {
     console.log('before processCopyTitle CopyTitle:', CopyTitle, copyOffsetArea, DownloadArea)
-    if (CopyTitle && copyOffsetArea && DownloadArea) {
+    if (copyOffsetArea && DownloadArea) {
         await processCopyTitle(currentConfig)
     }
     console.log('after processCopyTitle CopyTitle:', CopyTitle)
@@ -2473,7 +2472,10 @@ function CheckSkipTitle() {
 async function CopyGo(SkipTitle) {
 
     console.log(`CopyGo! ${SkipTitle}`, SkipTitle.length)
-    if (SkipTitle.length !== 0) return;
+    if (!Array.isArray(SkipTitle)) {
+        throw new Error('No Array SkipTitle');
+    }
+    if (Array.isArray(SkipTitle) && SkipTitle.length !== 0) return;
 
     const shortUrlExists = () =>
         Array.from(document.querySelectorAll("a")).some(a => WaitChangeLink.test(a.href));
