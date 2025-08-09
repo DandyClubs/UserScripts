@@ -1337,9 +1337,10 @@ const siteConfigs = [
         condition: () => window.top === window.self,
         config: {
             copyOffsetAreaSelector: '.post-single h2.title',
-            downloadAreaSelector: 'div.entry p',
+            downloadAreaSelector: 'div.post-single.hentry div.entry p',
             postProcess: (config) => {
                 copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
+                DownloadArea = document.querySelectorAll(config.downloadAreaSelector);
                 let initialTitle = copyOffsetArea.innerText;
                 const subtitleMatch = initialTitle.match(/\[.+Subtitle\](.+)/);
 
@@ -2720,7 +2721,7 @@ async function RemoveDB(listToDelete) {
 
 
 async function CheckDB(listTo, fromStep) {
-    console.log(`CheckDB:`, listTo, fromStep)
+    //console.log(`CheckDB:`, listTo, fromStep)
     let isMatchFound = []
 
     const minusElement = document.querySelector('.Minus');

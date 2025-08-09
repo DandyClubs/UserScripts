@@ -158,6 +158,7 @@
         ],
         parentClass: [
             /ast-blog-single-element/,
+            /elementor-post/,
             /entry-featured-media/,
             /entry-title/,
             /featured-image/,
@@ -262,7 +263,12 @@
             condition: (el) =>
                 (classBasedNewTabPatterns.id.some(rx => MatchRegexElement(el, rx, 'id'))) ||
                 (classBasedNewTabPatterns.class.some(rx => MatchRegexElement(el, rx, 'class'))) ||
-                (el.parentElement && classBasedNewTabPatterns.parentClass.some(rx => MatchRegexElement(el.parentElement, rx, 'class'))),
+                (classBasedNewTabPatterns.parentClass.some(rx => {
+                    // 정규식의 소스를 사용하여 CSS 선택자를 만듭니다 (예: "/post-title/" -> ".post-title")
+                    const selector = '.' + rx.source.replace(/\\/g, '');
+                    // closest()를 사용하여 가장 가까운 조상 요소가 선택자와 일치하는지 확인합니다.
+                    return el.closest(selector) !== null;
+                })),
             action: RuleActions.NEW_TAB,
         },
         // 7. 해시(#) 제거 규칙

@@ -863,9 +863,6 @@ const extractorsByID = extractorsActive.reduce((result, extractor) => {
 }, {});
 
 
-const extractors = Object.values(hostExtractors).filter(Boolean)
-
-
 const urlExtractor = {
     async getImageURL(link) {
         const extractor = extractorsByID[link.host];
