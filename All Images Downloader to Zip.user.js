@@ -7,7 +7,6 @@
 // @include      /everia\.club\//
 // @include      /ilovexs\.com\//
 // @include      /foamgirl\.net\//
-// @include      /xchina\.co\/.*\.html/
 // @include      /1909\.me\/.*\.html/
 // @include      /girlgirlgo\.org/
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js

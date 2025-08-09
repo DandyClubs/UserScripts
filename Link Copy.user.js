@@ -229,6 +229,7 @@ margin: .25em;
 .CopyNotice .copyText {
   padding: .25rem .5rem;
   z-index: 999999;
+  overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
     -webkit-line-clamp: 15;
@@ -401,9 +402,9 @@ window.addEventListener('storage', async (e) => {
 let currentConfig = null
 
 document.addEventListener("DOMContentLoaded", () => {
-    console.log('Start Link Copy!')    
+    console.log('Start Link Copy!')
     FontAwesomeCSS()
-    FirstStep()    
+    FirstStep()
 }, { once: true })
 
 
@@ -515,6 +516,30 @@ function waitElement(selector, targetNode = document.body) {
             childList: true,
             subtree: true
         });
+    });
+}
+
+
+
+function observeDownloadArea(WatchArea, downloadAreaSelector) {
+    const condition = document.querySelector('downloadAreaSelector');
+    if (!condition) return;
+
+    // MutationObserver로 aria-modal 속성 변화를 감지
+    const downloadAreaOpen = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+            const isOpen = document.querySelector(downloadAreaSelector)
+            if (isOpen) {
+                Start()
+                return
+            }
+        }
+    });
+
+    downloadAreaOpen.observe(WatchArea, {
+        attributes: true,
+        childList: true,
+        subtree: true
     });
 }
 
@@ -1326,6 +1351,13 @@ const siteConfigs = [
         }
     },
     {
+        regex: /ultoporn\.com\/\d+/,
+        config: {
+            copyOffsetAreaSelector: 'div.storyhead > .shead',
+            downloadAreaSelector: 'div.quote'
+        }
+    },
+    {
         regex: /maxjav\.(com|xyz)\/\d+/,
         condition: () => window.top === window.self,
         config: {
@@ -1510,19 +1542,8 @@ const waitDownloadArea = [
             copyOffsetArea = document.querySelector('div.storyhead > h1.shead');
             Array.from(document.querySelectorAll('button.click_show')).forEach(element => element.click());
 
-            const downloadContainer = await waitElement('div#dle-content');
-            const observer = observeChanges('div#dle-content', async (mutations, obs) => {
-                const DownloadAreaSelector = 'div.quote:has(a)';
-                DownloadArea = downloadContainer.querySelectorAll(DownloadAreaSelector);
-
-                if (DownloadArea?.length >= 1) {
-                    obs.disconnect();
-                    RefreshIconSet();
-                    if (document.querySelector(".Minus").style.visibility === "hidden") {
-                        CopyGo(SkipTitle);
-                    }
-                }
-            });
+            const downloadContainer = await waitElement('div.quote');
+            DownloadArea = [downloadContainer];
         },
     },
     {
@@ -1993,8 +2014,8 @@ function FirstStep() {
     localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
 
     GetState = localStorageDB
-    PackageCount = PackageList(localStorageDB)  
-    updateUI(GetState, PackageCount)    
+    PackageCount = PackageList(localStorageDB)
+    updateUI(GetState, PackageCount)
 
     if (!LinkCopyCenterBox) {
         mainIcon('First Run')
@@ -2005,7 +2026,7 @@ function FirstStep() {
             break;
         }
     }
-    if (!currentConfig) return
+    if (!currentConfig) return console.log(`currentConfig not found`)
     Array.from(document.querySelectorAll('a')).forEach((aEntry) => {
         if (/(\/|=)(aHR0c[a-zA-z0-9]+={0,2})($|\/|\?|&|-?-?;?)/.test(aEntry.href)) {
             aEntry.setAttribute('href', atob(aEntry.href.match(/(\/|=)(aHR0c[a-zA-z0-9]+={0,2})($|\/|\?|&|-?-?;?)/)[2]).replace(/\?site=.+/, ''))
@@ -2014,7 +2035,7 @@ function FirstStep() {
             aEntry.setAttribute('href', aEntry.href.replace(/\?site.+$/, ''))
         }
     })
-    
+
 
     Start()
         .then((e) => {
@@ -2742,7 +2763,7 @@ async function CheckDB(listTo, fromStep) {
         userClose = false;
         userCopy = false;
 
-        // Show messages for skip words/models        
+        // Show messages for skip words/models
         copyStateEl.innerText = `링크가 없습니다`;
     }
 

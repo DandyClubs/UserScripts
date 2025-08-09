@@ -81,6 +81,7 @@
         /xxxclub\.to\/torrents\/details\//,
         /\/torrent\/.+/,
         /cosplay\.jav\.pw\/\d{4,5}/,
+        /pornofetishx\.com\/\d+.+\.html$/,
     ];
 
     const sameNewTabPatterns = [

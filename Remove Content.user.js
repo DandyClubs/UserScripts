@@ -227,7 +227,7 @@ function processContent(node, selector, isExtra = false) {
         // 추가 선택자의 경우 특정 단어로 제거
         if (isExtra) {
             if (RemoveContentEX.test(textContent) || /femdom/i.test(textContent)) {
-                console.log('Extra content removed:', item.closest(Active.removeTagSelector));
+                console.log('Extra content removed:', textContent.match(RemoveContentEX) || textContent.match(/femdom/i));
                 item.closest(Active.removeTagSelector)?.remove();
                 continue;
             }
@@ -235,7 +235,7 @@ function processContent(node, selector, isExtra = false) {
         // 일반 링크의 경우 URL 또는 텍스트로 제거
         else {
             if (/\/(femdom|transsexuals)\//i.test(item.href)) {
-                console.log('Link content removed:', item.closest(Active.removeTagSelector));
+                console.log('Link content removed:', item.href.match(/\/(femdom|transsexuals)\//i));
                 item.closest(Active.removeTagSelector)?.remove();
                 continue;
             }
@@ -244,14 +244,14 @@ function processContent(node, selector, isExtra = false) {
                 const resolutionMatch = textContent.match(/(\d+)p/);
                 const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
                 if (resolution > 0 && resolution < 720) {
-                    console.log('Low resolution content removed:', item.closest(Active.removeTagSelector));
+                    console.log('Low resolution content removed:', resolution);
                     item.closest(Active.removeTagSelector)?.remove();
                     continue;
                 }
             }
 
             if (RemoveContentEX.test(textContent)) {
-                console.log('Keyword content removed:', item.closest(Active.removeTagSelector));
+                console.log('Keyword content removed:', textContent.match(RemoveContentEX));
                 item.closest(Active.removeTagSelector)?.remove();
                 continue;
             }
