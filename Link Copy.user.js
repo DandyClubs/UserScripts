@@ -1739,15 +1739,17 @@ async function Start() {
                 await matchingConfig.handler();
             }
         }
-
-        if (!copyOffsetArea) {
-            throw new Error('No CopyTitle')
-        }
+        
+    }
+    if (!copyOffsetArea) {
+        throw new Error('No CopyTitle')
     }
 
     console.log('Start:', { copyOffsetArea, DownloadArea, CoverImage });
     return { copyOffsetArea, DownloadArea, CoverImage }
 }
+
+
 
 
 async function processCopyTitle(currentConfig) {
