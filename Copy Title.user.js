@@ -912,7 +912,7 @@ function assembleFinalTitle(data) {
     }
 
     // 이중 공백 제거, 선행 하이픈 제거 후 트림
-    finalTitle = finalTitle.replace(/\s+/g, ' ').replace(/^\s?-\s/, '').replace(/\((\s+)?\)/g, '').replace(/\[(\s+)?\]/g, '').trim();
+    finalTitle = finalTitle.replace(/\s+/g, ' ').replace(/^\s?-\s/, '').replace(/\((\s+)?\)/g, '').replace(/\[(\s+)?\]/g, '').replace(/\.(\s+)?$/, '').trim();
     FullCopyTitle = finalTitle
     // 최종 길이 제한 및 추가 태그
 

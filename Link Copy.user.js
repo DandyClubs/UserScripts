@@ -1731,18 +1731,19 @@ async function Start() {
             const resMatch = copyOffsetArea.innerText.match(/[0-9]{3,4}p/);
             if (resMatch) Resolution = ' ' + resMatch[0];
         }
-    }
 
 
-    if (!DownloadArea || DownloadArea?.length === 0) {
-        const matchingConfig = waitDownloadArea.find(config => config.regex.test(PageURL));
-        if (matchingConfig) {
-            await matchingConfig.handler();
+        console.log({ DownloadArea })
+        if (!DownloadArea || DownloadArea?.length === 0) {
+            const matchingConfig = waitDownloadArea.find(config => config.regex.test(PageURL));
+            if (matchingConfig) {
+                await matchingConfig.handler();
+            }
         }
-    }
 
-    if (!copyOffsetArea) {
-        throw new Error('No CopyTitle')
+        if (!copyOffsetArea) {
+            throw new Error('No CopyTitle')
+        }
     }
 
     console.log('Start:', { copyOffsetArea, DownloadArea, CoverImage });
@@ -2009,7 +2010,6 @@ async function handleToggle(key, className) {
 
 
 function FirstStep() {
-
 
     localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
 
