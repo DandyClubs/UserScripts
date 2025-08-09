@@ -18,7 +18,10 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_openInTab
 // @grant		 GM_addStyle
+// @grant        GM_setValue
+// @grant        GM_getValue
 // @grant        GM_getResourceText
+// @grant        GM_registerMenuCommand
 // @require      https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @noframes
@@ -390,6 +393,7 @@ function setupMenu() {
         });
     });
 }
+setupMenu()
 
 const viewerCSS = function () {
     let css = document.createElement('link')
@@ -1192,7 +1196,7 @@ function AddEvent() {
     document.addEventListener('click', (event) => {
         //console.log(event.target.nodeName.toLowerCase() === 'figcaption' , event.target.nodeName.toLowerCase())
         //console.log(event.target)
-        if (event.target.closest('.ViewerGallery')) {            
+        if (event.target.closest('.ViewerGallery')) {
             event.preventDefault()
             // 페이지 로드 후 시작
             document.addEventListener('DOMContentLoaded', watchForViewerContainer);
@@ -1297,11 +1301,11 @@ function ImageExists(image) {
     // Check if image size matches any known "no image" dimension
     const result = dimensions.some(dim => dim.w === W && dim.h === H)
 
-    if (result){
+    if (result) {
         const link = image.closest('a');
         link.classList.remove('ViewerGallery')
-        viewer.update()        
-    }    
+        viewer.update()
+    }
     return !result;
 }
 
@@ -1349,7 +1353,7 @@ const image = {
         const thumbnailURL = link.dataset.ivThumbnail
         const imageHost = link.dataset.ivHost
 
-        if (!thumbnailURL || !imageHost) {            
+        if (!thumbnailURL || !imageHost) {
             throw new Error(
                 '[image-viewer] Either thumbnail URL or host is not set'
             )
