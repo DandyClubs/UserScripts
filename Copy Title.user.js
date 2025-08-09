@@ -531,6 +531,25 @@ const padZero = (num, length) => {
 };
 
 
+const formatSentences = s => {
+    const [first, ...rest] = s.split('/').map(t => t.trim()).filter(Boolean);
+    return rest.length ? `${first} (${rest.join(' ')})` : first;
+};
+
+
+function removeParts(A, B) {
+    // B의 각 문장을 trim 후 빈 값 제거
+    const partsToRemove = B.split('/')
+        .map(s => s.trim())
+        .filter(Boolean);
+    let result = A;
+    // 각 문장을 A에서 제거
+    for (const part of partsToRemove) {
+        result = result.replaceAll(part, '');
+    }
+    // 공백 정리
+    return result.replace(/\s+/g, ' ').trim();
+}
 /**
  * 각 도메인별 타이틀 파싱 및 메타데이터 추출 로직을 담고 있는 객체입니다.
  * 'default' 키는 어떤 도메인에도 해당하지 않을 경우를 처리합니다.
@@ -584,9 +603,15 @@ const SiteParsers = {
             } else {
                 const makerSearch = SearchMatch(InfoArea, "(Выпущено|Подсайт и сайт)\s?(:|：)?(.+)", "/\/|-/g, '.'");
                 maker = makerSearch ? makerSearch.replace(/,.+/, '').replace(/\..*/, '').trim() : '';
-                titleText = maker ? titleText.replace(maker, '').replace(/\(\s+\)/, '').trim() : titleText;
+                if (maker) {                    
+                    titleText = maker ? titleText.replace(maker, '').replace(/\(\s+\)/, '').trim() : titleText;
+                    const cleanedTitleText = removeParts(titleText, maker)
+                    titleText = cleanedTitleText;
+                    const rebuildMaker = formatSentences(maker);
+                    maker = rebuildMaker;
+                }
             }
-
+            
             // ID
             const IDSearch = SearchMatch(InfoArea, "Студийный код фильма\s?(:|：)?(.+)", "/\/|-/g, '.'");
             const ID = IDSearch ? IDSearch.trim() : ''
