@@ -1739,7 +1739,7 @@ async function Start() {
                 await matchingConfig.handler();
             }
         }
-        
+
     }
     if (!copyOffsetArea) {
         throw new Error('No CopyTitle')
@@ -2125,22 +2125,29 @@ function mainIcon(Run) {
 
     // Scroll to top button
     LinkCopyCenterBox.querySelector('.ToTop').onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
-
+    let lastExecutionTime = performance.now();
     window.visualViewport.addEventListener('resize', () => {
-        io.observe(LinkCopyCenterBox);
-        RefreshIcon('Window Resize Event');
+        if (now - lastExecutionTime >= 2000) {
+            io.observe(LinkCopyCenterBox);
+            RefreshIcon(performance.now());
+        }
+        lastExecutionTime = now;
+
     });
 
     window.addEventListener('pageshow', () => {
-        RefreshIcon('pageshow');
+        if (now - lastExecutionTime >= 2000) {
+            RefreshIcon(performance.now());
+        }
+        lastExecutionTime = now;
     });
 
-    let lastExecutionTime = performance.now();
+
     const myObserver = new ResizeObserver(entries => {
         const now = performance.now();
-        if (now - lastExecutionTime >= 1000) {
+        if (now - lastExecutionTime >= 5000) {
             io.observe(LinkCopyCenterBox);
-            RefreshIcon('ResizeObserver');
+            RefreshIcon(performance.now());
             console.log(`Execution time: ${now - lastExecutionTime} ms`);
             lastExecutionTime = now;
         }
@@ -2352,7 +2359,6 @@ async function RefreshIconSet() {
     }
 
     if (DownloadArea?.length && iconSet) {
-        await CheckDB(listToDo(DownloadArea), 'RefreshIconSet');
         const copyIcon = document.querySelector('.CopyIcon');
         if (copyIcon) copyIcon.style.visibility = "visible";
     }
