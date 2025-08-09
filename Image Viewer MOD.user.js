@@ -25,6 +25,372 @@
 // ==/UserScript==
 
 
+
+
+//================================================================================
+// 1. 통합된 사이트 모듈 정의 (Single Source of Truth)
+//================================================================================
+const siteModules = [
+    {
+        id: 'i14xpicsspace',
+        name: '14xpics.space',
+        enabled: true,
+        linkRegExp: /14xpics\.space\/image/,
+        async getURL(link) { return link.thumbnailURL.replace('.th.', '.'); },
+    },
+    {
+        id: '22pixx',
+        name: '22pixx.xyz',
+        enabled: true,
+        linkRegExp: /22pixx\.xyz\/images\/.*\.html/,
+        async getURL(link) { return link.thumbnailURL.replace(/\/os\//, '/o/'); },
+    },
+    {
+        id: '37xpics',
+        name: '37xpics.space',
+        enabled: true,
+        linkRegExp: /37xpics\.space\/image/,
+        async getURL(link) { return link.thumbnailURL.replace('.th.', '.'); },
+    },
+    {
+        id: '3xplanetimg',
+        name: '3xplanetimg.com',
+        enabled: true,
+        linkRegExp: /3xplanet\.net\/viewimage\/.*\.html/,
+        async getURL(link) { return link.thumbnailURL.replace(/\/s200\//, '/s0/'); },
+    },
+    {
+        id: 'adult-images',
+        name: 'Adult-Images.ru',
+        enabled: true,
+        linkRegExp: /\/(adult-images|money-pic)\.ru/,
+        async getURL(link) { return link.thumbnailURL.replace('-thumb', ''); },
+    },
+    {
+        id: 'clubwarp',
+        name: 'clubwarp.com',
+        enabled: true,
+        linkRegExp: /i\.clubwarp\.com\/image/,
+        getURL(link) { return link.thumbnailURL.replace('.th.', '.md.'); },
+    },
+    {
+        id: 'crazyimg',
+        name: 'crazyimg.com',
+        enabled: true,
+        linkRegExp: /crazyimg\.com\/images/,
+        getURL(link) { return link.thumbnailURL.replace('_tn', ''); },
+    },
+    {
+        id: 'dmm',
+        name: 'dmm.co.jp',
+        enabled: true,
+        linkRegExp: /pics\.dmm\.co\.jp\/.+\.jpg/,
+        getURL(link) { return link.url; },
+    },
+    {
+        id: 'fastpic',
+        name: 'FastPic',
+        enabled: true,
+        linkRegExp: /fastpic\.(?:ru|org)\/view/,
+        imageURLRegExp: /src="(?<url>http[^"]+)" class="image img-fluid"/,
+        getURL: getURLFromPage,
+    },
+    {
+        id: 'fastpicDirect',
+        name: 'FastPic (direct link)',
+        enabled: true,
+        linkRegExp: /fastpic\.(?:ru|org)\/big/,
+        async getURL(link) {
+            const URL_PARTS_REGEXP = /i(\d+).+\.(ru|org)\/big(\/\d+\/\d+\/).+\/([^\/]+)$/;
+            const [, index, domain, date, filename] = URL_PARTS_REGEXP.exec(link.url) || [];
+            const url = `https://fastpic.${domain}/view/${index}${date}${filename}.html`;
+            return getURLFromPage({ ...link, url }, this);
+        },
+    },
+    {
+        id: 'filesor',
+        name: 'filesor / pimpandhost',
+        enabled: true,
+        linkRegExp: /pimpandhost\.com\/image/,
+        async getURL(link) { return link.thumbnailURL.replace(/_(l|m|s)\./, '.'); },
+    },
+    {
+        id: 'imagebam',
+        name: 'ImageBam',
+        enabled: true,
+        linkRegExp: /www\.imagebam\.com\//,
+        imageURLRegExp: /src="(?<url>[^"]+)".+class="main-image/,
+        async getURL(link, extractor) { return getURLFromPage(link, extractor, { cookie: 'nsfw_inter=1' }); },
+    },
+    {
+        id: 'imagebamview',
+        name: 'ImageBamView',
+        enabled: true,
+        linkRegExp: /images\d\.imagebam\.com\//,
+        getURL(link) { return link.url; },
+    },
+    {
+        id: 'imageban',
+        name: 'ImageBan.ru',
+        enabled: true,
+        linkRegExp: /imageban\.ru\/show/,
+        async getURL(link) {
+            const DATE_PATTERN = /(\d{4})\.(\d{2})\.(\d{2})/;
+            return link.thumbnailURL.replace('thumbs', 'out').replace(DATE_PATTERN, '$1/$2/$3');
+        },
+    },
+    {
+        id: 'imagebanDirect',
+        name: 'ImageBan.ru (direct link)',
+        enabled: true,
+        linkRegExp: /imageban\.ru\/out/,
+        async getURL(link) { return link.url; },
+    },
+    {
+        id: 'imagecurl',
+        name: 'imagecurl.com',
+        enabled: true,
+        linkRegExp: /imagecurl\.com\/viewer\.php\?file/,
+        async getURL(link) {
+            const [, root, domain, filename, ext] = /(https?:\/\/).*(imagecurl\.com\/images\/)(.*)_thumb(\.jpg)/.exec(link.thumbnailURL) || [];
+            return `${root}cdn.${domain}${filename}${ext}`;
+        },
+    },
+    {
+        id: 'imagehaha',
+        name: 'imagehaha.com',
+        enabled: true,
+        linkRegExp: /imagehaha\.com\//,
+        imageURLRegExp: /<img src="(?<url>[^"]*)/im,
+        viewMode: 'origin-download',
+        getURL: getURLFromPage,
+    },
+    {
+        id: 'imagetwist',
+        name: 'ImageTwist',
+        enabled: true,
+        linkRegExp: /imagetwist\.com/,
+        viewMode: 'origin-download',
+        async getURL(link) {
+            const imageName = link.url.split('/').pop()?.replace('.html', '');
+            const imageExtension = imageName?.split('.').pop()?.replace(/&.*/, '') ?? '';
+            const thumbnailExtension = link.thumbnailURL.split('.').pop() ?? '';
+            const imageUrl = link.thumbnailURL.replace('/th/', '/i/').slice(0, -thumbnailExtension.length);
+            return `${imageUrl}${imageExtension}/${imageName}`;
+        },
+    },
+    {
+        id: 'imagetwistBased',
+        name: 'ImageTwist based (legacy)',
+        hosts: ['Picturelol.com', 'PicShick.com', 'Imageshimage.com'],
+        enabled: true,
+        linkRegExp: /(picturelol|picshick|imageshimage)\.com/,
+        viewMode: 'origin-download',
+        async getURL(link) {
+            const HOST_REPLACE_REG_EXP = /(picturelol|picshick|imageshimage)/;
+            const imageName = link.url.split('/').pop();
+            const imageExtension = imageName?.split('.').pop()?.replace(/&.*/, '') ?? '';
+            const thumbnailExtension = link.thumbnailURL.split('.').pop() ?? '';
+            const imageUrl = link.thumbnailURL.replace('/th/', '/i/').slice(0, -thumbnailExtension.length).replace(HOST_REPLACE_REG_EXP, 'imagetwist');
+            return `${imageUrl}${imageExtension}/${imageName}`;
+        },
+    },
+    {
+        id: 'imagevenue',
+        name: 'ImageVenue.com',
+        enabled: true,
+        linkRegExp: /imagevenue\.com\//,
+        imageURLRegExp: /<img src="(?<url>[^"]*).*id="main-image/im,
+        getURL: getURLFromPage,
+    },
+    {
+        id: 'imgadult',
+        name: 'ImgAdult',
+        enabled: true,
+        linkRegExp: /imgadult\.com/,
+        async getURL(link) { return link.thumbnailURL.replace('/small/', '/big/'); },
+    },
+    {
+        id: 'imgbb',
+        name: 'ImgBB',
+        enabled: true,
+        linkRegExp: /ibb\.co/,
+        imageURLRegExp: /rel="image_src" href="(?<url>http[^"]+)"/,
+        async getURL(link) {
+            if (link.thumbnailURL.includes('//thumb')) return link.thumbnailURL.replace('//thumb', '//image');
+            return getURLFromPage(link, this);
+        },
+    },
+    {
+        id: 'imgbox',
+        name: 'imgbox.com',
+        enabled: true,
+        linkRegExp: /imgbox\.com/,
+        async getURL(link) {
+            if (link.thumbnailURL.includes('/thumbs')) return link.thumbnailURL.replace('/thumbs', '/images').replace('_t', '_o');
+            return link.url;
+        },
+    },
+    {
+        id: 'imgbum',
+        name: 'imgbum.ru',
+        enabled: true,
+        linkRegExp: /imgbum\.(net|ru)/,
+        async getURL(link) { return link.thumbnailURL.replace('-thumb', ''); },
+    },
+    {
+        id: 'imgcloud',
+        name: 'imgcloud.pw',
+        enabled: true,
+        linkRegExp: /imgcloud\.pw\/image/,
+        getURL(link) { return link.thumbnailURL.replace('.md.', '.').replace('.th.', '.'); },
+    },
+    {
+        id: 'imgdrive',
+        name: 'ImgDrive.net',
+        enabled: true,
+        linkRegExp: /imgdrive\.net/,
+        viewMode: 'origin-download',
+        async getURL(link) { return link.thumbnailURL.replace('/small/', '/big/').replace('/small-medium/', '/big/'); },
+    },
+    {
+        id: 'imgspice',
+        name: 'ImgSpice',
+        enabled: true,
+        linkRegExp: /imgspice\.com/,
+        viewMode: 'origin-download',
+        async getURL(link) { return link.thumbnailURL.replace(/_t\./, '.'); },
+    },
+    {
+        id: 'imgtaxi',
+        name: 'ImgTaxi.com',
+        enabled: true,
+        linkRegExp: /imgtaxi\.com/,
+        viewMode: 'origin-download',
+        async getURL(link) { return link.thumbnailURL.replace('/small/', '/big/').replace('/small-medium/', '/big/'); }
+    },
+    {
+        id: 'imgtraffic',
+        name: 'imgtraffic.com',
+        enabled: true,
+        linkRegExp: /imgtraffic\.com/,
+        async getURL(link) { return link.thumbnailURL.replace('/1s/', '/1/'); },
+    },
+    {
+        id: 'javstore',
+        name: 'javstore.net',
+        enabled: true,
+        linkRegExp: /img\.javstore\.net/,
+        async getURL(link) { return link.thumbnailURL.replace('.th.', '.'); },
+    },
+    {
+        id: 'piccash',
+        name: 'PicCash',
+        enabled: true,
+        linkRegExp: /piccash\.net/,
+        async getURL(link) { return link.thumbnailURL.replace('_thumb', '_full').replace('-thumb', ''); },
+    },
+    {
+        id: 'picforall',
+        name: 'PicForAll',
+        hosts: ['freescreens.ru', 'imgclick.ru', 'picclick.ru', 'payforpic.ru', 'picforall.ru', 'imgbase.ru'],
+        enabled: true,
+        linkRegExp: /(freescreens|imgclick|picclick|payforpic|picforall|imgbase)\.ru/,
+        async getURL(link) { return link.thumbnailURL.replace('-thumb', ''); },
+    },
+    {
+        id: 'picszone',
+        name: 'PicsZone',
+        enabled: true,
+        linkRegExp: /picszone\.net\/viewer\.php\?file/,
+        async getURL(link) { return link.thumbnailURL; },
+    },
+    {
+        id: 'picstate',
+        name: 'picstate.com',
+        enabled: true,
+        linkRegExp: /picstate\.com\/view\/full/,
+        getURL(link) { return link.thumbnailURL.replace('thumbs/small/', ''); },
+    },
+    {
+        id: 'picstateDirect',
+        name: 'picstate.com (direct link)',
+        enabled: true,
+        linkRegExp: /picstate\.com\/files\/.*\.jpg/,
+        getURL(link) { return link.url; },
+    },
+    {
+        id: 'pixhost',
+        name: 'PixHost',
+        enabled: true,
+        linkRegExp: /pixhost\.to\/(show|images)/,
+        imageURLRegExp: /class="image-img"\ssrc="(?<url>[^"]+)"/,
+        async getURL(link) {
+            if (link.thumbnailURL.includes('pixhost')) return link.thumbnailURL.replace('//t', '//img').replace('/thumbs/', '/images/');
+            return await getURLFromPage(link, this);
+        },
+    },
+    {
+        id: 'pornohosting',
+        name: 'pornohosting.ru',
+        enabled: true,
+        linkRegExp: /pornohosting\.ru\/d\+/,
+        async getURL(link) { return link.thumbnailURL.replace('-thumb', ''); },
+    },
+    {
+        id: 'postimg',
+        name: 'postimg.cc',
+        enabled: true,
+        linkRegExp: /postimg\.cc/,
+        imageURLRegExp: /<a href="(?<url>[^"]+)"\sid="download"/,
+        async getURL(link, extractor) { return await getURLFromPage(link, extractor); },
+    },
+    {
+        id: 'turboimagehost',
+        name: 'TurboImageHost',
+        hosts: ['turboimagehost.com', 'turboimg.net'],
+        enabled: true,
+        linkRegExp: /turboimagehost\.com\/p/,
+        imageURLRegExp: /rel="image_src" href="(?<url>http[^"]+)"/,
+        getURL: getURLFromPage,
+    },
+    {
+        id: 'vfl',
+        name: 'VFL.Ru',
+        enabled: true,
+        linkRegExp: /^http:\/\/vfl\.ru/,
+        async getURL(link) {
+            const REMOVE_SUFFIX_REGEXP = /_.?(.+)$/;
+            return link.thumbnailURL.replace(REMOVE_SUFFIX_REGEXP, '$1');
+        },
+    },
+    {
+        id: 'xxxwebdlxxx',
+        name: 'xxxwebdlxxx.org',
+        enabled: true,
+        linkRegExp: /xxxwebdlxxx\.org/,
+        async getURL(link) { return link.thumbnailURL.replace('/small/', '/big/'); },
+    },
+];
+
+// 알파벳 순서로 모듈 정렬
+siteModules.sort((a, b) => a.name.localeCompare(b.name));
+
+//================================================================================
+// 2. 설정 및 메뉴 생성
+//================================================================================
+function setupMenu() {
+    siteModules.forEach(module => {
+        let isEnabled = GM_getValue(module.id, module.enabled);
+        module.enabled = isEnabled;
+        const menuText = `${isEnabled ? '✅' : '❌'} ${module.name}`;
+        GM_registerMenuCommand(menuText, () => {
+            GM_setValue(module.id, !isEnabled);
+            window.location.reload();
+        });
+    });
+}
+
 const viewerCSS = function () {
     let css = document.createElement('link')
     css.href = 'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.css'
@@ -102,51 +468,6 @@ function AddStyles(CSS, ID) {
     document.head.appendChild(styleSheet)
 }
 
-const enabledHosts = [
-    "22pixx",
-    "37xpics",
-    "i14xpicsspace",
-    "3xplanetimg",
-    "adult-images",
-    "clubwarp",
-    "crazyimg",
-    "dmm",
-    "fastpic",
-    "fastpicDirect",
-    "javstore",
-    "imagebam",
-    "imagebamview",
-    "imageban",
-    "imagebanDirect",
-    "imagecurl",
-    "imagetwist",
-    "imagetwistBased",
-    "imagevenue",
-    "imgadult",
-    "imgbb",
-    "imgbox",
-    "imgbum",
-    "imgcloud",
-    "imgdrive",
-    "imagehaha",
-    "imgspice",
-    "imgtaxi",
-    "imgtraffic",
-    "filesor",
-    "piccash",
-    "picforall",
-    "pixhost",
-    "picszone",
-    "pornohosting",
-    "postimg",
-    "turboimagehost",
-    "turboimg",
-    "vfl",
-    "picstate",
-    "picstateDirect",
-    "xxxwebdlxxx"
-]
-
 
 
 class Queue {
@@ -215,7 +536,7 @@ function Management() {
         let Q = queue.peek();
 
         try {
-            initViewer(enabledHosts, Q);
+            initViewer(Q);
             queue.dequeue();
         } catch (err) {
             console.error("Error in initViewer or dequeue:", err);
@@ -483,35 +804,12 @@ function autoFitImage(viewer, img) {
 
 
 
-function getGM4PolyfilledMethod(methodName) {
-    const gm4MethodName = GM_METHOD_MAP[methodName]
-
-    if (GM !== undefined && gm4MethodName in GM) {
-        return GM[gm4MethodName]
-    } else if (methodName in window) {
-        return function (...arguments_) {
-            return new Promise((resolve, reject) => {
-                try {
-                    console.log(window[methodName], arguments_)
-                    resolve(window[methodName].apply(null, arguments_))
-                } catch (error) {
-                    reject(error)
-                }
-            })
-        }
-    }
-
-    return async function () {
-        throw new Error(`Method ${methodName} is not available. Missing @grant?`)
-    }
-}
-
-
-let request = (details) => {
-    request = getGM4PolyfilledMethod('GM_xmlhttpRequest')
-
-    return request(details)
-}
+const request = (details) => new Promise((resolve, reject) => {
+    details.onload = resolve;
+    details.onerror = reject;
+    details.ontimeout = reject;
+    GM_xmlhttpRequest(details);
+});
 
 let openInTab = (url, openInBackground) => {
     return GM_openInTab(url, openInBackground)
@@ -536,29 +834,14 @@ function GetOnline(url) {
 
 }
 
-
-//GetOnline('https://fastpic.org/view/124/2025/0330/02960b4a6091ebded4c046809d4f0629.jpeg.html')
-
 async function getURLFromPage(link, extractor, requestDetails) {
-
-    const html = await getPageHtml({ url: link.url, ...requestDetails })
-
-
-    const match = extractor.imageURLRegExp?.exec(html)
-
-    let url
-
-    if (match) {
-        url = match.groups ? match.groups.url : match[1]
-    }
-
+    const html = await getPageHtml({ url: link.url, ...requestDetails });
+    const match = extractor.imageURLRegExp?.exec(html);
+    let url = match ? (match.groups ? match.groups.url : match[1]) : null;
     if (!url) {
-        console.error(
-            `[image-viewer] Failed to get URL from page source: ${link.url}`
-        )
+        console.error(`[Image Viewer] Failed to get URL from page source: ${link.url}`);
     }
-
-    return url
+    return url;
 }
 
 
@@ -569,580 +852,53 @@ async function getPageHtml(requestDetails) {
     return response.responseText
 }
 
-const imgbum = {
-    id: 'imgbum',
-    name: 'imgbum.ru',
-    linkRegExp: /imgbum\.(net|ru)/,
 
-    async getURL(link) {
-        return link.thumbnailURL.replace('-thumb', '')
-    },
-}
-const i3xplanetimg = {
-    id: '3xplanetimg',
-    name: '3xplanetimg.com',
-    linkRegExp: /3xplanet\.net\/viewimage\/.*\.html/,
+//================================================================================
+// 3. 동적 데이터 생성 및 전역 변수
+//================================================================================
+const extractorsActive = siteModules.filter(module => module.enabled);
+const extractorsByID = extractorsActive.reduce((result, extractor) => {
+    result[extractor.id] = extractor;
+    return result;
+}, {});
 
-    async getURL(link) {
-        return link.thumbnailURL.replace(/\/s200\//, '/s0/')
-    },
-}
-const i22pixx = {
-    id: '22pixx',
-    name: '22pixx.xyz',
-    linkRegExp: /22pixx\.xyz\/images\/.*\.html/,
-
-    async getURL(link) {
-        return link.thumbnailURL.replace(/\/os\//, '/o/')
-    },
-}
-
-const i37xpics = {
-    id: '37xpics',
-    name: '37xpics.space',
-    linkRegExp: /37xpics\.space\/image/,
-
-    async getURL(link) {
-        return link.thumbnailURL.replace('.th.', '.')
-    },
-}
-
-const i14xpicsspace = {
-    id: 'i14xpicsspace',
-    name: '14xpics.space',
-    linkRegExp: /14xpics\.space\/image/,
-
-    async getURL(link) {
-        return link.thumbnailURL.replace('.th.', '.')
-    },
-}
-
-const imagecurl = {
-    id: 'imagecurl',
-    name: 'imagecurl.com',
-    linkRegExp: /imagecurl\.com\/viewer\.php\?file/,
-
-    async getURL(link) {
-        const [, root, domain, filename, ext] =
-            /(https?:\/\/).*(imagecurl\.com\/images\/)(.*)_thumb(\.jpg)/.exec(link.thumbnailURL) || []
-        return `${root}cdn.${domain}${filename}${ext}`
-    },
-}
-
-const adultImages = {
-    id: 'adult-images',
-    name: 'Adult-Images.ru',
-    linkRegExp: /\/(adult-images|money-pic)\.ru/,
-
-    getURL: imgbum.getURL,
-}
-
-const clubwarp = {
-    id: 'clubwarp',
-    name: 'clubwarp.com',
-    linkRegExp: /i\.clubwarp\.com\/image/,
-
-    getURL(link) {
-        return link.thumbnailURL.replace('.th.', '.md.')
-    },
-}
-
-const crazyimg = {
-    id: 'crazyimg',
-    name: 'crazyimg.com',
-    linkRegExp: /crazyimg\.com\/images/,
-
-    getURL(link) {
-        return link.thumbnailURL.replace('_tn', '')
-    },
-}
-
-const dmm = {
-    id: 'dmm',
-    name: 'dmm.co.jp',
-    linkRegExp: /pics\.dmm\.co\.jp\/.+\.jpg/,
-    getURL(link) {
-        return link.url
-    },
-}
-
-const picstateDirect = {
-    id: 'picstateDirect',
-    name: 'picstate.com',
-    linkRegExp: /picstate\.com\/files\/.*\.jpg/,
-    getURL(link) {
-        return link.url
-    },
-}
-
-const picstate = {
-    id: 'picstate',
-    name: 'picstate,com',
-    linkRegExp: /picstate\.com\/view\/full/,
-    getURL(link) {
-        return link.thumbnailURL.replace('thumbs/small/', '')
-    },
-}
-
-const imgcloud = {
-    id: 'imgcloud',
-    name: 'imgcloud.pw',
-    linkRegExp: /imgcloud\.pw\/image/,
-
-    getURL(link) {
-        return link.thumbnailURL.replace('.md.', '.').replace('.th.', '.')
-    },
-}
-
-const fastpic = {
-    id: 'fastpic',
-    name: 'FastPic',
-    linkRegExp: /fastpic\.(?:ru|org)\/view/,
-    imageURLRegExp: /src="(?<url>http[^"]+)" class="image img-fluid"/,
-    getURL: getURLFromPage,
-}
-
-const URL_PARTS_REGEXP = /i(\d+).+\.(ru|org)\/big(\/\d+\/\d+\/).+\/([^\/]+)$/
-
-const fastpicDirect = {
-    id: 'fastpicDirect',
-    name: 'FastPic (direct link)',
-    linkRegExp: /fastpic\.(?:ru|org)\/big/,
-
-    async getURL(link) {
-        const [, index, domain, date, filename] =
-            URL_PARTS_REGEXP.exec(link.url) || []
-
-        const url = `https://fastpic.${domain}/view/${index}${date}${filename}.html`
-        //console.log(url)
-        return fastpic.getURL({ ...link, url }, fastpic)
-    },
-}
-
-const javstore = {
-    id: 'javstore',
-    name: 'javstore',
-    linkRegExp: /img\.javstore\.net/,
-
-    async getURL(link) {
-        return link.thumbnailURL.replace('.th.', '.')
-    },
-}
-
-const imagebam = {
-    id: 'imagebam',
-    name: 'ImageBam',
-    linkRegExp: /www\.imagebam\.com\//,
-    imageURLRegExp: /src="(?<url>[^"]+)".+class="main-image/,
-
-    async getURL(link, extractor) {
-        return getURLFromPage(link, extractor, {
-            cookie: 'nsfw_inter=1',
-        })
-    },
-}
-
-const imagebamview = {
-    id: 'imagebamview',
-    name: 'ImageBamView',
-    linkRegExp: /images\d\.imagebam\.com\//,
-
-    getURL(link) {
-        console.log(link.url)
-        return link.url
-    },
-}
-
-const filesor = {
-    id: 'filesor',
-    name: 'filesor',
-    linkRegExp: /pimpandhost\.com\/image/,
-
-    async getURL(link) {
-        return link.thumbnailURL.replace(/_(l|m|s)\./, '.')
-    },
-}
-
-const DATE_PATTERN = /(\d{4})\.(\d{2})\.(\d{2})/
-
-const imageban = {
-    id: 'imageban',
-    name: 'ImageBan.ru',
-    linkRegExp: /imageban\.ru\/show/,
-
-    async getURL(link) {
-        return link.thumbnailURL
-            .replace('thumbs', 'out')
-            .replace(DATE_PATTERN, '$1/$2/$3')
-    },
-}
-
-const imagebanDirect = {
-    id: 'imagebanDirect',
-    name: 'ImageBan.ru (direct link)',
-    linkRegExp: /imageban\.ru\/out/,
-
-    async getURL(link) {
-        return link.url
-    },
-}
-
-const imagetwist = {
-    id: 'imagetwist',
-    name: 'ImageTwist',
-    linkRegExp: /imagetwist\.com/,
-    viewMode: 'origin-download',
-
-    async getURL(link) {
-        const imageName = link.url.split('/').pop()?.replace('.html', '')
-        const imageExtension = imageName?.split('.').pop()?.replace(/&.*/, '') ?? ''
-        const thumbnailExtension = link.thumbnailURL.split('.').pop() ?? ''
-        const imageUrl = link.thumbnailURL
-            .replace('/th/', '/i/')
-            .slice(0, -thumbnailExtension.length)
-        //console.log(link.thumbnailURL, imageName, imageExtension, imageUrl, `${imageUrl}${imageExtension}/${imageName}`)
-
-        return `${imageUrl}${imageExtension}/${imageName}`
-    },
-}
-
-const HOST_REPLACE_REG_EXP = /(picturelol|picshick|imageshimage)/
-
-const imagetwistBased = {
-    id: 'imagetwistBased',
-    name: 'ImageTwist based (legacy)',
-    hosts: ['Picturelol.com', 'PicShick.com', 'Imageshimage.com'],
-    linkRegExp: /(picturelol|picshick|imageshimage)\.com/,
-    viewMode: 'origin-download',
-
-    async getURL(link) {
-        const imageName = link.url.split('/').pop()
-        const imageExtension = imageName?.split('.').pop()?.replace(/&.*/, '') ?? ''
-        const thumbnailExtension = link.thumbnailURL.split('.').pop() ?? ''
-        const imageUrl = link.thumbnailURL
-            .replace('/th/', '/i/')
-            .slice(0, -thumbnailExtension.length)
-            .replace(HOST_REPLACE_REG_EXP, 'imagetwist')
-
-        return `${imageUrl}${imageExtension}/${imageName}`
-    },
-}
-
-const imagevenue = {
-    id: 'imagevenue',
-    name: 'ImageVenue.com',
-    linkRegExp: /imagevenue\.com\//,
-    imageURLRegExp: /<img src="(?<url>[^"]*).*id="main-image/im,
-    getURL: getURLFromPage,
-}
-
-const imgadult = {
-    id: 'imgadult',
-    name: 'ImgAdult',
-    linkRegExp: /imgadult\.com/,
-
-    async getURL(link) {
-        return link.thumbnailURL.replace('/small/', '/big/')
-    },
-}
-
-
-const xxxwebdlxxx = {
-    id: 'xxxwebdlxxx',
-    name: 'xxxwebdlxxx',
-    linkRegExp: /xxxwebdlxxx\.org/,
-
-    async getURL(link) {
-        return link.thumbnailURL.replace('/small/', '/big/')
-    },
-}
-
-const imgbb = {
-    id: 'imgbb',
-    name: 'ImgBB',
-    linkRegExp: /ibb\.co/,
-    imageURLRegExp: /rel="image_src" href="(?<url>http[^"]+)"/,
-
-    async getURL(link) {
-        if (link.thumbnailURL.includes('//thumb')) {
-            return link.thumbnailURL.replace('//thumb', '//image')
-        }
-
-        return getURLFromPage(link, imgbb)
-    },
-}
-
-const imgbox = {
-    id: 'imgbox',
-    name: 'imgbox',
-    linkRegExp: /imgbox\.com/,
-
-    async getURL(link) {
-        if (link.thumbnailURL.includes('/thumbs')) {
-            return link.thumbnailURL.replace('/thumbs', '/images').replace('_t', '_o')
-        }
-        else {
-            return link.url
-        }
-    },
-}
-
-const imgdrive = {
-    id: 'imgdrive',
-    name: 'ImgDrive.net',
-    linkRegExp: /imgdrive\.net/,
-    viewMode: 'origin-download',
-
-    async getURL(link) {
-        return link.thumbnailURL
-            .replace('/small/', '/big/')
-            .replace('/small-medium/', '/big/')
-    },
-}
-
-const imagehaha = {
-    id: 'imagehaha',
-    name: 'imagehaha.com',
-    linkRegExp: /imagehaha\.com\//,
-    imageURLRegExp: /<img src="(?<url>[^"]*)/im,
-    viewMode: 'origin-download',
-    getURL: getURLFromPage,
-}
-
-const imgspice = {
-    id: 'imgspice',
-    name: 'ImgSpice',
-    linkRegExp: /imgspice\.com/,
-    viewMode: 'origin-download',
-
-    async getURL(link) {
-        return link.thumbnailURL
-            .replace(/_t\./, '.')
-    },
-}
-const imgtaxi = {
-    id: 'imgtaxi',
-    name: 'ImgTaxi.com',
-    linkRegExp: /imgtaxi\.com/,
-    viewMode: 'origin-download',
-    getURL: imgdrive.getURL,
-}
-
-
-const imgtraffic = {
-    id: 'imgtraffic',
-    name: 'imgtraffic.com',
-    linkRegExp: /imgtraffic\.com/,
-    async getURL(link) {
-        return link.thumbnailURL.replace('/1s/', '/1/')
-    },
-}
-
-const piccash = {
-    id: 'piccash',
-    name: 'PicCash',
-    linkRegExp: /piccash\.net/,
-
-    async getURL(link) {
-        return link.thumbnailURL.replace('_thumb', '_full').replace('-thumb', '')
-    },
-}
-
-const picforall = {
-    id: 'picforall',
-    name: 'PicForAll',
-    hosts: [
-        'freescreens.ru',
-        'imgclick.ru',
-        'picclick.ru',
-        'payforpic.ru',
-        'picforall.ru',
-        'imgbase.ru',
-    ],
-    linkRegExp: /(freescreens|imgclick|picclick|payforpic|picforall|imgbase)\.ru/,
-    getURL: imgbum.getURL,
-}
-
-const pixhost = {
-    id: 'pixhost',
-    name: 'PixHost',
-    linkRegExp: /pixhost\.to\/(show|images)/,
-    imageURLRegExp: /class="image-img"\ssrc="(?<url>[^"]+)"/,
-
-    async getURL(link) {
-        if (link.thumbnailURL.includes('pixhost')) {
-            return link.thumbnailURL.replace('//t', '//img').replace('/thumbs/', '/images/')
-        }
-        else {
-            return await getURLFromPage(link, pixhost)
-        }
-    },
-}
-const picszone = {
-    id: 'picszone',
-    name: 'PicsZone',
-    linkRegExp: /picszone\.net\/viewer\.php\?file/,
-    imageURLRegExp: /class="image-img"\ssrc="(?<url>[^"]+)"/,
-
-    async getURL(link) {
-        if (link.thumbnailURL.includes('picszone')) {
-            return link.thumbnailURL
-        }
-    },
-}
-
-const pornohosting = {
-    id: 'pornohosting',
-    name: 'pornohosting',
-    linkRegExp: /pornohosting\.ru\/d\+/,
-
-    async getURL(link) {
-        return link.thumbnailURL.replace('-thumb', '')
-    },
-}
-
-
-const postimg = {
-    id: 'postimg',
-    name: 'postimg',
-    linkRegExp: /postimg\.cc/,
-    imageURLRegExp: /<a href="(?<url>[^"]+)"\sid="download"/,
-    async getURL(link, extractor) {
-        return await getURLFromPage(link, extractor)
-    },
-}
-
-const turboimagehost = {
-    id: 'turboimagehost',
-    name: 'TurboImageHost',
-    hosts: [
-        'turboimagehost.com',
-        'turboimg.net',
-    ],
-    linkRegExp: /turboimagehost\.com\/p/,
-    imageURLRegExp: /rel="image_src" href="(?<url>http[^"]+)"/,
-    //viewMode: 'new-tab',
-    getURL: getURLFromPage,
-}
-
-const REMOVE_SUFFIX_REGEXP = /_.?(.+)$/
-
-const vfl = {
-    id: 'vfl',
-    name: 'VFL.Ru',
-    linkRegExp: /^http:\/\/vfl\.ru/,
-
-    async getURL(link) {
-        return link.thumbnailURL.replace(REMOVE_SUFFIX_REGEXP, '$1')
-    },
-}
-
-const hostExtractors = /* #__PURE__ */ Object.freeze({
-    __proto__: null,
-    i22pixx,
-    i37xpics,
-    i14xpicsspace,
-    i3xplanetimg,
-    adultImages,
-    clubwarp,
-    crazyimg,
-    dmm,
-    fastpic,
-    fastpicDirect,
-    javstore,
-    imagebam,
-    imagebamview,
-    imageban,
-    imagebanDirect,
-    imagetwist,
-    imagetwistBased,
-    imagevenue,
-    imagehaha,
-    imgadult,
-    imgbb,
-    imgbox,
-    imgbum,
-    imgcloud,
-    imagecurl,
-    imgdrive,
-    imgspice,
-    imgtaxi,
-    imgtraffic,
-    filesor,
-    piccash,
-    picforall,
-    pixhost,
-    picszone,
-    pornohosting,
-    postimg,
-    turboimagehost,
-    vfl,
-    picstate,
-    picstateDirect,
-    xxxwebdlxxx,
-})
-
-let extractorsActive = []
 
 const extractors = Object.values(hostExtractors).filter(Boolean)
 
-const extractorsByID = extractors.reduce((result, extractor) => {
-    result[extractor.id] = extractor
-    return result
-}, {})
 
 const urlExtractor = {
-    getImageHostsMetadata() {
-        const result = extractors.map(({ id, name, hosts }) => ({
-            id,
-            name,
-            description: hosts ? hosts.join(', ') : '',
-        }))
-
-        return sortCaseInsensitive(result, ({ name }) => name)
-    },
-
     async getImageURL(link) {
-        const extractor = extractorsByID[link.host]
-
-        const imageURL = await extractor.getURL(link, extractor)
-
-        if (!imageURL) {
-            console.error(
-                `[image-viewer] Failed to get URL for ${link.host}:${link.url}`
-            )
+        const extractor = extractorsByID[link.host];
+        if (!extractor) {
+            console.error(`[Image Viewer] No active extractor found for host: ${link.host}`);
+            return null;
         }
-        //console.log('getImageURL: ', imageURL)
-        return imageURL
+        const imageURL = await extractor.getURL(link, extractor);
+        if (!imageURL) {
+            console.error(`[Image Viewer] Failed to get URL for ${link.host}:${link.url}`);
+        }
+        return imageURL;
     },
-
     getExtractorByHost(hostId) {
-        return extractorsByID[hostId]
+        return extractorsByID[hostId];
     },
-
-    getHostExtractorMatcher(enabledHosts) {
-        extractorsActive = extractors.filter((extractor) =>
-            enabledHosts.includes(extractor.id)
-        )
-        let previousExtractor
-
+    getHostExtractorMatcher() {
+        let previousExtractor;
         return (url) => {
             if (previousExtractor && previousExtractor.linkRegExp.test(url)) {
-                return previousExtractor
+                return previousExtractor;
             }
-
-            const extractor = extractorsActive.find((extractor) =>
-                extractor.linkRegExp.test(url)
-            )
-
+            const extractor = extractorsActive.find((e) => e.linkRegExp.test(url));
             if (extractor) {
-                previousExtractor = extractor
-
-                return extractor
+                previousExtractor = extractor;
+                return extractor;
             }
-        }
+            return null;
+        };
     },
-}
+};
+
+const getExtractor = urlExtractor.getHostExtractorMatcher()
 
 function sortCaseInsensitive(items, getValue) {
     return items
@@ -1160,7 +916,7 @@ function sortCaseInsensitive(items, getValue) {
         .map((m) => items[m.index])
 }
 
-const currentHost = unsafeWindow.location.host
+
 const CLASSES = {
     imageLink: 'js-image-link',
     imageLinkOpenInNew: 'js-image-link-open-in-new',
@@ -1233,7 +989,8 @@ function AtoBLinks(link) {
     return link
 }
 
-const getExtractor = urlExtractor.getHostExtractorMatcher(enabledHosts)
+
+
 const linkCommonClasses = [
     'iv-image-link',
     //'iv-icon--hover',
@@ -1290,13 +1047,13 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
 }
 
 
-function CheckViewerList(enabledHosts, node) {
+function CheckViewerList(node) {
     const items = collectImageLinks(node);
     // Filter by extractor availability:
     return items.some(({ link }) => Boolean(getExtractor(link.href)));
 }
 
-async function initViewer(enabledHosts, node) {
+async function initViewer(node) {
     // 1) Collect & filter
     const items = collectImageLinks(node)
         .filter(({ link }) => getExtractor(link.href));
@@ -1644,7 +1401,7 @@ async function Start() {
     }
 
 
-    if (!Ex?.length && !CheckViewerList(enabledHosts, document.body)) {
+    if (!Ex?.length && !CheckViewerList(document.body)) {
         return (`No Image Viewer Item`)
     }
 
@@ -1664,7 +1421,7 @@ async function Start() {
         el.replaceWith(el)
     })
 
-    initViewer(enabledHosts, document.body)
+    initViewer(document.body)
         .then(async e => {
             if (e.length) {
                 attributesobserver.observe(document.body, { subtree: true, childList: true })

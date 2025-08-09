@@ -1737,8 +1737,11 @@ async function Start() {
 
 async function processCopyTitle(currentConfig) {
     console.log(`Start processCopyTitle`, currentConfig)
-    if (!CopyTitle) return
+
     CopyTitle = CopyTitle || copyOffsetArea?.textContent.trim() || '';
+    if (/naughtyblog\.org/.test(PageURL) && /SITERIP|OnlyFans|Collection|Updates/i.test(CopyTitle)) {
+        CopyTitle = ''
+    }
 
     // 사이트별 특별 규칙 적용
     const rule = siteRules.find((r) => r.regex.test(PageURL));
@@ -1954,7 +1957,7 @@ function updateUI(GetState, PackageCount) {
 }
 
 // 토글 버튼의 상태를 업데이트하는 함수
-function handleToggle(key, className) {
+async function handleToggle(key, className) {
     const ev = document.querySelector(`.${className}`);
     if (!ev) return;
 
@@ -1968,17 +1971,11 @@ function handleToggle(key, className) {
             if (JSON.parse(localStorage.getItem('AutoClose'))) {
                 AutoClose = JSON.parse(localStorage.getItem('AutoClose'))
             }
-            /*
-            const hasCopied = localStorageDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
+            const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle')
 
-         if (hasCopied) {
-                CheckDB(listToDo(DownloadArea));
-            } else {
-                //FirstStep();
-                CopyGo()
+            if (!hasCopied) {
+                CopyGo(SkipTitle)
             }
-            */
-            CopyGo(SkipTitle)
         } else {
             // AutoCopy 비활성화 시 AutoClose도 비활성화
             localStorage.setItem('AutoClose', JSON.stringify('false'));
@@ -1986,17 +1983,11 @@ function handleToggle(key, className) {
     } else if (key === 'AutoClose' && isEnabled && JSON.parse(localStorage.getItem('AutoCopy'))) {
         // AutoClose가 활성화되고 AutoCopy가 켜져 있으면 추가 로직 실행
         AutoCopy = JSON.parse(localStorage.getItem('AutoCopy'))
-        /**
-        const hasCopied = localStorageDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
+        const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle')
 
-        if (hasCopied) {
-            CheckDB(listToDo(DownloadArea));
-        } else {
-            //FirstStep()
-            CopyGo()
+        if (!hasCopied) {
+            CopyGo(SkipTitle)
         }
-        **/
-        CopyGo(SkipTitle)
     }
 }
 
@@ -2063,9 +2054,6 @@ function RefreshIcon(Run) {
         iconSet.style.setProperty('--SetTop', `${Math.floor(LinkCopyCenterBox.offsetTop + (LinkCopyCenterBox.offsetHeight - iconSet.offsetHeight) / 2)}px`);
         iconSet.style.setProperty('--SetLeft', `${Math.floor(LinkCopyCenterBox.offsetLeft + LinkCopyCenterBox.offsetWidth + LinkCopyCenterBox.offsetHeight)}px`);
 
-        if (isElementCovered(iconSet)) {
-            bringElementToFrontWithSteps(iconSet);
-        }
     }
 
     const searchBox = document.querySelector('div.SearchBox');
@@ -2161,36 +2149,35 @@ function mainIcon(Run) {
     const AutoCopyIcon = LinkCopyCenterBox.querySelector('.AutoCopy');
     const AutoCloseIcon = LinkCopyCenterBox.querySelector('.AutoClose');
 
-    AutoCloseIcon?.addEventListener('click', (e) => {
+    AutoCloseIcon?.addEventListener('click', async (e) => {
         e.preventDefault();
         if (AutoCloseIcon.classList.contains('Off')) {
             AutoCloseIcon.classList.replace('Off', 'On');
             localStorage.setItem('AutoClose', JSON.stringify(true));
             AutoCopyIcon.classList.replace('Off', 'On');
             localStorage.setItem('AutoCopy', JSON.stringify(true));
+            if (DownloadArea.length > 0) {
+                const hasCopied = await CheckDB(listToDo(DownloadArea), 'click')
+                if (!hasCopied) {
+                    CopyGo(SkipTitle)
+                }
+            }
         } else {
             AutoCloseIcon.classList.replace('On', 'Off');
             localStorage.setItem('AutoClose', JSON.stringify(false));
         }
     });
 
-    AutoCopyIcon?.addEventListener('click', (e) => {
+    AutoCopyIcon?.addEventListener('click', async (e) => {
         e.preventDefault();
         if (AutoCopyIcon.classList.contains('Off')) {
             AutoCopyIcon.classList.replace('Off', 'On');
             localStorage.setItem('AutoCopy', JSON.stringify(true));
-            if (DownloadArea) {
-                /*
-                aredyCopyed = localStorageDB.some(item => listToDo(DownloadArea, 'A').includes(item.U));
-                if (aredyCopyed) {
-                    AutoClose = true;
-                    CheckDB(listToDo(DownloadArea));
-                } else {
-                    //FirstStep();
-                    CopyGo()
+            if (DownloadArea.length > 0) {
+                const hasCopied = await CheckDB(listToDo(DownloadArea), 'click')
+                if (!hasCopied) {
+                    CopyGo(SkipTitle)
                 }
-                */
-                CopyGo(SkipTitle)
             }
         } else {
             AutoCopyIcon.classList.replace('On', 'Off');
@@ -2693,7 +2680,7 @@ async function UpdateDB(Target, UrlTitle) {
     if (Target.match(K2SRegExp)) {
         Target = Target.match(K2SRegExp)[1] + Target.match(K2SRegExp)[2].slice(0, 18)
     }
-    const searchDB = localStorageDB.find(({ U }) => U === Target)
+    const searchDB = await localStorageDB.find(({ U }) => U === Target)
     //console.log({searchDB})
 
     if (searchDB) {
@@ -2734,6 +2721,7 @@ async function RemoveDB(listToDelete) {
 
 async function CheckDB(listTo, fromStep) {
     console.log(`CheckDB:`, listTo, fromStep)
+    let isMatchFound = []
 
     const minusElement = document.querySelector('.Minus');
 
@@ -2751,30 +2739,36 @@ async function CheckDB(listTo, fromStep) {
         userCopy = false;
 
         // Show messages for skip words/models        
-        copyStateEl.innerText += `링크가 없습니다`;
+        copyStateEl.innerText = `링크가 없습니다`;
     }
 
     // `GetState`가 존재하고 길이가 0보다 클 때만 로직을 실행합니다.
     if (localStorageDB?.length > 0) {
+        for (let link of listTo) {
+            const searchDB = await localStorageDB.find(({ U }) => U === link)
+            if (searchDB) {
+                isMatchFound.push(link)
+                if (PackageName && searchDB.T !== PackageName) {
+                    searchDB.T = PackageName
+                }
+            }
+        }
 
-        const isMatchFound = await localStorageDB.some(item => listTo.includes(item.U));
-        console.log('isMatchFound:', isMatchFound)
+        console.log('isMatchFound:', isMatchFound, isMatchFound.length)
         if (minusElement) {
             // 매칭 여부에 따라 요소의 가시성을 설정합니다.
-            minusElement.style.visibility = isMatchFound ? 'visible' : 'hidden';
+            minusElement.style.visibility = isMatchFound.length > 0 ? 'visible' : 'hidden';
         }
 
         // 매칭이 발견되었을 때만 AutoClose 로직을 실행합니다.
-        if (isMatchFound) {
-            setTimeout(() => {
-                const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));
-                console.log(isAutoCloseEnabled, AutoClose)
-                // AutoClose 변수와 localStorage 값을 모두 확인하여 실행합니다.
-                if (isAutoCloseEnabled && userClose) {
-                    console.log('AutoClose: ', userClose, '\nlocalStorage: ', isAutoCloseEnabled);
-                    self.close();
-                }
-            }, 5000);
+        if (isMatchFound.length > 0) {
+            const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));
+            console.log({ isAutoCloseEnabled })
+            // AutoClose 변수와 localStorage 값을 모두 확인하여 실행합니다.
+            if (isAutoCloseEnabled) {
+                await sleep(5000)
+                self.close();
+            }
         }
     } else {
 
@@ -2785,7 +2779,7 @@ async function CheckDB(listTo, fromStep) {
 
     }
     PackageCount = PackageList(localStorageDB);
-    return localStorageDB;
+    return isMatchFound;
 }
 
 function PackageList(LinksDB) {
