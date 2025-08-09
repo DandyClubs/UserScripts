@@ -372,6 +372,7 @@ const SkipFilter = new RegExp('katfile\\.com\/\?op=registration|77file\\.com|xtv
 const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i')
 //const WaitChangeLink = new RegExp('tma\\.cx\/', 'i')
 const WaitChangeLink = new RegExp('TestTest\\.cx\/', 'i')
+const LAST_TAGS_REGEX = /\s*\[[^\]]+\][^\[]*$/
 const HexCode = /x([0-9A-Fa-f]{2})/g   // xYY 타입
 
 const SkipFileName = /demosaic|\.UMR|iris2/
@@ -1469,6 +1470,10 @@ const siteRules = [
         handler: (title) => title.replace(/^\[4K\]/i, ''),
     },
     {
+        regex: /k2sporn\.com\/\d{4,6}/,
+        handler: (title) => title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s*\[(UH|FU|HD|SD).+$/i, '').replace(/\s*\((UH|FU|HD|SD).+$/i, '').trim(),
+    },
+    {
         regex: /epicomg\.com\/\?p/,
         handler: (title) => nameCorrection(title.replace(/amp;/g, '')),
     },
@@ -1526,7 +1531,11 @@ const siteRules = [
     },
     {
         regex: /ultoporn\.com\/\d+/,
-        handler: (title) => title.replace(', ', ' - ').replace(': ', ' - ').replace(/\[\d+.*\)/, ''),
+        handler: (title) => title.replace(/^Nude\sLeaked\s-/i, '').replace(', ', ' - ').replace(': ', ' - ').replace(/\[\d+.*\)/, '').replace(/\s*\[(UH|FU|HD|SD).+$/i, '').replace(/\s*\((UH|FU|HD|SD).+$/i, '').trim(),
+    },
+    {
+        regex: /hidefporn\.ws\/\d+/,
+        handler: (title) => title.replace(/^Nude\sLeaked\s-/i, '').replace(', ', ' - ').replace(': ', ' - ').replace(/\[\d+.*\)/, '').replace(/\s*\[(UH|FU|HD|SD).+$/i, '').replace(/\s*\((UH|FU|HD|SD).+$/i, '').trim(),
     },
     {
         regex: /(bestgirlsexy|bestvideosexy)\.com\/.+/,
