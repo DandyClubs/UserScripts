@@ -39,13 +39,6 @@ const FontAwesomeCSS = function () {
 GM_addStyle(`
 
 
-:root {
-  --dynamic-zindex: 0;
-}
-
-.dynamic-z {
-  z-index: var(--dynamic-zindex);
-}
 
 .GetMaker, .GetLabel {
     text-align: center;
@@ -425,10 +418,6 @@ function MakeIcon() {
         return;
     }
 
-    if (isElementCovered(centerBox)) {
-        bringElementToFrontWithSteps(centerBox);
-    }
-
     // 2. 아이콘 생성 함수
     const addIconToCenterBox = (className, html, color) => {
         const iconHTML = `<i class="${className}" style="color: ${color} !important;">${html}</i>`;
@@ -611,19 +600,19 @@ const SiteParsers = {
                     maker = rebuildMaker;
                 }
             }
-            
+
             // ID
             const IDSearch = SearchMatch(InfoArea, "Студийный код фильма\s?(:|：)?(.+)", "/\/|-/g, '.'");
             const ID = IDSearch ? IDSearch.trim() : ''
             if (ID) {
                 titleText = titleText.replace(ID, '').replace(/\[\]/g, '').replace(/\(\)/g, '');
             }
-            const codeID = titleText.match(ChinaID)
-
+            let codeID = titleText.match(ChinaID)
 
             titleText = titleText.replace(TAGS_REGEX, '').trim();
             if (codeID.length > 0) {
-                titleText = `${codeID[0]} ${titleText.replace(codeID[0], '').replace(/\[\]/g, '').trim()}`;
+                titleText = `${titleText.replace(codeID[0], '').replace(/\[\]/g, '').trim()}`;
+                codeID = codeID[0];
             }
 
             const titleDB = titleText
@@ -643,10 +632,11 @@ const SiteParsers = {
                 Maker: maker,
                 TitleDB: titleDB,
                 extractedId: ID,
+                extractedcodeID: codeID,
             };
         },
         refine: (parsedData) => {
-            const { TitleText, TitleDB, Remastered, BTS, BetweenYear, ReleaseDate, Maker, extractedId } = parsedData;
+            const { TitleText, TitleDB, Remastered, BTS, BetweenYear, ReleaseDate, Maker, extractedId, extractedcodeID } = parsedData;
             const extractedModelName = SearchMatch(InfoArea, "(В ролях|Погоняло бесстыдницы|В ролях|Имя актрисы|Имя модели|Погоняло принцессы|Погоняло волшебницы|Истинное имя бесстыдницы|Название Белоснежки|Название девки|Погоняло курицы с кривыми лапами)\s?(:|：)?(.+)", '/', '-')?.replace(/:|：/, '').replace(/\(.+/, '') || '';
             const cleanedModelName = extractedModelName.split(',').filter(element => !new RegExp(escapeRegExp(element)).test(TitleText)).join(' ').trim()
 
@@ -898,11 +888,11 @@ function extractDefaultId(titleDB) {
 function assembleFinalTitle(data) {
     // Destructuring을 사용하여 필요한 모든 데이터를 추출합니다.
     // NOTE: refine 단계에서 반환된 객체의 키와 일치하도록 변수명을 수정했습니다.
-    let { extractedId, Maker, ReleaseDate, ModelName, TitleText, BetweenYear, Remastered, BTS } = data;
+    let { extractedcodeID, extractedId, Maker, ReleaseDate, ModelName, TitleText, BetweenYear, Remastered, BTS } = data;
 
     // 기본값 설정: 값이 없으면 빈 문자열을 할당하여 undefined 오류를 방지합니다.
     TitleText = extractedId ? TitleText.replace(extractedId, '').trim() : TitleText
-    const formattedId = extractedId ? `${extractedId} ` : '';
+    const formattedId = extractedId && extractedcodeID ? `${extractedId} ${extractedcodeID} ` : extractedId || extractedcodeID ? `${extractedId || extractedcodeID} ` : '';
     const formattedMaker = Maker && ReleaseDate ? `${Maker}` : Maker ? `${Maker} ` : '';
     const formattedReleaseDate = ReleaseDate ? `.${ReleaseDate}.` : ''
     let formattedModelName = ModelName ? `(${ModelName})` : '';
