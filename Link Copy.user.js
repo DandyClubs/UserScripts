@@ -1732,8 +1732,7 @@ async function Start() {
             if (resMatch) Resolution = ' ' + resMatch[0];
         }
 
-
-        console.log({ DownloadArea })
+        // Step 6: DownloadArea 기다림
         if (!DownloadArea || DownloadArea?.length === 0) {
             const matchingConfig = waitDownloadArea.find(config => config.regex.test(PageURL));
             if (matchingConfig) {
