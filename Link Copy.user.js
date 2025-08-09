@@ -2127,6 +2127,7 @@ function mainIcon(Run) {
     LinkCopyCenterBox.querySelector('.ToTop').onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
     let lastExecutionTime = performance.now();
     window.visualViewport.addEventListener('resize', () => {
+        const now = performance.now();
         if (now - lastExecutionTime >= 2000) {
             io.observe(LinkCopyCenterBox);
             RefreshIcon(performance.now());
@@ -2136,6 +2137,7 @@ function mainIcon(Run) {
     });
 
     window.addEventListener('pageshow', () => {
+        const now = performance.now();
         if (now - lastExecutionTime >= 2000) {
             RefreshIcon(performance.now());
         }
@@ -2752,7 +2754,7 @@ async function RemoveDB(listToDelete) {
 
 
 async function CheckDB(listTo, fromStep) {
-    //console.log(`CheckDB:`, listTo, fromStep)
+    console.log(`CheckDB:`, listTo, fromStep)
     let isMatchFound = []
 
     const minusElement = document.querySelector('.Minus');
