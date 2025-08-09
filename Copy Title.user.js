@@ -1,26 +1,29 @@
 // ==UserScript==
-// @name         Copy Links & Title
-// @namespace    http://tampermonkey.net/
-// @version      1.2.2
+// @name         Copy Title
+// @version      1.0
 // @description  try to take over the world!
 // @author       You
-// @include      /gm\d+.xyz/
-// @include      /pornbb\.org\/newsearch\.php/
-// @include      /pornbb\.org\/.*\.html/
-// @include      /forumophilia\.com/
-// @include      /sexfetishforum\.com\/index.php\?topic/
-// @include      http://www.planetsuzy.org/*.html
-// @include      /planetsuzy\.org\/showthread\.php/
-// @include      https://x-idol.net/*
-// @include      https://www.porn-w.org/search.php*
-// @exclude      https://x-idol.net/?p=*
-// @grant        GM_setClipboard
+// @include      /javbus.com\/.+\/([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)/
+// @include      /javbus.com\/.+\/([a-zA-Z0-9]{1,7}-?\d{1,6}[a-zA-Z]?)/
+// @include      /https?:\/\/(www.)?javlibrary\.com\/.*\?v=.*/
+// @include      https://www.mgstage.com/product/product_detail/*
+// @include      https://dl.getchu.com/i/item*
+// @include      https://pornolab.net/forum/viewtopic.php?t=*
+// @include      /kin8tengoku\.com\/moviepages\/.*\/index\.html/
+// @include      https://av-wiki.net/*
+// @include      /bestjavporn\.com\/ja\/video\//
+// @include      https://fc2ppvdb.com/articles/*
+// @include      https://allasiangirls.net/*
+// @exclude      https://av-wiki.net/?s=*
 // @grant		 GM_addStyle
+// @grant		 GM_openInTab
+// @run-at       document-body
+// @grant        unsafeWindow
 // @grant		 GM_xmlhttpRequest
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js
+// @connect      *
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
-// @run-at       document-start
 // @noframes
 // ==/UserScript==
 
@@ -36,755 +39,1028 @@ const FontAwesomeCSS = function () {
 GM_addStyle(`
 
 
-@import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c&family=Nanum+Gothic&family=Nanum+Gothic+Coding&family=Noto+Sans&display=swap');
+:root {
+  --dynamic-zindex: 0;
+}
 
-.IconSet, .CloseIcon, .AllCopy {
+.dynamic-z {
+  z-index: var(--dynamic-zindex);
+}
+
+.GetMaker, .GetLabel {
     text-align: center;
     cursor: pointer;
-    word-spacing: .5em;
-    white-space : nowrap;
-    background-color: transparent !important;
-    transform: rotate(360deg);
-    text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 0px -1px white;
+    color: LimeGreen !important;
+    font-style: initial !important;
+    font-size: 0.8rem;
+    margin: .25rem;
 }
 
-.CopyIcon, .Minus {
-    font-size: var(--IconSize) !important;
-     padding: .5em;
-     cursor: pointer;
-     text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 0px -1px white;
-     z-index: 999999;
+.FullCopyTitle {
+    text-align: center;
+    cursor: pointer;
+    color: dodgerblue !important;
+    text-shadow: 1px 1px 1px red, 0 0 2px blue, 0 0 1px black;
+    margin: .5em;
 }
 
-.CopyIcon.Copyed, .Minus.NotCopyed {
-    display: none !important;
-}
-
-.Copyed , .Minus{
-    color: Orange !important;
-}
-
-
-
-.noticeArea {
-    font-family: 'Nanum Gothic', 'M PLUS Rounded 1c', 'ZCOOL KuaiLe', sans-serif !important;
-    margin-left: auto;
-    margin-right: auto;
-    border-radius: .25em;
-    color: white !important;
-    background: rgba(255, 165, 0, .95) !important;
-    padding: .5em;
-    white-space: pre;
- 	text-shadow: initial !important;
-    text-align: left;
-    line-height: 1em;
-	font-weight: 500 !important;
-	font-style: initial !important;
-    display: -webkit-box;
-    -webkit-line-clamp: 15;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: var(--NFontSize, 0.6rem);
-    z-index: 999999;
-}
 .CenterBox {
-	right: 50%;
+	right: 30%;
 	left: auto;
-	top: 0;
-	max-width: max-content;
-	position: fixed !important;
+	top: 25%;
+	margin: 0 auto;
+    max-width: 4rem;
 	display: flex;
 	flex-wrap: nowrap;
-	justify-content: space-around;
-	align-items: baseline;
-	color: LimeGreen !important;
-    padding: 0 .25em;
-    margin: .25em;
-	border-radius: .25em !important;
-	-webkit-box-sizing: border-box !important;
-	box-sizing: border-box !important;
-	background-color: rgba(0,0,0,0.5) !important;
-    z-index: 999999;
+    justify-content: space-evenly;
+    align-items: baseline;
+	gap: 5px;
+	position: fixed !important;
+	color: dodgerblue !important;
+	background-color: transparent !important;
+	text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 0px -1px white;
+    z-index: 99999;
 }
 
-.CenterBox * {
-    margin: .25em;
-    padding: .25em;
-}
-
-.ToTop {
-    font-style: initial !important;
-    text-align: center;
+.CenterBox i {
+    flex-basis: auto;
+    padding: .25rem;
     cursor: pointer;
-    margin: .25em;
-    color: LimeGreen !important;
-    background-color:transparent !important;
-    text-shadow: 1px 1px 1px red, 0 0 2px blue, 0 0 1px black;
 }
 
-
-.State , .AllCopyState{
-    display: inline-block;
-    font-weight: bold;
-    text-align: right;
-    vertical-align: middle;
-    font-family: 'Noto Sans', sans-serif !important;
-    font-style: italic !important;
-    max-width: 12ch;
-    color: WhiteSmoke !important;
-    background-color:transparent !important;
+.IconSet {
+	visibility: visible;
+	position: absolute;
+	scale: 1.2;
 }
 
-.CopyButton, .ClearButton {
-    font-style: initial !important;
-    word-spacing: .5em;
+.Download, .ScrollDown {
+    margin: .25rem;
     cursor: pointer;
-    background-color:transparent !important;
-    text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 0px -1px white;
+}
+
+.CoverDownload {
+	cursor: pointer;
+	text-shadow: -1px -1px 0px rgba(255, 255, 255, 0.3), 1px 1px 0px rgba(0, 0, 0, 0.8);
+	padding: .5rem;
+	margin: .5rem;
 }
 
 `);
 
+
+let GetDPI = window.devicePixelRatio
+let DefaultFontSize = getDefaultFontSize()
+
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RootDomain = extractRootDomain(PageURL)
 
-let GetDPI, DefaultFontSize, elementPosition
-let GetState, searchDB
-let copyLinks = ''
-let Copyed = ''
+let MakerCfg = false
+let CfgReleaseDate = false
+let Maker = '', ReleaseDate = '', BetweenYear = ''
 
-let RootDomainDB = JSON.parse(localStorage.getItem(RootDomain) || '[]');
-let Maker
-let UrlTitle = ''
-let DirectCopy = true
+let TitleArea, CopyTitle, FullCopyTitle, InfoArea, ID, CastArea, ModelName = '', AmatureName, byteCheck = 0, TitleLast = '', InfoSelector = '', Series = '', ModelNameDB
+let CoverImage, FullCoverImage, OffSetArea, filename, extension
 
 
-let Target, DownloadArea, CopyTitle, CopyTitleArea, noticeArea, CopyTitleSelector, Series, TitleID, ID, CoverImage
-const SkipFilter = new RegExp('filejoker\\.net\/file\/q25fhzi4k86y|sendurl\\.me|xufile\\.com|pixhost\\.to|imgbox\\.com|utm_source|safedl\\.net|upgrade|\\.jpg$|javascript|SKIP|#|^\/|^(?=.*' + window.location.origin + ')(?!.*\\?site).*$')
-const SkipID = /C_\d+/i
+let toUpperCaseList = `
+JVID
+FC2(-)?PPV
+`;
+
+
+const TAGS_REGEX = /\[[^\]]+]/g
+
+const SearchID = /^【?([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)】?/
+const ChinaID = /([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})/i
 const JapaneseChar = /[ぁ-んァ-ン一-龯]/
-const SkipClassNames = ['adead_link', 'autohyperlink', 'social-icon', 'postdetails']
-const SearchID = /^([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})(.*)/
-const SearchFC2ID = /(^FC2.+\d{6})(.*)/
-const SearchIDRegExp = /^(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}))(?!(C_\d+|file\d+))(.*)$/
+const ExcludeChar = /[<\/:>*?"|\\]/g
+const SKIPMGSID = /(START)-/
+//YYYY-MM-DD or MM-DD-YYYY
 const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/
-const SkipTitle = [
-    'assfuck',
-    'busty',
-    'amateur',
-    'big tits',
-    'bigass',
-    'boobs',
-    'butt',
-    'anal',
-    'sex',
-    'porn video',
-    'blowjob',
-    'brunette',
-    'skinny',
-    'stockings',
-    'cumshot on big tits'
-]
+const BetweenRegEx = /\d{2,4}[\/\.-]\d{2}[\/\.-]\d{2,4}\s?-\s?\d{2,4}[\/\.-]\d{2}[\/\.-]\d{2,4}|\d{4}([\/\.-]\d{1,2})\s?-\s?\d{4}([\/\.-]\d{1,2})|\d{4}\s?-\s?\d{4}/
+const UPDateRegEx = /(Оновление|UPDATE|Обновление)\D+(?=((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2}))).*/
 
-console.log(SkipFilter)
+
+const myObserver = new ResizeObserver(entries => {
+    MakeDownloadIcon()
+});
+
+
+function RefreshImages() {
+    let Images = document.querySelectorAll('img')
+    for (const img of Images) {
+        if (!img.complete) {
+            img.src = getUriWithParam(img.src, { Reload: new Date().getTime() })
+        }
+    }
+}
+
+function getUriWithParam(baseUrl, params) {
+    try {
+        const Url = new URL(baseUrl)
+        const urlParams = new URLSearchParams(Url.search);
+        for (const key in params) {
+            if (params[key] !== undefined) {
+                urlParams.set(key, params[key]);
+            }
+        }
+        Url.search = urlParams.toString();
+        return Url.toString()
+    } catch (err) {
+        console.log(err)
+    }
+};
+
+
+function onElementLoaded(elementToObserve, parentStaticElement) {
+    const promise = new Promise((resolve, reject) => {
+        try {
+            if (document.querySelector(elementToObserve)) {
+                console.log(`element already present: ${elementToObserve}`);
+                resolve(true);
+                //return;
+            }
+            else {
+                const parentElement = parentStaticElement
+                    ? document.querySelector(parentStaticElement)
+                    : document;
+
+                const Onobserver = new MutationObserver((mutationList, obsrvr) => {
+                    const divToCheck = document.querySelector(elementToObserve);
+
+                    if (divToCheck) {
+                        console.log(`element loaded: ${elementToObserve}`);
+                        Onobserver.disconnect(); // stop observing
+                        resolve(true)
+                        //return;
+                    }
+                })
+
+
+                // start observing for dynamic div
+                Onobserver.observe(parentElement, {
+                    childList: true,
+                    subtree: true,
+                })
+            }
+        } catch (e) {
+            console.log(e);
+            reject(Error("some issue... promise rejected"));
+        }
+    });
+    return promise;
+}
+
+
+async function Start() {
+    const siteConfigs = {
+        'javbus.com': {
+            titleSelector: 'div.container',
+            infoSelector: 'div.info',
+            castSelector: "div.container > div.movie > div.info > p.star-show",
+            castProcessor: (element) => {
+                const castArea = getNextSibling(element, 'p') ? getNextSibling(element, 'p').querySelectorAll('span.genre') : '';
+                if (castArea) {
+                    castArea.forEach((entry) => {
+                        ModelName += entry.innerText ? entry.innerText.replace(/（.*）/, '') + ' ' : '';
+                    });
+                    ModelName = ModelName.replace(/\s{2}/gi, ' ').trim();
+                }
+            },
+            postProcessing: () => {
+                // No specific post-processing for javbus.com in the original code
+            }
+        },
+        'javlibrary.com': {
+            titleSelector: '#video_title .text',
+            infoSelector: 'div#video_info',
+            castSelector: 'div#video_info #video_cast',
+            castProcessor: (element) => {
+                const castArea = element ? element.querySelectorAll('.star') : '';
+                if (castArea) {
+                    castArea.forEach((entry) => {
+                        ModelName += entry.innerText + ' ';
+                    });
+                    ModelName = ModelName.replace(/\s{2}/gi, ' ').trim();
+                }
+            },
+            postProcessing: () => {
+                document.querySelector('#video_jacket').insertAdjacentHTML('beforeend', '<div class="IconSet" style="visibility: hidden; position: absolute;"></div>');
+                document.querySelector('.IconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
+                OffSetArea = document.querySelector('#video_jacket');
+                OffSetArea.style.setProperty('position', 'relative');
+                CoverImage = document.querySelector('div#video_jacket img#video_jacket_img');
+                let DetectMaker = document.querySelector("div#video_info div#video_maker span.maker");
+                if (DetectMaker) {
+                    DetectMaker.insertAdjacentHTML('beforeend', '&nbsp;&nbsp;<i class="GetMaker fas fa-paste"></i>');
+                    document.querySelector('.GetMaker').addEventListener("click", function (event) {
+                        event.preventDefault();
+                        event.target.style.setProperty('color', 'Orange', 'important');
+                        updateClipboard(DetectMaker.innerText.trim());
+                    });
+                }
+                let DetectLabel = document.querySelector("div#video_info div#video_label span.label");
+                if (DetectLabel) {
+                    DetectLabel.insertAdjacentHTML('beforeend', '&nbsp;&nbsp;<i class="GetLabel fas fa-paste"></i>');
+                    document.querySelector('.GetLabel').addEventListener("click", async function (event) {
+                        event.preventDefault();
+                        event.target.style.setProperty('color', 'Orange', 'important');
+                        updateClipboard(DetectLabel.innerText.trim());
+                    });
+                }
+                document.querySelector('.CopyTitle').insertAdjacentHTML('afterend', '<i class="FullCopyTitle fa-solid fa-expand"></i>');
+                document.querySelector('.FullCopyTitle').addEventListener("click", async function (e) {
+                    e.preventDefault();
+                    e.target.style.setProperty("color", "Orange", "important");
+                    updateClipboard(FullCopyTitle);
+                });
+            }
+        },
+        'mgstage.com': {
+            titleSelector: 'div#container article#center_column div.common_detail_cover h1.tag',
+            infoSelector: 'div#container article#center_column div.common_detail_cover div.detail_left div.detail_data',
+            infoProcessor: (element) => element.innerText.replace(/(?:(?:\r\n|\r|\n|\t)\s*){2}/gm, '\n').replaceAll('\t', '').split(/\n/),
+            coverImageSelector: 'article#center_column div.common_detail_cover div.detail_left div.detail_data div h2 img.enlarge_image'
+        },
+        'allasiangirls.net': {
+            titleSelector: 'body.single.single-post div.page-title div.page-title-inner.container div .entry-title'
+        },
+        'av-wiki.net': {
+            titleSelector: 'article.article section.article-body div.blockquote-like p',
+            infoSelector: 'article.article section.article-body dl.dltable',
+            coverImageSelector: 'article.article div.article-thumbnail a.image-link-border img',
+            postProcessing: () => {
+                document.querySelector('.CopyTitle').insertAdjacentHTML('afterend', '<i class="FullCopyTitle fa-solid fa-expand"></i>');
+                document.querySelector('.FullCopyTitle').addEventListener("click", async function (e) {
+                    e.preventDefault();
+                    e.target.style.setProperty("color", "Orange", "important");
+                    updateClipboard(FullCopyTitle);
+                });
+                OffSetArea = document.querySelector('article.article div.article-thumbnail');
+                OffSetArea.insertAdjacentHTML('beforeend', '<div class="IconSet" style="visibility: hidden; position: absolute;"></div>');
+                document.querySelector('.IconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
+                OffSetArea.style.setProperty('position', 'relative');
+            }
+        },
+        'bestjavporn.com': {
+            titleSelector: 'article.post div.entry-content div#video-infos.tab-content div#video-about div.video-description div.desc.more p',
+            coverImageSelector: 'article.post header.entry-header div#video-player-area div#video-player div.responsive-player',
+            postProcessing: () => {
+                OffSetArea = document.querySelector('article.post header.entry-header div#video-player-area div#video-player');
+                OffSetArea.insertAdjacentHTML('beforeend', '<div class="IconSet" style="visibility: hidden; position: absolute;"></div>');
+                document.querySelector('.IconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
+                OffSetArea.style.setProperty('position', 'relative');
+            }
+        },
+        'kin8tengoku.com': {
+            titleSelector: 'div#sub_main p.sub_title',
+            postProcessing: async () => {
+                await onElementLoaded('div.vjs-poster', 'div#movie').then(() => {
+                    CoverImage = document.querySelector('div.vjs-poster');
+                    CoverImage.insertAdjacentHTML('beforeend', '<div class="IconSet" style="visibility: hidden; position: absolute;"></div>');
+                }).catch(() => { });
+                document.querySelector('.IconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
+                OffSetArea = document.querySelector('div#mediaspace.video-js');
+                OffSetArea.style.setProperty('position', 'relative');
+            }
+        },
+        'fc2ppvdb.com': {
+            titleSelector: '.items-center.title-font a'
+        },
+        'getchu.com': {
+            titleSelector: 'form div table tbody tr td div.bold',
+            infoSelector: 'form div table tbody tr td table tbody',
+            infoProcessor: (element) => element.innerText.replace(/(?:(?:\r\n|\r|\n|\t)\s*){2}/gm, '\n').replaceAll('\t', ' ').split(/\n/),
+            makerCfg: true,
+            coverImageSelector: 'table.m_border tbody tr td table tbody tr td.m_main_c table tbody tr td img[src*="/data/item_img"]',
+            postProcessing: () => {
+                OffSetArea = CoverImage.closest('table');
+                OffSetArea.insertAdjacentHTML('beforeend', '<div class="IconSet" style="visibility: hidden; position: absolute;"></div>');
+                document.querySelector('.IconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
+                OffSetArea.style.setProperty('position', 'relative');
+                document.querySelector('.CopyTitle').insertAdjacentHTML('afterend', '<i class="FullCopyTitle fa-solid fa-expand"></i>');
+                document.querySelector('.FullCopyTitle').addEventListener("click", async function (e) {
+                    e.preventDefault();
+                    e.target.style.setProperty("color", "Orange", "important");
+                    updateClipboard(FullCopyTitle);
+                });
+            }
+        },
+        'pornolab.net': {
+            titleSelector: '.maintitle a#topic-title',
+            infoSelector: 'div.post-user-message',
+            //infoProcessor: (element) => element.innerHTML.replace(/<br>{2}/gm, '<br>').split(/<br>/).map((value) => removeHTML(value).replace(/\n/, '').replace(/ч(\.\d+)/, 'Part$1').trim())
+        }
+    };
+
+    let currentSiteConfig = null;
+    for (const domain in siteConfigs) {
+        if (new RegExp(domain.replace(/\./g, '\\.')).test(RootDomain)) {
+            currentSiteConfig = siteConfigs[domain];
+            break;
+        }
+    }
+
+    if (!currentSiteConfig) {
+        return; // No matching configuration found
+    }
+
+    TitleArea = document.querySelector(currentSiteConfig.titleSelector);
+
+    if (TitleArea && TitleArea.firstElementChild) { // For cases like javbus where firstElementChild is needed
+        TitleArea = TitleArea.firstElementChild;
+    }
+
+    if (!TitleArea) {
+        return;
+    }
+
+    if (currentSiteConfig.infoSelector) {
+        InfoArea = document.querySelector(currentSiteConfig.infoSelector);
+        if (InfoArea) {
+            if (currentSiteConfig.infoProcessor) {
+                InfoArea = currentSiteConfig.infoProcessor(InfoArea);
+            } else {
+                InfoArea = InfoArea.innerText.replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n').replace(/\t/g, '').split(/\n/);
+                InfoArea = InfoArea.filter(e => e.trim())
+            }
+        }
+    }
+
+    if (currentSiteConfig.castSelector) {
+        const castElement = document.querySelector(currentSiteConfig.castSelector);
+        if (castElement && currentSiteConfig.castProcessor) {
+            currentSiteConfig.castProcessor(castElement);
+        }
+    }
+
+    if (currentSiteConfig.coverImageSelector) {
+        CoverImage = document.querySelector(currentSiteConfig.coverImageSelector);
+    }
+
+    if (currentSiteConfig.makerCfg) {
+        MakerCfg = currentSiteConfig.makerCfg;
+    }
+
+    if (TitleArea && !document.querySelector('.CopyTitle')) {
+        MakeIcon()
+
+        if (currentSiteConfig.postProcessing) {
+            await currentSiteConfig.postProcessing();
+        }
+    }
+    SecondStep()
+}
+
+
+function MakeIcon() {
+    // 1. CenterBox 요소를 한 번만 찾아서 변수에 할당
+    document.querySelector("body").insertAdjacentHTML('afterbegin', '<div class="CenterBox"></div>');
+    const centerBox = document.querySelector('.CenterBox');
+
+    // centerBox가 없으면 함수 종료
+    if (!centerBox) {
+        console.error("CenterBox element not found.");
+        return;
+    }
+
+    if (isElementCovered(centerBox)) {
+        bringElementToFrontWithSteps(centerBox);
+    }
+
+    // 2. 아이콘 생성 함수
+    const addIconToCenterBox = (className, html, color) => {
+        const iconHTML = `<i class="${className}" style="color: ${color} !important;">${html}</i>`;
+        centerBox.insertAdjacentHTML('beforeend', iconHTML);
+    };
+
+    // 3. 아이콘에 클릭 이벤트 추가 함수
+    const addEventToIcon = (className, eventCallback) => {
+        // setTimeout을 사용하여 DOM이 업데이트될 시간을 줍니다.
+        setTimeout(() => {
+            const iconElement = centerBox.querySelector(`.${className}`);
+            if (iconElement && eventCallback) {
+                iconElement.addEventListener('click', eventCallback);
+            } else {
+                console.warn(`Icon with class "${className}" not found for event listener.`);
+            }
+        }, 0); // 0ms delay gives the browser time to process the DOM changes
+    };
+
+    // 4. pornolab.net 도메인에 따라 아이콘 생성 및 이벤트 추가
+    if (/pornolab\.net/.test(RootDomain)) {
+        let TorrentFile = document.querySelector('table.attach a.dl-stub.dl-link');
+        let relatedTopics = document.querySelector('div.thx-container div.related-topics');
+
+        if (TorrentFile) {
+            addIconToCenterBox("Download fa-regular fa-circle-down", "", "dodgerblue");
+            addEventToIcon("Download", function (e) {
+                e.preventDefault();
+                window.open(TorrentFile.href, '_blank');
+                e.target.style.setProperty("color", "Orange", "important");
+            });
+        }
+
+        if (relatedTopics) {
+            addIconToCenterBox("ScrollDown fa-solid fa-turn-down", "", "dodgerblue");
+            addEventToIcon("ScrollDown", function (e) {
+                e.preventDefault();
+                relatedTopics.scrollIntoView({
+                    behavior: 'smooth'
+                });
+            });
+        }
+    }
+
+    // 5. 공통 아이콘 생성 및 이벤트 추가
+    addIconToCenterBox("CopyTitle fas fa-code", "", "");
+    addEventToIcon("CopyTitle", async function (e) {
+        e.preventDefault();
+        e.target.style.setProperty("color", "Orange", "important");
+        updateClipboard(CopyTitle);
+    });
+
+    addIconToCenterBox("CloseIcon fa-solid fa-square-xmark", "", "red");
+    addEventToIcon("CloseIcon", function () {
+        self.close();
+    });
+
+    // 6. 스타일 및 기타 로직
+    const getDPI = window.devicePixelRatio;
+    const defaultFontSize = getDefaultFontSize();
+    const centerBoxFontSize = Number(((1 / (getDPI / 1.5)) * (16 / defaultFontSize)).toFixed(2)) + 'rem';
+
+    centerBox.style.cssText = `font-size: ${centerBoxFontSize};`;
+
+    const coverDownload = document.querySelector('.CoverDownload');
+    if (coverDownload) {
+        coverDownload.style.setProperty('font-size', centerBoxFontSize, 'important');
+    }
+}
+
+
+
+let Title, BTS, Remastered, TitleText
+
+let TitleDB
+
+const regExp = {
+    getMatchGroups(regExp, string) {
+        const matches = []
+        let match
+
+        while ((match = regExp.exec(string)) !== null) {
+            if (match.index === regExp.lastIndex) {
+                regExp.lastIndex++
+            }
+
+            const groups = match.slice(1)
+
+            if (groups.some(Boolean)) {
+                matches.push(groups)
+            }
+        }
+
+        return matches
+    }
+}
+
+const padZero = (num, length) => {
+    return String(num).padStart(length, '0');
+};
+
+
+/**
+ * 각 도메인별 타이틀 파싱 및 메타데이터 추출 로직을 담고 있는 객체입니다.
+ * 'default' 키는 어떤 도메인에도 해당하지 않을 경우를 처리합니다.
+ */
+const SiteParsers = {
+    'pornolab\\.net': {
+        parse: () => {
+            let titleText = TitleArea.getAttribute('title') ? TitleArea.getAttribute('title').replace('[uncen]', '') : TitleArea.innerText.replace('[uncen]', '');
+
+            // 러시아어 단어 및 날짜 형식 정리
+            titleText = titleText
+                .replace(/ролика|роликов|ролик|клипов/, 'Video Clips')
+                .replace(/ч(\.\d+)/, 'Part$1')
+                .replace(/часть/, 'Part')
+                .replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3')
+                .replace(/обновление от|Обновление|Обновлено/, 'UPDATE')
+                .trim();
+
+            console.log(titleText)
+            // 리마스터 및 BTS 플래그 추출
+            const remastered = /Remastered/.test(titleText);
+            const bts = /Behind\s?The\s?Scenes/.test(titleText);
+
+            if (remastered) {
+                titleText = titleText.replace('[Remastered]', '').replace(' - Remastered', '');
+            }
+
+            // 날짜 범위 및 제작자 추출
+            const betweenMatch = BetweenRegEx.exec(titleText);
+            const betweenYear = betweenMatch ? ` [${betweenMatch[0].replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3')}]` : '';
+            if (betweenMatch) {
+                titleText = titleText.replace(betweenMatch[1], '').replace(/\(\s?\)/g, '').trim();
+            }
+
+            // 릴리즈 날짜 추출 및 제거
+            const releaseDate = DateRegEx.test(titleText) && !BetweenRegEx.test(titleText) && !UPDateRegEx.test(titleText) ? titleText.match(DateRegEx)[1].trim() : '';
+            let FixreleaseDate = ''
+            if (releaseDate) {
+                titleText = titleText.replace(releaseDate, '').replace(/\s?\/\)/g, '').replace(' / )', ')').trim();
+                FixreleaseDate = releaseDate.replace(/-|\//g, '.');
+            }
+
+            // 제작자 추출
+            let maker;
+            if (/^\[.*?\]/.test(titleText)) {
+                const makerMatch = /^\[(.*?)\]/.exec(titleText);
+                if (makerMatch && makerMatch.length) {
+                    titleText = titleText.replace(makerMatch[0], '');
+                    maker = makerMatch[1]?.replace(/(\/|\.(com|net)).*/, '').trim();
+                }
+            } else {
+                const makerSearch = SearchMatch(InfoArea, "(Выпущено|Подсайт и сайт)\s?(:|：)?(.+)", "/\/|-/g, '.'");
+                maker = makerSearch ? makerSearch.replace(/,.+/, '').replace(/\..*/, '').trim() : '';
+                titleText = maker ? titleText.replace(maker, '').replace(/\(\s+\)/, '').trim() : titleText;
+            }
+
+            // ID
+            const IDSearch = SearchMatch(InfoArea, "Студийный код фильма\s?(:|：)?(.+)", "/\/|-/g, '.'");
+            const ID = IDSearch ? IDSearch.trim() : ''
+            if (ID) {
+                titleText = titleText.replace(ID, '').replace(/\[\]/g, '').replace(/\(\)/g, '');
+            }
+            const codeID = titleText.match(ChinaID)
+
+
+            titleText = titleText.replace(TAGS_REGEX, '').trim();
+            if (codeID.length > 0) {
+                titleText = `${codeID[0]} ${titleText.replace(codeID[0], '').replace(/\[\]/g, '').trim()}`;
+            }
+
+            const titleDB = titleText
+                .replace(/(\/.*?([а-яА-ЯЁё]).+?)?\[.*г.+?\]/, '')
+                .replace(/\s?\/\s?\)$/, ')')
+                .replace(/\s?\/\s?$/, '')
+                .replace(/(\/)?([а-яА-ЯЁё]).+?(\/)?/giu, '')
+                .replace(/\(Split\s?Scenes\)/i, '')
+                .split(/\s/);
+
+            return {
+                TitleText: titleText,
+                Remastered: remastered,
+                BTS: bts,
+                BetweenYear: betweenYear,
+                ReleaseDate: FixreleaseDate,
+                Maker: maker,
+                TitleDB: titleDB,
+                extractedId: ID,
+            };
+        },
+        refine: (parsedData) => {
+            const { TitleText, TitleDB, Remastered, BTS, BetweenYear, ReleaseDate, Maker, extractedId } = parsedData;
+            const extractedModelName = SearchMatch(InfoArea, "(В ролях|Погоняло бесстыдницы|В ролях|Имя актрисы|Имя модели|Погоняло принцессы|Погоняло волшебницы|Истинное имя бесстыдницы|Название Белоснежки|Название девки|Погоняло курицы с кривыми лапами)\s?(:|：)?(.+)", '/', '-')?.replace(/:|：/, '').replace(/\(.+/, '') || '';
+            const cleanedModelName = extractedModelName.split(',').filter(element => !new RegExp(escapeRegExp(element)).test(TitleText)).join(' ').trim()
+
+            return {
+                ...parsedData,
+                extractedId,
+                extractedModelName: cleanedModelName
+            };
+        }
+    },
+    'kin8tengoku\\.com': {
+        parse: () => {
+            const seriesMatch = /moviepages\/(\d+)\/index\.html/.exec(PageURL);
+            const series = seriesMatch ? seriesMatch[1] : '';
+            const titleText = `金8天国 ${series} ${TitleArea?.innerText.trim() || ''}`;
+            const titleDB = titleText.split(/\s/);
+            return {
+                Series: series,
+                TitleText: titleText,
+                TitleDB: titleDB
+            };
+        },
+        refine: (parsedData) => {
+            // kin8tengoku.com의 경우 추가 ID 추출 없음
+            const extractedId = '';
+            return {
+                ...parsedData,
+                extractedId
+            };
+        }
+    },
+    'av-wiki\\.net': {
+        parse: () => {
+            let titleText = TitleArea.innerText.trim();
+            if (ID?.[0]) {
+                titleText = titleText.replace(ID[0], '');
+            }
+            const titleDB = titleText.replace(/\s?\/\s?$/, '').split(/\s/);
+            return {
+                TitleText: titleText,
+                TitleDB: titleDB
+            };
+        },
+        refine: (parsedData) => {
+            const extractedId = extractAvWikiId();
+            const extractedAmatureName = getNextSibling(querySelectorIncludesText(InfoArea, 'dt', '素人名義'), 'dd')?.innerText.trim() || '';
+            let extractedModelName = getNextSibling(querySelectorIncludesText(InfoArea, 'dt', 'AV女優名'), 'dd')?.innerText.trim() || '';
+            extractedModelName = extractedModelName.split('\n').filter(element => !/^#|\(≥o≤\)|＊＊＊/.test(element)).join(' ').trim();
+            return {
+                ...parsedData,
+                extractedId,
+                extractedAmatureName,
+                extractedModelName
+            };
+        }
+    },
+    'bestjavporn\\.com|allasiangirls\\.net': {
+        parse: () => {
+            const titleText = TitleArea.innerText
+                .replace(/–/g, '-')
+                .replace(/(.+)(「|【)/, '$1 $2')
+                .replace(/(NO|#)(\d+)/g, (match, prefix, number) => {
+                    // 숫자와 접두어를 캡쳐하고, padZero를 사용하여 숫자를 3자리로 채웁니다.
+                    return prefix === '#' ? `${prefix}${padZero(number, 3)}` : `${prefix}.${padZero(number, 3)}`
+                })
+                .normalize('NFC')
+                .trim();
+            const titleDB = titleText.split(/\s/);
+            return {
+                TitleText: titleText,
+                TitleDB: titleDB
+            };
+        },
+        refine: (parsedData) => {
+            // bestjavporn.com, allasiangirls.net의 경우 추가 ID 추출 없음
+            const extractedId = '';
+            return {
+                ...parsedData,
+                extractedId
+            };
+        }
+    },
+    'fc2ppvdb\\.com': {
+        parse: () => {
+            // fc2ppvdb.com의 parse 로직은 현재 GetTitle에 직접 구현되어 있으므로, 이 부분은 그대로 둡니다.
+            // 만약 필요하다면 별도의 로직을 여기에 추가할 수 있습니다.
+            const titleText = TitleArea.innerText
+                .replace(/–/g, '-')
+                .normalize('NFC')
+                .trim();
+            const titleDB = titleText.split(/\s/);
+            return {
+                TitleText: titleText,
+                TitleDB: titleDB
+            };
+        },
+        refine: (parsedData) => {
+            const extractedId = extractFc2Id();
+            return {
+                ...parsedData,
+                extractedId
+            };
+        }
+    },
+    'getchu\\.com': {
+        parse: () => {
+            const titleText = TitleArea.innerText.trim();
+            const titleDB = titleText.split(/\s/);
+            return {
+                TitleText: titleText,
+                TitleDB: titleDB
+            };
+        },
+        refine: (parsedData) => {
+            const extractedId = extractGetchuId();
+            return {
+                ...parsedData,
+                extractedId
+            };
+        }
+    },
+    'default': {
+        parse: () => {
+            const titleText = TitleArea.innerText;
+            const titleDB = titleText
+                .replace(/amp;|\(\s?ブルーレイ版\s?\)|\(ブルーレイディスク版\)|（ブルーレイディスク）/g, '')
+                .replace(/（/g, '(')
+                .replace(/）/g, ')')
+                .split(/\s/);
+            return {
+                TitleText: titleText,
+                TitleDB: titleDB
+            };
+        },
+        refine: (parsedData) => {
+            const { TitleDB } = parsedData;
+            const extractedId = extractDefaultId(TitleDB);
+            let extractedSeries = (InfoArea.find(info => info.match(/シリーズ：?.*/)) || '').replace(/シリーズ：?/, '').trim();
+            let extractedReleaseDate = CfgReleaseDate && !parsedData.ReleaseDate ? SearchMatch(InfoArea, "(発売日|Release Date|配信開始日)\s?(:|：)?(.+)", '/', '-') || '' : parsedData.ReleaseDate;
+            let extractedMaker = MakerCfg && !parsedData.Maker ? SearchMatch(InfoArea, "(シリーズ|メーカー|Maker|サークル)\s?(:|：)?(.+)") || '' : parsedData.Maker;
+            let extractedModelName = !ModelName ? SearchMatch(InfoArea, "^(Actress|Model|Author|Parody|出演者?)\s?(:|：)?(.*)")?.replace('(仮名)', '') || '' : '';
+
+            return {
+                ...parsedData,
+                extractedId,
+                extractedSeries,
+                ReleaseDate: extractedReleaseDate,
+                Maker: extractedMaker,
+                extractedModelName
+            };
+        }
+    }
+};
+
+
+/**
+ * 웹사이트 도메인에 따라 타이틀 처리 로직을 호출하는 메인 함수입니다.
+ * SiteParsers 객체에서 현재 도메인에 맞는 파서를 찾아 실행합니다.
+ */
+function SecondStep() {
+    const siteKey = Object.keys(SiteParsers).find(key => new RegExp(key).test(RootDomain)) || 'default';
+    const parsedData = SiteParsers[siteKey].parse();
+
+    // GetTitle 함수는 이제 파싱된 데이터를 인자로 받습니다.
+    console.log('parsedData:', parsedData)
+    GetTitle(parsedData);
+}
+
+/**
+ * 이 함수는 이제 SecondStep에서 파싱된 데이터를 인자로 받아 처리합니다.
+ * 이 함수는 TitleText, Remastered, BTS, BetweenYear, ReleaseDate, Maker, TitleDB 전역 변수를 설정합니다.
+ * 이 변수들은 GetTitle() 함수에서 사용됩니다.
+ *
+ * @param {object} parsedData SecondStep에서 파싱된 메타데이터 객체
+ */
+function GetTitle(parsedData) {
+    const siteKey = Object.keys(SiteParsers).find(key => new RegExp(key).test(RootDomain)) || 'default';
+    const refinedData = SiteParsers[siteKey].refine(parsedData);
+    console.log('refinedData:', refinedData)
+    console.log('ID:', refinedData.extractedId);
+
+    addToPreserveList(refinedData.extractedId, toUpperCaseList, false)
+
+    // 2. 최종 타이틀 조립 및 정리
+    const finalTitle = assembleFinalTitle(refinedData);
+
+
+
+    // 3. 표지 이미지 다운로드 로직
+    handleCoverImageDownload(finalTitle);
+
+    console.log('최종 타이틀:', finalTitle);
+    CopyTitle = FilenameConvert(nameCorrection(finalTitle));
+    CopyTitle = mbConvertKana(CopyTitle, 'rans');
+    console.log('정리된 최종 타이틀:', '\n' + CopyTitle, byteLengthOfCheck(CopyTitle), '\n' + FullCopyTitle, byteLengthOfCheck(FullCopyTitle));
+}
+
+/**
+ * av-wiki.net에서 ID를 추출하는 헬퍼 함수
+ */
+function extractAvWikiId() {
+    // MGS品番 또는 メーカー品番을 기준으로 ID 추출
+    let id;
+    if ((/[0-9]{3}[A-Z]{2,5}/.test(ID?.[0]) && !SKIPMGSID.test(ID?.[0])) || querySelectorIncludesText(InfoArea, 'dt', 'MGS品番')) {
+        id = getNextSibling(querySelectorIncludesText(InfoArea, 'dt', 'MGS品番'), 'dd')?.innerText.trim();
+    } else {
+        id = getNextSibling(querySelectorIncludesText(InfoArea, 'dt', 'メーカー品番'), 'dd')?.innerText.trim();
+    }
+    return id || '';
+}
+
+/**
+ * fc2ppvdb.com에서 ID를 추출하는 헬퍼 함수
+ */
+function extractFc2Id() {
+    const idElement = TitleArea.closest('.items-center.text-white')?.nextElementSibling?.querySelector('span.text-white');
+    return idElement?.textContent.replace(/-/g, ' ').trim() || '';
+}
+
+/**
+ * getchu.com에서 ID를 추출하는 헬퍼 함수
+ */
+function extractGetchuId() {
+    const match = PageURL.match(/i\/item(\d+)?/);
+    return match?.[1] || '';
+}
+
+/**
+ * 기본 방식(SearchID 정규식)으로 ID를 추출하는 헬퍼 함수
+ * @param {Array} titleDB - ID를 찾을 문자열 배열
+ */
+function extractDefaultId(titleDB) {
+    const id = titleDB.find(entry => entry.match(SearchID)) || '';
+    if (id) {
+        // ID가 추출되면 TitleDB에서 제거
+        const index = titleDB.findIndex(entry => entry === id);
+        if (index > -1) {
+            titleDB.splice(index, 1);
+        }
+    }
+    return id;
+}
+/**
+ * 파싱된 메타데이터를 사용하여 최종 파일 이름을 조립하는 함수입니다.
+ *
+ * @param {object} data - refine 단계에서 정리된 메타데이터 객체
+ * @returns {string} - 파일 이름으로 사용할 수 있도록 정리된 최종 제목
+ */
+function assembleFinalTitle(data) {
+    // Destructuring을 사용하여 필요한 모든 데이터를 추출합니다.
+    // NOTE: refine 단계에서 반환된 객체의 키와 일치하도록 변수명을 수정했습니다.
+    let { extractedId, Maker, ReleaseDate, ModelName, TitleText, BetweenYear, Remastered, BTS } = data;
+
+    // 기본값 설정: 값이 없으면 빈 문자열을 할당하여 undefined 오류를 방지합니다.
+    TitleText = extractedId ? TitleText.replace(extractedId, '').trim() : TitleText
+    const formattedId = extractedId ? `${extractedId} ` : '';
+    const formattedMaker = Maker && ReleaseDate ? `${Maker}` : Maker ? `${Maker} ` : '';
+    const formattedReleaseDate = ReleaseDate ? `.${ReleaseDate}.` : ''
+    let formattedModelName = ModelName ? `(${ModelName})` : '';
+    const byteLimit = 238;
+    if (formattedModelName && byteLengthOfCheck(TitleText + formattedModelName) >= byteLimit) {
+        formattedModelName = ''
+    }
+
+    if (byteLengthOfCheck(TitleText) >= byteLimit) {
+        let TitleLast = getLastText(TitleText)
+        let tempTitle = TitleText
+        if (typeof TitleLast == 'undefined' || !TitleLast || TitleLast.length === 0 || TitleLast === "" || !/[^\s]/.test(TitleLast) || /^\s*$/.test(TitleLast) || TitleLast.replace(/\s/g, "") === "") {
+            TitleText = TitleText.trim()
+        }
+        else {
+            tempTitle = tempTitle.split(TitleLast)[0].trim()
+            tempTitle = byteLengthOf(tempTitle, byteLimit - (byteLengthOfCheck(TitleLast)))
+            TitleText = tempTitle + TitleLast.trim()
+        }
+    }
+
+    console.log('TitleText: ', TitleText, byteLengthOfCheck(TitleText))
+
+    let finalTitle = '';
+    if (/pornolab\.net/.test(RootDomain)) {
+        finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}${BetweenYear}`;
+    } else if (/bestjavporn\.com|allasiangirls\.net/.test(RootDomain)) {
+        finalTitle = `${TitleText}${formattedModelName}`;
+    }
+    else {
+        finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}`;
+    }
+
+    // 이중 공백 제거, 선행 하이픈 제거 후 트림
+    finalTitle = finalTitle.replace(/\s+/g, ' ').replace(/^\s?-\s/, '').replace(/\((\s+)?\)/g, '').replace(/\[(\s+)?\]/g, '').trim();
+    FullCopyTitle = finalTitle
+    // 최종 길이 제한 및 추가 태그
+
+    const finalByteCheck = byteLengthOfCheck(finalTitle);
+
+    if (finalByteCheck >= byteLimit) {
+        finalTitle = byteLengthOf(finalTitle, byteLimit).trim();
+    }
+
+    // BTS 및 Remastered 태그 추가
+    if (BTS) finalTitle += ' [Behind The Scenes]';
+    if (Remastered) finalTitle += ' [Remastered]';
+
+    // 외부 함수를 호출하여 최종 정리 후 반환합니다.
+    return finalTitle;
+}
+
+/**
+ * 커버 이미지 다운로드 로직을 처리하는 함수
+ */
+function handleCoverImageDownload(title) {
+    if (CoverImage && document.querySelector('.CoverDownload')) {
+        let fullCoverImageUrl = CoverImage.src || (CoverImage.style.backgroundImage.slice(4, -1).replace(/["']/g, ""));
+        const extension = fullCoverImageUrl?.split('.').pop() || '';
+        const filename = `${title}.${extension}`;
+
+        if (/image\.mgstage\.com\/images\/.*pb_p.*/.test(fullCoverImageUrl)) {
+            fullCoverImageUrl = fullCoverImageUrl.replace('/pb_p_', '/pb_e_');
+        }
+
+        loadImage(fullCoverImageUrl, 10000).then(() => {
+            MakeDownloadIcon();
+            document.querySelector('.CoverDownload').addEventListener("click", function (e) {
+                e.preventDefault();
+                forceDownload(fullCoverImageUrl, filename);
+            });
+        }).catch(error => {
+            console.error("이미지 로딩 실패:", error);
+        });
+    }
+}
+
+/**
+ * 주어진 텍스트를 포함하는 DOM 요소를 찾습니다.
+ * @param {HTMLElement} element - 검색을 시작할 요소
+ * @param {string} tag - 찾을 요소의 태그 이름
+ * @param {string} text - 찾을 텍스트
+ * @returns {HTMLElement | undefined} - 일치하는 요소, 또는 undefined
+ */
+function querySelectorIncludesText(element, tag, text) {
+    return Array.from(element.querySelectorAll(tag))
+        .find(el => el.innerText.includes(text));
+}
+
+/**
+ * 주어진 요소의 다음 형제 요소를 찾습니다.
+ * @param {HTMLElement} element - 시작 요소
+ * @param {string} tag - 찾을 형제 요소의 태그 이름
+ * @returns {HTMLElement | undefined} - 일치하는 형제 요소, 또는 undefined
+ */
+function getNextSibling(element, tag) {
+    let sibling = element?.nextElementSibling;
+    while (sibling) {
+        if (sibling.tagName.toLowerCase() === tag.toLowerCase()) {
+            return sibling;
+        }
+        sibling = sibling.nextElementSibling;
+    }
+    return undefined;
+}
+
+
 
 
 document.addEventListener("DOMContentLoaded", () => {
-
-    let cookieCheck = getCookie("ClearCopyed")
-    if (!cookieCheck || cookieCheck != "Y") {
-        console.log('ClearCopyed')
-        ClearCopyed()
-        setClearCopyed("ClearCopyed", "Y", 1)
-    }
-
     FontAwesomeCSS()
-
-    const DomainRules = getDomainConfig(RootDomain);
-    if (!DomainRules) {
-        console.error("해당 도메인에 대한 설정이 없습니다.");
-        return
-    }
-
-    try {
-        MakeIcon()
-        AddCopyIcon(document.body);
-    } catch (error) {
-        let errorMessage = "아이콘 추가 중 예상치 못한 오류가 발생했습니다.";
-
-        if (error instanceof TypeError) {
-            errorMessage = error.message;
-        } else if (error instanceof ReferenceError) {
-            errorMessage = "아이콘 추가에 필요한 함수 또는 변수가 정의되지 않았습니다.";
-        }
-        console.error(errorMessage);
-        console.error("오류 상세 정보:", error.stack);
-    }
-
-    const myObserver = new ResizeObserver(entries => {
-        RefreshIcon('ResizeObserver')
-    });
-
-    window.visualViewport.addEventListener("resize", function (e) {
-        RefreshIcon('Window Resize Event')
-    })
-    myObserver.observe(document.querySelector(".ToTop"))
-
-    // 동적 콘텐츠를 위한 MutationObserver 설정
-    const observer = new MutationObserver(mutations => {
-        for (const mutation of mutations) {
-            for (const node of mutation.addedNodes) {
-                if (node.nodeType === Node.ELEMENT_NODE && node?.querySelector(DomainRules.selectors.copyTitle)) {
-                    AddCopyIcon(node)
-                }
-            }
-        }
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true });
-
+    Start()
 }, { once: true })
 
-window.addEventListener('storage', (e) => {
 
-    RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
-    GetState = RootDomainDB
-    if (document.querySelector('.CenterBox')) {
-        document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageList(RootDomainDB)?.length
-        document.querySelector('.ClearButton').style = "color: dodgerblue !important;";
-        document.querySelector('.CopyButton').style = "color: dodgerblue !important;";
-    }
 
-});
 
-function ClearCopyed() {
-    console.log('Start Delete Copyed!')
-    Copyed = Object.keys(localStorage).filter(k => k.includes(RootDomain + '/') && /\d{4}-\d{2}-\d{2}/.test(localStorage.getItem(k)))
-    for (let key of Copyed) {
-        if (localStorage.getItem(key)) {
-            let Now = new Date(Date.now()).toISOString().slice(0, 10)
 
-            let AddedDay = new Date(localStorage.getItem(key)).toISOString().slice(0, 10)
-            const oneDay = 1000 * 60 * 60 * 24;
-            if (((new Date(Now) - new Date(AddedDay)) / oneDay) > 180) {
-                localStorage.removeItem(key)
-                console.log('Delete Item: ', key, AddedDay)
-            }
-        }
-    }
+function removeHTML(str) {
+    var tmp = document.createElement("DIV");
+    tmp.innerHTML = str;
+    return tmp.textContent || tmp.innerText || "";
 }
 
-function setClearCopyed(name, value, expiresDay) {
-    const NowTime = new Date();
-    const MidNight = new Date(NowTime.getFullYear(), NowTime.getMonth(), NowTime.getDate() + expiresDay, 9)
-    document.cookie = escape(name) + "=" + escape(value) + "; expires=" + MidNight.toUTCString();
+function FixLink(str) {
+    let tmp = document.createElement("a");
+    tmp.href = str;
+    return tmp.href
 }
 
-const SkipMakers = [
-    'Tubanomi', 'New World Harlem', 'Anikuramogusex',
-    'Toshiaki', 'Buena Vista', 'Punimoe!', 'palupunte'
-];
+function MakeDownloadIcon() {
+    if (!OffSetArea) return;
 
+    const iconSet = document.querySelector('.IconSet');
+    if (!iconSet) return;
 
+    const iconHeight = iconSet.offsetHeight;
+    const iconWidth = iconSet.offsetWidth;
+    const areaHeight = OffSetArea.offsetHeight;
+    const areaWidth = OffSetArea.offsetWidth;
 
-const DomainHandlers = {
-    'gm\\d+\\.xyz': {
-        selectors: {
-            copyTitle: '.entry-title a',
-            visitedLink: 'h2.entry-title a',
-        },
-        getPostArea: (el) => el.closest('.inside-article'),
-        GetInfo: (el) => DomainRules.relativeSelector(el)?.querySelector('.entry-title a')?.textContent.trim() || '',
-        //getCoverImage: (downloadArea) => downloadArea.querySelector('p img')?.getAttribute('data-src') || '',
-        getCopyID: (relativeArea) => relativeArea.querySelector('.entry-title a')?.href,
-        iconPosition: (iconSet) => {
-            const relativeArea = DomainRules.relativeSelector(iconSet);
-            const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
-            const iconSetMetrics = getElementMetrics(iconSet, { mode: 'relative' });
-            iconSet.style.setProperty('top', `${(relativeAreaMetrics.height / 2 - iconSetMetrics.height / 2).toFixed(0)}px`);
-            iconSet.style.setProperty('right', `${(-iconSetMetrics.width / 4).toFixed(0)}px`);
-        },
-        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.entry-content') || '',
-        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('header.entry-header') || '',
-    },
-    'pornbb\\.org': {
-        selectors: {
-            copyTitle: 'div.search-post-subj a.postdetails, span.postdetails.subject',
-            visitedLink: null,
-        },
-        getPostArea: (el) => el.closest('div.postbody'),
-        GetInfo: (el) => {
-            const rawTitle = DomainRules.relativeSelector(el)?.querySelector('a.postdetails, span.postdetails.subject')?.textContent.trim() || '';
-            const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
-            const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return parseForumTitle(infoLines, rawTitle)
-        },
-        getCopyID: (relativeArea, pageURL) => {
-            if (/newsearch\.php/.test(pageURL)) return relativeArea.querySelector('a')?.href;
-            if (/\.html#\d+/.test(pageURL)) return pageURL;
-            return relativeArea.querySelector('a.inl-bl')?.href;
-        },
-        iconPosition: (iconSet) => {
-            const relativeArea = DomainRules.relativeSelector(iconSet) || ''
-            const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
-            const iconSetMetrics = getElementMetrics(iconSet, { mode: 'relative' });
-            iconSet.style.setProperty('z-index', '99999');
-            iconSet.style.setProperty('vertical-align', window.getComputedStyle(relativeArea).getPropertyValue('vertical-align'));
-            iconSet.style.setProperty('line-height', window.getComputedStyle(relativeArea).getPropertyValue('line-height'));
-            iconSet.style.setProperty('top', `${(relativeAreaMetrics.height / 2 - iconSetMetrics.height / 2).toFixed(0)}px`);
-            iconSet.style.setProperty('left', `${(relativeAreaMetrics.width).toFixed(0)}px`);
-        },
-        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.post-text') || '',
-        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('.search-post-subj') || '',
-    },
-    'x-idol\\.net': {
-        selectors: {
-            copyTitle: 'h2.post-title.entry-title a',
-            visitedLink: 'h2.post-title.entry-title a',
-        },
-        getPostArea: (el) => el.closest('div.post.hentry:not(.sticky)')?.querySelector('div.entry') || el.closest('div.post.hentry:not(.sticky)'),
-        GetInfo: (el) => {
-            const rawTitle = DomainRules.relativeSelector(el)?.querySelector('h2.post-title.entry-title a')?.textContent.trim() || '';
-            const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
-            const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return extractInfoFromText(infoLines, rawTitle, { rawMode: true, preferJapanese: true });
-        },
-        getCopyID: (relativeArea) => relativeArea?.querySelector('h2.post-title.entry-title a')?.getAttribute('href'),
-        iconPosition: (iconSet) => {
-            const relativeArea = iconSet.closest('.post-title');
-            const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
-            const iconSetMetrics = getElementMetrics(iconSet, { mode: 'relative' });
-            iconSet.style.setProperty('vertical-align', window.getComputedStyle(relativeArea).getPropertyValue('vertical-align'));
-            iconSet.style.setProperty('line-height', window.getComputedStyle(relativeArea).getPropertyValue('line-height'));
-            iconSet.style.setProperty('top', `${(relativeAreaMetrics.height / 2 - iconSetMetrics.height / 2).toFixed(0)}px`);
-            iconSet.style.setProperty('right', `${(-iconSetMetrics.width / 5).toFixed(0)}px`);
-        },
-        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.entry-content') || '',
-        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('.post-title.entry-title') || '',
-    },
-    'forumophilia\\.com': {
-        selectors: {
-            copyTitle: 'div.messageinfo div.message-header div div.post_subj div.postdetails > a.bold, .messageinfo div.message-header div div.post_subj span.postdetails',
-            visitedLink: null,
-        },
-        getPostArea: (el) => el.closest('div.messageinfo'),
-        GetInfo: (el) => {
-            const rawTitle = DomainRules.relativeSelector(el)?.querySelector('div.post_subj span.postdetails span')?.textContent.trim() || '';
-            const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
-            const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return parseForumTitle(infoLines, rawTitle, { preferJapanese: true })
-        },
-        getCopyID: (relativeArea) => relativeArea?.querySelector('div.post_subj a[href]').href || '',
-        iconPosition: (iconSet) => {
-            const relativeArea = DomainRules.relativeSelector(iconSet);
-            const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
-            const iconSetMetrics = getElementMetrics(iconSet, { mode: 'relative' });
-            iconSet.style.setProperty('top', `${(relativeAreaMetrics.height / 5).toFixed(0)}px`);
-            iconSet.style.setProperty('right', `${(-iconSetMetrics.width / 4).toFixed(0)}px`);
-        },
-        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.message-body') || '',
-        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('div.message-header') || '',
-    },
-    'sexfetishforum\\.com': {
-        selectors: {
-            copyTitle: 'div.post_wrapper div.postarea div.flow_hidden div.keyinfo h5',
-            visitedLink: null,
-        },
-        getPostArea: (el) => el.closest('div.postarea'),
-        GetInfo: (el) => {
-            const rawTitle = DomainRules.relativeSelector(el)?.querySelector('div.keyinfo h5')?.textContent.trim() || '';
-            const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
-            const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return parseForumTitle(infoLines, rawTitle, { preferJapanese: true })
-        },
-        getCopyID: (relativeArea) => relativeArea.querySelector('div.keyinfo > [id^="subject_"] > a')?.href || '',
-        iconPosition: (iconSet) => {
-            const relativeArea = DomainRules.relativeSelector(iconSet)
-            const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
-            const iconSetMetrics = getElementMetrics(iconSet, { mode: 'bounding' });
-            iconSet.style.setProperty('top', `${(relativeAreaMetrics.height / 2 - iconSetMetrics.height) / 2}px`);
-            iconSet.style.setProperty('right', `${iconSetMetrics.width * 2}px`);
-        },
-        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.post') || '',
-        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('.flow_hidden') || '',
-    },
-    'planetsuzy\\.org': {
-        selectors: {
-            copyTitle: 'table.tborder tbody tr td[id^="td_post_"].alt1 div.smallfont',
-            visitedLink: null,
-        },
-        getPostArea: (el) => el.closest('table.tborder'),
-        GetInfo: (el) => {
-            const rawTitle = DomainRules.relativeSelector(el)?.textContent.trim() || '';
-            const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
-            const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return parseForumTitle(infoLines, rawTitle, { preferJapanese: true })
-        },
-        getCopyID: (relativeArea) => relativeArea.closest('table.tborder').querySelector('td.thead a[id^="postcount')?.href,
-        iconPosition: (iconSet) => {
-            const iconSetMetrics = getElementMetrics(iconSet, { mode: 'bounding' });
-            iconSet.style.setProperty('top', `0px`);
-            iconSet.style.setProperty('right', `${iconSetMetrics.width}px`);
-        },
-        infoSelector: (el) => DomainRules.getPostArea(el)?.querySelector('div[id^="post_message_"]') || '',
-        relativeSelector: (el) => DomainRules.getPostArea(el)?.querySelector('td.alt1 div.smallfont') || '',
-    },
-    'porn-w\\.org': {
-        selectors: {
-            copyTitle: 'div.row.list-row.genmed div.postdetails a.topictitle',
-            visitedLink: null,
-        },
-        getPostArea: (el) => el.closest('div.row.list-row.genmed'),
-        GetInfo: (el) => {
-            const rawTitle = DomainRules.relativeSelector(el)?.querySelector('a.topictitle')?.textContent.trim() || '';
-            const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
-            const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return parseForumTitle(infoLines, rawTitle, { preferJapanese: true })
-        },
-        getCopyID: (relativeArea) => relativeArea.querySelector('a.topictitle')?.href || '',
-        iconPosition: (iconSet) => {
-            const relativeArea = DomainRules.relativeSelector(iconSet);
-            const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
-            const iconSetMetrics = getElementMetrics(iconSet, { mode: 'relative' });
-            iconSet.style.setProperty('top', `${(relativeAreaMetrics.height / 2 - iconSetMetrics.height / 2).toFixed(0)}px`);
-            iconSet.style.setProperty('right', `${(-iconSetMetrics.width / 4).toFixed(0)}px`);
-        },
-        infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.row.list-row') || '',
-        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('div.row.list-row.genmed') || '',
-    },
-};
+    // 위치 계산
+    let top, left;
 
-const getDomainConfig = (rootDomain) => {
-    for (const [pattern, config] of Object.entries(DomainHandlers)) {
-        if (new RegExp(pattern).test(rootDomain)) {
-            return config;
-        }
-    }
-    return null;
-};
-
-const DomainRules = getDomainConfig(RootDomain);
-if (!DomainRules) {
-    console.error("해당 도메인에 대한 설정이 없습니다.");
-    return
-}
-
-
-
-function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
-    const {
-        preferJapanese = false,
-        skipKeywords = [],
-        rawMode = false,
-    } = options;
-
-    let CopyTitle = fallbackTitle
-        .replace(/^(UNCENSORED|CENSORED)\s/, '')
-        .replace(/amp;|\(\)/g, '')
-        .trim();
-
-    if (rawMode) return CopyTitle;
-
-    let Title = '';
-    let ID = '';
-    let Maker = '';
-    let ModelName = '';
-    let ReleaseDate = '';
-
-
-    const FeaturingLine = infoLines.find(line => line.match(/특집\s*:/i));
-    const Featuring = FeaturingLine ? FeaturingLine.replace(/Featuring\s*:/i, '').trim() : '';
-
-    infoLines.some((line) => {
-        if (!ID) {
-            const idMatch = line.match(SearchID);
-            if (idMatch && !line.match(SkipID)) {
-                ID = idMatch[1];
-            }
-        }
-
-        if (!Title) {
-            const titleMatchRaw = line.match(SearchID);
-            const copyMatchRaw = CopyTitle.match(SearchID);
-
-            const titleMatch = titleMatchRaw ? titleMatchRaw.pop().trim() : null;
-            const copyMatch = copyMatchRaw ? copyMatchRaw.pop().trim() : null;
-
-            if (titleMatch && copyMatch) {
-                if (preferJapanese) {
-                    Title = compareJapaneseCharacters(titleMatch, copyMatch);
-                } else {
-                    Title = titleMatch || copyMatch;
-                }
-            } else if (titleMatch) {
-                Title = titleMatch;
-            } else if (copyMatch) {
-                Title = copyMatch;
-            }
-
-            Title = Title ? Title.trim() + ' ' : '';
-        }
-
-
-        if (!Maker && /(Circle|Label)\s?:/.test(line)) {
-            const raw = line.match(/(Circle|Label)\s?:(.*)/)[2].trim();
-            const cleaned = SkipMakers.reduce((acc, keyword) => {
-                return acc.replace(new RegExp(keyword, 'gi'), '');
-            }, raw).trim();
-            if (cleaned) Maker = `[${cleaned}] `;
-        }
-
-        if (!ModelName && /(Actress|Model|Author)\s?:/.test(line)) {
-            ModelName = line.match(/(Actress|Model|Author)\s?:(.*)/)[2].trim();
-        }
-
-        if (!ReleaseDate) {
-            ReleaseDate = DateRegEx.test(line) ? line.match(DateRegEx)[1].replace(/\/|-|_/g, '.') : '';
-        }
-        return ID && ModelName && ReleaseDate && Title && Maker;
-    });
-
-    console.log({ ID, ModelName, ReleaseDate, Title });
-
-    if (ModelName) {
-        let ModelNameList = ModelName.split(/[,|]/).map(s => s.trim()).filter(Boolean);
-
-        ModelNameList = ModelNameList.filter(name => {
-            if (name.length <= 1) return false;
-            if (new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(Title)) return false;
-            return true;
-        });
-
-        ModelName = ModelNameList.length ? `[${ModelNameList.join(' ')}]` : '';
-    }
-    if (Featuring) {
-        Title = `${Featuring} - ${Title}`;
-    }
-
-    const cleanedinfoLines = infoLines.join('\n')
-        .replace(/(Actress|Model|Label|Circle|Featuring)\s*:?/gi, '')
-        .replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n')
-        .replace(/Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re:/gi, '')
-        .replaceAll('"|：', '')
-        .replace(/\*\*\*/g, '')
-        .replace(/\n{2,}/g, '\n')
-        .split('\n')
-        .filter(line => line.trim() && !/^(http|Download|Duration|Resolution|Categories|About)/i.test(line));
-
-    console.log({ infoLines, cleanedinfoLines });
-
-    const infoLinesFinalTitle = Title ? `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim() : ''
-
-
-    const InfofinalTitle = infoLinesFinalTitle ? compareSentencesByWordMatch(cleanedinfoLines[0], infoLinesFinalTitle) : cleanedinfoLines[0] || '';
-
-    console.log({ CopyTitle, InfofinalTitle });
-    //preferJapanese: true 일 때, 두 문장을 비교하여 일본어가 많이 포함된 경우 우선순위를 두고, 그렇지 않으면 원본 제목을 사용합니다.
-    let preferText = ''
-    let compareText = ''
-    if (preferJapanese) {
-        preferText = compareJapaneseCharacters(CopyTitle, InfofinalTitle);
-    }
-    compareText = compareSentencesByWordMatch(CopyTitle, InfofinalTitle);
-
-    const compareLast = compareSentencesByWordMatch(preferText, compareText)
-    if (ReleaseDate && (Maker || ID)) {
-        return `${Maker}${ID ? ID + ' ' : ''}.${ReleaseDate}.${compareLast}`
+    if (/kin8tengoku\.com/.test(RootDomain)) {
+        top = areaHeight - iconHeight;
+        left = areaWidth - iconWidth;
+    } else if (/av-wiki\.net/.test(RootDomain)) {
+        top = areaHeight - iconHeight / 2;
+        left = areaWidth - iconWidth * 1.25;
     } else {
-        return ReleaseDate ? `${compareLast}(${ReleaseDate})` : compareLast
+        top = areaHeight - iconHeight / 2;
+        left = areaWidth - iconWidth / 2;
     }
+
+    // 위치 적용
+    iconSet.style.top = `${top}px`;
+    iconSet.style.left = `${left}px`;
+
+    // CoverDownload의 폰트 크기 조정
+    const coverDownload = document.querySelector('.CoverDownload');
+    if (coverDownload) {
+        const scale = (1 / (GetDPI / 1.5)) * (16 / DefaultFontSize);
+        const remSize = Number(scale.toFixed(2));
+        coverDownload.style.setProperty('font-size', `${remSize}rem`, 'important');
+    }
+
+    iconSet.style.visibility = 'visible';
 }
 
 
-function parseForumTitle(infoLines, rawTitle, options = {}) {
-    const {
-        preferJapanese = false,
-        skipKeywords = [],
-        rawMode = false,
-    } = options;
-    //console.log('parseForumTitle:', { infoLines, rawTitle, options });
-    rawTitle = rawTitle.replace(/amp;|\(\)/gi, '').replace(/^Re:|Subject:/i, '').trim();
-
-
-    const finalTitle = extractInfoFromText(infoLines, rawTitle, options)
-    const TitleID = finalTitle?.match(SearchID)?.[1] || '';
-    const Title = finalTitle?.match(SearchID)?.pop()?.trim() || finalTitle;
-    console.log({ finalTitle, TitleID, Title });
-
-    return TitleID && Title ? `${TitleID} ${Title}` : finalTitle;
-}
-
-async function showCopyNotice(noticeArea, relativeArea, finalTitle, copyLinks) {
-    console.log('finalTitle:', finalTitle, '\ncopyLinks:', copyLinks)
-    GetDPI = window.devicePixelRatio;
-    DefaultFontSize = getDefaultFontSize();
-    const NFontSizeValue = ((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2) + 'rem';
-    const positionPoint = getElementMetrics(relativeArea, { mode: 'relative' });
-    noticeArea.style.setProperty('--NFontSize', NFontSizeValue);
-    noticeArea.style.top = `${positionPoint.height}px`;
-    noticeArea.style.left = '0';
-
-    if (copyLinks) {
-        noticeArea.textContent = `${finalTitle}\n${copyLinks}`;
-    } else {
-        noticeArea.textContent = `Empty......`;
-    }
-
-    $(noticeArea).slideToggle('fast', 'linear');
-    await sleep(750);
-    $(noticeArea).slideToggle('slow');
-    await sleep(1000);
-    noticeArea.textContent = '';
-}
-
-
-function addEventListeners(container) {
-
-    container.addEventListener('click', async function (event) {
-        if (event.target.matches('.CopyIcon')) {
-            event.preventDefault();
-
-            const copyIcon = event.target;
-            const copyId = copyIcon.getAttribute("id");
-            const relativeArea = DomainRules.relativeSelector(copyIcon)
-            const noticeArea = relativeArea?.querySelector('.noticeArea')
-
-
-            copyIcon.style.setProperty('color', 'Orange', 'important');
-            copyIcon.classList.add('Copyed');
-
-            const { finalTitle, copyLinks } = await CopyLink(copyIcon, noticeArea, copyId);
-
-            await showCopyNotice(noticeArea, relativeArea, finalTitle, copyLinks);
-
-            getNextSibling(copyIcon, '.Minus')?.classList.remove('NotCopyed');
-
-            const addDate = new Date().toISOString().slice(0, 10);
-            localStorage.setItem(copyId, addDate);
-
-            if (DomainRules.selectors.visitedLink) {
-                relativeArea.querySelector(DomainRules.selectors.visitedLink)?.classList.add('Copyed')
-            }
-
-            console.log('AddTitle: ', copyId, '\nAddDate: ', addDate);
-
-        }
-
-        else if (event.target.matches('.Minus')) {
-            event.preventDefault();
-
-            const minusIcon = event.target;
-            const copyIcon = getPreviousSibling(minusIcon, '.CopyIcon');
-            const copyId = copyIcon?.getAttribute("id");
-            const relativeArea = DomainRules.relativeSelector(copyIcon)
-
-            if (copyIcon) {
-                minusIcon.classList.add('NotCopyed');
-                copyIcon.style.removeProperty('color');
-                copyIcon.classList.remove('Copyed');
-
-                if (DomainRules.selectors.visitedLink) {
-                    relativeArea.querySelector(DomainRules.selectors.visitedLink)?.classList.remove('Copyed')
-                }
-
-                localStorage.removeItem(copyId);
-                RemoveDB(copyId);
-                RootDomainDB = JSON.parse(localStorage.getItem(RootDomain)) || [];
-                document.querySelector('.State').innerText = `${RootDomainDB?.length || 0} | ${PackageList(RootDomainDB)?.length || 0}`;
-            }
-        }
-    });
-}
-
-
-async function CopyLink(el, noticeArea, CopyID) {
-    console.groupCollapsed(`[CopyLink] Start`);
-    console.log({ el, noticeArea, CopyID });
-    console.groupEnd();
-
-    // DomainHandlers에 relativeSelector가 정의되어 있으면 해당 선택자를 사용하고,
-    // 그렇지 않으면 .IconSet의 부모 요소를 relativeArea로 설정
-    const relativeArea = DomainRules.relativeSelector(el)
-    console.log({ relativeArea })
-    if (!relativeArea) return
-
-    // relativeArea 내에서 infoSelector를 사용하여 downloadArea를 찾음
-    const downloadArea = DomainRules.infoSelector(el)
-    console.log({ downloadArea })
-    if (!downloadArea) return
-
-    const copyTitle = DomainRules.GetInfo(el);
-    const coverImage = DomainRules.getCoverImage?.(downloadArea) || '';
-
-    console.groupCollapsed(`[CopyLink] Processing: ${CopyID || 'No ID'}`);
-    console.log({ downloadArea, copyTitle, coverImage, CopyID });
-    console.groupEnd();
-
-    const limitedCopyTitle = byteLengthOf(copyTitle.replace(/amp;/g, '').trim(), 240);
-    let changedName = nameCorrection(limitedCopyTitle)
-    let finalTitle = FilenameConvert(changedName);
-    console.log({ changedName, finalTitle });
-
-    const linkItems = querySelectorAllRegex(downloadArea, SkipFilter, 'href', { notMatch: true });
-    console.log({ linkItems });
-    let copyLinks = '';
-    const duplicateLink = [];
-    let urlTitle = finalTitle;
-
-    if (!linkItems?.length) {
-        return { finalTitle, copyLinks }
-    } else {
-        linkItems.forEach(async (linkEntry) => {
-            const target = linkEntry.href.replace(/\?site=.+/, '');
-            if (duplicateLink.indexOf(target) === -1) {
-                duplicateLink.push(target);
-                const isSkip = SkipClassNames.some(skip => linkEntry.classList.contains(skip));
-                const hasChildrenImg = [...linkEntry.children].some(e => e.matches('img'));
-
-                if (!isSkip && !hasChildrenImg) {
-                    copyLinks += target + "\n";
-                    await UpdateDB(target, urlTitle, linkEntry.getAttribute("id") || PageURL, CopyID);
-                }
-            }
-        });
-    }
-
-    if (coverImage && !/imagetwist\.com/.test(coverImage) && duplicateLink.indexOf(coverImage) === -1) {
-        copyLinks += coverImage;
-        await UpdateDB(coverImage, urlTitle, el.getAttribute("id") || PageURL, CopyID);
-    }
-
-    localStorage.setItem(RootDomain, JSON.stringify(RootDomainDB))
-    GetState = RootDomainDB
-    document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageList(RootDomainDB)?.length
-    if (!JSON.parse(localStorage.getItem('NewAdded'))) {
-        localStorage.setItem('NewAdded', JSON.stringify(true))
-    }
-    return { finalTitle, copyLinks };
-}
-
-function PackageList(LinksDB) {
-    if (LinksDB?.length > 0) {
-        let uniqueTitle = [...new Set(LinksDB.map(x => x.T))]
-        return uniqueTitle
-    }
-    else {
-        return []
-    }
-}
-
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function SearchMatch(Array, Search, ReplaceSTR) {
-    const SearchRegEx = new RegExp(Search, "i")
-    const MatchItem = Array.find((e) => e.match(SearchRegEx))
+function SearchMatch(Array, Search, SearchReplace, ReplaceSTR) {
+    console.log(Array, Search, SearchReplace, ReplaceSTR)
+    const SearchRegEx = new RegExp(Search)
+    const SearchReplaceRegEx = SearchReplace ? new RegExp(SearchReplace, 'g') : ''
+    console.log(SearchRegEx, SearchReplaceRegEx)
+    const MatchItem = Array.find((e) => SearchRegEx.test(e) && !/http/.test(e))
     console.log('MatchItem:', MatchItem)
     if (MatchItem) {
-        if (ReplaceSTR) {
-            return MatchItem.match(SearchRegEx).pop().replace(ReplaceSTR).trim()
+        //console.log(SearchReplaceRegEx, ReplaceSTR)
+        if (SearchReplace) {
+            //console.log(MatchItem.match(SearchRegEx).pop())
+            return MatchItem.match(SearchRegEx).pop().trim().replace(SearchReplaceRegEx, ReplaceSTR).trim()
         }
         else {
             return MatchItem.match(SearchRegEx).pop().trim()
@@ -793,306 +1069,77 @@ function SearchMatch(Array, Search, ReplaceSTR) {
     else { return '' }
 }
 
+function loadImage(path, timeout = 10000) {
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        const timer = setTimeout(() => {
+            image.onload = null;
+            image.onerror = null;
+            reject(new Error("timeout"));
+        }, timeout);
 
-function UpdateDB(Target, UrlTitle, Source, CopyID) {
-    searchDB = RootDomainDB.find(({ U }) => U === Target)
-    if (searchDB) {
-        searchDB.T = UrlTitle
-    }
-    else {
-        RootDomainDB.push({ U: Target, T: UrlTitle, S: Source ? Source : '', I: CopyID ? CopyID : '' })
-    }
-    return RootDomainDB
-}
+        image.onload = () => {
+            clearTimeout(timer);
+            console.log('Cover Image Loaded!');
+            resolve(true);
+        };
 
-function RemoveDB(CopyID) {
-    RootDomainDB = RootDomainDB.filter(({ I }) => I !== CopyID)
-    localStorage.setItem(RootDomain, JSON.stringify(RootDomainDB))
-}
+        image.onerror = (error) => {
+            clearTimeout(timer);
+            console.error("load error", error);
+            reject(new Error("load error " + path));
+        };
 
-function applyClickEffect(selector) {
-    const element = document.querySelector(selector);
-    if (!element) return;
-
-    const fontSize = ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)).toFixed(2) + 'rem';
-    element.style.setProperty('color', 'Purple', 'important');
-    element.style.setProperty('font-size', fontSize, 'important');
-}
-
-
-async function clearDB() {
-    applyClickEffect('.ClearButton');
-    localStorage.removeItem(RootDomain)
-    RootDomainDB = JSON.parse(localStorage.getItem(RootDomain)) || []
-    GetState = RootDomainDB
-    document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageList(RootDomainDB)?.length
-}
-
-async function sendJD() {
-    applyClickEffect('.CopyButton');
-    var sendJDData = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
-    JDownloaderDB(sendJDData)
-}
-
-function MakeIcon() {
-    const GetDPI = window.devicePixelRatio;
-    const DefaultFontSize = parseInt(getComputedStyle(document.documentElement).fontSize);
-
-    console.log('GetDPI: ', GetDPI, 'DefaultFontSize: ', DefaultFontSize);
-
-    document.querySelector("body").insertAdjacentHTML('afterbegin', '<div class="CenterBox"></div>');
-    const centerBox = document.querySelector("div.CenterBox");
-
-    if (!centerBox) {
-        throw new TypeError("CenterBox 요소를 찾을 수 없습니다.");
-    }
-
-    if (isElementCovered(centerBox)) {
-        bringElementToFrontWithSteps(centerBox);
-    }
-
-    const baseFontSizeRem = (1 / (GetDPI / 1.5)) * (16 / DefaultFontSize);
-    const stateFontSizeRem = (baseFontSizeRem * 0.65).toFixed(2) + 'rem';
-
-    const icons = [
-        { className: 'ToTop fa-solid fa-circle-chevron-up', event: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
-        {
-            className: 'ClearButton far fa-minus-square', event: (event) => {
-                event.preventDefault();
-                if (JSON.parse(localStorage.getItem('NewAdded')) && window.confirm("Not Yet Copy! Clear?")) {
-                    localStorage.setItem('NewAdded', JSON.stringify(false));
-                    clearDB();
-                } else if (!JSON.parse(localStorage.getItem('NewAdded'))) {
-                    clearDB();
-                }
-            }
-        },
-        {
-            className: 'CopyButton fas fa-paste', event: (event) => {
-                event.preventDefault();
-                localStorage.setItem('NewAdded', JSON.stringify(false));
-                sendJD();
-            }
-        },
-        {
-            className: 'AllCopy fa-solid fa-box', event: (event) => {
-                event.preventDefault();
-                AllCopy();
-            }
-        },
-        { className: 'State', event: null },
-        { className: 'AllCopyState', event: null }
-    ];
-
-    icons.forEach(icon => {
-        centerBox.insertAdjacentHTML('beforeend', `<i class="${icon.className}"></i>`);
-        if (icon.event) {
-            centerBox.querySelector(`.${icon.className.split(' ')[0]}`).addEventListener('click', icon.event);
-        }
+        image.src = path;
     });
-
-    centerBox.style.setProperty('font-size', baseFontSizeRem + 'rem', 'important');
-    document.querySelector('.State').style.setProperty('font-size', stateFontSizeRem, 'important');
-    document.querySelector('.AllCopyState').style.setProperty('font-size', stateFontSizeRem, 'important');
-    RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : [];
-    GetState = RootDomainDB;
-    document.querySelector('.State').innerText = `${GetState?.length || 0} | ${PackageList(RootDomainDB)?.length || 0}`;
 }
 
-/**
- * 아이콘을 동적으로 생성하고, DOM에 추가하는 함수입니다.
- * @param {Element} relativeArea - 아이콘이 추가될 기준이 되는 요소
- * @param {string} copyId - 복사 기능에 사용될 고유 ID
- * @param {boolean} isCopied - 이미 복사된 상태인지 여부
- */
-function createAndAddIcons(relativeArea, copyId, isCopied) {
-    const iconBaseHtml = '<div class="IconSet" style="position: absolute;"></div>';
-    const copyIconHtml = '<span class="CopyIcon fa-solid fa-clone"></span>';
-    const minusIconHtml = '<span class="Minus fa-regular fa-square-minus"></span>';
-    const noticeHtml = '<div class="noticeArea" style="display: none; position: absolute;"></div>';
-
-    relativeArea.style.setProperty('position', 'relative');
-    relativeArea.insertAdjacentHTML('beforeend', iconBaseHtml);
-    const iconSet = relativeArea.querySelector('div.IconSet');
-
-    if (!iconSet) return;
-
-    iconSet.insertAdjacentHTML('beforeend', copyIconHtml);
-    iconSet.style.setProperty('color', 'dodgerblue');
-    iconSet.insertAdjacentHTML('afterend', noticeHtml);
-    addEventListeners(iconSet);
-
-    DomainRules.iconPosition(iconSet, relativeArea);
-
-    if (copyId) {
-        iconSet.insertAdjacentHTML('beforeend', minusIconHtml);
-        const copyIcon = relativeArea.querySelector('.CopyIcon');
-        const minusIcon = iconSet.querySelector('.Minus');
-
-        copyIcon.setAttribute("id", copyId);        
-        minusIcon.classList.add('NotCopyed');
-
-        if (isCopied) {
-            copyIcon.classList.add('Copyed');
-            DomainRules.getPostArea(iconSet)?.querySelector(DomainRules.selectors.visitedLink)?.classList.add('Copyed');
-            minusIcon.classList.remove('NotCopyed');
-        }
+function forceDownload(url, fileName) {
+    if (/^(\/\/|\.\/|\/)/.test(url)) {
+        url = FixLink(url)
     }
-}
-
-async function AddCopyIcon(node) {
-
-    if (!DomainRules || !DomainRules.selectors.copyTitle) {
-        console.log({ DomainRules }, DomainRules.selectors.copyTitle)
-        return;
-    }
-
-
-    const copyTitleAreas = node.querySelectorAll(DomainRules.selectors.copyTitle);
-    console.log({ node }, copyTitleAreas)
-
-    if (!copyTitleAreas?.length) {
-        throw new TypeError("copyTitleAreas가 존재하지 않거나 배열이 아닙니다.");
-    }
-
-    const copiedUrls = Object.keys(localStorage).filter(k => k.includes(RootDomain) && /\d{4}-\d{2}-\d{2}/.test(localStorage.getItem(k)));
-
-    for (const el of copyTitleAreas) {
-
-        const postArea = DomainRules.getPostArea(el)
-
-        if (!postArea) continue;
-
-        const relativeArea = DomainRules.relativeSelector(el);
-        console.log({ el, postArea, relativeArea })
-        if (!relativeArea) continue;
-
-        const copyID = DomainRules.getCopyID?.(relativeArea, window.location.href) || null;
-        const isCopied = copyID && copiedUrls.includes(copyID);
-
-        createAndAddIcons(relativeArea, copyID, isCopied);
-        console.log(relativeArea, copyID, isCopied)
-    }
-}
-
-function JDownloader(JdownloaderData, PackageName, sourceURL) {
-    console.log(PackageName + '\n' + JdownloaderData);
-    if (JdownloaderData) {
-        let data = new URLSearchParams();
-        data.append(`urls`, JdownloaderData);
-        if (sourceURL) {
-            data.append(`source`, sourceURL);
-        }
-        data.append(`referer`, PageURL);
-        if (PackageName) {
-            data.append(`package`, PackageName);
-        }
-        fetch('http://localhost:9666/flash/add', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                'Access-Control-Allow-Origin': 'http://localhost:9666',
-            },
-            body: data,
-        }).catch(error => {
-            console.error("JDownloader 통신 오류:", error);
-            alert("JDownloader 통신에 실패했습니다. JDownloader가 실행 중인지 확인하세요.");
-        });
-    }
-}
-
-function JDownloaderDB(LinksDB) {
-    let uniqueTitle = [...new Set(LinksDB.map(x => x.T))] || [...new Set(LinksDB.map(x => x.U))]
-    if (uniqueTitle?.length) {
-        uniqueTitle.forEach(async x => {
-            JDownloader(GetMatchLinks(x, LinksDB), x, GetMatchSource(x, LinksDB))
-            await sleep(1000)
-        })
-    }
-}
-
-function GetMatchSource(text, LinksDB) {
-    try {
-        let S = LinksDB.find(u => text.includes(u.T) && u.S)
-        return S ? S.S : false
-    } catch (err) {
-        console.log(err, text, LinksDB)
-    }
-}
-
-
-function GetMatchLinks(text, LinksDB) {
-    try {
-        return LinksDB.filter(u => text.includes(u.T)).map(l => l.U).join('\n')
-    } catch (err) {
-        console.log(err, text, LinksDB)
-    }
-}
-
-function getCookie(name) {
-    var cookie = document.cookie;
-    if (document.cookie != "") {
-        var cookie_array = cookie.split("; ");
-        for (var index in cookie_array) {
-            var cookie_name = cookie_array[index].split("=")
-            if (cookie_name[0] == name) {
-                return cookie_name[1];
+    GM_xmlhttpRequest({
+        method: "GET",
+        url: url,
+        responseType: "blob",
+        onload: function (res) {
+            if (res.status == 200) {
+                saveAs(res.response, fileName)
             }
-        }
-    }
-    return null;
-}
-
-function RefreshIcon() {
-    GetDPI = window.devicePixelRatio
-    DefaultFontSize = parseInt(getComputedStyle(document.documentElement).fontSize)
-    console.log('GetDPI: ', GetDPI, 'DefaultFontSize: ', DefaultFontSize)
-    const centerBox = document.querySelector("div.CenterBox");
-    centerBox.style.setProperty('font-size', ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)) + 'rem', 'important');
-    document.querySelector('.State').style.setProperty('font-size', ((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2) + 'rem', 'important');
-    document.querySelector('.AllCopyState').style.setProperty('font-size', ((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2) + 'rem', 'important');
-    document.querySelector(':root').style.setProperty('--IconSize', ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)).toFixed(2) + 'rem')
-
+        },
+        onerror: (err) => {
+            console.log("Error:", err);
+        },
+    })
 }
 
 
+function getInfoArea(InfoSelector) {
+    const info = InfoSelector.innerText
+        .split(/(?:(?:\r\n|\r|\n)\s*){2,}/)
+        .map(item => item.trim())
+        .filter(item => item);
 
-async function AllCopy() {
-    document.querySelector('.AllCopy').style = "color: White !important;";
-
-    let AllItems = document.querySelectorAll('.CopyIcon')
-    for (let i = 0; i < AllItems.length; i++) {
-        AllItems[i].click()
-        var d = new Date(Date.now())
-        var n = d.toLocaleTimeString()
-        document.querySelector('.AllCopyState').innerText = i + 1 + '/ ' + AllItems.length
-        await sleep(100)
-    }
-}
-
-
-function getNextSibling(elem, selector) {
-
-    var sibling = elem.nextElementSibling;
-
-    if (!selector) return sibling;
-
-    while (sibling) {
-        if (sibling.matches(selector)) return sibling;
-        sibling = sibling.nextElementSibling
-    }
+    console.log('Info: ', info);
+    return info;
 }
 
 
 function getPreviousSibling(elem, selector) {
 
+    // Get the next sibling element
     var sibling = elem.previousElementSibling;
 
+    // If there's no selector, return the first sibling
     if (!selector) return sibling;
 
+    // If the sibling matches our selector, use it
+    // If not, jump to the next sibling and continue the loop
     while (sibling) {
         if (sibling.matches(selector)) return sibling;
         sibling = sibling.previousElementSibling;
     }
 
-}
+};
+
+
