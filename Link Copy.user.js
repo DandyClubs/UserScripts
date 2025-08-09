@@ -401,16 +401,9 @@ window.addEventListener('storage', async (e) => {
 let currentConfig = null
 
 document.addEventListener("DOMContentLoaded", () => {
-    console.log('Start Link Copy!')
-    for (const site of siteConfigs) {
-        if (site.regex.test(PageURL) && (!site.condition || site.condition(site.config))) {
-            currentConfig = site.config;
-            break;
-        }
-    }
+    console.log('Start Link Copy!')    
     FontAwesomeCSS()
-    FirstStep()
-    if (!currentConfig) return
+    FirstStep()    
 }, { once: true })
 
 
@@ -1995,6 +1988,24 @@ async function handleToggle(key, className) {
 
 
 function FirstStep() {
+
+
+    localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
+
+    GetState = localStorageDB
+    PackageCount = PackageList(localStorageDB)  
+    updateUI(GetState, PackageCount)    
+
+    if (!LinkCopyCenterBox) {
+        mainIcon('First Run')
+    }
+    for (const site of siteConfigs) {
+        if (site.regex.test(PageURL) && (!site.condition || site.condition())) {
+            currentConfig = site.config;
+            break;
+        }
+    }
+    if (!currentConfig) return
     Array.from(document.querySelectorAll('a')).forEach((aEntry) => {
         if (/(\/|=)(aHR0c[a-zA-z0-9]+={0,2})($|\/|\?|&|-?-?;?)/.test(aEntry.href)) {
             aEntry.setAttribute('href', atob(aEntry.href.match(/(\/|=)(aHR0c[a-zA-z0-9]+={0,2})($|\/|\?|&|-?-?;?)/)[2]).replace(/\?site=.+/, ''))
@@ -2003,15 +2014,7 @@ function FirstStep() {
             aEntry.setAttribute('href', aEntry.href.replace(/\?site.+$/, ''))
         }
     })
-
-    localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
-
-    GetState = localStorageDB
-    PackageCount = PackageList(localStorageDB)
-
-    if (!LinkCopyCenterBox) {
-        mainIcon('First Run')
-    }
+    
 
     Start()
         .then((e) => {

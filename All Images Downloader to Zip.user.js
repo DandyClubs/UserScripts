@@ -10,10 +10,7 @@
 // @include      /xchina\.co\/.*\.html/
 // @include      /1909\.me\/.*\.html/
 // @include      /girlgirlgo\.org/
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jszip-utils/0.1.0/jszip-utils.min.js
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
 // @require      https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.min.js
@@ -39,19 +36,10 @@ GM_addStyle(`
 @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@600&family=Noto+Sans+KR:wght@600&family=Noto+Sans:wght@600&display=swap');
 
 
-:root {
-  --dynamic-zindex: 0;
-}
-
-.dynamic-z {
-  z-index: var(--dynamic-zindex);
-}
-
 .CenterBox {
     right: 50%;
     left: auto;
-    top: 0;
-    margin: 0 auto;
+    top: 5px;    
     max-width: max-content;
     position: fixed !important;
     word-spacing: .5em;
@@ -61,7 +49,10 @@ GM_addStyle(`
     border-radius: .25em !important;
     -webkit-box-sizing: border-box !important;
     box-sizing: border-box !important;
-    z-index: var(--dynamic-zindex);
+    z-index: 999999;
+    padding: 0 .25em;
+    margin: 0 .25em;	
+	background-color: rgba(0,0,0,0.5) !important;
 }
 
 .DownButton {
@@ -70,7 +61,7 @@ GM_addStyle(`
     padding: .5em;
     margin: .25em;
     background-color:transparent !important;
-    z-index: var(--dynamic-zindex);
+    z-index: 999999;
 }
 
 
@@ -94,30 +85,7 @@ GM_addStyle(`
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;
-    z-index: var(--dynamic-zindex);
-}
-
-.CopyNotice {
-    font-family: 'Nanum Gothic', 'M PLUS Rounded 1c', 'Noto Sans', sans-serif !important;
-    margin-left: auto;
-    margin-right: auto;
-    border-radius: 4px;
-    color: white !important;
-    background: rgba(255, 110, 0, 0.75) !important;
-    position: fixed !important;
-    padding: .25em 1em;
-    white-space: pre;
- 	text-shadow: initial !important;
-    text-align: left;
-    line-height: 1.25em;
-	font-weight: 500 !important;
-	font-style: initial !important;
-    display: -webkit-box;
-    -webkit-line-clamp: 15;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-      z-index: var(--dynamic-zindex);
+    z-index: 999999;
 }
 
 .State {
@@ -128,7 +96,7 @@ GM_addStyle(`
     padding: .25em !important;
     font-style: italic !important;
     background-color:transparent !important;
-    z-index: var(--dynamic-zindex);
+    z-index: 999999;
 }
 
 .JobState {
@@ -138,29 +106,13 @@ GM_addStyle(`
     vertical-align: middle;
     padding: 0 .5em 0 0 !important;
     font-family: 'Noto Sans', sans-serif !important;
-    z-index: var(--dynamic-zindex);
-}
-
-.AutoDownloadBox {
-    margin: 0 auto;
-    white-space : nowrap;
-    top: 5px;
-    left: var(--SetLeft);
-    position: fixed !important;
-    padding: 0 0 0 .25em !important;
-    border-radius: .25em !important;
-    -webkit-box-sizing: border-box !important;
-    box-sizing: border-box !important;
-    background-color: rgba(0,0,0,0.5) !important;
-    cursor: pointer;
-    text-align: center;
-    z-index: var(--dynamic-zindex);
+    z-index: 999999;
 }
 
 .ToTop, .AutoDownload {
     cursor: pointer;
     color: LawnGreen !important;
-    z-index: var(--dynamic-zindex);
+    z-index: 999999;
 }
 
 .AutoDownload.On {
@@ -755,14 +707,10 @@ function MakeIcon() {
     // 모든 요소를 한 번에 생성
     document.body.insertAdjacentHTML('beforeend',
         `
-        <div class="CenterBox" style="max-width: max-content; position: fixed;">
-            <i class="DownButton fas fa-download"></i>
-            <i class="State"></i>
-        </div>
-        <div class="ErrorImages" style="display:none;"></div>
-        <div class="CopyNotice" style="display:none;"></div>
-        <div class="AutoDownloadBox">
+        <div class="CenterBox" style="max-width: max-content; position: fixed;">            
             <i class="ToTop fa-solid fa-circle-chevron-up"></i>
+            <i class="State"></i>        
+            <div class="ErrorImages" style="display:none;"></div>                       
         </div>
         `
     );
@@ -770,7 +718,6 @@ function MakeIcon() {
 
     // DOM 요소를 한 번만 선택하고 변수에 할당
     const centerBox = document.querySelector(".CenterBox");
-    const autoDownloadBox = document.querySelector(".AutoDownloadBox");
     const toTopEl = document.querySelector(".ToTop");
     const stateEl = document.querySelector('.State');
 
@@ -789,44 +736,37 @@ function MakeIcon() {
     stateEl.style.fontSize = StateFontSize;
     stateEl.style.lineHeight = StateLineHeight;
 
-    if (isElementCovered(centerBox)) {
-        bringElementToFrontWithSteps(centerBox);
-    }
-    if (isElementCovered(autoDownloadBox)) {
-        bringElementToFrontWithSteps(autoDownloadBox);
-    }
-
     // AutoDownload 상태 토글 UI 설정
     const isAutoDownload = localStorage.getItem('AutoDownload') == 1;
     const iconClass = isAutoDownload ? 'On' : 'Off';
-    autoDownloadBox.insertAdjacentHTML(
+    centerBox.insertAdjacentHTML(
         'beforeend',
         `&emsp;<i class="AutoDownload ${iconClass} fa-solid fa-square-check"></i>`
     );
 
     // JobState indicator
     const jobStateHTML = `&emsp;<i class="JobState" style="font-size: ${StateFontSize};"></i>`;
-    autoDownloadBox.insertAdjacentHTML('beforeend', jobStateHTML);
+    centerBox.insertAdjacentHTML('beforeend', jobStateHTML);
     const jobStateEl = document.querySelector('.JobState');
 
     // JobList 초기화 및 텍스트 설정
     jobStateEl.textContent = JobList.length || 0;
 
-    // AutoDownloadBox 위치 설정
+
     if (centerBox.offsetLeft > 0) {
-        autoDownloadBox.style.cssText = `--SetLeft: ${Math.floor(centerBox.offsetLeft - centerBox.offsetHeight * 2.5)}px; font-size: ${CenterBoxFontSize};`;
+        centerBox.style.cssText = `--SetLeft: ${Math.floor(centerBox.offsetLeft - centerBox.offsetHeight * 2.5)}px; font-size: ${CenterBoxFontSize};`;
     }
 
     // ResizeObserver 설정
     const myObserver = new ResizeObserver(() => {
         if (centerBox.offsetLeft > 0) {
-            autoDownloadBox.style.cssText = `--SetLeft: ${Math.floor(centerBox.offsetLeft - centerBox.offsetHeight * 2.5)}px; font-size: ${CenterBoxFontSize};`;
+            centerBox.style.cssText = `--SetLeft: ${Math.floor(centerBox.offsetLeft - centerBox.offsetHeight * 2.5)}px; font-size: ${CenterBoxFontSize};`;
         }
     });
     myObserver.observe(centerBox);
 
     // AutoDownload 토글 클릭 이벤트
-    autoDownloadBox.addEventListener('click', function (e) {
+    centerBox.addEventListener('click', function (e) {
         if (e.target.classList.contains("AutoDownload")) {
             const isOff = e.target.classList.contains("Off");
             e.target.classList.replace(isOff ? 'Off' : 'On', isOff ? 'On' : 'Off');
@@ -901,7 +841,7 @@ async function Start() {
     }
 
     if (!Title) return console.warn('Title not found');
-
+    document.querySelector('.CenterBox').insertAdjacentHTML('afterbegin', '<i class="DownButton fas fa-download"></i>');
     return Title
 }
 
@@ -913,6 +853,10 @@ async function secondStep(Title) {
     Title = Title.textContent.trim();
     Title = Title.endsWith(`(${ImagesDB.length}P)`) ? Title : `${Title}(${ImagesDB.length}P)`;
     ZipFileName = byteLengthOf(FilenameConvert(Author ? `[${Author.innerText.trim()}] ${Title}` : Title), 240);
+    if (!ZipFileName) {
+        await UpdateJobQueue(PageURL, 'remove')
+        throw new Error('ZipFileName is empty')
+    }
 
     const nameLengths = ImagesDB.filter(e => getExtensionOfFilename(e.U) !== '.webp').map(x => GetFileName(x.U).length);
     maxLength = Math.max(...nameLengths);
@@ -977,6 +921,7 @@ function isAutoDownload() {
     return localStorage.getItem('AutoDownload') == 1;
 }
 
+/*
 function showCopyNotice(text) {
     const notice = document.querySelector('.CopyNotice');
     const box = document.querySelector('.CenterBox');
@@ -1000,7 +945,7 @@ function showCopyNotice(text) {
         .delay(1000)
         .fadeOut(400);
 }
-
+*/
 
 function byteLengthOf(TitleText, maxByte) {
     console.log(TitleText, maxByte)
@@ -1104,8 +1049,6 @@ async function downloadPhotosWithRetry(ImagesDB) {
 
             console.warn(`[Attempt ${attempt}] 실패 항목 ${errorList.length}개, 재시도 준비`);
 
-            const failedNames = new Set(errorList.map(e => e.F));
-
 
         } catch (fatalErr) {
             if (fatalErr.name === 'AbortError') {
@@ -1116,9 +1059,11 @@ async function downloadPhotosWithRetry(ImagesDB) {
                 AutoClose = false
             }
             // IndexedDB 임시 데이터 제거 (streamSaver 버퍼 제거)
+            /*
             if (typeof cleanupStreamSaverTempFiles === 'function') {
                 await cleanupStreamSaverTempFiles();
             }
+            */
             break;
         }
     }
@@ -1140,8 +1085,9 @@ async function downloadPhotosWithRetry(ImagesDB) {
         updateStateText(`✅ 전체 성공`);
         UpdateJobQueue(PageURL, 'remove'); // ✅ JobQueue에서 제거
         areadyDownloaded = true
-        await sleep(5000)
+        await sleep(2500)
         hideProgressUI()
+        await sleep(2500)
         if (localStorage.getItem('AutoDownload') == "1" && AutoClose) {
             self.close();
         }

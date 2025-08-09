@@ -26,13 +26,8 @@ const FontAwesomeCSS = function () {
 GM_addStyle (`
 @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c&family=Nanum+Gothic&family=Nanum+Gothic+Coding&family=Noto+Sans&display=swap');
 
-
 :root {
-  --dynamic-zindex: 0;
-}
-
-.dynamic-z {
-  z-index: var(--dynamic-zindex);
+  --main-color: LimeGreen; /* 전역 변수 정의 */
 }
 
 .CloseIcon, .CopyIcon, .Minus, .GetTitle, .IDSearch {
@@ -62,7 +57,7 @@ li.post div.article a:visited {
     -webkit-box-sizing: border-box !important;
     box-sizing: border-box !important;
     background-color: rgba(0,0,0,0.5) !important;
-    z-index: var(--dynamic-zindex);
+    z-index: 999999;
 }
 
 .CopyNotice {
@@ -85,7 +80,7 @@ li.post div.article a:visited {
     overflow: hidden;
     text-overflow: ellipsis;
     position: fixed !important;
-    z-index: var(--dynamic-zindex);
+    z-index: 999999;
 }
 
 .CenterBox {
@@ -120,7 +115,7 @@ li.post div.article a:visited {
     font-style: initial !important;
     word-spacing: .5rem;
     cursor: pointer;
-    color: LimeGreen !important;
+    color: var(--main-color) !important;
     background-color:transparent !important;
 }
 
@@ -223,8 +218,6 @@ async function Start() {
     centerBox.insertAdjacentHTML('afterend', `<div class="AutoClose ${autoCloseState} fa-solid fa-square-check"></div>`);
     const autoClose = $('.AutoClose');
 
-    if (isElementCovered(centerBox)) bringElementToFrontWithSteps(centerBox);
-
     function applyElementPosition(element, target, offsetX = 0) {
         if (!element || !target) return;
         const top = target.offsetTop + (target.offsetHeight - element.offsetHeight) / 2;
@@ -277,7 +270,7 @@ async function Start() {
 
         CopyButton: (target) => {
             UpdateDB();
-            target.style.color = "white !important";
+            target.style.setProperty('--main-color', 'white')
             JDownloaderDB(RootDomainDB);
         },
 
@@ -307,6 +300,7 @@ async function Start() {
 
         for (const className in handlers) {
             if (target.classList.contains(className)) {
+                e.preventDefault()
                 // async 핸들러 지원 위해 await 처리
                 await handlers[className](target);
                 break; // 하나만 처리
@@ -315,7 +309,9 @@ async function Start() {
     });
 
     const CopyOffSetArea = $('#post_content');
+    
     UpdateDB();
+    if (!CopyOffSetArea) return
 
     if (CopyOffSetArea && !$('.IconSet')) {
         centerBox.insertAdjacentHTML('afterend', `
@@ -528,7 +524,7 @@ function CheckTitle(startIndex) {
 
 
 const extractText = (DOMElement) =>
-[...DOMElement.childNodes]
+[...DOMElement?.childNodes]
 .filter(child => child.textContent?.trim())
 .map(child => {
     const text = child.textContent.trim();

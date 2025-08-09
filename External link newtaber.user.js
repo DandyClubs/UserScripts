@@ -205,7 +205,7 @@
     function findLinkElement(target) {
         let currentElement = target;
         let depth = 0;
-        const maxDepth = 3;
+        const maxDepth = 5;
 
         while (currentElement && depth < maxDepth) {
             if (currentElement.nodeName === "BUTTON" || currentElement.nodeName === "INPUT" || currentElement.nodeName === "BODY") {

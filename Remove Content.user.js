@@ -295,7 +295,7 @@ function replaceText(node) {
             const wrapper = document.createElement('div');
             wrapper.innerHTML = tempHtml;
             textNode.replaceWith(...wrapper.childNodes);
-            console.log(`Text replaced: ${text} -> ${tempHtml}`);
+            //console.log(`Text replaced: ${text} -> ${tempHtml}`);
         }
     }
 }

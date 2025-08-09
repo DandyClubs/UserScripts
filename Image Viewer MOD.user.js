@@ -555,10 +555,6 @@ function Management() {
 let viewer, AddStyleRun = true
 let startTime, endTime
 
-const GM_METHOD_MAP = {
-    GM_openInTab: 'openInTab',
-    GM_xmlhttpRequest: 'xmlHttpRequest',
-}
 
 const loadImage = (imageSrc) => new Promise((resolve, reject) => {
     const image = new Image();
@@ -588,6 +584,7 @@ let isWorking = false
 
 // 이미지 URL을 저장할 대기열(큐) 인스턴스
 const imageQueue = new Queue();
+
 let isPreloading = false; // 중복 실행 방지를 위한 플래그
 
 /**
@@ -708,6 +705,107 @@ function CheckSize(Access, Target) {
     }
 }
 
+const imageFullSizeQueue = new Queue()
+let isFullSizeProcessing = false
+let pauseFullSizeProcessing = false; // 원하면 일시정지 기능 사용
+
+function addToFullSizeQueue(imgEl, { autoStart = false } = {}) {
+    if (!imgEl) return;
+    const items = imageFullSizeQueue.getItemsArray();
+    if (items.includes(imgEl)) return; // 중복 방지
+    imageFullSizeQueue.enqueue(imgEl);
+
+    // 자동 시작을 원하면 시작
+    if (autoStart && !isFullSizeProcessing) {
+        startFullSizeProcessing();
+    }
+}
+/**
+ * 큐 처리 시작
+ */
+function startFullSizeProcessing() {
+    if (isFullSizeProcessing) return;
+    isFullSizeProcessing = true;
+    pauseFullSizeProcessing = false;
+    processFullSizeQueue()
+        .catch(err => console.error('processFullSizeQueue failed:', err))
+        .finally(() => { isFullSizeProcessing = false; });
+}
+
+/**
+ * 큐 처리 일시정지 후, 사용자 활동 감지해서 3초 뒤 재개
+ */
+function pauseFullSizeProcessingNow() {
+    pauseFullSizeProcessing = true;
+
+    let idleTimer;
+    function onUserActivity() {
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => {
+            pauseFullSizeProcessing = false;
+            startFullSizeProcessing();
+            // 한 번만 동작시키고 이벤트 핸들러 제거
+            ['mousemove', 'scroll', 'keydown', 'touchstart'].forEach(ev =>
+                document.removeEventListener(ev, onUserActivity)
+            );
+        }, 10000);
+    }
+
+    // 사용자 활동 감지 시작
+    ['mousemove', 'scroll', 'keydown', 'touchstart'].forEach(ev =>
+        document.addEventListener(ev, onUserActivity)
+    );
+}
+
+
+/**
+ * 큐 처리 재개
+ */
+function resumeFullSizeProcessing() {
+    if (!isFullSizeProcessing) startFullSizeProcessing();
+}
+
+/**
+ * 실제 큐 처리 루프 (비동기)
+ */
+async function processFullSizeQueue() {
+    while (!imageFullSizeQueue.isEmpty()) {
+        if (pauseFullSizeProcessing) break;
+
+        const imgEl = imageFullSizeQueue.peek();
+
+        // 안전 검사: DOM에서 사라졌거나 유효하지 않으면 건너뜀
+        if (!imgEl || !(imgEl instanceof HTMLElement)) {
+            imageFullSizeQueue.dequeue();
+            continue;
+        }
+
+        const link = imgEl.closest && imgEl.closest('a.ivChecked');
+        if (!link || imgEl.matches('.ClickAbleItem')) {
+            imageFullSizeQueue.dequeue();
+            continue;
+        }
+
+        try {
+            // getSize는 {width, height, isLoaded} 반환을 가정
+            await image.getSize(imgEl);
+
+            if (ImageExists(imgEl) && !ImageBigSize(imgEl)) {
+                // 실제로 full-size url 얻어오기
+                await image.getFullSizeURL(link);
+            }
+        } catch (err) {
+            console.error('Error while processing full-size for', imgEl, err);
+            // 에러가 나도 큐는 다음으로 진행
+        } finally {
+            imageFullSizeQueue.dequeue();
+        }
+
+        // 부담을 줄이기 위한 짧은 딜레이 (네트워크 과부하 방지)
+        await new Promise(r => setTimeout(r, 100));
+    }
+}
+
 let container = document.querySelector('#ViewerJS');
 
 function AddViewer() {
@@ -722,7 +820,8 @@ function AddViewer() {
             const link = img.closest('a.ViewerGallery');
             if (!link) return false;
             img.onclick = null;                // disable default click
-            return Boolean(link.dataset.ivImgUrl);
+            //return Boolean(link.dataset.ivImgUrl);
+            return Boolean(link);
         },
 
         // Provide the real “large” URL from the link’s data attribute,
@@ -962,22 +1061,26 @@ const ExpandTag = new IntersectionObserver((entries, self) => {
 
 const IO = new IntersectionObserver((entries, self) => {
     for (const entry of entries) {
-        //if (entry.isIntersecting) {
-        let Image = entry.target
-        let Link = Image.closest('a.ivChecked')
-        if (!Image.matches('.ClickAbleItem')) {
-            image.getSize(Image).then(async (re) => {
-                //console.log(ImageExists(Image) , ImageBigSize(Image))
-                if (ImageExists(Image) && !ImageBigSize(Image)) {
-                    await image.getFullSizeURL(Link)
-                    self.unobserve(entry.target)
-                }
-            })
-        }
-        //}
-    }
+        const imgEl = entry.target;
+        const link = imgEl.closest && imgEl.closest('a.ivChecked');
 
-}, { root: null, rootMargin: "0px 0px", threshold: 0 })
+        if (entry.isIntersecting) {
+            if (!imgEl.matches('.ClickAbleItem')) {
+                image.getSize(imgEl).then(async () => {
+                    if (ImageExists(imgEl) && !ImageBigSize(imgEl)) {
+                        await image.getFullSizeURL(link);
+                        self.unobserve(imgEl);
+                    }
+                }).catch(e => console.error(e));
+            }
+        } else {
+            // 페이지 상에 보이지 않는 이미지는 큐로 대기(자동 시작 원하면 {autoStart:true})
+            addToFullSizeQueue(imgEl, { autoStart: false });
+            self.unobserve(imgEl);
+        }
+    }
+}, { root: null, rootMargin: "500px 0px", threshold: 0 });
+
 
 function AtoBLinks(link) {
     let linkAtoB = /(\/|=)(aHR0c[a-zA-z0-9]+={0,2})($|\/|\?|&|-?-?;?)/.exec(link.href)
@@ -1076,6 +1179,8 @@ async function initViewer(node) {
                 : [CLASSES.imageLink])
         );
 
+
+        link.classList.add('ViewerGallery')
         IO.observe(img);
     }
 
@@ -1087,8 +1192,11 @@ function AddEvent() {
     document.addEventListener('click', (event) => {
         //console.log(event.target.nodeName.toLowerCase() === 'figcaption' , event.target.nodeName.toLowerCase())
         //console.log(event.target)
-        if (event.target.closest('.ViewerGallery')) {
+        if (event.target.closest('.ViewerGallery')) {            
             event.preventDefault()
+            // 페이지 로드 후 시작
+            document.addEventListener('DOMContentLoaded', watchForViewerContainer);
+
             //event.stopPropagation()
             viewer.update()
             //loadImage(event.target.closest('.ViewerGallery').getAttribute('data-iv-img-url'))
@@ -1097,6 +1205,56 @@ function AddEvent() {
     }, true)
 
 }
+
+
+function watchForViewerContainer() {
+    const checkExisting = document.querySelector('.viewer-container');
+    if (checkExisting) {
+        observeViewerModal(checkExisting);
+        return;
+    }
+
+    // 아직 없으면 DOM 변화를 감시해서 생성될 때까지 대기
+    const bodyObserver = new MutationObserver((mutations, obs) => {
+        const viewer = document.querySelector('.viewer-container');
+        if (viewer) {
+            observeViewerModal(viewer);
+            obs.disconnect(); // 찾았으니 감시 중단
+        }
+    });
+
+    bodyObserver.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+}
+
+function observeViewerModal(viewer) {
+    console.log('Viewer container found, observing aria-modal changes');
+
+    const modalObserver = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'aria-modal') {
+                const isOpen = viewer.getAttribute('aria-modal') === 'true';
+                if (isOpen) {
+                    console.log('뷰어 열림 → 큐 처리 재개');
+                    pauseFullSizeProcessing = false;
+                    startFullSizeProcessing();
+                } else {
+                    console.log('뷰어 닫힘 → 큐 처리 일시정지');
+                    pauseFullSizeProcessingNow();
+                }
+            }
+        }
+    });
+
+    modalObserver.observe(viewer, {
+        attributes: true,
+        attributeFilter: ['aria-modal']
+    });
+}
+
+
 
 
 function ImageBigSize(image) {
@@ -1137,7 +1295,14 @@ function ImageExists(image) {
     if (!dimensions) return true; // no known "no image" dimensions for this domain
 
     // Check if image size matches any known "no image" dimension
-    return !dimensions.some(dim => dim.w === W && dim.h === H);
+    const result = dimensions.some(dim => dim.w === W && dim.h === H)
+
+    if (result){
+        const link = image.closest('a');
+        link.classList.remove('ViewerGallery')
+        viewer.update()        
+    }    
+    return !result;
 }
 
 
@@ -1184,7 +1349,7 @@ const image = {
         const thumbnailURL = link.dataset.ivThumbnail
         const imageHost = link.dataset.ivHost
 
-        if (!thumbnailURL || !imageHost) {
+        if (!thumbnailURL || !imageHost) {            
             throw new Error(
                 '[image-viewer] Either thumbnail URL or host is not set'
             )
@@ -1200,10 +1365,10 @@ const image = {
 
         if (!imageURL) {
             image.markAsBroken(link)
+            link.classList.remove('ViewerGallery')
+            viewer.update()
             return
         }
-
-
 
         try {
             const extractor = urlExtractor.getExtractorByHost(imageHost)
@@ -1221,13 +1386,6 @@ const image = {
         }
 
         link.dataset.ivImgUrl = imageURL
-
-        if (imageURL) {
-            link.classList.add('ViewerGallery')
-        }
-
-
-
         return imageURL
     },
 
