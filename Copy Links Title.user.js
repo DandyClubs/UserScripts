@@ -37,14 +37,6 @@ GM_addStyle(`
 
 
 @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c&family=Nanum+Gothic&family=Nanum+Gothic+Coding&family=Noto+Sans&display=swap');
-:root {
-  --IconSize: 1em;
-  --dynamic-zindex: 0;
-}
-
-.dynamic-z {
-  z-index: var(--dynamic-zindex);
-}
 
 .IconSet, .CloseIcon, .AllCopy {
     text-align: center;
@@ -61,7 +53,7 @@ GM_addStyle(`
      padding: .5em;
      cursor: pointer;
      text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 0px -1px white;
-     z-index: var(--dynamic-zindex);
+     z-index: 999999;
 }
 
 .CopyIcon.Copyed, .Minus.NotCopyed {
@@ -94,7 +86,7 @@ GM_addStyle(`
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: var(--NFontSize, 0.6rem);
-    z-index: var(--dynamic-zindex);
+    z-index: 999999;
 }
 .CenterBox {
 	right: 50%;
@@ -113,7 +105,7 @@ GM_addStyle(`
 	-webkit-box-sizing: border-box !important;
 	box-sizing: border-box !important;
 	background-color: rgba(0,0,0,0.5) !important;
-    z-index: var(--dynamic-zindex);
+    z-index: 999999;
 }
 
 .CenterBox * {
@@ -198,7 +190,7 @@ const SkipTitle = [
 
 console.log(SkipFilter)
 
-
+let lastExecutionTime = performance.now()
 document.addEventListener("DOMContentLoaded", () => {
 
     let cookieCheck = getCookie("ClearCopyed")
@@ -232,20 +224,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const myObserver = new ResizeObserver(entries => {
-        RefreshIcon('ResizeObserver')
+        const now = performance.now();
+        if (now - lastExecutionTime >= 2000) {
+            RefreshIcon(performance.now());
+        }
+        lastExecutionTime = now;        
     });
 
     window.visualViewport.addEventListener("resize", function (e) {
-        RefreshIcon('Window Resize Event')
+        const now = performance.now();
+        if (now - lastExecutionTime >= 2000) {
+            RefreshIcon(performance.now());
+        }
+        lastExecutionTime = now;        
     })
     myObserver.observe(document.querySelector(".ToTop"))
-
-
-    document.addEventListener("AutoPagerize_DOMNodeInserted", function (event) {
-        let node = event.target;
-        AddCopyIcon(node)
-    }, false);
-
 
 }, { once: true })
 
@@ -347,8 +340,8 @@ const DomainHandlers = {
     },
     'x-idol\\.net': {
         selectors: {
-            copyTitle: 'h2.post-title.entry-title a',
-            visitedLink: 'h2.post-title.entry-title a',
+            copyTitle: '.post-title.entry-title a',
+            visitedLink: '.post-title.entry-title a',
         },
         getPostArea: (el) => el.closest('div.post.hentry:not(.sticky)')?.querySelector('div.entry') || el.closest('div.post.hentry:not(.sticky)'),
         GetInfo: (el) => {
@@ -851,10 +844,6 @@ function MakeIcon() {
 
     if (!centerBox) {
         throw new TypeError("CenterBox 요소를 찾을 수 없습니다.");
-    }
-
-    if (isElementCovered(centerBox)) {
-        bringElementToFrontWithSteps(centerBox);
     }
 
     const baseFontSizeRem = (1 / (GetDPI / 1.5)) * (16 / DefaultFontSize);
