@@ -652,7 +652,7 @@ async function showCopyNotice(noticeArea, relativeArea, finalTitle, copyLinks) {
     }
 
     $(noticeArea).slideToggle('fast', 'linear');
-    await sleep(750);
+    await sleep(500);
     $(noticeArea).slideToggle('slow');
     await sleep(1000);
     noticeArea.textContent = '';
