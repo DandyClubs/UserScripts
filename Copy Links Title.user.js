@@ -48,8 +48,11 @@ GM_addStyle(`
     text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 0px -1px white;
 }
 
-.CopyIcon, .Minus {
-    font-size: var(--IconSize) !important;
+.IconSize {
+  font-size: var(--IconSize) !important;
+}
+
+.CopyIcon, .Minus {    
      padding: .5em;
      cursor: pointer;
      text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 0px -1px white;
@@ -190,9 +193,9 @@ const SkipTitle = [
 
 console.log(SkipFilter)
 
-let lastExecutionTime = performance.now()
-document.addEventListener("DOMContentLoaded", () => {
 
+document.addEventListener("DOMContentLoaded", () => {
+    let lastExecutionTime = performance.now()
     let cookieCheck = getCookie("ClearCopyed")
     if (!cookieCheck || cookieCheck != "Y") {
         console.log('ClearCopyed')
@@ -232,9 +235,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         if (node.querySelector(DomainRules.selectors.copyTitle)) {
-                            AddCopyIcon(node) 
+                            AddCopyIcon(node)
                         }
-                        
+
                     }
                 });
             }
@@ -248,7 +251,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (now - lastExecutionTime >= 2000) {
             RefreshIcon(performance.now());
         }
-        lastExecutionTime = now;        
+        lastExecutionTime = now;
     });
 
     window.visualViewport.addEventListener("resize", function (e) {
@@ -256,7 +259,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (now - lastExecutionTime >= 2000) {
             RefreshIcon(performance.now());
         }
-        lastExecutionTime = now;        
+        lastExecutionTime = now;
     })
     myObserver.observe(document.querySelector(".ToTop"))
 
@@ -663,7 +666,7 @@ function addEventListeners(container) {
 
     container.addEventListener('click', async function (event) {
         if (event.target.matches('.CopyIcon')) {
-            event.preventDefault();           
+            event.preventDefault();
 
             const copyIcon = event.target;
             const copyId = copyIcon.getAttribute("id");
@@ -727,12 +730,12 @@ async function CopyLink(el, noticeArea, CopyID) {
     // DomainHandlers에 relativeSelector가 정의되어 있으면 해당 선택자를 사용하고,
     // 그렇지 않으면 .IconSet의 부모 요소를 relativeArea로 설정
     const relativeArea = DomainRules.relativeSelector(el)
-    
+
     if (!relativeArea) return
 
     // relativeArea 내에서 infoSelector를 사용하여 downloadArea를 찾음
     const downloadArea = DomainRules.infoSelector(el)
-    
+
     if (!downloadArea) return
 
     const copyTitle = DomainRules.GetInfo(el);
@@ -856,8 +859,8 @@ async function sendJD() {
 }
 
 function MakeIcon() {
-    const GetDPI = window.devicePixelRatio;
-    const DefaultFontSize = parseInt(getComputedStyle(document.documentElement).fontSize);
+    GetDPI = window.devicePixelRatio;
+    DefaultFontSize = parseInt(getComputedStyle(document.documentElement).fontSize);
 
     console.log('GetDPI: ', GetDPI, 'DefaultFontSize: ', DefaultFontSize);
 
@@ -924,7 +927,7 @@ function MakeIcon() {
  * @param {boolean} isCopied - 이미 복사된 상태인지 여부
  */
 function createAndAddIcons(relativeArea, copyId, isCopied) {
-    const iconBaseHtml = '<div class="IconSet" style="position: absolute;"></div>';
+    const iconBaseHtml = '<div class="IconSet IconSize" style="position: absolute;"></div>';
     const copyIconHtml = '<span class="CopyIcon fa-solid fa-clone"></span>';
     const minusIconHtml = '<span class="Minus fa-regular fa-square-minus"></span>';
     const noticeHtml = '<div class="noticeArea" style="display: none; position: absolute;"></div>';
@@ -934,6 +937,10 @@ function createAndAddIcons(relativeArea, copyId, isCopied) {
     const iconSet = relativeArea.querySelector('div.IconSet');
 
     if (!iconSet) return;
+
+    const iconSize = ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)).toFixed(2) + 'rem';
+    iconSet.style.setProperty('--IconSize', iconSize, 'important');
+
 
     iconSet.insertAdjacentHTML('beforeend', copyIconHtml);
     iconSet.style.setProperty('color', 'dodgerblue');
@@ -975,7 +982,7 @@ async function AddCopyIcon(node) {
         const postArea = DomainRules.getPostArea(el);
         if (!postArea) continue;
 
-        const relativeArea = DomainRules.relativeSelector(el);        
+        const relativeArea = DomainRules.relativeSelector(el);
         if (!relativeArea) continue;
 
         const copyID = DomainRules.getCopyID?.(relativeArea, window.location.href) || null;
@@ -984,6 +991,7 @@ async function AddCopyIcon(node) {
         createAndAddIcons(relativeArea, copyID, isCopied);
         console.log(relativeArea, copyID, isCopied)
     }
+    RefreshIcon()
 }
 
 function JDownloader(JdownloaderData, PackageName, sourceURL) {
@@ -1062,8 +1070,7 @@ function RefreshIcon() {
     centerBox.style.setProperty('font-size', ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)) + 'rem', 'important');
     document.querySelector('.State').style.setProperty('font-size', ((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2) + 'rem', 'important');
     document.querySelector('.AllCopyState').style.setProperty('font-size', ((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2) + 'rem', 'important');
-    document.querySelector(':root').style.setProperty('--IconSize', ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)).toFixed(2) + 'rem')
-
+    document.querySelector('.IconSize')?.style.setProperty('--IconSize', ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)).toFixed(2) + 'rem')
 }
 
 
