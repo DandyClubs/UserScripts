@@ -696,6 +696,7 @@ function addEventListeners(container) {
 
             const minusIcon = event.target;
             const copyIcon = getPreviousSibling(minusIcon, '.CopyIcon');
+            const relativeArea = DomainRules.relativeSelector(copyIcon)
             const copyId = copyIcon?.getAttribute("id");
 
             if (copyIcon) {
@@ -704,6 +705,7 @@ function addEventListeners(container) {
                 copyIcon.classList.remove('Copyed');
 
                 if (DomainRules.selectors.visitedLink) {
+                    console.log()
                     relativeArea?.querySelector(DomainRules.selectors.visitedLink)?.classList.remove('Copyed');
                 }
 
@@ -950,6 +952,7 @@ function createAndAddIcons(relativeArea, copyId, isCopied) {
 
         if (isCopied) {
             copyIcon.classList.add('Copyed');
+            relativeArea?.querySelector(DomainRules.selectors.visitedLink)?.classList.add('Copyed');
             minusIcon.classList.remove('NotCopyed');
         }
     }
