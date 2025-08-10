@@ -205,7 +205,7 @@ document.addEventListener("readystatechange", async (event) => {
         console.log('All Images Download Zip!')
         FontAwesomeCSS();
         MakeIcon();
-        AddDBResetButton()
+        //AddDBResetButton()
 
         await jobDB.init();
 
@@ -1058,11 +1058,11 @@ async function downloadPhotosWithRetry(ImagesDB) {
                 AutoClose = false
             }
             // IndexedDB 임시 데이터 제거 (streamSaver 버퍼 제거)
-            /*
+            
             if (typeof cleanupStreamSaverTempFiles === 'function') {
                 await cleanupStreamSaverTempFiles();
             }
-            */
+            
             break;
         }
     }

@@ -368,9 +368,9 @@ const SearchID = /([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6
 const MatchID = /^([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2,3}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}|FC2.+\d{6.8})(.*)/
 const SearchFC2ID = /(^FC2.+\d{6})(.*)/
 const SearchIDRegExp = /^(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})|T\d{2}-\d{3})(?!(C_\d+|file\d+))(.*)$/
-const extractID = /(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})|T\d{2}-\d{3})(?!(C_\d+|file\d+))/
 const K2SRegExp = /(.*k2s\.cc\/file\/)(.*\/?)/
 const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/
+const extractID = /(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})|T\d{2}-\d{3})(?!(C_\d+|file\d+))/
 
 
 
@@ -1032,9 +1032,9 @@ const siteConfigs = [
     {
         regex: /cosplay\.jav\.pw\/\d+/,
         config: {
-            copyOffsetAreaSelector: 'div.post_singular.hentry .title',            
+            copyOffsetAreaSelector: 'div.post_singular.hentry .title',
         }
-    },    
+    },
     {
         regex: /(nicesss|nicewww)\.com\/archives.+\.html/,
         config: {
@@ -1437,17 +1437,20 @@ const siteRules = [
         // cosplay.jav.pw 규칙 추가
         regex: /cosplay\.jav\.pw\/\d+/,
         handler: async (title, copyOffsetArea, DownloadArea) => {
-            console.log(copyOffsetArea.textContent.trim())
-            const h3 = document.querySelector('div#content div.post_singular div.entry h3');
-            let newTitle = h3 ? h3.textContent.trim() : title;
+            let rebuildedText
+            const h3 = copyOffsetArea
+            const rawTitle = h3 ? h3.textContent.trim() : title;
 
             const GetFileNameLink =
                 DownloadArea[0].querySelector('a[href*="https://katfile.com/"]')?.href ||
                 DownloadArea[0].querySelector('a[href*="https://ddownload.com/"]')?.href || '';
 
             const needsFilenameFetch =
-                (!SearchIDRegExp.test(newTitle) && !/^\[.*?\]/.test(newTitle) && GetFileNameLink) ||
-                (!SearchIDRegExp.test(newTitle) && !JapaneseChar.test(newTitle) && GetFileNameLink);
+                (!SearchIDRegExp.test(rawTitle) && !/^\[.*?\]/.test(rawTitle) && GetFileNameLink) ||
+                (!SearchIDRegExp.test(rawTitle) && !JapaneseChar.test(rawTitle) && GetFileNameLink);
+
+            const rawIDMatch = SearchIDRegExp.exec(rawTitle) || ''
+            const rawID = rawIDMatch ? (rawIDMatch.groups ? rawIDMatch.groups[1] : rawIDMatch[1]) : '';
 
             if (needsFilenameFetch) {
                 try {
@@ -1457,15 +1460,24 @@ const siteRules = [
                             ? 'ddl'
                             : null;
                     if (service) {
-                        newTitle = await GetFileName(GetFileNameLink, service);
-                        copyOffsetArea.textContent = newTitle;
+                        const newTitle = await GetFileName(GetFileNameLink, service);
                         console.log('GetFileName :', newTitle);
+                        const newIDMatch = SearchIDRegExp.exec(newTitle) || ''
+                        const newID = newIDMatch
+                            ? (newIDMatch.groups ? newIDMatch.groups[1] : newIDMatch.filter(Boolean)[1])
+                            : '';
+
+                        const cleandedRawTitle = rawTitle.replace(rawID, '').trim()
+                        const cleandedNewTitle = newTitle.replace(newID, '').trim()
+                        rebuildedText = `${rawID || newID} ${compareJapaneseCharacters(cleandedRawTitle, cleandedNewTitle)}`;
+                        copyOffsetArea.textContent = rebuildedText
+                        console.log('Rebuilded Text:', rebuildedText)
                     }
                 } catch (e) {
                     console.error('Request failed', e);
                 }
             }
-            return newTitle;
+            return rebuildedText;
         },
     },
     {
@@ -1715,6 +1727,10 @@ async function processCopyTitle(currentConfig) {
         CopyTitle = await rule.handler(CopyTitle, copyOffsetArea, DownloadArea);
     }
 
+
+    console.log({ CopyTitle })
+
+
     // 공통 제목 정리 로직
     CopyTitle = CopyTitle.trim() || getDirectInnerText(copyOffsetArea)?.trim()
         .replace('–', '-')
@@ -1742,24 +1758,32 @@ async function processCopyTitle(currentConfig) {
     CopyTitle = /FC2/.test(CopyTitle) ? CopyTitle : nameCorrection(CopyTitle);
 
     // 길이 제한 및 ID 처리
+
+
     if (byteLengthOfCheck(CopyTitle) > 241) {
-        const titleIdMatch = CopyTitle.match(MatchID);
-        if (titleIdMatch) {
-            ID = titleIdMatch[0];
-            CopyTitle = CopyTitle.replace(ID, '').trim();
-        }
-
         const titleLast = getLastText(CopyTitle);
+        console.log({ titleLast })
         let finalTitle;
-
+        const limitText = 240
         if (!titleLast || !/[^\s]/.test(titleLast)) {
-            finalTitle = byteLengthOf(CopyTitle, 241 - (ID ? byteLengthOfCheck(ID) + 1 : 0)).trim();
+            finalTitle = byteLengthOf(CopyTitle, limitText).trim();
         } else {
             let tempTitle = CopyTitle.split(titleLast)[0].trim();
-            tempTitle = byteLengthOf(tempTitle, 241 - (ID ? byteLengthOfCheck(ID) + 1 : 0) - byteLengthOfCheck(titleLast));
+            tempTitle = byteLengthOf(tempTitle, limitText - byteLengthOfCheck(titleLast));
             finalTitle = (tempTitle + titleLast).trim();
         }
-        CopyTitle = ID ? `${ID} ${finalTitle}`.trim() : finalTitle;
+        CopyTitle = finalTitle;
+    }
+
+
+
+    //【 로 시작하고 】로 끝나지 않는 경우
+    if (CopyTitle.lastIndexOf('】')) {
+        const closingBracketIndexEndPoint = CopyTitle.lastIndexOf('】');
+        const closingBracketIndexStartPoint = CopyTitle.lastIndexOf('【');
+        if (closingBracketIndexEndPoint < closingBracketIndexStartPoint) {
+            CopyTitle = CopyTitle.substring(0, closingBracketIndexStartPoint).trim()
+        }
     }
 
     if (CopyTitle) {

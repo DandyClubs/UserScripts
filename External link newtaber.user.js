@@ -172,6 +172,7 @@
             /structItem-iconContainer/,
             /td-image-wrap/,
             /topnews-x/,
+            /thumbnail-link/,
         ]
     };
 
