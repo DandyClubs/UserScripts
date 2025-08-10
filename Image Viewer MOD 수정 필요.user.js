@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Image Viewer MOD
+// @name         Image Viewer MOD 수정필요
 // @version      1.3.2 2025.08.01
 // @description  View full image without leaving the page or on a new tab without ads
 // @namespace    https://github.com/nikolay-borzov
@@ -18,10 +18,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_openInTab
 // @grant		 GM_addStyle
-// @grant        GM_setValue
-// @grant        GM_getValue
 // @grant        GM_getResourceText
-// @grant        GM_registerMenuCommand
 // @require      https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @noframes
@@ -103,6 +100,7 @@ const siteModules = [
         name: 'FastPic (direct link)',
         enabled: true,
         linkRegExp: /fastpic\.(?:ru|org)\/big/,
+        imageURLRegExp: /src="(?<url>http[^"]+)" class="image img-fluid"/,
         async getURL(link) {
             const URL_PARTS_REGEXP = /i(\d+).+\.(ru|org)\/big(\/\d+\/\d+\/).+\/([^\/]+)$/;
             const [, index, domain, date, filename] = URL_PARTS_REGEXP.exec(link.url) || [];
@@ -378,22 +376,6 @@ const siteModules = [
 
 // 알파벳 순서로 모듈 정렬
 siteModules.sort((a, b) => a.name.localeCompare(b.name));
-
-//================================================================================
-// 2. 설정 및 메뉴 생성
-//================================================================================
-function setupMenu() {
-    siteModules.forEach(module => {
-        let isEnabled = GM_getValue(module.id, module.enabled);
-        module.enabled = isEnabled;
-        const menuText = `${isEnabled ? '✅' : '❌'} ${module.name}`;
-        GM_registerMenuCommand(menuText, () => {
-            GM_setValue(module.id, !isEnabled);
-            window.location.reload();
-        });
-    });
-}
-setupMenu()
 
 const viewerCSS = function () {
     let css = document.createElement('link')
@@ -825,8 +807,8 @@ function AddViewer() {
             const link = img.closest('a.ViewerGallery');
             if (!link) return false;
             img.onclick = null;                // disable default click
-            //return Boolean(link.dataset.ivImgUrl);
-            return Boolean(link);
+            return Boolean(link.dataset.ivImgUrl);
+            //return Boolean(link);
         },
 
         // Provide the real “large” URL from the link’s data attribute,
@@ -940,6 +922,7 @@ function GetOnline(url) {
 
 async function getURLFromPage(link, extractor, requestDetails) {
     const html = await getPageHtml({ url: link.url, ...requestDetails });
+    //console.log({html})
     const match = extractor.imageURLRegExp?.exec(html);
     let url = match ? (match.groups ? match.groups.url : match[1]) : null;
     if (!url) {
@@ -1073,14 +1056,14 @@ const IO = new IntersectionObserver((entries, self) => {
             if (!imgEl.matches('.ClickAbleItem')) {
                 image.getSize(imgEl).then(async () => {
                     if (ImageExists(imgEl) && !ImageBigSize(imgEl)) {
-                        await image.getFullSizeURL(link);
+                        addToFullSizeQueue(imgEl, { autoStart: true });
                         self.unobserve(imgEl);
                     }
                 }).catch(e => console.error(e));
             }
         } else {
             // 페이지 상에 보이지 않는 이미지는 큐로 대기(자동 시작 원하면 {autoStart:true})
-            addToFullSizeQueue(imgEl, { autoStart: false });
+            addToFullSizeQueue(imgEl, { autoStart: true });
             self.unobserve(imgEl);
         }
     }
@@ -1184,8 +1167,6 @@ async function initViewer(node) {
                 : [CLASSES.imageLink])
         );
 
-
-        link.classList.add('ViewerGallery')
         IO.observe(img);
     }
 
@@ -1348,6 +1329,8 @@ const image = {
 
         if (imageURL) {
             link.dataset.ivImgUrl = imageURL
+            link.classList.add('ViewerGallery')
+            viewer.update()
             return imageURL
         }
 
@@ -1390,7 +1373,9 @@ const image = {
             link.setAttribute('target', '_blank')
         }
 
+        link.classList.add('ViewerGallery')
         link.dataset.ivImgUrl = imageURL
+        viewer.update()
         return imageURL
     },
 
