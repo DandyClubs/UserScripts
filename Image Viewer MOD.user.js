@@ -405,6 +405,7 @@ const viewerCSS = function () {
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const lazyAttributes = [
+    "data-lazy-stored-src",
     "data-cover",
     "data-ks-lazyload",
     "data-lazyload",

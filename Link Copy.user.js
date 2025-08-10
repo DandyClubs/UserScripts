@@ -368,6 +368,7 @@ const SearchID = /([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6
 const MatchID = /^([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2,3}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}|FC2.+\d{6.8})(.*)/
 const SearchFC2ID = /(^FC2.+\d{6})(.*)/
 const SearchIDRegExp = /^(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})|T\d{2}-\d{3})(?!(C_\d+|file\d+))(.*)$/
+const extractID = /(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})|T\d{2}-\d{3})(?!(C_\d+|file\d+))/
 const K2SRegExp = /(.*k2s\.cc\/file\/)(.*\/?)/
 const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/
 
@@ -1029,6 +1030,12 @@ const siteConfigs = [
         }
     },
     {
+        regex: /cosplay\.jav\.pw\/\d+/,
+        config: {
+            copyOffsetAreaSelector: 'div.post_singular.hentry .title',            
+        }
+    },    
+    {
         regex: /(nicesss|nicewww)\.com\/archives.+\.html/,
         config: {
             copyOffsetAreaSelector: 'header.entry-header h1.entry-title a',
@@ -1430,6 +1437,7 @@ const siteRules = [
         // cosplay.jav.pw 규칙 추가
         regex: /cosplay\.jav\.pw\/\d+/,
         handler: async (title, copyOffsetArea, DownloadArea) => {
+            console.log(copyOffsetArea.textContent.trim())
             const h3 = document.querySelector('div#content div.post_singular div.entry h3');
             let newTitle = h3 ? h3.textContent.trim() : title;
 
