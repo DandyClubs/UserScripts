@@ -894,17 +894,6 @@ function MakeIcon() {
     document.querySelector('.State').innerText = `${GetState?.length || 0} | ${PackageList(RootDomainDB)?.length || 0}`;
 }
 
-/**
- * 주어진 요소의 상위 요소 중 특정 selector에 해당하는 요소를 찾아 반환합니다.
- * @param {Element} el - 기준이 되는 요소
- * @param {string} selector - 찾고자 하는 상위 요소의 CSS 선택자
- * @returns {Element|null} - 조건에 맞는 상위 요소 또는 null
- */
-function getParentWithSelector(el, selector) {
-    if (!el || !selector) return null;
-    let parent = el.closest(selector);
-    return parent;
-}
 
 /**
  * 아이콘을 동적으로 생성하고, DOM에 추가하는 함수입니다.
