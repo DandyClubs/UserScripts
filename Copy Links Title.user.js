@@ -248,7 +248,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const myObserver = new ResizeObserver(entries => {
         const now = performance.now();
-        if (now - lastExecutionTime >= 2000) {
+        if (now - lastExecutionTime >= 1000) {
             RefreshIcon(performance.now());
         }
         lastExecutionTime = now;
@@ -256,7 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.visualViewport.addEventListener("resize", function (e) {
         const now = performance.now();
-        if (now - lastExecutionTime >= 2000) {
+        if (now - lastExecutionTime >= 1000) {
             RefreshIcon(performance.now());
         }
         lastExecutionTime = now;
@@ -990,8 +990,7 @@ async function AddCopyIcon(node) {
 
         createAndAddIcons(relativeArea, copyID, isCopied);
         console.log(relativeArea, copyID, isCopied)
-    }
-    RefreshIcon()
+    }    
 }
 
 function JDownloader(JdownloaderData, PackageName, sourceURL) {
