@@ -193,9 +193,9 @@ const SkipTitle = [
 
 console.log(SkipFilter)
 
-
+let lastExecutionTime = performance.now()
 document.addEventListener("DOMContentLoaded", () => {
-    let lastExecutionTime = performance.now()
+    
     let cookieCheck = getCookie("ClearCopyed")
     if (!cookieCheck || cookieCheck != "Y") {
         console.log('ClearCopyed')
