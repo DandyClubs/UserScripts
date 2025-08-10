@@ -663,12 +663,12 @@ function addEventListeners(container) {
 
     container.addEventListener('click', async function (event) {
         if (event.target.matches('.CopyIcon')) {
-            event.preventDefault();
+            event.preventDefault();           
 
             const copyIcon = event.target;
             const copyId = copyIcon.getAttribute("id");
-            const relativeArea = DomainRules.relativeSelector(copyIcon)?.querySelector('.noticeArea')
-            const noticeArea = copyIcon.closest('article, .entry, .postbody, .messageinfo, .postrow, .inside-article')?.querySelector('.noticeArea') || relativeArea
+            const relativeArea = DomainRules.relativeSelector(copyIcon)
+            const noticeArea = relativeArea?.querySelector('.noticeArea')
 
 
             copyIcon.style.setProperty('color', 'Orange', 'important');
@@ -684,7 +684,7 @@ function addEventListeners(container) {
             localStorage.setItem(copyId, addDate);
 
             if (DomainRules.selectors.visitedLink) {
-                event.target.closest('article, .entry, .postbody, .messageinfo, .postrow, .inside-article')?.querySelector(DomainRules.selectors.visitedLink)?.classList.add('Copyed');
+                relativeArea?.querySelector(DomainRules.selectors.visitedLink)?.classList.add('Copyed');
             }
 
             console.log('AddTitle: ', copyId, '\nAddDate: ', addDate);
@@ -704,7 +704,7 @@ function addEventListeners(container) {
                 copyIcon.classList.remove('Copyed');
 
                 if (DomainRules.selectors.visitedLink) {
-                    copyIcon.closest('article, .entry, .postbody, .messageinfo, .postrow, .inside-article')?.querySelector(DomainRules.selectors.visitedLink)?.classList.remove('Copyed');
+                    relativeArea?.querySelector(DomainRules.selectors.visitedLink)?.classList.remove('Copyed');
                 }
 
                 localStorage.removeItem(copyId);
@@ -970,11 +970,9 @@ async function AddCopyIcon(node) {
 
     for (const el of copyTitleAreas) {
         const postArea = DomainRules.getPostArea(el);
-
         if (!postArea) continue;
 
-        const relativeArea = DomainRules.relativeSelector(el);
-        console.log(relativeArea)
+        const relativeArea = DomainRules.relativeSelector(el);        
         if (!relativeArea) continue;
 
         const copyID = DomainRules.getCopyID?.(relativeArea, window.location.href) || null;
