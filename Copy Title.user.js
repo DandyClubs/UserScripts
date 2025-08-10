@@ -610,7 +610,7 @@ const SiteParsers = {
             let codeID = titleText.match(ChinaID)
 
             titleText = titleText.replace(TAGS_REGEX, '').trim();
-            if (codeID.length > 0) {
+            if (codeID && codeID?.length > 0) {
                 titleText = `${titleText.replace(codeID[0], '').replace(/\[\]/g, '').trim()}`;
                 codeID = codeID[0];
             }
