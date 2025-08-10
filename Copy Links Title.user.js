@@ -223,6 +223,26 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error("오류 상세 정보:", error.stack);
     }
 
+
+
+    // MutationObserver 설정
+    const titleObserver = new MutationObserver((mutationsList) => {
+        for (const mutation of mutationsList) {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        if (node.querySelector(DomainRules.selectors.copyTitle)) {
+                            AddCopyIcon(node) 
+                        }
+                        
+                    }
+                });
+            }
+        }
+    });
+    titleObserver.observe(document.body, { childList: true, subtree: true });
+
+
     const myObserver = new ResizeObserver(entries => {
         const now = performance.now();
         if (now - lastExecutionTime >= 2000) {
@@ -361,7 +381,7 @@ const DomainHandlers = {
             iconSet.style.setProperty('right', `${(-iconSetMetrics.width / 5).toFixed(0)}px`);
         },
         infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.entry-content') || '',
-        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('div.message-header') || '',
+        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('.post-title.entry-title') || '',
     },
     'forumophilia\\.com': {
         selectors: {
@@ -705,12 +725,12 @@ async function CopyLink(el, noticeArea, CopyID) {
     // DomainHandlers에 relativeSelector가 정의되어 있으면 해당 선택자를 사용하고,
     // 그렇지 않으면 .IconSet의 부모 요소를 relativeArea로 설정
     const relativeArea = DomainRules.relativeSelector(el)
-    console.log({ relativeArea })
+    
     if (!relativeArea) return
 
     // relativeArea 내에서 infoSelector를 사용하여 downloadArea를 찾음
     const downloadArea = DomainRules.infoSelector(el)
-    console.log({ downloadArea })
+    
     if (!downloadArea) return
 
     const copyTitle = DomainRules.GetInfo(el);
@@ -949,7 +969,7 @@ async function AddCopyIcon(node) {
     const copiedUrls = Object.keys(localStorage).filter(k => k.includes(RootDomain) && /\d{4}-\d{2}-\d{2}/.test(localStorage.getItem(k)));
 
     for (const el of copyTitleAreas) {
-        const postArea = getParentWithSelector(el, '.postbody, .inside-article, .messageinfo, .postarea, .tborder, .list-row');
+        const postArea = DomainRules.getPostArea(el);
 
         if (!postArea) continue;
 
