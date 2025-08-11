@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Copy Links & Title
 // @namespace    http://tampermonkey.net/
-// @version      2025.05.11
+// @version      2025.08.11
 // @description  try to take over the world!
 // @author       You
 // @include      /gm\d+.xyz/

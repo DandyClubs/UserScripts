@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Image Viewer MOD (Refactored) 
-// @version      2025.05.11
+// @version      2025.08.11
 // @description  View full image without leaving the page or on a new tab without ads
 // @namespace    https://github.com/nikolay-borzov
 // @author       nikolay-borzov
@@ -807,8 +807,7 @@ function AddViewer() {
             const link = img.closest('a.ViewerGallery');
             if (!link) return false;
             img.onclick = null;                // disable default click
-            return Boolean(link.dataset.ivImgUrl);
-            //return Boolean(link);
+            return Boolean(link.dataset.ivImgUrl);            
         },
 
         // Provide the real “large” URL from the link’s data attribute,
@@ -1373,8 +1372,9 @@ const image = {
             link.setAttribute('target', '_blank')
         }
 
-        link.classList.add('ViewerGallery')
+        
         link.dataset.ivImgUrl = imageURL
+        link.classList.add('ViewerGallery')
         viewer.update()
         return imageURL
     },

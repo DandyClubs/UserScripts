@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy
-// @version      2025.05.11
+// @version      2025.08.11
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.org/
