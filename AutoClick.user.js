@@ -32,13 +32,6 @@
 
 GM_addStyle(`
 
-:root {
-  --dynamic-zindex: 0;
-}
-
-.dynamic-z {
-  z-index: var(--dynamic-zindex);
-}
 
 .AutoClickCenterBox {
     right: 50%;
@@ -54,7 +47,7 @@ GM_addStyle(`
     border-radius: .25em !important;
     -webkit-box-sizing: border-box !important;
     box-sizing: border-box !important;
-    z-index: var(--dynamic-zindex);
+    z-index: 999999;
 }
 
 .AutoClick, .Reset {
@@ -442,9 +435,6 @@ function MakeIcon() {
     const box = document.querySelector('.AutoClickCenterBox');
     box.style.setProperty('font-size', fontSize, 'important');
 
-    if (isElementCovered(box)) {
-        bringElementToFrontWithSteps(box);
-    }
     // Toggle icon based on localStorage
     const autoClickValue = localStorage.getItem('AutoClick') === '1';
     const existingIcon = document.querySelector('.AutoClick');
