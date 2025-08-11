@@ -807,7 +807,7 @@ function AddViewer() {
             const link = img.closest('a.ViewerGallery');
             if (!link) return false;
             img.onclick = null;                // disable default click
-            return Boolean(link.dataset.ivImgUrl);            
+            return Boolean(link.dataset.ivImgUrl);
         },
 
         // Provide the real “large” URL from the link’s data attribute,
@@ -1035,24 +1035,33 @@ let PreLoadDB = []
 
 const ExpandTag = new IntersectionObserver((entries, self) => {
     for (const entry of entries) {
-
-        const el = entry.target
-        const elPosition = el.getBoundingClientRect()
-        if (elPosition.bottom < window.innerHeight &&
-            elPosition.top < window.innerHeight) {
-            // 이미지가 현재 보이는 영역 또는 위쪽에 있으면 로딩
-            el.click();
-            self.unobserve(el);
-        }
-        else if (entry.isIntersecting) {
-            if (el.nodeName.toLowerCase() === 'div' && !el.classList?.contains('unfolded')) {
-                el.click()
-                self.unobserve(el)
+        const el = entry.target;
+        if (entry.isIntersecting) {
+            triggerExpand(el, self);
+        } else {
+            // 화면 위쪽에 있는 경우 강제 실행
+            const rect = el.getBoundingClientRect();
+            if (rect.bottom < window.innerHeight) {
+                triggerExpand(el, self);
             }
         }
     }
+}, { root: null, rootMargin: "0px 0px 500px 0px", threshold: 0.5 });
 
-}, { root: null, rootMargin: "0px 0px 500px 0px", threshold: 0.5 })
+function triggerExpand(el, observer) {
+    if (el.nodeName.toLowerCase() === 'div' && !el.classList?.contains('unfolded')) {
+        el.click();
+        observer.unobserve(el);
+    }
+}
+
+// 페이지 로드 시 한 번, 위쪽 요소 강제 처리
+function expandAboveViewport(el) {
+    const rect = el.getBoundingClientRect();
+    if (rect.bottom < window.innerHeight) {
+        triggerExpand(el, ExpandTag);
+    }
+}
 
 
 const IO = new IntersectionObserver((entries, self) => {
@@ -1381,7 +1390,7 @@ const image = {
             link.setAttribute('target', '_blank')
         }
 
-        
+
         link.dataset.ivImgUrl = imageURL
         link.classList.add('ViewerGallery')
         viewer.update()
@@ -1550,7 +1559,8 @@ async function Start() {
         Ex = [...document.querySelectorAll(AutoExpandTag)]
         Ex.forEach(el => {
             //ExpandTag.observe(el)
-            el.click()
+            expandAboveViewport(el)
+            //el.click()
         })
     }
 
