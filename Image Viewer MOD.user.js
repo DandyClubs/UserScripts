@@ -1060,6 +1060,8 @@ function expandAboveViewport(el) {
     const rect = el.getBoundingClientRect();
     if (rect.bottom < window.innerHeight) {
         triggerExpand(el, ExpandTag);
+    } else{
+        ExpandTag.observe(el)
     }
 }
 
@@ -1243,6 +1245,15 @@ function observeViewerModal(viewer) {
                     console.log('뷰어 열림 → 큐 처리 재개');
                     pauseFullSizeProcessing = false;
                     startFullSizeProcessing();
+                    if (/(rutracker\.org|pornolab\.net|trupornolabs.org)/.test(PageURL)) {
+                        let AutoExpandTag = '.sp-head.folded.clickable:not(.unfolded)'
+                        Ex = [...document.querySelectorAll(AutoExpandTag)]
+                        Ex.forEach(el => {
+                            ExpandTag.observe(el)
+                            //expandAboveViewport(el)
+                            //el.click()
+                        })
+                    }
                 } else {
                     console.log('뷰어 닫힘 → 큐 처리 일시정지');
                     pauseFullSizeProcessingNow();
