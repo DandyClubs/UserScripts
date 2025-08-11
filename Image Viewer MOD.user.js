@@ -1035,10 +1035,19 @@ let PreLoadDB = []
 
 const ExpandTag = new IntersectionObserver((entries, self) => {
     for (const entry of entries) {
-        if (entry.isIntersecting) {
-            if (entry.target.nodeName.toLowerCase() === 'div' && !entry.target.classList?.contains('unfolded')) {
-                entry.target.click()
-                self.unobserve(entry.target)
+
+        const el = entry.target
+        const elPosition = el.getBoundingClientRect()
+        if (elPosition.bottom < window.innerHeight &&
+            elPosition.top < window.innerHeight) {
+            // 이미지가 현재 보이는 영역 또는 위쪽에 있으면 로딩
+            el.click();
+            self.unobserve(el);
+        }
+        else if (entry.isIntersecting) {
+            if (el.nodeName.toLowerCase() === 'div' && !el.classList?.contains('unfolded')) {
+                el.click()
+                self.unobserve(el)
             }
         }
     }
