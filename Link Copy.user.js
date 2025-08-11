@@ -455,25 +455,27 @@ function waitElement(selector, targetNode = document.body) {
 
 
 function observeDownloadArea(WatchArea, downloadAreaSelector) {
-    const condition = document.querySelector('downloadAreaSelector');
-    if (!condition) return;
+    return new Promise((resolve, reject) => {
+        const condition = document.querySelector('downloadAreaSelector');
+        if (!condition) return;
 
-    // MutationObserver로 aria-modal 속성 변화를 감지
-    const downloadAreaOpen = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-            const isOpen = document.querySelector(downloadAreaSelector)
-            if (isOpen) {
-                Start()
-                return
+        // MutationObserver로 aria-modal 속성 변화를 감지
+        const downloadAreaOpen = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                const isOpen = document.querySelector(downloadAreaSelector)
+                if (isOpen) {
+                    Start()
+                    return
+                }
             }
-        }
-    });
+        });
 
-    downloadAreaOpen.observe(WatchArea, {
-        attributes: true,
-        childList: true,
-        subtree: true
-    });
+        downloadAreaOpen.observe(WatchArea, {
+            attributes: true,
+            childList: true,
+            subtree: true
+        });
+    })
 }
 
 
@@ -918,6 +920,23 @@ const siteConfigs = [
                 }
             }
         }
+    },
+    {
+        regex: /0xxx\.(ws|li)\/articles\/\d+/,
+        config: {
+            copyOffsetAreaSelector: 'div.container table#detail-table tbody tr.gore th h1',
+            downloadAreaSelector: 'div.container table#detail-table tbody tr td.dlinks.taj',
+            postProcess: (config) => {
+                copyOffsetArea = document.querySelector('div.container table#detail-table tbody tr td.taj:not(.levo)');
+                //const downloadContainer = await waitElement('div.container table#detail-table tbody tr td.dlinks.taj a[href*="https://rapidgator.net/file/"]');
+                DownloadArea = document.querySelectorAll('div.container table#detail-table tbody tr td.dlinks.taj')
+                if (/#show$/.test(PageURL)) {
+                    window.addEventListener("scroll", () => {
+                        window.scrollTo({ top: 0, behavior: 'auto' });
+                    }, { once: true })
+                }
+            },
+        },
     },
     {
         regex: /nitroflareporn\.com/,
@@ -1386,7 +1405,7 @@ const siteRules = [
     {
         regex: /k2sporn\.com\/\d{4,6}/,
         handler: (title) => {
-            const Resolution = title.match(/[0-9]{3,4}p/)[0];            
+            const Resolution = title.match(/[0-9]{3,4}p/)[0];
             title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s*\[(UH|FU|HD|SD).+$/i, '').replace(/\s*\((UH|FU|HD|SD).+$/i, '').trim()
             return `${title} ${Resolution}`
         },
@@ -1463,7 +1482,7 @@ const siteRules = [
     {
         regex: /ultoporn\.com\/\d+/,
         handler: (title) => {
-            const Resolution = title.match(/[0-9]{3,4}p/)[0];            
+            const Resolution = title.match(/[0-9]{3,4}p/)[0];
             title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s\[.+(UHD|FullHD|HD|SD).+/i, '').replace(/\s*\[(UH|FU|HD|SD).+$/i, '').replace(/\s*\((UH|FU|HD|SD).+$/i, '').trim()
             return `${title} ${Resolution}`
         },
@@ -1471,7 +1490,7 @@ const siteRules = [
     {
         regex: /hidefporn\.ws\/\d+/,
         handler: (title) => {
-            const Resolution = title.match(/[0-9]{3,4}p/)[0];            
+            const Resolution = title.match(/[0-9]{3,4}p/)[0];
             title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s*\[(UH|FU|HD|SD).+$/i, '').replace(/\s*\((UH|FU|HD|SD).+$/i, '').trim()
             return `${title} ${Resolution}`
         },
@@ -1518,21 +1537,6 @@ const waitDownloadArea = [
             });
             scrollToTop();
             RefreshIconSet();
-        },
-    },
-    {
-        regex: /0xxx\.(ws|li)\/articles\/\d+/,
-        handler: async () => {
-            copyOffsetArea = document.querySelector('div.container table#detail-table tbody tr td.taj:not(.levo)');
-            const waiting = await waitElement('form#captcha', document.body, { timeout: 1000 })
-            const downloadContainer = await waitElement('div.container table#detail-table tbody tr td.dlinks.taj');
-            DownloadArea = [downloadContainer];
-
-            if (/#show$/.test(PageURL)) {
-                window.addEventListener("scroll", () => {
-                    window.scrollTo({ top: 0, behavior: 'auto' });
-                }, { once: true })
-            }
         },
     },
     {
