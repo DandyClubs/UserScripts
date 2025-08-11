@@ -432,13 +432,13 @@ const io = new IntersectionObserver((entries, self) => {
 */
 function waitElement(selector, targetNode = document.body) {
     return new Promise((resolve, reject) => {
-        const element = targetNode.querySelector(selector);
+        const element = targetNode.querySelector(selector)?.querySelector('a');
         console.log('waitElement: ', selector, 'TargetNode: ', targetNode)
         if (element) {
             resolve(element);
         }
         const observer = new MutationObserver((mutations, obs) => {
-            const found = targetNode.querySelector(selector);
+            const found = targetNode.querySelector(selector)?.querySelector('a');
             if (found) {
                 obs.disconnect();
                 resolve(found);
@@ -1482,7 +1482,6 @@ const waitDownloadArea = [
         handler: async () => {
             copyOffsetArea = document.querySelector('div.storyhead > h1.shead');
             Array.from(document.querySelectorAll('button.click_show')).forEach(element => element.click());
-
             const downloadContainer = await waitElement('div.quote');
             DownloadArea = [downloadContainer];
         },
