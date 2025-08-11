@@ -856,8 +856,18 @@ async function secondStep(Title) {
         await UpdateJobQueue(PageURL, 'remove')
         throw new Error('ZipFileName is empty')
     }
+    const checkJpg = ImagesDB.some(e => getExtensionOfFilename(e.U) === '.jpg')
+    let nameLengths = []
+    if (checkJpg) {
+        nameLengths = ImagesDB.filter(e => getExtensionOfFilename(e.U) !== '.webp').map(x => GetFileName(x.U).length);
+    } else {
+        nameLengths = ImagesDB.filter(e => getExtensionOfFilename(e.U) === '.jpg' || getExtensionOfFilename(e.U) === '.png' || getExtensionOfFilename(e.U) === '.jpeg' || getExtensionOfFilename(e.U) === '.webp').map(x => GetFileName(x.U).length);
+    }
+    if (nameLengths.length === 0) {
+        await UpdateJobQueue(PageURL, 'remove')
+        throw new Error('nameLengths is empty')
+    }   
 
-    const nameLengths = ImagesDB.filter(e => getExtensionOfFilename(e.U) !== '.webp').map(x => GetFileName(x.U).length);
     maxLength = Math.max(...nameLengths);
     minLength = Math.min(...nameLengths);
 
