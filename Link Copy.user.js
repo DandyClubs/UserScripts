@@ -299,7 +299,7 @@ let SkipTitle = []
 
 let GetDPI, DefaultFontSize
 let Target, DownloadArea, CopyTitle = '', copyOffsetArea, InfoArea, Resolution = '', TitleLast = '', Series = '', Title, ID = '', TitleID, CopyTitleTmp, InfoTitleTmp, CoverImage, MatchWebRegExp, Gallery, DownloadAreaSelector
-const SkipFilter = new RegExp('katfile\\.com\/\?op=registration|77file\\.com|xtvtv\\.com\/explanation|niceff\.com|fboom\\.me\/code|k2s\\.cc\/(pr|code)|facebook\\.com|magnet:|fireget\\.com\/premium\\.html|tezfiles\\.com\/.+\/premium|nyaa\\.si|twitter\\.com|ouo\\.io|tma\\.cx|3xplanetpremium|clubwarp\\.com|clubwarp\\.top/|teraboxapp\\.com|turb\\.cc|turbobit\\.net|terabox\\.com|keep2share\\.cc\/pr\/|javascript|pixhost\\.to\/gallery\/|imgchili\\.net\/show|#$|^\/|^(?=.*' + window.location.origin + ')(?!.*\\?site).*$', 'i')
+const SkipFilter = new RegExp('pixhost\\.to\/gallery|katfile\\.com\/\?op=registration|77file\\.com|xtvtv\\.com\/explanation|niceff\.com|fboom\\.me\/code|k2s\\.cc\/(pr|code)|facebook\\.com|magnet:|fireget\\.com\/premium\\.html|tezfiles\\.com\/.+\/premium|nyaa\\.si|twitter\\.com|ouo\\.io|tma\\.cx|3xplanetpremium|clubwarp\\.com|clubwarp\\.top/|teraboxapp\\.com|turb\\.cc|turbobit\\.net|terabox\\.com|keep2share\\.cc\/pr\/|javascript|pixhost\\.to\/gallery\/|imgchili\\.net\/show|#$|^\/|^(?=.*' + window.location.origin + ')(?!.*\\?site).*$', 'i')
 const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i')
 //const WaitChangeLink = new RegExp('tma\\.cx\/', 'i')
 const WaitChangeLink = new RegExp('TestTest\\.cx\/', 'i')
@@ -603,6 +603,17 @@ const siteConfigs = [
             coverImageAttribute: 'src',
             postProcess: (config) => {
 
+                const { info, cast } = getInfoArea();
+                InfoArea = info
+                InfoAreaCast = cast
+                console.log('InfoArea:', InfoArea, 'InfoAreaCast:', InfoAreaCast)
+
+                // `CopyTitle`에서 `MatchWeb` 추출
+                const CopyTitleRaw = copyOffsetArea.innerText.trim();
+                const MatchWebPoint = CopyTitleRaw.search(/\s-\s/);
+                MatchWeb = MatchWebPoint !== -1 ? CopyTitleRaw.substring(0, MatchWebPoint).replace(/\s|\./g, '') : CopyTitleRaw;
+                console.log('MatchWeb:', MatchWeb, 'MatchWebPoint:', MatchWebPoint)
+
 
                 // 이 사이트는 초기 로딩 시 다운로드 영역이 가려져 있습니다.
                 // 따라서 MutationObserver를 통해 변경을 감지하고,
@@ -619,13 +630,17 @@ const siteConfigs = [
                             observer.disconnect();
                             DownloadArea = document.querySelectorAll('div#download, div#downloadhidden')
                             document.querySelector('.CopyState').remove()
+                            if (/Updates|SITERIP|Collection/i.test(CopyTitleRaw)) {
+                                console.log('Special case found:', CopyTitleRaw);
+                                CoverImage = '';
+                                MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast);
+                            }
                             CheckDB(listToDo(DownloadArea), 'observer CheckDB')
                         }
                     }
                 });
 
                 observer.observe(WatchElementArea, { childList: true, subtree: true });
-
 
                 copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
                 DownloadArea = document.querySelectorAll('div#download, div#downloadhidden, div.DownloadArea');
@@ -689,16 +704,6 @@ const siteConfigs = [
                     };
                 }
 
-                const { info, cast } = getInfoArea();
-                InfoArea = info
-                InfoAreaCast = cast
-                console.log('InfoArea:', InfoArea, 'InfoAreaCast:', InfoAreaCast)
-
-                // `CopyTitle`에서 `MatchWeb` 추출
-                const CopyTitleRaw = copyOffsetArea.innerText.trim();
-                const MatchWebPoint = CopyTitleRaw.search(/\s-\s/);
-                MatchWeb = MatchWebPoint !== -1 ? CopyTitleRaw.substring(0, MatchWebPoint).replace(/\s|\./g, '') : CopyTitleRaw;
-                console.log('MatchWeb:', MatchWeb, 'MatchWebPoint:', MatchWebPoint)
 
                 // CopyTitle에 'OnlyFans Mix'가 포함된 경우
                 if (/OnlyFans\sMix/i.test(CopyTitleRaw)) {
@@ -2957,7 +2962,9 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
     // Collect all <a> elements inside DownloadArea
     for (let el of DownloadArea) {
         for (let x of el.querySelectorAll('a')) {
-            AllLinks.push(x);
+            if (!SkipFilter.test(x.href)) {
+                AllLinks.push(x);
+            }
         }
     }
     console.log('AllLinks:', AllLinks);
