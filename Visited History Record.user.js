@@ -1,6 +1,7 @@
 // ==UserScript==
 // @name        Visited History Record
-// @namespace   yanagiragi
+// @namespace   DandyClubs
+// @version     2025.05.11
 // @include     https://sis001.com/forum/forum*.html
 // @match       https://sis001.com/forum/forumdisplay.php*
 // @match       https://ultoporn.com/*
@@ -12,7 +13,6 @@
 // @include     https://everia.club/*
 // @include     https://foamgirl.net/*
 // @exclude     https://ultoporn.com/*.html
-// @version     2.4
 // @run-at      document-end
 // @grant		GM_addStyle
 // @grant		GM_registerMenuCommand

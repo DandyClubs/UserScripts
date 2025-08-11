@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Image Retry Loader with GM_xmlhttpRequest
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      2025.05.11
 // @description  Automatically retries loading failed images by checking their existence with GM_xmlhttpRequest.
 // @author       Your Name
 // @match        *://*/*

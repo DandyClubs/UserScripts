@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            External link newtaber MOD (Pipeline Refactored)
-// @version         0.4.0
+// @version         2025.05.11
 // @description     Fully refactored with a rule pipeline for maximum clarity and maintainability.
 // @icon            https://cdn1.iconfinder.com/data/icons/feather-2/24/external-link-32.png
 // @icon64          https://cdn1.iconfinder.com/data/icons/feather-2/24/external-link-128.png

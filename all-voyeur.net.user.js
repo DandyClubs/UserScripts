@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         all-voyeur.net
 // @namespace    http://tampermonkey.net/
-// @version      2023-12-26
+// @version      2025.05.11
 // @description  try to take over the world!
 // @author       You
 // @match        https://all-voyeur.net/*
