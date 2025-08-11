@@ -601,20 +601,9 @@ const siteConfigs = [
             downloadAreaSelector: 'div#download, div#downloadhidden',
             coverImageSelector: 'div.post-content-single a > img',
             coverImageAttribute: 'src',
-            postProcess: (config) => {
-
-                const { info, cast } = getInfoArea();
-                InfoArea = info
-                InfoAreaCast = cast
-                console.log('InfoArea:', InfoArea, 'InfoAreaCast:', InfoAreaCast)
-
-                // `CopyTitle`에서 `MatchWeb` 추출
-                const CopyTitleRaw = copyOffsetArea.innerText.trim();
-                const MatchWebPoint = CopyTitleRaw.search(/\s-\s/);
-                MatchWeb = MatchWebPoint !== -1 ? CopyTitleRaw.substring(0, MatchWebPoint).replace(/\s|\./g, '') : CopyTitleRaw;
-                console.log('MatchWeb:', MatchWeb, 'MatchWebPoint:', MatchWebPoint)
-
-
+            postProcess: (config) => {               
+                
+                let CopyTitleRaw, MatchWeb, MatchWebPoint, InfoCast, InfoAreaCast, Released, ReleasedEn, Episode, MatchCast;
                 // 이 사이트는 초기 로딩 시 다운로드 영역이 가려져 있습니다.
                 // 따라서 MutationObserver를 통해 변경을 감지하고,
                 // 다운로드 영역이 나타났을 때만 나머지 로직을 실행하도록 설정합니다.
@@ -650,7 +639,7 @@ const siteConfigs = [
                 let EachTitle = getTextLinesWithIconTag('div.post-content-single p strong', 'br')
                 console.log('EachTitle: ', EachTitle)
 
-                let MatchWeb, InfoCast, InfoAreaCast, SearchWebPoint, FirstMatchWeb, Released, ReleasedEn, Episode, SearchTitle, MatchCast;
+                
                 function getInfoArea() {
                     const postContent = document.querySelector('div.post-content-single');
                     if (!postContent) {
@@ -703,6 +692,17 @@ const siteConfigs = [
                         cast
                     };
                 }
+
+                const { info, cast } = getInfoArea();
+                InfoArea = info
+                InfoAreaCast = cast
+                console.log('InfoArea:', InfoArea, 'InfoAreaCast:', InfoAreaCast)
+
+                // `CopyTitle`에서 `MatchWeb` 추출
+                CopyTitleRaw = copyOffsetArea.innerText.trim();
+                MatchWebPoint = CopyTitleRaw.search(/\s-\s/);
+                MatchWeb = MatchWebPoint !== -1 ? CopyTitleRaw.substring(0, MatchWebPoint).replace(/\s|\./g, '') : CopyTitleRaw;
+                console.log('MatchWeb:', MatchWeb, 'MatchWebPoint:', MatchWebPoint)
 
 
                 // CopyTitle에 'OnlyFans Mix'가 포함된 경우
@@ -2660,10 +2660,11 @@ async function CollectionLinks(DownloadArea) {
         if (CopyLinks.includes(href)) continue;
 
         CopyTitle = CopyTitle ? FilenameConvert(CopyTitle) : '';
-        if (/naughtyblog/.test(RootDomain) && /[0-9]{3,4}p/.test(a.textContent)) {
+        if(/naughtyblog/.test(RootDomain)){
+            if (!/Updates|SITERIP|Collection/i.test(CopyTitle) && /[0-9]{3,4}p/.test(a.textContent)) {
             Resolution = `.XXX.${a.textContent.match(/[0-9]{3,4}p/)[0]}`;
+            }
         }
-
         CopyLinks.push(href);
         UpdateDB(href, `${CopyTitle}${Resolution || ''}`);
     }
@@ -2807,12 +2808,12 @@ function PackageList(LinksDB) {
 async function CopyLink() {
     //console.log('Step CopyLink:', { CopyTitle, DownloadArea })
     // Ensure our DB array exists
-    localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
+    
 
     // Prepare notice text
     let noticeLines = [];
     let allLinks = [];
-    console.log({ pageLinksDB })
+    
 
     // 1) If no temporary links waiting, gather fresh links
     if (pageLinksDB.length === 0) {
@@ -2840,6 +2841,7 @@ async function CopyLink() {
             noticeLines.push('Empty Links');
             userClose = false;
         }
+        
     }
     // 2) Otherwise replay from pageLinksDB
     else {
@@ -2849,7 +2851,7 @@ async function CopyLink() {
             noticeLines.push(t);
             const urls = pageLinksDB.filter(e => e.T === t).map(e => e.U);
             for (const u of urls) {
-                UpdateDB(u, t);
+                await UpdateDB(u, t);
                 allLinks.push(u);
             }
         }
@@ -2897,7 +2899,7 @@ async function CopyLink() {
 
     // 6) Finally, re-check the DB and return its result
     const result = await CheckDB(listToDo(DownloadArea), 'CopyLink');
-    console.log('Final DB state:', result);
+    console.log('Final check DB state:', result);
     return allLinks
 }
 
@@ -2952,8 +2954,6 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
 
     let Empty = [];
     let AllLinks = [];
-
-
 
     // Download areas to search for links
     DownloadArea = document.querySelectorAll('div#download, div#downloadhidden');
@@ -3093,7 +3093,6 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
             for (let j of Links) {
                 let U = j.href;
                 pageLinksDB.push({ U, T, S });
-
             }
         }
     }
@@ -3111,6 +3110,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
         pageLinksDB = [];
     }
     console.log('MutilSubTitle Final pageLinksDB:', pageLinksDB);
+    return pageLinksDB;
 }
 
 
@@ -3142,7 +3142,7 @@ async function ClipPaste() {
     document.querySelector('.CopyButton').style = "color: White !important;";
     //document.querySelector('.CopyButton').style.setProperty('font-size', Number(((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2)) + 'rem', 'important');
     //let ClipPasteData = JSON.parse(await GM_getValue(RootDomain, '[]'))
-    localStorageDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
+    localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
     return JDownloaderDB(localStorageDB).then(e => e)
     //updateClipboard(ClipPasteData)
 }
@@ -3191,7 +3191,7 @@ if(JdownloaderData){
 }
 
 async function JDownloaderDB(LinksDB) {
-    console.log(LinksDB)
+    console.log({LinksDB})
     let uniqueTitle = [...new Set(LinksDB.map(x => x.T))]
     console.log('uniqueTitle: ', uniqueTitle)
     uniqueTitle.forEach(x => {
