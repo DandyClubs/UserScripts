@@ -299,7 +299,7 @@ let SkipTitle = []
 
 let GetDPI, DefaultFontSize
 let Target, DownloadArea, CopyTitle = '', copyOffsetArea, InfoArea, Resolution = '', TitleLast = '', Series = '', Title, ID = '', TitleID, CopyTitleTmp, InfoTitleTmp, CoverImage, MatchWebRegExp, Gallery, DownloadAreaSelector
-const SkipFilter = new RegExp('pixhost\\.to\/gallery|katfile\\.com\/\?op=registration|77file\\.com|xtvtv\\.com\/explanation|niceff\.com|fboom\\.me\/code|k2s\\.cc\/(pr|code)|facebook\\.com|magnet:|fireget\\.com\/premium\\.html|tezfiles\\.com\/.+\/premium|nyaa\\.si|twitter\\.com|ouo\\.io|tma\\.cx|3xplanetpremium|clubwarp\\.com|clubwarp\\.top/|teraboxapp\\.com|turb\\.cc|turbobit\\.net|terabox\\.com|keep2share\\.cc\/pr\/|javascript|pixhost\\.to\/gallery\/|imgchili\\.net\/show|#$|^\/|^(?=.*' + window.location.origin + ')(?!.*\\?site).*$', 'i')
+const SkipFilter = new RegExp('katfile\\.com\/\?op=registration|77file\\.com|xtvtv\\.com\/explanation|niceff\.com|fboom\\.me\/code|k2s\\.cc\/(pr|code)|facebook\\.com|magnet:|fireget\\.com\/premium\\.html|tezfiles\\.com\/.+\/premium|nyaa\\.si|twitter\\.com|ouo\\.io|tma\\.cx|3xplanetpremium|clubwarp\\.com|clubwarp\\.top/|teraboxapp\\.com|turb\\.cc|turbobit\\.net|terabox\\.com|keep2share\\.cc\/pr\/|javascript|pixhost\\.to\/gallery\/|imgchili\\.net\/show|#$|^\/|^(?=.*' + window.location.origin + ')(?!.*\\?site).*$', 'i')
 const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i')
 //const WaitChangeLink = new RegExp('tma\\.cx\/', 'i')
 const WaitChangeLink = new RegExp('TestTest\\.cx\/', 'i')
@@ -601,35 +601,7 @@ const siteConfigs = [
             downloadAreaSelector: 'div#download, div#downloadhidden',
             coverImageSelector: 'div.post-content-single a > img',
             coverImageAttribute: 'src',
-            postProcess: (config) => {               
-                
-                let CopyTitleRaw, MatchWeb, MatchWebPoint, InfoCast, InfoAreaCast, Released, ReleasedEn, Episode, MatchCast;
-                // 이 사이트는 초기 로딩 시 다운로드 영역이 가려져 있습니다.
-                // 따라서 MutationObserver를 통해 변경을 감지하고,
-                // 다운로드 영역이 나타났을 때만 나머지 로직을 실행하도록 설정합니다.
-                const WatchElementArea = document.querySelector('div#downloadhidden');
-                if (!WatchElementArea) {
-                    userClose = false;
-                    return false;
-                }
-
-                const observer = new MutationObserver((mutations) => {
-                    for (const mutation of mutations) {
-                        if (WatchElementArea.querySelectorAll('a').length > 0) {
-                            observer.disconnect();
-                            DownloadArea = document.querySelectorAll('div#download, div#downloadhidden')
-                            document.querySelector('.CopyState').remove()
-                            if (/Updates|SITERIP|Collection/i.test(CopyTitleRaw)) {
-                                console.log('Special case found:', CopyTitleRaw);
-                                CoverImage = '';
-                                MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast);
-                            }
-                            CheckDB(listToDo(DownloadArea), 'observer CheckDB')
-                        }
-                    }
-                });
-
-                observer.observe(WatchElementArea, { childList: true, subtree: true });
+            postProcess: async (config) => {
 
                 copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
                 DownloadArea = document.querySelectorAll('div#download, div#downloadhidden, div.DownloadArea');
@@ -639,7 +611,7 @@ const siteConfigs = [
                 let EachTitle = getTextLinesWithIconTag('div.post-content-single p strong', 'br')
                 console.log('EachTitle: ', EachTitle)
 
-                
+                let MatchWeb, InfoCast, InfoAreaCast, SearchWebPoint, FirstMatchWeb, Released, ReleasedEn, Episode, SearchTitle, MatchCast;
                 function getInfoArea() {
                     const postContent = document.querySelector('div.post-content-single');
                     if (!postContent) {
@@ -699,11 +671,10 @@ const siteConfigs = [
                 console.log('InfoArea:', InfoArea, 'InfoAreaCast:', InfoAreaCast)
 
                 // `CopyTitle`에서 `MatchWeb` 추출
-                CopyTitleRaw = copyOffsetArea.innerText.trim();
-                MatchWebPoint = CopyTitleRaw.search(/\s-\s/);
+                const CopyTitleRaw = copyOffsetArea.innerText.trim();
+                const MatchWebPoint = CopyTitleRaw.search(/\s-\s/);
                 MatchWeb = MatchWebPoint !== -1 ? CopyTitleRaw.substring(0, MatchWebPoint).replace(/\s|\./g, '') : CopyTitleRaw;
                 console.log('MatchWeb:', MatchWeb, 'MatchWebPoint:', MatchWebPoint)
-
 
                 // CopyTitle에 'OnlyFans Mix'가 포함된 경우
                 if (/OnlyFans\sMix/i.test(CopyTitleRaw)) {
@@ -714,7 +685,7 @@ const siteConfigs = [
                 else if (/Updates|SITERIP|Collection/i.test(CopyTitleRaw)) {
                     console.log('Special case found:', CopyTitleRaw);
                     CoverImage = '';
-                    MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast);
+                    await MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast);
                 } else {
                     // `Cast` 정보 찾기
                     const MatchTitle = MatchWebPoint !== -1 ? CopyTitleRaw.substring(MatchWebPoint + 3) : CopyTitleRaw;
@@ -1960,27 +1931,17 @@ async function handleToggle(key, className) {
     ev.classList.toggle('Off', !isEnabled);
 
     if (key === 'AutoCopy') {
-        if (isEnabled) {
-            // AutoCopy가 활성화되면 AutoClose 상태도 업데이트
-            if (JSON.parse(localStorage.getItem('AutoClose'))) {
-                AutoClose = JSON.parse(localStorage.getItem('AutoClose'))
-            }
-            const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle')
+        const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle')
+        if (!hasCopied) {
+            CopyGo(SkipTitle)
+        }
 
+    } else if (key === 'AutoClose') {
+        if (isEnabled) {
+            const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle')
             if (!hasCopied) {
                 CopyGo(SkipTitle)
             }
-        } else {
-            // AutoCopy 비활성화 시 AutoClose도 비활성화
-            localStorage.setItem('AutoClose', JSON.stringify('false'));
-        }
-    } else if (key === 'AutoClose' && isEnabled && JSON.parse(localStorage.getItem('AutoCopy'))) {
-        // AutoClose가 활성화되고 AutoCopy가 켜져 있으면 추가 로직 실행
-        AutoCopy = JSON.parse(localStorage.getItem('AutoCopy'))
-        const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle')
-
-        if (!hasCopied) {
-            CopyGo(SkipTitle)
         }
     }
 }
@@ -2164,9 +2125,11 @@ function mainIcon(Run) {
     AutoCloseIcon?.addEventListener('click', async (e) => {
         e.preventDefault();
         if (AutoCloseIcon.classList.contains('Off')) {
-            AutoCloseIcon.classList.replace('Off', 'On');
+            AutoCloseIcon.classList.remove('Off');
+            AutoCloseIcon.classList.add('On');
+            AutoCopyIcon.classList.remove('Off');
+            AutoCopyIcon.classList.add('On');
             localStorage.setItem('AutoClose', JSON.stringify(true));
-            AutoCopyIcon.classList.replace('Off', 'On');
             localStorage.setItem('AutoCopy', JSON.stringify(true));
             if (DownloadArea.length > 0) {
                 const hasCopied = await CheckDB(listToDo(DownloadArea), 'click')
@@ -2175,7 +2138,8 @@ function mainIcon(Run) {
                 }
             }
         } else {
-            AutoCloseIcon.classList.replace('On', 'Off');
+            AutoCloseIcon.classList.remove('On');
+            AutoCloseIcon.classList.add('Off');
             localStorage.setItem('AutoClose', JSON.stringify(false));
         }
     });
@@ -2183,7 +2147,8 @@ function mainIcon(Run) {
     AutoCopyIcon?.addEventListener('click', async (e) => {
         e.preventDefault();
         if (AutoCopyIcon.classList.contains('Off')) {
-            AutoCopyIcon.classList.replace('Off', 'On');
+            AutoCopyIcon.classList.remove('Off');
+            AutoCopyIcon.classList.add('On');
             localStorage.setItem('AutoCopy', JSON.stringify(true));
             if (DownloadArea.length > 0) {
                 const hasCopied = await CheckDB(listToDo(DownloadArea), 'click')
@@ -2192,9 +2157,11 @@ function mainIcon(Run) {
                 }
             }
         } else {
-            AutoCopyIcon.classList.replace('On', 'Off');
+            AutoCopyIcon.classList.remove('On');
+            AutoCopyIcon.classList.add('Off');
+            AutoCloseIcon.classList.remove('On');
+            AutoCloseIcon.classList.add('Off');
             localStorage.setItem('AutoCopy', JSON.stringify(false));
-            AutoCloseIcon.classList.replace('On', 'Off');
             localStorage.setItem('AutoClose', JSON.stringify(false));
         }
     });
@@ -2660,11 +2627,10 @@ async function CollectionLinks(DownloadArea) {
         if (CopyLinks.includes(href)) continue;
 
         CopyTitle = CopyTitle ? FilenameConvert(CopyTitle) : '';
-        if(/naughtyblog/.test(RootDomain)){
-            if (!/Updates|SITERIP|Collection/i.test(CopyTitle) && /[0-9]{3,4}p/.test(a.textContent)) {
+        if (/naughtyblog/.test(RootDomain) && /[0-9]{3,4}p/.test(a.textContent)) {
             Resolution = `.XXX.${a.textContent.match(/[0-9]{3,4}p/)[0]}`;
-            }
         }
+
         CopyLinks.push(href);
         UpdateDB(href, `${CopyTitle}${Resolution || ''}`);
     }
@@ -2808,12 +2774,11 @@ function PackageList(LinksDB) {
 async function CopyLink() {
     //console.log('Step CopyLink:', { CopyTitle, DownloadArea })
     // Ensure our DB array exists
-    
+    localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
 
     // Prepare notice text
     let noticeLines = [];
     let allLinks = [];
-    
 
     // 1) If no temporary links waiting, gather fresh links
     if (pageLinksDB.length === 0) {
@@ -2841,7 +2806,6 @@ async function CopyLink() {
             noticeLines.push('Empty Links');
             userClose = false;
         }
-        
     }
     // 2) Otherwise replay from pageLinksDB
     else {
@@ -2851,7 +2815,7 @@ async function CopyLink() {
             noticeLines.push(t);
             const urls = pageLinksDB.filter(e => e.T === t).map(e => e.U);
             for (const u of urls) {
-                await UpdateDB(u, t);
+                UpdateDB(u, t);
                 allLinks.push(u);
             }
         }
@@ -2899,7 +2863,7 @@ async function CopyLink() {
 
     // 6) Finally, re-check the DB and return its result
     const result = await CheckDB(listToDo(DownloadArea), 'CopyLink');
-    console.log('Final check DB state:', result);
+    console.log('Final DB state:', result);
     return allLinks
 }
 
@@ -2951,20 +2915,37 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
     userCopy = false;
     console.log('MutilSubTitle AutoCopy: ', AutoCopy);
     console.log('Mutil SubTitle.... ', MatchWeb, MatchWebPoint, InfoAreaCast);
-
     let Empty = [];
     let AllLinks = [];
+    pageLinksDB = []
+    let pauseButton = false
+    const WatchElementArea = document.querySelector('div#downloadhidden');
 
-    // Download areas to search for links
-    DownloadArea = document.querySelectorAll('div#download, div#downloadhidden');
-    if (!DownloadArea) throw new Error('No DownloadArea');
 
+    DownloadArea = document.querySelectorAll('div#download, div#downloadhidden')
+    const linkItems = Array.from(DownloadArea).map(e => e.querySelectorAll('a'))
+    const filteredLinks = linkItems.filter(l => !SkipFilter.test(l.href))
+    if (filteredLinks.length === 0) {
+        const downloadhiddenobserver = new MutationObserver((mutations, obs) => {
+            const newLinkItems = Array.from(WatchElementArea.querySelectorAll('a')).filter(l => !SkipFilter.test(l.href));
+            if (newLinkItems.length > 0) {
+                obs.disconnect();
+                document.querySelector('.CopyState').remove()
+                DownloadArea = document.querySelectorAll('div#download, div#downloadhidden')
+                MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast)
+            }
+        });
+        downloadhiddenobserver.observe(WatchElementArea, { childList: true, subtree: true });
+    }
+
+
+    if (DownloadArea.length === 0) {
+        console.log('DownloadArea is empty')
+    }
     // Collect all <a> elements inside DownloadArea
     for (let el of DownloadArea) {
         for (let x of el.querySelectorAll('a')) {
-            if (!SkipFilter.test(x.href)) {
-                AllLinks.push(x);
-            }
+            AllLinks.push(x);
         }
     }
     console.log('AllLinks:', AllLinks);
@@ -3093,14 +3074,20 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
             for (let j of Links) {
                 let U = j.href;
                 pageLinksDB.push({ U, T, S });
+
             }
         }
     }
 
     // Add cover image if present and allowed
-    if (CoverImage && !/imagetwist\.com/.test(CoverImage)) {
+    if (pageLinksDB.length > 0 && CoverImage && !/imagetwist\.com|thumbs/.test(CoverImage)) {
         let U = CoverImage;
-        let T = FilenameConvert(CopyTitle) + Resolution;
+        let T
+        if (/SITERIP|Collection/i.test(CopyTitleRaw)) {
+            T = FilenameConvert(CopyTitle)
+        } else {
+            T = FilenameConvert(CopyTitle) + Resolution;
+        }
         let S = PageURL;
         pageLinksDB.push({ U, T, S });
     }
@@ -3110,7 +3097,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
         pageLinksDB = [];
     }
     console.log('MutilSubTitle Final pageLinksDB:', pageLinksDB);
-    return pageLinksDB;
+    return pageLinksDB
 }
 
 
@@ -3142,7 +3129,7 @@ async function ClipPaste() {
     document.querySelector('.CopyButton').style = "color: White !important;";
     //document.querySelector('.CopyButton').style.setProperty('font-size', Number(((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2)) + 'rem', 'important');
     //let ClipPasteData = JSON.parse(await GM_getValue(RootDomain, '[]'))
-    localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
+    localStorageDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
     return JDownloaderDB(localStorageDB).then(e => e)
     //updateClipboard(ClipPasteData)
 }
@@ -3191,7 +3178,7 @@ if(JdownloaderData){
 }
 
 async function JDownloaderDB(LinksDB) {
-    console.log({LinksDB})
+    console.log(LinksDB)
     let uniqueTitle = [...new Set(LinksDB.map(x => x.T))]
     console.log('uniqueTitle: ', uniqueTitle)
     uniqueTitle.forEach(x => {
