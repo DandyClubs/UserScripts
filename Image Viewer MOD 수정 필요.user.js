@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Image Viewer MOD 수정필요
-// @version      1.3.2 2025.08.01
+// @version      1.3.2 2025.08.11
 // @description  View full image without leaving the page or on a new tab without ads
 // @namespace    https://github.com/nikolay-borzov
 // @author       nikolay-borzov
