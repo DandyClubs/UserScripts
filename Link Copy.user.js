@@ -1385,7 +1385,12 @@ const siteRules = [
     },
     {
         regex: /k2sporn\.com\/\d{4,6}/,
-        handler: (title) => title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s*\[(UH|FU|HD|SD).+$/i, '').replace(/\s*\((UH|FU|HD|SD).+$/i, '').trim(),
+        handler: (title) => {
+            const match = copyOffsetArea.innerText.match(/[0-9]{3,4}p/);
+            Resolution = match ? ` ${ match[0] }` : ''
+            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s*\[(UH|FU|HD|SD).+$/i, '').replace(/\s*\((UH|FU|HD|SD).+$/i, '').trim()
+            return `${title}${Resolution}`
+        },
     },
     {
         regex: /epicomg\.com\/\?p/,

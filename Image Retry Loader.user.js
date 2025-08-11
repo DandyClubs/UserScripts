@@ -68,7 +68,7 @@
 
     // 재시도 간격 및 횟수
     const RETRY_INTERVAL = 10000;
-    const MAX_RETRY_COUNT = 5;
+    const MAX_RETRY_COUNT = 1;
 
     
     // GM_xmlhttpRequest를 이용한 이미지 존재 여부 확인 (상태별 처리)
