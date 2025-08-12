@@ -1085,7 +1085,7 @@ const siteConfigs = [
     {
         regex: /(k2sporn\.com|hidefporn\.ws)\/\d+/,
         config: {
-            copyOffsetAreaSelector: 'div.story-head > h1.title',
+            copyOffsetAreaSelector: 'div.story-head .title',
             downloadAreaSelector: 'div.story-cont div.quote'
         }
     },
@@ -1406,8 +1406,27 @@ const siteRules = [
     {
         regex: /k2sporn\.com\/\d{4,6}/,
         handler: (title) => {
-            const Resolution = title.match(/[0-9]{3,4}p/)[0];
-            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s*\[(UH|FU|HD|SD).+$/i, '').replace(/\s*\((UH|FU|HD|SD).+$/i, '').trim()
+
+            const cleanText = (text) => {
+                return text
+                    .replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n') // Replace multiple newlines with a single newline
+                    .replace(/^(\s?(UPDATED|EARLY LEAK)|All\sPreviews\s?)/gim, '') // Remove specific prefixes
+                    .split(/\n/) // Split into an array of lines
+                    .map(line => line.trim()) // Trim whitespace from each line
+                    .filter(line => line); // Filter out empty lines
+            };
+
+
+            let info = cleanText(document.querySelector('div.body-content')?.innerText);
+            const subTitle = info.find(txt => /^Name\s?:/.test(txt))?.match(/^Name\s?:\s?(.+)/)?.[1]?.trim().replace(/\.?mp4$/i, '');
+            const compareText = compareSentencesByWordMatch(subTitle, title)
+
+            const Resolution = /[0-9]{3,4}p/.test(title)
+                ? title.match(/[0-9]{3,4}p/)[0]
+                : /[0-9]{3,4}p/.test(subTitle)
+                    ? subTitle.match(/[0-9]{3,4}p/)[0]
+                    : ''
+            title = compareText.replace(/^Nude\sLeaked\s-/i, '').replace(/\s*\[(UH|FU|HD|SD).+$/i, '').replace(/\s*\((UH|FU|HD|SD).+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').trim()
             return `${title} ${Resolution}`
         },
     },
@@ -1501,7 +1520,7 @@ const siteRules = [
     {
         regex: /ultoporn\.com\/\d+/,
         handler: (title) => {
-            const Resolution = title.match(/[0-9]{3,4}p/)[0];
+            const Resolution = /[0-9]{3,4}p/.test(title) ? title.match(/[0-9]{3,4}p/)[0] : ''
             title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s\[.+(UHD|FullHD|HD|SD).+/i, '').replace(/\s*\[(UH|FU|HD|SD).+$/i, '').replace(/\s*\((UH|FU|HD|SD).+$/i, '').trim()
             return `${title} ${Resolution}`
         },
@@ -1509,7 +1528,7 @@ const siteRules = [
     {
         regex: /hidefporn\.ws\/\d+/,
         handler: (title) => {
-            const Resolution = title.match(/[0-9]{3,4}p/)[0];
+            const Resolution = /[0-9]{3,4}p/.test(title) ? title.match(/[0-9]{3,4}p/)[0] : ''
             title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s*\[(UH|FU|HD|SD).+$/i, '').replace(/\s*\((UH|FU|HD|SD).+$/i, '').trim()
             return `${title} ${Resolution}`
         },
