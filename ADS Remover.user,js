@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ADS Remover
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      2025.08.12
 // @description  try to take over the world!
 // @author       You
 // @include      *
@@ -81,8 +81,7 @@ function ADChange() {
         { regex: /supjav\.com/, patterns: ['pcmload.load'] },
         { regex: /blogjav\.net/, patterns: ['termcolonialhedwig', 'earningskingdeliberately'] },
         { regex: /everia\.club/, patterns: ['adConfig'] },
-        { regex: /xchina\.co/, patterns: ['AdProvider'] , closestSelectors: 'div.item'},
-        //{ regex: /avjamak/, patterns: ['window.document.getElementById("h237")'] },
+        { regex: /xchina\.co/, patterns: ['AdProvider'] , closestSelectors: 'div.item'},        
         { regex: /t66y\.com/, patterns: ['var charset='] },
         { regex: /javarchive\.com/, patterns: ['//cse.google.com/adsense/search/async-ads.js'] },
         { regex: /bestvideosexy\.com/, patterns: [], iframeSandbox: true }
