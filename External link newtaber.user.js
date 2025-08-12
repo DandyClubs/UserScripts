@@ -158,6 +158,7 @@
             /thread_title/,
         ],
         parentClass: [
+            /article/,
             /ast-blog-single-element/,
             /elementor-post/,
             /entry-featured-media/,
@@ -173,6 +174,7 @@
             /td-image-wrap/,
             /topnews-x/,
             /thumbnail-link/,
+            /thumbnail/,
         ]
     };
 

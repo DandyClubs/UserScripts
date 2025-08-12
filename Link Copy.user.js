@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy
-// @version      2025.08.11
+// @version      2025.08.12
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.org/
@@ -2243,7 +2243,7 @@ async function SecondProcess() {
 
                 try {
                     if (target.classList.contains('CopyIcon')) {
-                        e.preventDefault();
+                        e.preventDefault();                        
                         const SkipTitle = [];
                         AllowDirect = false;
                         if (DownloadArea?.length) {
@@ -2794,6 +2794,7 @@ async function CopyLink() {
     // Prepare notice text
     let noticeLines = [];
     let allLinks = [];
+    SkipTitle = []
 
     // 1) If no temporary links waiting, gather fresh links
     if (pageLinksDB.length === 0) {
@@ -2843,6 +2844,10 @@ async function CopyLink() {
         noticeLines = noticeLines.concat(allLinks);
     }
 
+    if(allLinks.length === 0){
+        SkipTitle = ['Link is Empty']
+        return allLinks
+    }
     // 3) Update UI notice
     const noticeEl = document.querySelector('.CopyNotice .copyText');
     noticeEl.textContent = noticeLines.join("\n");
@@ -2878,7 +2883,7 @@ async function CopyLink() {
 
     // 6) Finally, re-check the DB and return its result
     const result = await CheckDB(listToDo(DownloadArea), 'CopyLink');
-    console.log('Final DB state:', result);
+    console.log('Final DB state:', result);    
     return allLinks
 }
 
@@ -2933,6 +2938,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
     let Empty = [];
     let AllLinks = [];
     pageLinksDB = []
+    SkipTitle = []
     let pauseButton = false
     const WatchElementArea = document.querySelector('div#downloadhidden');
 
@@ -3110,6 +3116,9 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
     if (Empty.length) {
         console.log('Some Links Empty...');
         pageLinksDB = [];
+    }
+    if (pageLinksDB.length === 0){
+        SkipTitle = ['Link is Empty']
     }
     console.log('MutilSubTitle Final pageLinksDB:', pageLinksDB);
     return pageLinksDB
