@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         All Images Downloader to Zip
 // @namespace    nature grew
-// @version      2025.08.11
+// @version      2025.08.12
 // @description  All Images Downloader to Zip
 // @author       DandyClubs
 // @include      /everia\.club\//
@@ -57,33 +57,7 @@ GM_addStyle(`
 .DownButton {
     text-align: center;
     cursor: pointer;
-    padding: .5em;
-    margin: .25em;
     background-color:transparent !important;
-    z-index: 999999;
-}
-
-
-.ErrorImages {
-    font-family: 'Nanum Gothic', 'M PLUS Rounded 1c', 'Noto Sans', sans-serif !important;
-    margin-left: auto;
-    margin-right: auto;
-    border-radius: 4px;
-    color: white !important;
-    background: rgba(255, 110, 0, 0.75) !important;
-    position: fixed !important;
-    padding: .25em 1em;
-    white-space: pre;
- 	text-shadow: initial !important;
-    text-align: left;
-    line-height: 1.25em;
-	font-weight: 500 !important;
-	font-style: initial !important;
-    display: -webkit-box;
-    -webkit-line-clamp: 15;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
     z-index: 999999;
 }
 
@@ -141,7 +115,7 @@ let ImagesDB = []
 let DownloadImagesDB = []
 let Title, Author, Images, ZipFileName, ArchivesFileName, Tag
 let AddCount = 0
-let ErrorImages = []
+let errorList = [];
 
 
 class JobQueueDB {
@@ -708,8 +682,7 @@ function MakeIcon() {
         `
         <div class="CenterBox" style="max-width: max-content; position: fixed;">            
             <i class="ToTop fa-solid fa-circle-chevron-up"></i>
-            <i class="State"></i>        
-            <div class="ErrorImages" style="display:none;"></div>                       
+            <i class="State"></i>                    
         </div>
         `
     );
@@ -885,7 +858,7 @@ async function secondStep(Title) {
     });
 
     // ✅ 여기서도 lock을 얻은 탭만 자동 시작하도록
-    console
+    
     if (isAutoDownload() && JobList[0] === PageURL && !areadyDownloaded) {
         try {
             await navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, async () => {
@@ -912,7 +885,7 @@ async function secondStep(Title) {
 
         document.querySelector('.RetryFailed').addEventListener('click', () => {
             navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, () => {
-                if (ErrorImages.length > 0) {
+                if (errorList.length > 0) {
                     console.log("🔄 실패한 이미지 재시도");
                     downloadPhotosWithRetry(ImagesDB)
                 } else {
@@ -930,31 +903,6 @@ function isAutoDownload() {
     return localStorage.getItem('AutoDownload') == 1;
 }
 
-/*
-function showCopyNotice(text) {
-    const notice = document.querySelector('.CopyNotice');
-    const box = document.querySelector('.CenterBox');
-    if (!notice || !box) return;
-
-    notice.textContent = text;
-
-    const baseFontSize = typeof getDefaultFontSize === 'function' ? getDefaultFontSize() : 16;
-    const scale = 0.6;
-    const dpi = window.devicePixelRatio || 1;
-
-    $('.CopyNotice')
-        .stop(true, true)
-        .css({
-            fontSize: `${((1 / (dpi / 1.5)) * scale * (16 / baseFontSize)).toFixed(2)}rem`,
-            top: box.offsetTop + box.offsetHeight * 1.2,
-            left: window.innerWidth / 2 - box.offsetWidth,
-            display: 'none' // ensure toggle works as expected
-        })
-        .fadeIn(200)
-        .delay(1000)
-        .fadeOut(400);
-}
-*/
 
 function byteLengthOf(TitleText, maxByte) {
     console.log(TitleText, maxByte)
@@ -1040,7 +988,7 @@ async function downloadPhotosWithRetry(ImagesDB) {
     areadyDownloaded = true;
     const { signal: userSignal } = userAbortController;
     const maxRetries = 3;
-    let errorList = [];
+    errorList = [];
     const DB = await generateZIP(ImagesDB)
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         console.log(`[Attempt ${attempt}] 시작`);
@@ -1305,61 +1253,6 @@ function UpdateDB(Target, DownloadUrl) {
     //console.log(ImagesDB)
     return ImagesDB
 }
-
-
-
-async function mergeZips(sources) {
-    const zip = new JSZip()
-    try {
-        await readSources(sources, zip)
-        return zip
-    } catch (err) {
-        console.error("Failed to merge ZIPs:", err)
-        throw err
-    }
-}
-
-
-// generate an array of promises for each zip we're reading in and combine them
-// into a single promise with Promise.all()
-function readSources(files, zip) {
-    return Promise.allSettled(
-        files.map(function (file) {
-            return readSource(file, zip);
-        })
-    );
-}
-
-function readSource(file, zip) {
-    return new Promise((resolve, reject) => {
-        JSZipUtils.getBinaryContent(file.P, (err, data) => {
-            if (err) {
-                console.warn(`Failed to load: ${file.P}`, err)
-                if (typeof ErrorImages !== 'undefined') {
-                    ErrorImages.push(file.P)
-                }
-                return reject(err) // no need to throw
-            }
-
-            if (typeof AddCount !== 'undefined') {
-                AddCount++
-                if (document.querySelector('.State')) {
-                    document.querySelector('.State').innerText = ` ${AddCount}/${ImagesDB?.length ?? '?'}`
-                }
-            }
-
-            try {
-                zip.file(file.F, data, { binary: true })
-                resolve()
-            } catch (zipErr) {
-                console.error(`Failed to add to zip: ${file.F}`, zipErr)
-                reject(zipErr)
-            }
-        })
-    })
-}
-
-
 
 async function generateZIP(DB) {
     console.log('Download to Zip')
