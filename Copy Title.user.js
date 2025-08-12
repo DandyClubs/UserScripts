@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Copy Title
-// @version      2025.08.12
+// @version      2025.08.13
 // @description  try to take over the world!
 // @author       You
 // @include      /javbus.com\/.+\/([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)/
@@ -446,7 +446,8 @@ function MakeIcon() {
             addIconToCenterBox("Download fa-regular fa-circle-down", "", "dodgerblue");
             addEventToIcon("Download", function (e) {
                 e.preventDefault();
-                window.open(TorrentFile.href, '_blank');
+                //window.open(TorrentFile.href, '_blank');
+                TorrentFile.click();
                 e.target.style.setProperty("color", "Orange", "important");
             });
         }
@@ -567,6 +568,16 @@ const SiteParsers = {
                 titleText = titleText.replace('[Remastered]', '').replace(' - Remastered', '');
             }
 
+
+            const resolutionMatch = titleText.match(/(\d+)p/g);
+            let resolution
+            if (resolutionMatch) {
+                const uniqueMatch = [...new Set(resolutionMatch)]
+                resolution = uniqueMatch?.length === 1 ? uniqueMatch[0] : '';
+                titleText = titleText.replaceAll(resolution, '').trim()
+            }
+
+
             // 날짜 범위 및 제작자 추출
             const betweenMatch = BetweenRegEx.exec(titleText);
             const betweenYear = betweenMatch ? ` [${betweenMatch[0].replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3')}]` : '';
@@ -593,7 +604,7 @@ const SiteParsers = {
             } else {
                 const makerSearch = SearchMatch(InfoArea, "(Выпущено|Подсайт и сайт)\s?(:|：)?(.+)", "/\/|-/g, '.'");
                 maker = makerSearch ? makerSearch.replace(/,.+/, '').replace(/\..*/, '').trim() : '';
-                if (maker) {                    
+                if (maker) {
                     titleText = maker ? titleText.replace(maker, '').replace(/\(\s+\)/, '').trim() : titleText;
                     const cleanedTitleText = removeParts(titleText, maker)
                     titleText = cleanedTitleText;
@@ -616,7 +627,7 @@ const SiteParsers = {
                 codeID = codeID[0];
             }
 
-            const titleDB = titleText                
+            const titleDB = titleText
                 .replace(/(\/.*?([а-яА-ЯЁё]).+?)?\[.*г.+?\]/, '')
                 .replace(/\s?\/\s?\)$/, ')')
                 .replace(/\s?\/\s?$/, '')
@@ -634,10 +645,11 @@ const SiteParsers = {
                 TitleDB: titleDB,
                 extractedId: ID,
                 extractedcodeID: codeID,
+                extractedResolution: resolution,
             };
         },
         refine: (parsedData) => {
-            const { TitleText, TitleDB, Remastered, BTS, BetweenYear, ReleaseDate, Maker, extractedId, extractedcodeID } = parsedData;
+            const { TitleText, TitleDB, Remastered, BTS, BetweenYear, ReleaseDate, Maker, extractedId, extractedcodeID, extractedResolution } = parsedData;
             const extractedModelName = SearchMatch(InfoArea, "(В ролях|Погоняло бесстыдницы|В ролях|Имя актрисы|Имя модели|Погоняло принцессы|Погоняло волшебницы|Истинное имя бесстыдницы|Название Белоснежки|Название девки|Погоняло курицы с кривыми лапами)\s?(:|：)?(.+)", '/', '-')?.replace(/:|：/, '').replace(/\(.+/, '') || '';
             const cleanedModelName = extractedModelName.split(',').filter(element => !new RegExp(escapeRegExp(element)).test(TitleText)).join(' ').trim()
 
@@ -832,7 +844,7 @@ function GetTitle(parsedData) {
     console.log('최종 타이틀:', finalTitle);
     CopyTitle = FilenameConvert(nameCorrection(finalTitle));
     CopyTitle = mbConvertKana(CopyTitle, 'rans');
-    console.log('정리된 최종 타이틀:', '\n' + CopyTitle, byteLengthOfCheck(CopyTitle), '\n' + FullCopyTitle, byteLengthOfCheck(FullCopyTitle));
+    console.log('정리된 최종 타이틀', '\nCopyTitle: ' + CopyTitle, byteLengthOfCheck(CopyTitle), '\nFullCopyTitle: ' + FullCopyTitle, byteLengthOfCheck(FullCopyTitle));
 }
 
 /**
@@ -889,14 +901,19 @@ function extractDefaultId(titleDB) {
 function assembleFinalTitle(data) {
     // Destructuring을 사용하여 필요한 모든 데이터를 추출합니다.
     // NOTE: refine 단계에서 반환된 객체의 키와 일치하도록 변수명을 수정했습니다.
-    let { extractedcodeID, extractedId, Maker, ReleaseDate, ModelName, TitleText, BetweenYear, Remastered, BTS } = data;
+    let { extractedcodeID, extractedId, Maker, ReleaseDate, ModelName, TitleText, BetweenYear, Remastered, BTS, extractedResolution } = data;
 
     // 기본값 설정: 값이 없으면 빈 문자열을 할당하여 undefined 오류를 방지합니다.
     TitleText = extractedId ? TitleText.replace(extractedId, '').trim() : TitleText
     const formattedId = extractedId && extractedcodeID ? `${extractedId} ${extractedcodeID} ` : extractedId || extractedcodeID ? `${extractedId || extractedcodeID} ` : '';
     const formattedMaker = Maker && ReleaseDate ? `${Maker}` : Maker ? `${Maker} ` : '';
     const formattedReleaseDate = ReleaseDate ? `.${ReleaseDate}.` : ''
-    let formattedModelName = ModelName ? `(${ModelName})` : '';
+    const formattedModelName = ModelName ? `(${ModelName})` : '';
+    const formattedResolution = extractedResolution ? ` ${extractedResolution}` : '';
+    const formattedBTS = BTS ? ' [Behind The Scenes]' : '';
+    const formattedRemastered = Remastered ? ' [Remastered]' : '';
+    
+
     const byteLimit = 238;
     if (formattedModelName && byteLengthOfCheck(TitleText + formattedModelName) >= byteLimit) {
         formattedModelName = ''
@@ -919,7 +936,7 @@ function assembleFinalTitle(data) {
 
     let finalTitle = '';
     if (/pornolab\.net/.test(RootDomain)) {
-        finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}${BetweenYear}`;
+        finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
     } else if (/bestjavporn\.com|allasiangirls\.net/.test(RootDomain)) {
         finalTitle = `${TitleText}${formattedModelName}`;
     }
@@ -928,7 +945,7 @@ function assembleFinalTitle(data) {
     }
 
     // 이중 공백 제거, 선행 하이픈 제거 후 트림
-    finalTitle = finalTitle.replace(/\s+/g, ' ').replace(/^\s?-\s/, '').replace(/\((\s+)?\)/g, '').replace(/\[(\s+)?\]/g, '').replace(/\.(\s+)?$/, '').trim();
+    finalTitle = finalTitle.replace(/^\s?-\s/, '').replace(/\((\s+)?\)/g, '').replace(/\[(\s+)?\]/g, '').replace(/\.(\s+)?$/, '').replace(/\s+/g, ' ').trim();
     FullCopyTitle = finalTitle
     // 최종 길이 제한 및 추가 태그
 
