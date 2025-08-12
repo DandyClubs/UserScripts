@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Image Retry Loader with GM_xmlhttpRequest
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.11
+// @version      2025.08.12
 // @description  Automatically retries loading failed images by checking their existence with GM_xmlhttpRequest.
 // @author       Your Name
 // @match        *://*/*
@@ -20,8 +20,8 @@
     function preventEarlyImageLoad() {
         if (document.visibilityState === 'hidden') {
             document.querySelectorAll('img').forEach(img => {
-                if (img.src && !img.dataset.lazyStoredSrc) {
-                    const srcUrl = img.getAttribute('src');
+                if (img.src && !img.dataset.lazyStoredSrc && !img.getAttribute('data-dyn')) {
+                    const srcUrl = img.src;
 
                     // 이미 data-*에 저장된 경우 중복 방지
                     if (srcUrl && !srcUrl.startsWith('data:')) {
@@ -70,7 +70,7 @@
     const RETRY_INTERVAL = 10000;
     const MAX_RETRY_COUNT = 1;
 
-    
+
     // GM_xmlhttpRequest를 이용한 이미지 존재 여부 확인 (상태별 처리)
     function checkImageExistenceWithGM(url) {
         return new Promise((resolve) => {
@@ -134,14 +134,15 @@
      * 큐에 이미지 추가 함수
      */
     function enqueueFailedImage(imgElement) {
-        if (retryQueue.some(item => item.imgElement === imgElement)) {
+        const imgElementSrc = imgElement.getAttribute('data-lazy-stored-src') || imgElement.src;
+        if (retryQueue.some(item => item.imgElement.getAttribute('data-lazy-stored-src') === imgElementSrc)) {
             return;
         }
 
         imgElement.dataset.retryCount = imgElement.dataset.retryCount ? parseInt(imgElement.dataset.retryCount) : 0;
 
         retryQueue.push({ imgElement });
-        console.log(`[ImageRetry] 큐에 이미지 추가됨: ${imgElement.src}`);
+        console.log(`[ImageRetry] 큐에 이미지 추가됨: ${imgElementSrc}`);
 
         if (!isProcessing) {
             processQueue();
@@ -161,24 +162,25 @@
         isProcessing = true;
         const item = retryQueue.shift();
         const imgElement = item.imgElement;
+        const imgElementSrc = item.imgElement.getAttribute('data-lazy-stored-src') || item.imgElement;
         let retryCount = parseInt(imgElement.dataset.retryCount);
 
         if (retryCount >= MAX_RETRY_COUNT) {
-            console.warn(`[ImageRetry] 최대 재시도 횟수 초과: ${imgElement.src}`);
+            console.warn(`[ImageRetry] 최대 재시도 횟수 초과: ${imgElementSrc}`);
             return;
         }
 
         // 재시도 전에 GM_xmlhttpRequest를 사용하여 실제 파일 존재 여부 확인
-        const exists = await checkImageExistenceWithGM(imgElement.src);
+        const exists = await checkImageExistenceWithGM(imgElementSrc);
         if (!exists) {
-            console.log(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${imgElement.src}`);
+            console.log(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${imgElementSrc}`);
             return;
         }
 
         imgElement.dataset.retryCount = ++retryCount;
         imgElement.onerror = null;
         imgElement.src = imgElement.src;
-        console.log(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): ${imgElement.src}`);
+        console.log(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): ${imgElementSrc}`);
 
         imgElement.onerror = function () {
             enqueueFailedImage(this);

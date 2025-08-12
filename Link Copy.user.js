@@ -1447,54 +1447,54 @@ const siteRules = [
 
             if (uniqueLinks?.length) {
                 await Promise.allSettled(uniqueLinks.map((x) => DirectLink(x)));
-
-
-                CoverImage = document.querySelector('div.entry p a img')?.src || '';
-
-
-                console.log('파일명 찾기"', { DownloadArea })
-                console.log(DownloadArea[0].querySelector('a[href*="https://katfile.com/"]'))
-                const GetFileNameLink =
-                    DownloadArea[0].querySelector('a[href*="https://katfile.com/"]')?.href ||
-                    DownloadArea[0].querySelector('a[href*="https://ddownload.com/"]')?.href || '';
-
-                const needsFilenameFetch =
-                    (!SearchIDRegExp.test(rawTitle) && !/^\[.*?\]/.test(rawTitle) && GetFileNameLink) ||
-                    (!SearchIDRegExp.test(rawTitle) && !JapaneseChar.test(rawTitle) && GetFileNameLink);
-
-                console.log({ needsFilenameFetch })
-
-                const rawIDMatch = SearchIDRegExp.exec(rawTitle) || ''
-                const rawID = rawIDMatch ? (rawIDMatch.groups ? rawIDMatch.groups[1] : rawIDMatch[1]) : '';
-
-                if (needsFilenameFetch) {
-                    try {
-                        const service = /katfile/.test(GetFileNameLink)
-                            ? 'katfile'
-                            : /ddownload/.test(GetFileNameLink)
-                                ? 'ddl'
-                                : null;
-                        if (service) {
-                            const newTitle = await GetFileName(GetFileNameLink, service);
-                            console.log('GetFileName :', newTitle);
-                            const newIDMatch = SearchIDRegExp.exec(newTitle) || ''
-                            const newID = newIDMatch
-                                ? (newIDMatch.groups ? newIDMatch.groups[1] : newIDMatch.filter(Boolean)[1])
-                                : '';
-
-                            const cleandedRawTitle = rawTitle.replace(rawID, '').trim()
-                            const cleandedNewTitle = newTitle.replace(newID, '').trim()
-                            rebuildedText = `${rawID || newID} ${compareJapaneseCharacters(cleandedRawTitle, cleandedNewTitle)}`;
-                            copyOffsetArea.textContent = rebuildedText
-                            console.log('Rebuilded Text:', rebuildedText)
-                        }
-                    } catch (e) {
-                        console.error('Request failed', e);
-                    }
-                } else {
-                    return rawTitle
-                }
             }
+
+            CoverImage = document.querySelector('div.entry p a img')?.src || '';
+
+
+            console.log('파일명 찾기"', { DownloadArea })
+            console.log(DownloadArea[0].querySelector('a[href*="https://katfile.com/"]'))
+            const GetFileNameLink =
+                DownloadArea[0].querySelector('a[href*="https://katfile.com/"]')?.href ||
+                DownloadArea[0].querySelector('a[href*="https://ddownload.com/"]')?.href || '';
+
+            const needsFilenameFetch =
+                (!SearchIDRegExp.test(rawTitle) && !/^\[.*?\]/.test(rawTitle) && GetFileNameLink) ||
+                (!SearchIDRegExp.test(rawTitle) && !JapaneseChar.test(rawTitle) && GetFileNameLink);
+
+            console.log({ needsFilenameFetch })
+
+            const rawIDMatch = SearchIDRegExp.exec(rawTitle) || ''
+            const rawID = rawIDMatch ? (rawIDMatch.groups ? rawIDMatch.groups[1] : rawIDMatch[1]) : '';
+
+            if (needsFilenameFetch) {
+                try {
+                    const service = /katfile/.test(GetFileNameLink)
+                        ? 'katfile'
+                        : /ddownload/.test(GetFileNameLink)
+                            ? 'ddl'
+                            : null;
+                    if (service) {
+                        const newTitle = await GetFileName(GetFileNameLink, service);
+                        console.log('GetFileName :', newTitle);
+                        const newIDMatch = SearchIDRegExp.exec(newTitle) || ''
+                        const newID = newIDMatch
+                            ? (newIDMatch.groups ? newIDMatch.groups[1] : newIDMatch.filter(Boolean)[1])
+                            : '';
+
+                        const cleandedRawTitle = rawTitle.replace(rawID, '').trim()
+                        const cleandedNewTitle = newTitle.replace(newID, '').trim()
+                        rebuildedText = `${rawID || newID} ${compareJapaneseCharacters(cleandedRawTitle, cleandedNewTitle)}`;
+                        copyOffsetArea.textContent = rebuildedText
+                        console.log('Rebuilded Text:', rebuildedText)
+                    }
+                } catch (e) {
+                    console.error('Request failed', e);
+                }
+            } else {
+                return rawTitle
+            }
+
             return rebuildedText;
         },
     },
