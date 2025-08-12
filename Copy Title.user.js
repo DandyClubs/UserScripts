@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Copy Title
-// @version      2025.08.11
+// @version      2025.08.12
 // @description  try to take over the world!
 // @author       You
 // @include      /javbus.com\/.+\/([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)/
@@ -551,6 +551,7 @@ const SiteParsers = {
             // 러시아어 단어 및 날짜 형식 정리
             titleText = titleText
                 .replace(/ролика|роликов|ролик|клипов/, 'Video Clips')
+                .replace('Удаленные видео', 'Deleted Videos')
                 .replace(/ч(\.\d+)/, 'Part$1')
                 .replace(/часть/, 'Part')
                 .replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3')
@@ -615,7 +616,7 @@ const SiteParsers = {
                 codeID = codeID[0];
             }
 
-            const titleDB = titleText
+            const titleDB = titleText                
                 .replace(/(\/.*?([а-яА-ЯЁё]).+?)?\[.*г.+?\]/, '')
                 .replace(/\s?\/\s?\)$/, ')')
                 .replace(/\s?\/\s?$/, '')

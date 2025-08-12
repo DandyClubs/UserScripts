@@ -162,7 +162,7 @@
         isProcessing = true;
         const item = retryQueue.shift();
         const imgElement = item.imgElement;
-        const imgElementSrc = item.imgElement.getAttribute('data-lazy-stored-src') || item.imgElement;
+        const imgElementSrc = item.imgElement.getAttribute('data-lazy-stored-src') || item.imgElement.src;
         let retryCount = parseInt(imgElement.dataset.retryCount);
 
         if (retryCount >= MAX_RETRY_COUNT) {
