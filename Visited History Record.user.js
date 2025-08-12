@@ -434,7 +434,7 @@ const GetTitle = el => el.textContent.trim()
 .replace(/^.+\.(com|net)(:|\s-)\s/, '')
 .replace(/\s+/, ' ')
 .replace(/^Nude\sLeaked\s-/i, '')
-.replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD].+$/i, '')
+.replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD|2K].+$/i, '')
 .trim();
 
 const GetID = el => {

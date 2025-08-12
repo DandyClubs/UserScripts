@@ -291,7 +291,7 @@ function processContent(node, selector, isExtra = false) {
                 const resolutionMatch = textContent.match(/(\d+)p/);
                 const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
                 if (resolution) {
-                    Title = textContent.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').trim()
+                    Title = textContent.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(resolutionMatch[0], '').trim()
                     console.log('Title:', Title, 'Resolution:', resolution)
                     if (resolution > 1080) {
                         localStorage.setItem(Title, AddDate)

@@ -1426,7 +1426,7 @@ const siteRules = [
                 : /[0-9]{3,4}p/.test(subTitle)
                     ? subTitle.match(/[0-9]{3,4}p/)[0]
                     : ''
-            title = compareText.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
+            title = compareText.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
             return `${title} ${Resolution}`
         },
     },
@@ -1521,7 +1521,7 @@ const siteRules = [
         regex: /ultoporn\.com\/\d+/,
         handler: (title) => {
             const Resolution = /[0-9]{3,4}p/.test(title) ? title.match(/[0-9]{3,4}p/)[0] : ''
-            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
+            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
             return `${title} ${Resolution}`
         },
     },
@@ -1529,7 +1529,7 @@ const siteRules = [
         regex: /hidefporn\.ws\/\d+/,
         handler: (title) => {
             const Resolution = /[0-9]{3,4}p/.test(title) ? title.match(/[0-9]{3,4}p/)[0] : ''
-            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
+            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
             return `${title} ${Resolution}`
         },
     },
@@ -2163,7 +2163,7 @@ function mainIcon(Run) {
             AutoCopyIcon.classList.add('On');
             localStorage.setItem('AutoClose', JSON.stringify(true));
             localStorage.setItem('AutoCopy', JSON.stringify(true));
-            if (DownloadArea.length > 0) {
+            if (DownloadArea?.length > 0) {
                 const hasCopied = await CheckDB(listToDo(DownloadArea), 'click')
                 if (!hasCopied) {
                     CopyGo(SkipTitle)
@@ -2182,7 +2182,7 @@ function mainIcon(Run) {
             AutoCopyIcon.classList.remove('Off');
             AutoCopyIcon.classList.add('On');
             localStorage.setItem('AutoCopy', JSON.stringify(true));
-            if (DownloadArea.length > 0) {
+            if (DownloadArea?.length > 0) {
                 const hasCopied = await CheckDB(listToDo(DownloadArea), 'click')
                 if (!hasCopied) {
                     CopyGo(SkipTitle)
