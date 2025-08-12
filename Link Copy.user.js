@@ -1027,9 +1027,9 @@ const siteConfigs = [
     {
         regex: /cosplay\.jav\.pw\/\d+/,
         config: {
-            copyOffsetAreaSelector: 'div.post_singular.hentry .title',
-            downloadAreaSelector: 'div.post_singular.hentry div.entry p',
-        }
+            copyOffsetAreaSelector: 'div.post_singular.hentry h3',
+            downloadAreaSelector: 'div.post_singular.hentry div.entry',
+        },
     },
     {
         regex: /(nicesss|nicewww)\.com\/archives.+\.html/,
@@ -1394,7 +1394,8 @@ const siteConfigs = [
                 CopyTitle = byteLengthOf(Title, 241).trim();
             }
         }
-    }
+    },
+
 ];
 // 사이트별 특별 제목 처리 규칙을 정의하는 배열
 
@@ -1436,47 +1437,63 @@ const siteRules = [
     {
         // cosplay.jav.pw 규칙 추가
         regex: /cosplay\.jav\.pw\/\d+/,
-        handler: async (title, copyOffsetArea, DownloadArea) => {            
+        handler: async (title, copyOffsetArea, DownloadArea) => {
             let rebuildedText
             const h3 = copyOffsetArea
             const rawTitle = h3 ? h3.textContent.trim() : title;
 
-            console.log({ DownloadArea })
+            const checkRedirects = document.querySelectorAll('a[href*="https://cosplay.jav.pw/goto/"]');
+            const allCollectionLinks = Array.from(checkRedirects).map(el => el.href);
+            const uniqueLinks = [...new Set(allCollectionLinks)];
 
-            const GetFileNameLink =
-                DownloadArea[0].querySelector('a[href*="https://katfile.com/"]')?.href ||
-                DownloadArea[0].querySelector('a[href*="https://ddownload.com/"]')?.href || '';
+            if (uniqueLinks?.length) {
+                await Promise.allSettled(uniqueLinks.map((x) => DirectLink(x)));
 
-            const needsFilenameFetch =
-                (!SearchIDRegExp.test(rawTitle) && !/^\[.*?\]/.test(rawTitle) && GetFileNameLink) ||
-                (!SearchIDRegExp.test(rawTitle) && !JapaneseChar.test(rawTitle) && GetFileNameLink);
 
-            const rawIDMatch = SearchIDRegExp.exec(rawTitle) || ''
-            const rawID = rawIDMatch ? (rawIDMatch.groups ? rawIDMatch.groups[1] : rawIDMatch[1]) : '';
+                CoverImage = document.querySelector('div.entry p a img')?.src || '';
 
-            if (needsFilenameFetch) {
-                try {
-                    const service = /katfile/.test(GetFileNameLink)
-                        ? 'katfile'
-                        : /ddownload/.test(GetFileNameLink)
-                            ? 'ddl'
-                            : null;
-                    if (service) {
-                        const newTitle = await GetFileName(GetFileNameLink, service);
-                        console.log('GetFileName :', newTitle);
-                        const newIDMatch = SearchIDRegExp.exec(newTitle) || ''
-                        const newID = newIDMatch
-                            ? (newIDMatch.groups ? newIDMatch.groups[1] : newIDMatch.filter(Boolean)[1])
-                            : '';
 
-                        const cleandedRawTitle = rawTitle.replace(rawID, '').trim()
-                        const cleandedNewTitle = newTitle.replace(newID, '').trim()
-                        rebuildedText = `${rawID || newID} ${compareJapaneseCharacters(cleandedRawTitle, cleandedNewTitle)}`;
-                        copyOffsetArea.textContent = rebuildedText
-                        console.log('Rebuilded Text:', rebuildedText)
+                console.log('파일명 찾기"', { DownloadArea })
+                console.log(DownloadArea[0].querySelector('a[href*="https://katfile.com/"]'))
+                const GetFileNameLink =
+                    DownloadArea[0].querySelector('a[href*="https://katfile.com/"]')?.href ||
+                    DownloadArea[0].querySelector('a[href*="https://ddownload.com/"]')?.href || '';
+
+                const needsFilenameFetch =
+                    (!SearchIDRegExp.test(rawTitle) && !/^\[.*?\]/.test(rawTitle) && GetFileNameLink) ||
+                    (!SearchIDRegExp.test(rawTitle) && !JapaneseChar.test(rawTitle) && GetFileNameLink);
+
+                console.log({ needsFilenameFetch })
+
+                const rawIDMatch = SearchIDRegExp.exec(rawTitle) || ''
+                const rawID = rawIDMatch ? (rawIDMatch.groups ? rawIDMatch.groups[1] : rawIDMatch[1]) : '';
+
+                if (needsFilenameFetch) {
+                    try {
+                        const service = /katfile/.test(GetFileNameLink)
+                            ? 'katfile'
+                            : /ddownload/.test(GetFileNameLink)
+                                ? 'ddl'
+                                : null;
+                        if (service) {
+                            const newTitle = await GetFileName(GetFileNameLink, service);
+                            console.log('GetFileName :', newTitle);
+                            const newIDMatch = SearchIDRegExp.exec(newTitle) || ''
+                            const newID = newIDMatch
+                                ? (newIDMatch.groups ? newIDMatch.groups[1] : newIDMatch.filter(Boolean)[1])
+                                : '';
+
+                            const cleandedRawTitle = rawTitle.replace(rawID, '').trim()
+                            const cleandedNewTitle = newTitle.replace(newID, '').trim()
+                            rebuildedText = `${rawID || newID} ${compareJapaneseCharacters(cleandedRawTitle, cleandedNewTitle)}`;
+                            copyOffsetArea.textContent = rebuildedText
+                            console.log('Rebuilded Text:', rebuildedText)
+                        }
+                    } catch (e) {
+                        console.error('Request failed', e);
                     }
-                } catch (e) {
-                    console.error('Request failed', e);
+                } else {
+                    return rawTitle
                 }
             }
             return rebuildedText;
