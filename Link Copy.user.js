@@ -2253,31 +2253,27 @@ async function SecondProcess() {
             document.body.insertAdjacentHTML('beforeend', `<div class="CopyNotice" style="display: none;"><div class="copyText"></div></div>`);
 
             IconSetBox = document.querySelector(".IconSet");
+            const copyIcon = IconSetBox.querySelector('CopyIcon')
+            const closeIcon = IconSetBox.querySelector('CloseIcon')
+            const Minus = IconSetBox.querySelector('Minus')
 
-            document.body.addEventListener('click', async function (e) {
-                const target = e.target.closest('i');
-                if (!target) return;
-
-                try {
-                    if (target.classList.contains('CopyIcon')) {
-                        e.preventDefault();
-                        const SkipTitle = [];
-                        AllowDirect = false;
-                        if (DownloadArea?.length) {
-                            CopyGo(SkipTitle);
-                        }
-                    } else if (target.classList.contains('CloseIcon')) {
-                        e.preventDefault();
-                        self.close();
-                    } else if (target.classList.contains('Minus')) {
-                        e.preventDefault();
-                        await RemoveDB(listToDo(DownloadArea, 'All'), 'SecondProcess RemoveDB');
-                        await CheckDB(listToDo(DownloadArea), 'SecondProcess CheckDB');
-                        CopyLinks = []
-                    }
-                } catch (error) {
-                    console.error('IconSet click handler error:', error);
+            copyIcon.addEventListener('click', function (e) {
+                e.preventDefault();
+                const SkipTitle = [];
+                AllowDirect = false;
+                if (DownloadArea?.length) {
+                    CopyGo(SkipTitle);
                 }
+            })
+            closeIcon.addEventListener('click', function (e) {
+                e.preventDefault();
+                self.close();
+            })
+            Minus.addEventListener('click', async function (e) {
+                e.preventDefault();
+                await RemoveDB(listToDo(DownloadArea, 'All'), 'SecondProcess RemoveDB');
+                await CheckDB(listToDo(DownloadArea), 'SecondProcess CheckDB');
+                CopyLinks = []
             });
         }
 
@@ -2446,7 +2442,7 @@ async function CopyGo(SkipTitle) {
     if (!Array.isArray(SkipTitle)) {
         throw new Error('No Array SkipTitle');
     }
-    if (Array.isArray(SkipTitle) && SkipTitle.length !== 0) return;
+    if (Array.isArray(SkipTitle) && SkipTitle.length !== 0) return console.log(`SkipTitle: ${SkipTitle}`)
 
     const shortUrlExists = () =>
         Array.from(document.querySelectorAll("a")).some(a => WaitChangeLink.test(a.href));
@@ -2476,7 +2472,7 @@ async function CopyGo(SkipTitle) {
         // 대상 요소를 찾습니다.
         const copyNotice = document.querySelector('.CopyNotice');
         const copyText = document.querySelector('.CopyNotice .copyText');
-        const linkCopyCenterBox = document.querySelector('.LinkCopyCenterBox'); // LinkCopyCenterBox는 기존 코드에 있는 변수라고 가정합니다.
+        const linkCopyCenterBox = document.querySelector('.LinkCopyCenterBox');
 
         // 변수들을 미리 계산합니다.
         const fontSizeValue = Number(((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2));
@@ -2494,10 +2490,11 @@ async function CopyGo(SkipTitle) {
     if (copyIcon) copyIcon.style.color = "orange";
     const closeIcon = document.querySelector(".CloseIcon");
     if (closeIcon) closeIcon.style.visibility = "visible";
-    if (!document.hidden) {
-        const notice = document.querySelector('.CopyNotice');
-        await showThenHide(notice, { duration: 800, pause: 2000 });
-    }
+
+    const notice = document.querySelector('.CopyNotice');
+    //await showThenHide(notice, { duration: 800, pause: 2000 });
+    await fadeSlideToggle(notice, 1000)
+
 }
 
 

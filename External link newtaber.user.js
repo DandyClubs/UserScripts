@@ -63,6 +63,7 @@
         /forum\/viewtopic\.php\?t/,
         /hdreactor\.club.*\.html/,
         /hiderefer/,
+        /girlscanner\.org\/.+\.html$/,
         /itorrents.+torrent$/,
         /javarchive\.com\/\d{6}.*\.html/,
         /javfree\.me\/\d+/,
