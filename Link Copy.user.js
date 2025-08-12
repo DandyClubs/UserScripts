@@ -280,7 +280,6 @@ let AutoClose = JSON.parse(localStorage.getItem('AutoClose')) || false
 let userCopy = JSON.parse(localStorage.getItem('AutoCopy')) || false
 let userClose = JSON.parse(localStorage.getItem('AutoClose')) || false
 
-let CopyLinksBackup
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RootDomain = extractRootDomain(PageURL)
 //console.log('RootDomain: ', RootDomain)
@@ -2453,6 +2452,33 @@ async function CopyGo(SkipTitle) {
         console.log('No short links detected. Starting copy.');
         await CopyLink();
     }
+    // Update UI notification styles
+    if (LinkCopyCenterBox) {
+        // 대상 요소를 찾습니다.
+        const copyNotice = document.querySelector('.CopyNotice');
+        const copyText = document.querySelector('.CopyNotice .copyText');
+        const linkCopyCenterBox = document.querySelector('.LinkCopyCenterBox'); // LinkCopyCenterBox는 기존 코드에 있는 변수라고 가정합니다.
+
+        // 변수들을 미리 계산합니다.
+        const fontSizeValue = Number(((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2));
+        const topValue = linkCopyCenterBox.offsetTop + linkCopyCenterBox.offsetHeight * 1.2;
+        const leftValue = window.innerWidth / 2 - linkCopyCenterBox.offsetWidth * 1.5;
+
+        // 계산된 값을 요소의 style 속성에 직접 할당합니다.
+        copyNotice.style.fontSize = `${fontSizeValue}rem`;
+        copyNotice.style.top = `${topValue}px`;
+        copyNotice.style.left = `${leftValue}px`;
+        copyNotice.style.height = copyText.scrollHeight + "px";
+    }
+
+    const copyIcon = document.querySelector(".CopyIcon");
+    if (copyIcon) copyIcon.style.color = "orange";
+    const closeIcon = document.querySelector(".CloseIcon");
+    if (closeIcon) closeIcon.style.visibility = "visible";
+    if (!document.hidden) {
+        const notice = document.querySelector('.CopyNotice');
+        await showThenHide(notice, { duration: 800, pause: 2000 });
+    }
 }
 
 
@@ -2606,7 +2632,6 @@ async function CollectionLinks(DownloadArea) {
 
     // 3) Finally, process each remaining link into CopyLinks and DB
 
-    CopyLinks = CopyLinks || [];
     for (const a of links) {
         const href = a.href;
         if (CopyLinks.includes(href)) continue;
@@ -2766,6 +2791,8 @@ async function CopyLink() {
     let allLinks = [];
     SkipTitle = []
 
+
+    console.log({ pageLinksDB })
     // 1) If no temporary links waiting, gather fresh links
     if (pageLinksDB.length === 0) {
         let collected = await CollectionLinks(DownloadArea) || [];
@@ -2822,35 +2849,6 @@ async function CopyLink() {
     const noticeEl = document.querySelector('.CopyNotice .copyText');
     noticeEl.textContent = noticeLines.join("\n");
 
-
-    // Update UI notification styles
-    if (LinkCopyCenterBox) {
-        // 대상 요소를 찾습니다.
-        const copyNotice = document.querySelector('.CopyNotice');
-        const copyText = document.querySelector('.CopyNotice .copyText');
-        const linkCopyCenterBox = document.querySelector('.LinkCopyCenterBox'); // LinkCopyCenterBox는 기존 코드에 있는 변수라고 가정합니다.
-
-        // 변수들을 미리 계산합니다.
-        const fontSizeValue = Number(((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2));
-        const topValue = linkCopyCenterBox.offsetTop + linkCopyCenterBox.offsetHeight * 1.2;
-        const leftValue = window.innerWidth / 2 - linkCopyCenterBox.offsetWidth * 1.5;
-
-        // 계산된 값을 요소의 style 속성에 직접 할당합니다.
-        copyNotice.style.fontSize = `${fontSizeValue}rem`;
-        copyNotice.style.top = `${topValue}px`;
-        copyNotice.style.left = `${leftValue}px`;
-        copyNotice.style.height = copyText.scrollHeight + "px";
-    }
-
-    const copyIcon = document.querySelector(".CopyIcon");
-    if (copyIcon) copyIcon.style.color = "orange";
-
-    if (!document.hidden) {
-        const notice = document.querySelector('.CopyNotice');
-        await showThenHide(notice, { duration: 800, pause: 2000 });
-    }
-    const closeIcon = document.querySelector(".CloseIcon");
-    if (closeIcon) closeIcon.style.visibility = "visible";
     // 4) Persist state & refresh counters
     localStorage.setItem(RootDomain, JSON.stringify(localStorageDB));
     await sleep(100);
@@ -2859,6 +2857,7 @@ async function CopyLink() {
     PackageCount = PackageList(localStorageDB);
     const stateEl = document.querySelector('.State');
     stateEl.textContent = `${GetState.length} | ${PackageCount.length}`;
+
 
     const clearBtn = document.querySelector('.ClearButton');
     const copyBtn = document.querySelector('.CopyButton');
