@@ -1426,7 +1426,7 @@ const siteRules = [
                 : /[0-9]{3,4}p/.test(subTitle)
                     ? subTitle.match(/[0-9]{3,4}p/)[0]
                     : ''
-            title = compareText.replace(/^Nude\sLeaked\s-/i, '').replace(/\s*\[(UH|FU|HD|SD).+$/i, '').replace(/\s*\((UH|FU|HD|SD).+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').trim()
+            title = compareText.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
             return `${title} ${Resolution}`
         },
     },
@@ -1521,7 +1521,7 @@ const siteRules = [
         regex: /ultoporn\.com\/\d+/,
         handler: (title) => {
             const Resolution = /[0-9]{3,4}p/.test(title) ? title.match(/[0-9]{3,4}p/)[0] : ''
-            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s\[.+(UHD|FullHD|HD|SD).+/i, '').replace(/\s*\[(UH|FU|HD|SD).+$/i, '').replace(/\s*\((UH|FU|HD|SD).+$/i, '').trim()
+            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
             return `${title} ${Resolution}`
         },
     },
@@ -1529,7 +1529,7 @@ const siteRules = [
         regex: /hidefporn\.ws\/\d+/,
         handler: (title) => {
             const Resolution = /[0-9]{3,4}p/.test(title) ? title.match(/[0-9]{3,4}p/)[0] : ''
-            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s*\[(UH|FU|HD|SD).+$/i, '').replace(/\s*\((UH|FU|HD|SD).+$/i, '').trim()
+            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
             return `${title} ${Resolution}`
         },
     },

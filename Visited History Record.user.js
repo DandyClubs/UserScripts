@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Visited History Record
 // @namespace   DandyClubs
-// @version     2025.08.11
+// @version     2025.08.12
 // @include     https://sis001.com/forum/forum*.html
 // @match       https://sis001.com/forum/forumdisplay.php*
 // @match       https://ultoporn.com/*
@@ -433,6 +433,8 @@ const GetTitle = el => el.textContent.trim()
 .replace(/\s-\s/g, ' ')
 .replace(/^.+\.(com|net)(:|\s-)\s/, '')
 .replace(/\s+/, ' ')
+.replace(/^Nude\sLeaked\s-/i, '')
+.replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD].+$/i, '')
 .trim();
 
 const GetID = el => {
@@ -623,7 +625,7 @@ function SaveVisited(el) {
     if (Active.Get === 'GetID') {
         linkInfo = GetID(el);
     } else {
-        linkInfo = GetTitle(el);
+        linkInfo = GetTitle(el)        
     }
 
     el.classList.add('visited');

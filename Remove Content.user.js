@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Remove Content
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.11
+// @version      2025.08.12
 // @description  try to take over the world!
 // @author       You
 // @match        https://blogjav.net/*
@@ -58,6 +58,7 @@ const escapeRegExp = (value) => value.replace(/[.*+?^${}()<>|[\]\\]/gi, "\\$&")
 const RemoveContentEX = RegexFrom(RemoveContentText.split(/\r?\n/), 'i')
 const SkipModelEX = RegexFrom(SkipModel.split(/\r?\n/), 'gi')
 const WarningEX = RegexFrom(WarningText.split(/\r?\n/), 'gi')
+const AddDate = new Date().toISOString().slice(0, 10);
 
 console.log('RemoveContentEX: ', RemoveContentEX, '\nSkipModelEX: ', SkipModelEX, '\nWarningEX: ', WarningEX)
 
@@ -209,6 +210,46 @@ class Queue {
 const queue = new Queue();
 let managementWorking = false;
 
+
+function ClearTitle() {
+    console.log('Start Delete Title!');
+
+    const sameTitle = Object.entries(localStorage)
+        .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
+        .map(([key, _]) => key);
+
+    const now = new Date();
+    const oneDayMs = 1000 * 60 * 60 * 24;
+
+    for (let key of sameTitle) {
+        const storedDateStr = localStorage.getItem(key);
+
+        if (storedDateStr && !isNaN(Date.parse(storedDateStr))) {
+            const storedDate = new Date(storedDateStr);
+            const diffDays = (now - storedDate) / oneDayMs;
+
+            if (diffDays === 0) {
+                localStorage.removeItem(key);
+                console.log('Deleted item:', key, storedDateStr);
+            }
+        }
+    }
+}
+
+function getCookie(name) {
+    let cookie = document.cookie;
+    if (document.cookie != "") {
+        let cookie_array = cookie.split("; ");
+        for (var index in cookie_array) {
+            var cookie_name = cookie_array[index].split("=")
+            if (cookie_name[0] == name) {
+                return cookie_name[1];
+            }
+        }
+    }
+    return null;
+}
+
 // ----------------------------------------------------
 // 💡 개선된 부분: 함수 역할 분리 및 명확화
 // ----------------------------------------------------
@@ -238,22 +279,29 @@ function processContent(node, selector, isExtra = false) {
                 console.log('Link content removed:', item.href.match(/\/(femdom|transsexuals)\//i));
                 item.closest(Active.removeTagSelector)?.remove();
                 continue;
-            }
-
-            if (PageURL.includes('ultoporn.com')) {
-                const resolutionMatch = textContent.match(/(\d+)p/);
-                const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
-                if (resolution > 0 && resolution < 720) {
-                    console.log('Low resolution content removed:', resolution);
-                    item.closest(Active.removeTagSelector)?.remove();
-                    continue;
-                }
-            }
+            }            
 
             if (RemoveContentEX.test(textContent)) {
                 console.log('Keyword content removed:', textContent.match(RemoveContentEX));
                 item.closest(Active.removeTagSelector)?.remove();
                 continue;
+            }
+
+            if (/hidefporn\.ws|ultoporn\.com|k2sporn\.com/.test(PageURL)) {
+                const resolutionMatch = textContent.match(/(\d+)p/);
+                const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
+                if (resolution) {
+                    Title = textContent.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').trim()
+                    console.log('Title:', Title, 'Resolution:', resolution)
+                    if (resolution > 1080) {
+                        localStorage.setItem(Title, AddDate)
+                    }
+                    else if (resolution < 720 && localStorage.getItem(Title)) {
+                        console.log('Low resolution content removed:', resolution);
+                        item.closest(Active.removeTagSelector)?.remove();
+                        continue;
+                    }
+                }
             }
         }
 
@@ -320,9 +368,23 @@ function processQueue() {
 // 💡 개선된 부분: 메인 로직 및 MutationObserver
 // ----------------------------------------------------
 
+function setClearTitle(name, value, expiresDay) {
+    const NowTime = new Date();
+    const MidNight = new Date(NowTime.getFullYear(), NowTime.getMonth(), NowTime.getDate() + expiresDay, 9)
+    document.cookie = escape(name) + "=" + escape(value) + "; expires=" + MidNight.toUTCString();
+}
+
+
 window.addEventListener("DOMContentLoaded", () => {
     console.log('Start Remove Content!');
     const rootElement = Active.rootSelector ? document.querySelector(Active.rootSelector) : document.body;
+    
+    const cookieCheck = getCookie("ClearTitle");
+    if (!cookieCheck || cookieCheck !== "Y") {
+        console.log('ClearTitle');
+        ClearTitle();
+        setClearTitle("ClearTitle", "Y", 1);
+    }
 
     // 초기 페이지 콘텐츠 처리
     if (rootElement) {
