@@ -15,28 +15,39 @@
     'use strict';
 
 
-
     // placeholder인지 여부를 떠나 src가 존재하면 임시 저장하고 비워버림
     function preventEarlyImageLoad(node = document) {
         if (document.visibilityState === 'hidden') {
-            if(node.tagName === 'IMG'){
+            if (node.tagName === 'IMG') {
                 if (img.src && !img.dataset.lazyStoredSrc && !img.getAttribute('data-dyn')) {
-                    const srcUrl = img.src;
+                    const srcUrl = img.getAttribute('src');
 
                     // 이미 data-*에 저장된 경우 중복 방지
                     if (srcUrl && !srcUrl.startsWith('data:')) {
-                        img.setAttribute('data-lazy-stored-src', srcUrl);
+                        const lazySrc =
+                            img.getAttribute('data-src') ||
+                            img.getAttribute('data-original') ||
+                            img.getAttribute('data-lazy') ||
+                            img.getAttribute('data-lazy-src') ||
+                            img.getAttribute('data-img');
+                        img.setAttribute('data-lazy-stored-src', lazySrc);
                         img.src = ''; // 이미지 비우기 → lazy load 차단
                     }
                 }
             }
             node.querySelectorAll('img').forEach(img => {
                 if (img.src && !img.dataset.lazyStoredSrc && !img.getAttribute('data-dyn')) {
-                    const srcUrl = img.src;
+                    const srcUrl = img.getAttribute('src');
 
                     // 이미 data-*에 저장된 경우 중복 방지
                     if (srcUrl && !srcUrl.startsWith('data:')) {
-                        img.setAttribute('data-lazy-stored-src', srcUrl);
+                        const lazySrc =
+                            img.getAttribute('data-src') ||
+                            img.getAttribute('data-original') ||
+                            img.getAttribute('data-lazy') ||
+                            img.getAttribute('data-lazy-src') ||
+                            img.getAttribute('data-img');
+                        img.setAttribute('data-lazy-stored-src', lazySrc);
                         img.src = ''; // 이미지 비우기 → lazy load 차단
                     }
                 }
@@ -87,7 +98,8 @@
         return new Promise((resolve) => {
             GM_xmlhttpRequest({
                 method: 'HEAD',
-                url: url,
+                url: !/^https?:/.test(url) ? new URL(url, location)?.href : url,
+                //url:url,
                 timeout: 5000, // 5초 제한
                 onload: function (response) {
                     const status = response.status;
@@ -217,7 +229,7 @@
             if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
-                        if (node.tagName === 'IMG') {                            
+                        if (node.tagName === 'IMG') {
                             preventEarlyImageLoad(node)
                             addErrorListenerToImages(node);
                         }
