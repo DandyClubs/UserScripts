@@ -1027,7 +1027,7 @@ const siteConfigs = [
     {
         regex: /cosplay\.jav\.pw\/\d+/,
         config: {
-            copyOffsetAreaSelector: 'div.post_singular.hentry h3',
+            copyOffsetAreaSelector: 'div.post_singular.hentry h3, div.post_singular.hentry .title',
             downloadAreaSelector: 'div.post_singular.hentry div.entry',
         },
     },
