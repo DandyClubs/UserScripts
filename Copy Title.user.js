@@ -569,7 +569,7 @@ const SiteParsers = {
             }
 
 
-            const resolutionMatch = titleText.match(/(\d+)p/g);
+            const resolutionMatch = titleText.match(/\d+p/g);
             let resolution
             if (resolutionMatch) {
                 const uniqueMatch = [...new Set(resolutionMatch)]
