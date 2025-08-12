@@ -61,17 +61,6 @@ GM_addStyle(`
     z-index: 999999;
 }
 
-.State {
-    font-weight: bold;
-    text-align: center;
-    vertical-align: middle;
-    font-family: 'Noto Sans', sans-serif !important;
-    padding: .25em !important;
-    font-style: italic !important;
-    background-color:transparent !important;
-    z-index: 999999;
-}
-
 .JobState {
     color: White;
     font-weight: bold;
@@ -681,8 +670,7 @@ function MakeIcon() {
     document.body.insertAdjacentHTML('beforeend',
         `
         <div class="CenterBox" style="max-width: max-content; position: fixed;">            
-            <i class="ToTop fa-solid fa-circle-chevron-up"></i>
-            <i class="State"></i>                    
+            <i class="ToTop fa-solid fa-circle-chevron-up"></i>            
         </div>
         `
     );
@@ -691,7 +679,7 @@ function MakeIcon() {
     // DOM 요소를 한 번만 선택하고 변수에 할당
     const centerBox = document.querySelector(".CenterBox");
     const toTopEl = document.querySelector(".ToTop");
-    const stateEl = document.querySelector('.State');
+    
 
     // ToTop 버튼 클릭 이벤트
     toTopEl.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -705,9 +693,7 @@ function MakeIcon() {
 
     // 폰트 사이즈 스타일 적용
     centerBox.style.setProperty('font-size', CenterBoxFontSize, 'important');
-    stateEl.style.fontSize = StateFontSize;
-    stateEl.style.lineHeight = StateLineHeight;
-
+    
     // AutoDownload 상태 토글 UI 설정
     const isAutoDownload = localStorage.getItem('AutoDownload') == 1;
     const iconClass = isAutoDownload ? 'On' : 'Off';
@@ -829,17 +815,20 @@ async function secondStep(Title) {
         await UpdateJobQueue(PageURL, 'remove')
         throw new Error('ZipFileName is empty')
     }
-    const checkJpg = ImagesDB.some(e => getExtensionOfFilename(e.U) === '.jpg')
+
     let nameLengths = []
-    if (checkJpg) {
+    nameLengths = ImagesDB.filter(e => getExtensionOfFilename(e.U) === '.jpg').map(x => GetFileName(x.U).length);
+    if (nameLengths.length === 0) {
         nameLengths = ImagesDB.filter(e => getExtensionOfFilename(e.U) !== '.webp').map(x => GetFileName(x.U).length);
-    } else {
-        nameLengths = ImagesDB.filter(e => getExtensionOfFilename(e.U) === '.jpg' || getExtensionOfFilename(e.U) === '.png' || getExtensionOfFilename(e.U) === '.jpeg' || getExtensionOfFilename(e.U) === '.webp').map(x => GetFileName(x.U).length);
     }
+    if (nameLengths.length === 0) {
+        nameLengths = ImagesDB.filter(e => getExtensionOfFilename(e.U) === '.png').map(x => GetFileName(x.U).length);
+    }
+
     if (nameLengths.length === 0) {
         await UpdateJobQueue(PageURL, 'remove')
         throw new Error('nameLengths is empty')
-    }   
+    }
 
     maxLength = Math.max(...nameLengths);
     minLength = Math.min(...nameLengths);
@@ -858,7 +847,7 @@ async function secondStep(Title) {
     });
 
     // ✅ 여기서도 lock을 얻은 탭만 자동 시작하도록
-    
+
     if (isAutoDownload() && JobList[0] === PageURL && !areadyDownloaded) {
         try {
             await navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, async () => {
@@ -1016,11 +1005,11 @@ async function downloadPhotosWithRetry(ImagesDB) {
                 AutoClose = false
             }
             // IndexedDB 임시 데이터 제거 (streamSaver 버퍼 제거)
-            
+
             if (typeof cleanupStreamSaverTempFiles === 'function') {
                 await cleanupStreamSaverTempFiles();
             }
-            
+
             break;
         }
     }
@@ -1265,7 +1254,7 @@ async function generateZIP(DB) {
 
     await Promise.allSettled(DB.map(async (el, i) => {
         let filename = ''
-        let Extension = getExtensionOfFilename(el.U) || '.jpg'
+        let Extension = getExtensionOfFilename(el.U)
         let indexNumber = (i + 1).toString().padStart(3, '0')
 
         let base = GetFileName(el.U)
@@ -1273,7 +1262,10 @@ async function generateZIP(DB) {
         if (/blogger\.googleusercontent\.com/.test(el.U)) {
             filename = `${ZipFileName} ${indexNumber}.jpg`
         } else if (/cdn\.foamgirl\.net/.test(el.U)) {
-            if (minLength !== maxLength && !CutPoint) {
+            if (base.length > maxLength || minLength === maxLength) {
+                filename = `${base}${Extension}`
+            }
+            else if (minLength !== maxLength && !CutPoint) {
                 const FindLast = DB.findLast(t => GetFileName(t.U).length === minLength)
                 const FindCompare = DB.find(t => GetFileName(t.U).length === maxLength)
                 const findLast = GetFileName(FindLast.U)
@@ -1285,12 +1277,11 @@ async function generateZIP(DB) {
                     }
                 }
             }
-            if (CutPoint) {
+
+            if (CutPoint && maxLength > base.length) {
                 const prefix = base.substring(0, CutPoint)
                 const padded = base.substring(CutPoint).padStart(maxLength - CutPoint + (Deff - 1), '0')
                 filename = `${prefix}${padded}${Extension}`
-            } else {
-                filename = `${base}${Extension}`
             }
 
         } else if (/%/.test(base) || /girlgirlgo\.org/.test(el.U)) {
