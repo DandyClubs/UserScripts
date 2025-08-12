@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            External link newtaber MOD (Pipeline Refactored)
-// @version         2025.08.11
+// @version         2025.08.12
 // @description     Fully refactored with a rule pipeline for maximum clarity and maintainability.
 // @icon            https://cdn1.iconfinder.com/data/icons/feather-2/24/external-link-32.png
 // @icon64          https://cdn1.iconfinder.com/data/icons/feather-2/24/external-link-128.png
@@ -17,23 +17,27 @@
 // ==/UserScript==
 
 (function () {
-    const scriptCode = `    
-    window.addEventListener('DOMContentLoaded', function() {
-        const hash = window.location.hash;
-        if (hash.startsWith('#gsc.tab=')) {
-            window.history.replaceState({}, document.title, window.location.pathname);
-        }
-    });
-  `;
 
-    const script = document.createElement('script');
-    script.textContent = scriptCode;
-    const hash = window.location.hash;
-    if (hash.startsWith('#gsc.tab=')) {
-        document.addEventListener("DOMContentLoaded", () => {
-            document.head.appendChild(script);
-        })
+    function removeGscHash() {
+        if (location.hash && location.hash.startsWith('#gsc.tab=')) {
+            history.replaceState(null, '', location.pathname + location.search);
+        }
     }
+
+    // 페이지 로드 전에도 한번 제거
+    if (location.hash && location.hash.startsWith('#gsc.tab=')) {
+        removeGscHash();
+    }
+
+    // 해시 변경 시 제거
+    window.addEventListener('hashchange', removeGscHash, false);
+
+    // 혹시 로드 완료 후 붙는 경우를 위해 딜레이 체크
+    window.addEventListener('load', () => {
+        if (location.hash && location.hash.startsWith('#gsc.tab=')) {
+            setTimeout(removeGscHash, 50);
+        }
+    }, { once: true });
 
 
     // --- 전역 변수 ---
@@ -60,7 +64,6 @@
         /hdreactor\.club.*\.html/,
         /hiderefer/,
         /itorrents.+torrent$/,
-        /javarchive\.com/,
         /javarchive\.com\/\d{6}.*\.html/,
         /javfree\.me\/\d+/,
         /javpink\.com\/\?p=/,

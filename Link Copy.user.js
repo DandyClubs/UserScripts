@@ -1028,6 +1028,7 @@ const siteConfigs = [
         regex: /cosplay\.jav\.pw\/\d+/,
         config: {
             copyOffsetAreaSelector: 'div.post_singular.hentry .title',
+            downloadAreaSelector: 'div.post_singular.hentry div.entry p',
         }
     },
     {
@@ -1435,10 +1436,12 @@ const siteRules = [
     {
         // cosplay.jav.pw 규칙 추가
         regex: /cosplay\.jav\.pw\/\d+/,
-        handler: async (title, copyOffsetArea, DownloadArea) => {
+        handler: async (title, copyOffsetArea, DownloadArea) => {            
             let rebuildedText
             const h3 = copyOffsetArea
             const rawTitle = h3 ? h3.textContent.trim() : title;
+
+            console.log({ DownloadArea })
 
             const GetFileNameLink =
                 DownloadArea[0].querySelector('a[href*="https://katfile.com/"]')?.href ||
@@ -1537,27 +1540,6 @@ const waitDownloadArea = [
             });
             scrollToTop();
             RefreshIconSet();
-        },
-    },
-    {
-        regex: /cosplay\.jav\.pw\/\d+/,
-        handler: async () => {
-            copyOffsetArea = document.querySelector('div#content div.post_singular .title');
-
-            const checkRedirects = document.querySelectorAll('a[href*="https://cosplay.jav.pw/goto/"]');
-            const allCollectionLinks = Array.from(checkRedirects).map(el => el.href);
-            const uniqueLinks = [...new Set(allCollectionLinks)];
-
-            if (uniqueLinks?.length) {
-                await Promise.allSettled(uniqueLinks.map((x) => DirectLink(x)));
-            }
-
-            const downloadContainer = await waitElement('div#content div.post_singular div.entry');
-            console.log({ downloadContainer });
-            DownloadArea = [downloadContainer];
-
-            CoverImage = document.querySelector('div.entry p a img')?.src || '';
-            console.log('DownloadArea: ', DownloadArea, '\nCoverImage: ', CoverImage);
         },
     },
     {
@@ -2243,7 +2225,7 @@ async function SecondProcess() {
 
                 try {
                     if (target.classList.contains('CopyIcon')) {
-                        e.preventDefault();                        
+                        e.preventDefault();
                         const SkipTitle = [];
                         AllowDirect = false;
                         if (DownloadArea?.length) {
@@ -2454,35 +2436,6 @@ async function CopyGo(SkipTitle) {
         console.log('No short links detected. Starting copy.');
         await CopyLink();
     }
-
-    // Update UI notification styles
-    if (LinkCopyCenterBox) {
-        // 대상 요소를 찾습니다.
-        const copyNotice = document.querySelector('.CopyNotice');
-        const copyText = document.querySelector('.CopyNotice .copyText');
-        const linkCopyCenterBox = document.querySelector('.LinkCopyCenterBox'); // LinkCopyCenterBox는 기존 코드에 있는 변수라고 가정합니다.
-
-        // 변수들을 미리 계산합니다.
-        const fontSizeValue = Number(((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2));
-        const topValue = linkCopyCenterBox.offsetTop + linkCopyCenterBox.offsetHeight * 1.2;
-        const leftValue = window.innerWidth / 2 - linkCopyCenterBox.offsetWidth * 1.5;
-
-        // 계산된 값을 요소의 style 속성에 직접 할당합니다.
-        copyNotice.style.fontSize = `${fontSizeValue}rem`;
-        copyNotice.style.top = `${topValue}px`;
-        copyNotice.style.left = `${leftValue}px`;
-        copyNotice.style.height = copyText.scrollHeight + "px";
-    }
-
-    const copyIcon = document.querySelector(".CopyIcon");
-    if (copyIcon) copyIcon.style.color = "orange";
-
-    if (!document.hidden) {
-        const notice = document.querySelector('.CopyNotice');
-        await showThenHide(notice, { duration: 800, pause: 2000 });
-    }
-    const closeIcon = document.querySelector(".CloseIcon");
-    if (closeIcon) closeIcon.style.visibility = "visible";
 }
 
 
@@ -2844,7 +2797,7 @@ async function CopyLink() {
         noticeLines = noticeLines.concat(allLinks);
     }
 
-    if(allLinks.length === 0){
+    if (allLinks.length === 0) {
         SkipTitle = ['Link is Empty']
         return allLinks
     }
@@ -2852,6 +2805,35 @@ async function CopyLink() {
     const noticeEl = document.querySelector('.CopyNotice .copyText');
     noticeEl.textContent = noticeLines.join("\n");
 
+
+    // Update UI notification styles
+    if (LinkCopyCenterBox) {
+        // 대상 요소를 찾습니다.
+        const copyNotice = document.querySelector('.CopyNotice');
+        const copyText = document.querySelector('.CopyNotice .copyText');
+        const linkCopyCenterBox = document.querySelector('.LinkCopyCenterBox'); // LinkCopyCenterBox는 기존 코드에 있는 변수라고 가정합니다.
+
+        // 변수들을 미리 계산합니다.
+        const fontSizeValue = Number(((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2));
+        const topValue = linkCopyCenterBox.offsetTop + linkCopyCenterBox.offsetHeight * 1.2;
+        const leftValue = window.innerWidth / 2 - linkCopyCenterBox.offsetWidth * 1.5;
+
+        // 계산된 값을 요소의 style 속성에 직접 할당합니다.
+        copyNotice.style.fontSize = `${fontSizeValue}rem`;
+        copyNotice.style.top = `${topValue}px`;
+        copyNotice.style.left = `${leftValue}px`;
+        copyNotice.style.height = copyText.scrollHeight + "px";
+    }
+
+    const copyIcon = document.querySelector(".CopyIcon");
+    if (copyIcon) copyIcon.style.color = "orange";
+
+    if (!document.hidden) {
+        const notice = document.querySelector('.CopyNotice');
+        await showThenHide(notice, { duration: 800, pause: 2000 });
+    }
+    const closeIcon = document.querySelector(".CloseIcon");
+    if (closeIcon) closeIcon.style.visibility = "visible";
     // 4) Persist state & refresh counters
     localStorage.setItem(RootDomain, JSON.stringify(localStorageDB));
     await sleep(100);
@@ -2883,7 +2865,7 @@ async function CopyLink() {
 
     // 6) Finally, re-check the DB and return its result
     const result = await CheckDB(listToDo(DownloadArea), 'CopyLink');
-    console.log('Final DB state:', result);    
+    console.log('Final DB state:', result);
     return allLinks
 }
 
@@ -3117,7 +3099,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
         console.log('Some Links Empty...');
         pageLinksDB = [];
     }
-    if (pageLinksDB.length === 0){
+    if (pageLinksDB.length === 0) {
         SkipTitle = ['Link is Empty']
     }
     console.log('MutilSubTitle Final pageLinksDB:', pageLinksDB);
