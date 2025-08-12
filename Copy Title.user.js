@@ -447,7 +447,8 @@ function MakeIcon() {
             addEventToIcon("Download", function (e) {
                 e.preventDefault();
                 //window.open(TorrentFile.href, '_blank');
-                TorrentFile.click();
+                //TorrentFile.click();
+                forceDownload(TorrentFile.href, CopyTitle)
                 e.target.style.setProperty("color", "Orange", "important");
             });
         }
@@ -956,8 +957,8 @@ function assembleFinalTitle(data) {
     }
 
     // BTS 및 Remastered 태그 추가
-    if (BTS) finalTitle += ' [Behind The Scenes]';
-    if (Remastered) finalTitle += ' [Remastered]';
+    //if (BTS) finalTitle += ' [Behind The Scenes]';
+    //if (Remastered) finalTitle += ' [Remastered]';
 
     // 외부 함수를 호출하여 최종 정리 후 반환합니다.
     return finalTitle;
