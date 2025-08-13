@@ -200,9 +200,8 @@ function UpdateJobList() {
 
     
     // Save the updated list back, as a JSON string
-    GM_setValue('JobList', jobKeys[0] ? jobKeys[0] : '');
-    // Update the global variable if needed
-    JobList = jobKeys;
+    GM_setValue('JobList', jobKeys.length ? jobKeys : []);
+    // Update the global variable if needed    
 }
 
 
@@ -393,7 +392,7 @@ async function Start() {
         case "1024tera.com":
         case "terabox.app":
         case "themezon.net":
-            window.addEventListener('beforeunload', () => GM_deleteValue(PageURL));
+            window.addEventListener('beforeunload', () => UpdateJobList());
             observer.observe(document, config);
             break;
 
