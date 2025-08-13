@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ClcikAble Image
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.11
+// @version      2025.08.13
 // @description  try to take over the world!
 // @author       You
 // @match        https://maxjav.com/*
@@ -11,6 +11,7 @@
 // @match        https://ultoporn.com/*
 // @match        https://top-modelz.org/*
 // @match        https://av18plus.com/*
+// @match        https://x-idol.net/*
 // @exclude      /maxjav\.com/\d+/
 // @exclude      /maxjav\.xyz/\d+/
 // @exclude      /blogjav\.net\/\d+/
@@ -52,6 +53,13 @@ const maxjav = {
     MakeClickImage: 'div.hentry > div.entry > p > img',
     closestTag: 'div.hentry',
     Approach: 'NextSibling',
+}
+const xidol = {
+    MatchUrl: 'xidol',
+    MakeClickImage: 'div.entries-wrapper div.post.hentry div.entry div.entry-content p a img',
+    closestTag: '.post-title.entry-title',
+    Approach: 'closest',
+    SearchATag: '.post-title.entry-title a',
 }
 
 const jappydolls = {
@@ -103,6 +111,7 @@ const ChostExtractors = /* #__PURE__ */ Object.freeze({
     ultoporn,
     topmodelz,
     av18plus,
+    xidol,
 })
 
 
