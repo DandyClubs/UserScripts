@@ -390,12 +390,13 @@ async function Start() {
 
         case "terabox.com":
         case "1024tera.com":
-        case "terabox.app":
-        case "themezon.net":
+        case "terabox.app":        
             window.addEventListener('beforeunload', () => UpdateJobList());
             observer.observe(document, config);
             break;
-
+        case "themezon.net":
+            observer.observe(document, config);
+            break;  
         case "sehuatang.net":
             setTimeout(() => {
                 document.querySelector('body > a.enter-btn')?.click();
