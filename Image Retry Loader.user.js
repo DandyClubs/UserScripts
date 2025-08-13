@@ -14,76 +14,6 @@
 (function () {
     'use strict';
 
-
-    // placeholder인지 여부를 떠나 src가 존재하면 임시 저장하고 비워버림
-    function preventEarlyImageLoad(node = document) {
-        if (document.visibilityState === 'hidden') {
-            if (node.tagName === 'IMG') {
-                if (img.src && !img.dataset.lazyStoredSrc && !img.getAttribute('data-dyn')) {
-                    const srcUrl = img.getAttribute('src');
-
-                    // 이미 data-*에 저장된 경우 중복 방지
-                    if (srcUrl && !srcUrl.startsWith('data:')) {
-                        const lazySrc =
-                            img.getAttribute('data-src') ||
-                            img.getAttribute('data-original') ||
-                            img.getAttribute('data-lazy') ||
-                            img.getAttribute('data-lazy-src') ||
-                            img.getAttribute('data-img');
-                        img.setAttribute('data-lazy-stored-src', lazySrc);
-                        img.src = ''; // 이미지 비우기 → lazy load 차단
-                    }
-                }
-            }
-            node.querySelectorAll('img').forEach(img => {
-                if (img.src && !img.dataset.lazyStoredSrc && !img.getAttribute('data-dyn')) {
-                    const srcUrl = img.getAttribute('src');
-
-                    // 이미 data-*에 저장된 경우 중복 방지
-                    if (srcUrl && !srcUrl.startsWith('data:')) {
-                        const lazySrc =
-                            img.getAttribute('data-src') ||
-                            img.getAttribute('data-original') ||
-                            img.getAttribute('data-lazy') ||
-                            img.getAttribute('data-lazy-src') ||
-                            img.getAttribute('data-img');
-                        img.setAttribute('data-lazy-stored-src', lazySrc);
-                        img.src = ''; // 이미지 비우기 → lazy load 차단
-                    }
-                }
-            });
-        }
-    }
-
-    // 예외 처리 포함해서 safe하게 작성하면:
-    function safePreventImageLoad() {
-        if (document.visibilityState === 'hidden') {
-            preventEarlyImageLoad();
-        }
-    }
-
-    // visible 상태가 되면 src 복구
-    function loadImages() {
-        document.querySelectorAll('img').forEach(img => {
-            const lazySrc =
-                img.getAttribute('data-lazy-stored-src') ||
-                img.getAttribute('data-src') ||
-                img.getAttribute('data-original') ||
-                img.getAttribute('data-lazy') ||
-                img.getAttribute('data-lazy-src') ||
-                img.getAttribute('data-img');
-
-            if (lazySrc) {
-                img.src = lazySrc;
-                img.removeAttribute('data-lazy-stored-src');
-                addErrorListenerToImages(img)
-            }
-        });
-    }
-
-
-
-
     // 이미지 재시도 큐
     const retryQueue = [];
     let isProcessing = false;
@@ -99,7 +29,6 @@
             GM_xmlhttpRequest({
                 method: 'HEAD',
                 url: !/^https?:/.test(url) ? new URL(url, location)?.href : url,
-                //url:url,
                 timeout: 5000, // 5초 제한
                 onload: function (response) {
                     const status = response.status;
@@ -230,10 +159,8 @@
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         if (node.tagName === 'IMG') {
-                            preventEarlyImageLoad(node)
                             addErrorListenerToImages(node);
                         }
-                        preventEarlyImageLoad(node)
                         node.querySelectorAll('img').forEach(img => addErrorListenerToImages(img));
                     }
                 });
@@ -245,30 +172,11 @@
     if (document.readyState === 'loading') {
         window.addEventListener("DOMContentLoaded", () => {
 
-            safePreventImageLoad();
-            // 시작 시 히든이라면 강제 초기화
-            preventEarlyImageLoad();
-
-            if (document.visibilityState === 'visible') {
-                loadImages();
-            } else {
-                const onVisible = () => {
-                    if (document.visibilityState === 'visible') {
-                        loadImages();
-                        document.removeEventListener('visibilitychange', onVisible);
-                    }
-                };
-                document.addEventListener('visibilitychange', onVisible);
-            }
-            // 스크립트 실행 시작
-
             document.querySelectorAll('img').forEach(img => addErrorListenerToImages(img));
             observer.observe(document.body, { childList: true, subtree: true });
             console.log('[ImageRetry] 스크립트 활성화 완료');
 
         }, { once: true });
-    } else {
-        safePreventImageLoad(); // 이미 로딩된 경우 즉시 실행
     }
 
 })();

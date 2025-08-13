@@ -1504,7 +1504,7 @@ const siteRules = [
                         const cleandedRawTitle = rawTitle.replace(rawID, '').trim()
                         const cleandedNewTitle = newTitle.replace(newID, '').trim()
                         rebuildedText = `${rawID || newID} ${compareJapaneseCharacters(cleandedRawTitle, cleandedNewTitle)}`;
-                        copyOffsetArea.textContent = rebuildedText
+                        copyOffsetArea.textContent = rebuildedText.trim()
                         console.log('Rebuilded Text:', rebuildedText)
                     }
                 } catch (e) {
@@ -1763,11 +1763,9 @@ async function processCopyTitle(currentConfig) {
     // 모든 사이트에 공통으로 적용되는 최종 정리
     CopyTitle = /(–\sSiterip)\s–.+/.test(CopyTitle) ? CopyTitle.match(/(.+Siterip)\s–.+/)[1] : CopyTitle;
     CopyTitle = CopyTitle.replace(/\.mp4-\w+/i, '');
-    CopyTitle = /FC2/.test(CopyTitle) ? CopyTitle : nameCorrection(CopyTitle);
+    CopyTitle = nameCorrection(CopyTitle);
 
     // 길이 제한 및 ID 처리
-
-
     if (byteLengthOfCheck(CopyTitle) > 241) {
         const titleLast = getLastText(CopyTitle);
         console.log({ titleLast })

@@ -17,6 +17,7 @@
 // @grant        unsafeWindow
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
+// @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/extractMetaInfoLinks.user.js
 // @require      https://code.jquery.com/jquery-3.7.1.min.js
 // @exclude      /www\.eyny\.com\/forum\.php\?mod=viewthread.*dateline$/
 // @noframes
@@ -164,6 +165,27 @@ let stateElement = null;
 // 아이콘 생성 및 초기 상태 설정
 MakeIcon();
 
+
+const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+const siteRules = [
+    {
+        regex: /eyny\.com\/forum\.php\?mod=viewthread/,
+        separatorText: ['影片名稱'],
+        area: document.querySelector('div#postlist td[id^="postmessage"]'),
+        priority: ['3840', '1920', '1280', '720'],
+        coverImage: '',
+        useResolution: true,
+        getTitleRegex: /影片名稱[】]?\s?[:：]?\s*(.+)/i,
+        passwordRegex: /解壓密碼[】：]?(.+?)\s/,
+        breakPoint: ['需要存取權'],
+    },
+]
+
+
+// 사이트별 특별 규칙 적용
+const rule = siteRules.find((r) => r.regex.test(PageURL));
+
+
 window.addEventListener('storage', (e) => {
     rootDomainDB = JSON.parse(localStorage.getItem(ROOT_DOMAIN)) || [];
     if (centerBox) {
@@ -185,7 +207,7 @@ const lableText = subjectText?.match(/^kuzu_v0/) ? subjectText.match(/^kuzu_v0/)
 
 // 폰트어썸 CSS 로드 및 메인 로직 실행
 FontAwesomeCSS();
-main();
+//main();
 
 function main() {
     const postBodyElement = document.querySelector('div.pcb > div > table > tbody');
@@ -307,7 +329,7 @@ if (!document.querySelector('.CopyItemIcon') && document.querySelector('.pg_view
 
     // 삽입된 DOM 요소들을 변수에 저장하여 재사용합니다.
 
-    
+
     const copyItemBox = document.querySelector('.CopyItemBox');
     const copyItemIcon = copyItemBox.querySelector('.CopyItemIcon');
     const copyKatIcon = copyItemBox.querySelector('.CopyKatIcon');
@@ -495,79 +517,104 @@ async function CopyItems() {
     let noticeText = '';
 
     const copyNotice = document.querySelector('.CopyNotice');
-
-    if (!titleDBIndex.length) {
-        if (copyNotice) {
-            copyNotice.innerHTML = `<code>Title Empty</code>`;
-        }
-        return;
-    }
-
-    for (let i = 0; i < titleDBIndex.length; i++) {
-        const first = titleDBIndex[i];
-        const last = titleDBIndex[i + 1] ? titleDBIndex[i + 1] : infoArea.length - 1;
-
-        let title = infoArea[first].match(TITLE_EXPR)?.[2]
-            .replace(/^(】 :|】:|：|】：|】)/, '')
-            .replace('(MP4@RF@無碼)', '')
-            .replace('J.V.I.D', 'JVID')
-            .trim() || infoArea[first];
-
-        if (!title || SKIP_TITLE.some(skip => title.includes(skip))) {
-            continue;
-        }
-
-        title = lableText + FilenameConvert(title.replace(/\(MP4@KF@無碼\)/, '').replace(/【影片大小】.+/, '').replace(/^(FC2-PPV-|FC2\sPPV-|FC2PPV-)/i, 'FC2 PPV ').trim());
-        if (byteLengthOfCheck(title) > 241) {
-            title = byteLengthOf(title, 241).trim();
-        }
-        noticeText += title + "\n";
-
-        const password = FindPassWord(infoArea, first, last) || '';
-
-        let linkStartIndex = first;
-        const bdIndex = infoArea.findIndex((e, index) => index > first && index <= last && /【 藍光原檔 】|【 4K藍光原檔 】/.test(e));
-
-        if (bdIndex > -1) {
-            linkStartIndex = bdIndex;
-        } else {
-            const hdIndex = infoArea.findIndex((e, index) => index > first && index <= last && /【 HD版 】/.test(e));
-            if (hdIndex > -1) {
-                linkStartIndex = hdIndex;
-            }
-        }
-
-        const megaLinks = infoArea.filter((e, index) => index > linkStartIndex && index <= last && /mega\.nz\/file\//.test(e));
-        const katLinks = infoArea.filter((e, index) => index > linkStartIndex && index <= last && /katfile.com\/.+\.html/.test(e));
-
-        if (katLinks.length && megaLinks.length && megaLinks.length < katLinks.length) {
-            infoArea = infoArea.map((x, index) => (index > linkStartIndex && index <= last && katLinks.includes(x) ? 'katfile.com' : x));
-        }
-
-        for (let j = linkStartIndex; j <= last; j++) {
-            const currentItem = infoArea[j];
-            if (/LastLine|exclude/.test(currentItem)) {
-                break;
-            }
-
-            if (/^https?:/.test(currentItem)) {
-                if (/dudujb\.com/.test(currentItem)) {
-                    return openInNewTab(currentItem);
-                }
-
-                if (!SKIP_FILTER.test(currentItem)) {
-                    const U = currentItem;
-                    const T = title;
-                    const P = password;
-                    const S = PAGE_URL;
-                    linksDB.push({ U, T, P, S });
-                    updateDB(U, T, P, S);
-                    noticeText += U + "\n";
+    if (rule) {
+        analyzePage(rule).then(results => {
+            for (const x of results) {
+                for (const currentItem of x.links) {
+                    if (SKIP_FILTER.test(currentItem)) {
+                        continue;
+                    }
+                    else {
+                        if (byteLengthOfCheck(x.title) > 241) {
+                            title = byteLengthOf(x.title, 241).trim();
+                        }
+                        noticeText += title + "\n";
+                        const U = currentItem;
+                        const T = x.title;
+                        const P = x.password;
+                        const S = PAGE_URL;
+                        linksDB.push({ U, T, P, S });
+                        updateDB(U, T, P, S);
+                        noticeText += U + "\n";
+                    }
                 }
             }
-        }
+        });
     }
-
+    /**
+        if (!titleDBIndex.length) {
+            if (copyNotice) {
+                copyNotice.innerHTML = `<code>Title Empty</code>`;
+            }
+            return;
+        }
+    
+        for (let i = 0; i < titleDBIndex.length; i++) {
+            const first = titleDBIndex[i];
+            const last = titleDBIndex[i + 1] ? titleDBIndex[i + 1] : infoArea.length - 1;
+    
+            let title = infoArea[first].match(TITLE_EXPR)?.[2]
+                .replace(/^(】 :|】:|：|】：|】)/, '')
+                .replace('(MP4@RF@無碼)', '')
+                .replace('J.V.I.D', 'JVID')
+                .trim() || infoArea[first];
+    
+            if (!title || SKIP_TITLE.some(skip => title.includes(skip))) {
+                continue;
+            }
+    
+            title = lableText + FilenameConvert(title.replace(/\(MP4@KF@無碼\)/, '').replace(/【影片大小】.+/, '').replace(/^(FC2-PPV-|FC2\sPPV-|FC2PPV-)/i, 'FC2 PPV ').trim());
+            if (byteLengthOfCheck(title) > 241) {
+                title = byteLengthOf(title, 241).trim();
+            }
+            noticeText += title + "\n";
+    
+            const password = FindPassWord(infoArea, first, last) || '';
+    
+            let linkStartIndex = first;
+            const bdIndex = infoArea.findIndex((e, index) => index > first && index <= last && /【 藍光原檔 】|【 4K藍光原檔 】/.test(e));
+    
+            if (bdIndex > -1) {
+                linkStartIndex = bdIndex;
+            } else {
+                const hdIndex = infoArea.findIndex((e, index) => index > first && index <= last && /【 HD版 】/.test(e));
+                if (hdIndex > -1) {
+                    linkStartIndex = hdIndex;
+                }
+            }
+    
+            const megaLinks = infoArea.filter((e, index) => index > linkStartIndex && index <= last && /mega\.nz\/file\//.test(e));
+            const katLinks = infoArea.filter((e, index) => index > linkStartIndex && index <= last && /katfile.com\/.+\.html/.test(e));
+    
+            if (katLinks.length && megaLinks.length && megaLinks.length < katLinks.length) {
+                infoArea = infoArea.map((x, index) => (index > linkStartIndex && index <= last && katLinks.includes(x) ? 'katfile.com' : x));
+            }
+    
+            for (let j = linkStartIndex; j <= last; j++) {
+                const currentItem = infoArea[j];
+                if (/LastLine|exclude/.test(currentItem)) {
+                    break;
+                }
+    
+                if (/^https?:/.test(currentItem)) {
+                    if (/dudujb\.com/.test(currentItem)) {
+                        return openInNewTab(currentItem);
+                    }
+    
+                    if (!SKIP_FILTER.test(currentItem)) {
+                        const U = currentItem;
+                        const T = title;
+                        const P = password;
+                        const S = PAGE_URL;
+                        linksDB.push({ U, T, P, S });
+                        updateDB(U, T, P, S);
+                        noticeText += U + "\n";
+                    }
+                }
+            }
+        }
+    
+        */
     if (linksDB.length) {
         if (copyNotice) {
             copyNotice.innerHTML = `<code>${noticeText}</code>`;
