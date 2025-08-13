@@ -16,6 +16,7 @@
 // @exclude      /maxjav\.xyz/\d+/
 // @exclude      /blogjav\.net\/\d+/
 // @exclude      /jappydolls\.net\/\d+/
+// @exclude      https://x-idol.net/?p*
 // @exclude      https://top-modelz.org/*.html
 // @run-at       document-body
 // @grant        none
@@ -55,10 +56,10 @@ const maxjav = {
     Approach: 'NextSibling',
 }
 const xidol = {
-    MatchUrl: 'xidol',
+    MatchUrl: 'x-idol.net',
     MakeClickImage: 'div.entries-wrapper div.post.hentry div.entry div.entry-content p a img',
-    closestTag: '.post-title.entry-title',
-    Approach: 'closest',
+    closestTag: '.post.hentry',
+    Approach: 'AReplace',
     SearchATag: '.post-title.entry-title a',
 }
 
