@@ -417,7 +417,7 @@ function UpdateDB() {
     RootDomainDB = entries;
     const packageList = PackageList(entries);
     const count = entries.length;
-    const pkgCount = packageList.length;
+    const pkgCount = packageList?.length;
 
     stateBox.textContent = `${count} | ${pkgCount}`;
 
