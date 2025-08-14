@@ -668,8 +668,7 @@ function MakeIcon() {
 
     // 모든 요소를 한 번에 생성
     document.body.insertAdjacentHTML('beforeend',
-        `
-        <div class="CenterBox" style="max-width: max-content; position: fixed;">            
+        `<div class="CenterBox" style="max-width: max-content; position: fixed;">            
             <i class="ToTop fa-solid fa-circle-chevron-up"></i>            
         </div>
         `
@@ -699,7 +698,7 @@ function MakeIcon() {
     const iconClass = isAutoDownload ? 'On' : 'Off';
     centerBox.insertAdjacentHTML(
         'beforeend',
-        `&emsp;<i class="AutoDownload ${iconClass} fa-solid fa-square-check"></i>`
+        `<i class="AutoDownload ${iconClass} fa-solid fa-square-check"></i>`
     );
 
     // JobState indicator
