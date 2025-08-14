@@ -103,8 +103,8 @@ let JobList = []
 let ImagesDB = []
 let DownloadImagesDB = []
 let Title, Author, Images, ZipFileName, ArchivesFileName, Tag
-let AddCount = 0
-let errorList = [];
+let AllCount = 0
+let errorCount = 0
 
 
 class JobQueueDB {
@@ -163,44 +163,42 @@ const jobDB = new JobQueueDB();
 const bc = new BroadcastChannel('AllImagesChannel');
 
 
-document.addEventListener("readystatechange", async (event) => {
-    if (event.target.readyState === "interactive") {
-        console.log('All Images Download Zip!')
-        FontAwesomeCSS();
-        MakeIcon();
-        //AddDBResetButton()
+document.addEventListener("DOMContentLoaded", async () => {
+    console.log('All Images Download Zip!')
+    FontAwesomeCSS();
+    MakeIcon();
+    //AddDBResetButton()
 
-        await jobDB.init();
+    await jobDB.init();
 
-        bc.onmessage = (e) => {
-            if (e.data === 'refresh-jobs') {
-                updateJobUI();
-                checkAndStartJob();
+    bc.onmessage = (e) => {
+        if (e.data === 'refresh-jobs') {
+            updateJobUI();
+            checkAndStartJob();
+        }
+    };
+
+    updateJobUI();
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'AutoDownload') {
+            let ev = document.querySelector(".AutoDownload")
+            if (!ev) { return }
+            if (localStorage.getItem('AutoDownload') == 1) {
+                ev.classList.replace('Off', 'On')
             }
-        };
-
-        updateJobUI();
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'AutoDownload') {
-                let ev = document.querySelector(".AutoDownload")
-                if (!ev) { return }
-                if (localStorage.getItem('AutoDownload') == 1) {
-                    ev.classList.replace('Off', 'On')
-                }
-                else {
-                    ev.classList.replace('On', 'Off')
-                }
+            else {
+                ev.classList.replace('On', 'Off')
             }
-        })
+        }
+    })
 
 
-        Start().then(Title => {
-            if (Title) {
-                secondStep(Title)
-            }
-        });
-    }
-});
+    Start().then(Title => {
+        if (Title) {
+            secondStep(Title)
+        }
+    });
+}, { once: true });
 
 
 function AddDBResetButton() {
@@ -243,7 +241,7 @@ async function checkAndStartJob() {
     try {
         await navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, async () => {
             console.log('🚀 Lock 확보 - 다운로드 시작:', PageURL);
-            await downloadPhotosWithRetry(ImagesDB);
+            await downloadPhotosWithRetry(DownloadImagesDB);
         });
     } catch (err) {
         console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
@@ -277,7 +275,7 @@ async function UpdateJobQueue(url, action) {
 
     if (localStorage.getItem('AutoDownload') == 1) {
         if (localStorage.getItem('AutoDownload') == 1 && JobList[0] === PageURL && !areadyDownloaded) {
-            downloadPhotosWithRetry(ImagesDB)
+            downloadPhotosWithRetry(DownloadImagesDB)
         }
     }
 
@@ -492,10 +490,17 @@ function hideProgressUI() {
 }
 
 //window.setImmediate = (fn) => {fn()}
-
+/**
+ * Asynchronous fetch-like function using GM_xmlhttpRequest, with support for streaming.
+ * It handles the differences between streaming and non-streaming environments.
+ * It now also checks for a non-empty response body for a successful status.
+ * @param {string} url - The URL to fetch.
+ * @param {object} [fetchInit={}] - Optional configuration for the request (method, headers, etc.).
+ * @returns {Promise<Response>} A Promise that resolves to a fetch-like Response object.
+ */
 async function Xfetch(url, fetchInit = {}) {
     const defaultFetchInit = { method: "GET" };
-    const { headers, method } = { ...defaultFetchInit, ...fetchInit };
+    const { headers, method, signal } = { ...defaultFetchInit, ...fetchInit };
     const isStreamSupported = GM_xmlhttpRequest?.RESPONSE_TYPE_STREAM;
     const HEADERS_RECEIVED = 2;
 
@@ -512,24 +517,38 @@ async function Xfetch(url, fetchInit = {}) {
     if (!isStreamSupported) {
         // Fallback for browsers/userscript engines without streaming support
         return new Promise((resolve, reject) => {
+            // This promise will hold the blob and is used by the various response methods
             const blobPromise = new Promise((res, rej) => {
                 GM_xmlhttpRequest({
                     url,
                     method,
                     headers,
                     responseType: "blob",
+                    // The signal property is not supported by GM_xmlhttpRequest, so we need to
+                    // manually abort the request if the signal is aborted.
+                    onabort: () => rej(new Error('Request aborted')),
                     onload: (response) => {
-                        // Check if response is successful and not an empty file
-                        if (response.status === 200 && response.response.byteLength > 0) {
-                            res(response.response)
+                        console.log('response.status:', response.status);
+                        // The crucial check: A successful status AND a non-empty response body.
+                        if (response.status === 200 && response.response.byteLength > 10000) {
+                            res(response.response);
+                        } else if (response.status === 200 && response.response.byteLength === 0) {
+                            // Specifically reject 200 with an empty body, as this is the issue.
+                            rej(new Error(`Status 200 but empty response`));
                         } else {
                             rej(new Error(`Status ${response.status} or empty response`));
                         }
                     },
                     onerror: rej,
                     onreadystatechange: onHeadersReceived,
+                    signal // Pass the signal to GM_xmlhttpRequest
                 });
             });
+
+            // If the signal is aborted, we can reject the promise
+            if (signal) {
+                signal.addEventListener('abort', () => reject(new Error('Request aborted')), { once: true });
+            }
 
             blobPromise.catch(reject);
 
@@ -541,6 +560,7 @@ async function Xfetch(url, fetchInit = {}) {
                         headers: hdrs,
                         status,
                         statusText,
+                        ok: status >= 200 && status < 300,
                         arrayBuffer: () => blobPromise.then(blob => blob.arrayBuffer()),
                         blob: () => blobPromise,
                         json: () => blobPromise.then(blob => blob.text()).then(text => JSON.parse(text)),
@@ -560,8 +580,13 @@ async function Xfetch(url, fetchInit = {}) {
                     responseType: "stream",
                     onerror: rej,
                     onreadystatechange: onHeadersReceived,
+                    signal // Pass the signal to GM_xmlhttpRequest
                 });
             });
+
+            if (signal) {
+                signal.addEventListener('abort', () => reject(new Error('Request aborted')), { once: true });
+            }
 
             responsePromise.catch(reject);
 
@@ -569,21 +594,31 @@ async function Xfetch(url, fetchInit = {}) {
                 const { readyState, responseHeaders, status, statusText, response: readableStream } = gmResponse;
                 if (readyState === HEADERS_RECEIVED) {
                     const hdrs = parseHeaders(responseHeaders);
-                    let responseInit = { headers: hdrs, status, statusText };
+
+                    // New check for empty response based on Content-Length header
+                    const contentLength = hdrs['content-length'];
+
+                    
+                    if (status === 200 && (isNaN(contentLength) || contentLength < 1000)) {
+                        console.log(status, contentLength, isNaN(contentLength), (isNaN(contentLength) || contentLength < 1000))
+                        rej(new Error(`Status 200 but empty or abnormally small response (Content-Length: ${contentLength})`));
+                        return;
+                    }
+                    let responseInit = { headers: hdrs, status, statusText, contentLength };                   
 
                     // Special case: status 0 might happen in some contexts
                     if (status === 0) {
-                        console.warn("status is 0!", { status, statusText });
+                        console.warn("status is 0!", { status, statusText, contentLength });
                         delete responseInit.status;
                         delete responseInit.statusText;
                     }
-
                     resolve(new Response(readableStream, responseInit));
                 }
             }
         });
     }
 }
+
 
 
 
@@ -678,7 +713,7 @@ function MakeIcon() {
     // DOM 요소를 한 번만 선택하고 변수에 할당
     const centerBox = document.querySelector(".CenterBox");
     const toTopEl = document.querySelector(".ToTop");
-    
+
 
     // ToTop 버튼 클릭 이벤트
     toTopEl.onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -692,7 +727,7 @@ function MakeIcon() {
 
     // 폰트 사이즈 스타일 적용
     centerBox.style.setProperty('font-size', CenterBoxFontSize, 'important');
-    
+
     // AutoDownload 상태 토글 UI 설정
     const isAutoDownload = localStorage.getItem('AutoDownload') == 1;
     const iconClass = isAutoDownload ? 'On' : 'Off';
@@ -814,34 +849,19 @@ async function secondStep(Title) {
         await UpdateJobQueue(PageURL, 'remove')
         throw new Error('ZipFileName is empty')
     }
-
-    let nameLengths = []
-    nameLengths = ImagesDB.filter(e => getExtensionOfFilename(e.U) === '.jpg').map(x => GetFileName(x.U).length);
-    if (nameLengths.length === 0) {
-        nameLengths = ImagesDB.filter(e => getExtensionOfFilename(e.U) !== '.webp').map(x => GetFileName(x.U).length);
-    }
-    if (nameLengths.length === 0) {
-        nameLengths = ImagesDB.filter(e => getExtensionOfFilename(e.U) === '.png').map(x => GetFileName(x.U).length);
-    }
-
-    if (nameLengths.length === 0) {
-        await UpdateJobQueue(PageURL, 'remove')
-        throw new Error('nameLengths is empty')
-    }
-
-    maxLength = Math.max(...nameLengths);
-    minLength = Math.min(...nameLengths);
-
-    console.log('ZipFileName:', ZipFileName, '\nnameLengths:', nameLengths, '\nmaxLength:', maxLength, '\nminLength:', minLength);
-
     const allJobs = await jobDB.getAllJobs();
     JobList = allJobs.map(j => j.url);
     checkAndStartJob();
 
+
+    await generateZIP(ImagesDB) // DownloadImagesDB 생성
+
+    console.log('DownloadImagesDB: ', DownloadImagesDB)
+
     document.querySelector('.DownButton').addEventListener('click', e => {
         e.preventDefault();
         navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, async () => {
-            await downloadPhotosWithRetry(ImagesDB);
+            await downloadPhotosWithRetry(DownloadImagesDB);
         });
     });
 
@@ -850,7 +870,7 @@ async function secondStep(Title) {
     if (isAutoDownload() && JobList[0] === PageURL && !areadyDownloaded) {
         try {
             await navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, async () => {
-                await downloadPhotosWithRetry(ImagesDB);
+                await downloadPhotosWithRetry(DownloadImagesDB);
             });
         } catch (e) {
             console.log("다른 탭이 다운로드 중이거나 Lock 실패");
@@ -874,8 +894,9 @@ async function secondStep(Title) {
         document.querySelector('.RetryFailed').addEventListener('click', () => {
             navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, () => {
                 if (errorList.length > 0) {
+                    errorCount = errorList.length
                     console.log("🔄 실패한 이미지 재시도");
-                    downloadPhotosWithRetry(ImagesDB)
+                    downloadPhotosWithRetry(DownloadImagesDB)
                 } else {
                     console.log("❌ 재시도할 실패 이미지 없음");
                 }
@@ -970,14 +991,15 @@ function activityTimeoutSignal(ms) {
 }
 
 
-async function downloadPhotosWithRetry(ImagesDB) {
+async function downloadPhotosWithRetry(DownloadImagesDB) {
     // 다운로드 시작 시 새로운 AbortController 생성
     userAbortController = new AbortController();
     areadyDownloaded = true;
     const { signal: userSignal } = userAbortController;
     const maxRetries = 3;
-    errorList = [];
-    const DB = await generateZIP(ImagesDB)
+    let errorList = [];
+
+    AllCount = DownloadImagesDB.length;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         console.log(`[Attempt ${attempt}] 시작`);
         if (userSignal.aborted) {
@@ -987,10 +1009,12 @@ async function downloadPhotosWithRetry(ImagesDB) {
 
         try {
             // downloadPhotosAttempt에 사용자 취소 신호 전달
-            const result = await downloadPhotosAttempt(DB, userSignal, attempt > 1);
+            const result = await downloadPhotosAttempt(DownloadImagesDB, userSignal, attempt > 1);
             errorList = result.failed;
 
             if (errorList.length === 0) break;
+
+            errorCount = errorList.length;
 
             console.warn(`[Attempt ${attempt}] 실패 항목 ${errorList.length}개, 재시도 준비`);
 
@@ -1008,7 +1032,6 @@ async function downloadPhotosWithRetry(ImagesDB) {
             if (typeof cleanupStreamSaverTempFiles === 'function') {
                 await cleanupStreamSaverTempFiles();
             }
-
             break;
         }
     }
@@ -1017,6 +1040,7 @@ async function downloadPhotosWithRetry(ImagesDB) {
     userAbortController = null;
 
     if (errorList.length) {
+        errorCount = errorList.length;
         updateStateText(`❌ 최종 실패 ${errorList.length} 항목`);
         showErrorPanel(errorList);
         AutoClose = false
@@ -1033,7 +1057,7 @@ async function downloadPhotosWithRetry(ImagesDB) {
         await sleep(2500)
         hideProgressUI()
         await sleep(2500)
-        if (localStorage.getItem('AutoDownload') == "1" && AutoClose) {
+        if (localStorage.getItem('AutoDownload') == "1" && AutoClose && AllCount === ImagesDB.length) {
             self.close();
         }
     }
@@ -1082,12 +1106,19 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
             const combinedSignal = AbortSignal.any([userSignal, activityController.signal]);
 
 
-            const useRoot = extractRootDomain(meta.P) === RootDomain;
-            const response = useRoot
-                ? await fetch(meta.P, { signal: combinedSignal })
-                : await Xfetch(meta.P, { signal: combinedSignal });
+            const response = await Xfetch(meta.P,
+                {
+                    headers: {
+                        Referer: document.location.href,
+                        Origin: new URL(meta.P).origin
+                    },
+                    signal: combinedSignal
+                });
 
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) {
+                // Xfetch에서 이미 오류를 처리했지만, 혹시 모를 경우를 대비
+                throw new Error(`HTTP ${response.status} or empty response`);
+            }
 
             const file = new fflate.ZipPassThrough(`${ArchivesFileName}/${meta.F}`);
             zip.add(file);
@@ -1111,13 +1142,20 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
             addCount++;
             updateProgressUI(addCount, DB.length);
         } catch (err) {
+            // 사용자 취소 신호인 경우에만 루프를 중단하고,
+            // 그 외의 오류는 다시 던져서 전체 프로세스를 중단합니다.
             if (err.name === 'AbortError') {
                 zip.terminate();
                 throw err;
             }
+
+            // Xfetch에서 발생한 오류나 기타 다른 오류가 여기로 오게 됩니다.
+            // 다운로드 루프를 중단하고 전체 함수를 종료하기 위해 오류를 다시 던집니다.
             console.warn(`[실패] ${meta.P}`, err);
             failed.push(meta);
             updateProgressUI(addCount, DB.length);
+            zip.terminate(); // 불완전 ZIP 종료
+            throw err; // 여기서 오류를 다시 던져야 루프가 멈추고 함수가 종료됩니다.
         }
     }
 
@@ -1129,7 +1167,7 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
 
     await pipePromise; // 스트림 저장 완료 대기
 
-    return { failed };
+    return { addCount, failed };
 }
 
 async function cleanupStreamSaverTempFiles() {
@@ -1245,44 +1283,27 @@ function UpdateDB(Target, DownloadUrl) {
 async function generateZIP(DB) {
     console.log('Download to Zip')
 
-    const DownloadImagesDB = []
+    DownloadImagesDB = []
     ArchivesFileName = ZipFileName + ".zip"
 
-    let CutPoint
-    const Deff = GetFileName(DB[DB.length - 1].U).length - GetFileName(DB[0].U).length
+    const analysis = analyzeByExtension(DB)
+
+    if (Object.keys(analysis).length === 0) {
+        await UpdateJobQueue(PageURL, 'remove')
+        throw new Error('nameLengths is empty')
+    }
 
     await Promise.allSettled(DB.map(async (el, i) => {
         let filename = ''
         let Extension = getExtensionOfFilename(el.U)
         let indexNumber = (i + 1).toString().padStart(3, '0')
-
         let base = GetFileName(el.U)
+
 
         if (/blogger\.googleusercontent\.com/.test(el.U)) {
             filename = `${ZipFileName} ${indexNumber}.jpg`
         } else if (/cdn\.foamgirl\.net/.test(el.U)) {
-            if (base.length > maxLength || minLength === maxLength) {
-                filename = `${base}${Extension}`
-            }
-            else if (minLength !== maxLength && !CutPoint) {
-                const FindLast = DB.findLast(t => GetFileName(t.U).length === minLength)
-                const FindCompare = DB.find(t => GetFileName(t.U).length === maxLength)
-                const findLast = GetFileName(FindLast.U)
-                const compare = GetFileName(FindCompare.U)
-                for (let j = 0; j < maxLength; j++) {
-                    if (findLast.charCodeAt(j) !== compare.charCodeAt(j)) {
-                        CutPoint = j
-                        break
-                    }
-                }
-            }
-
-            if (CutPoint && maxLength > base.length) {
-                const prefix = base.substring(0, CutPoint)
-                const padded = base.substring(CutPoint).padStart(maxLength - CutPoint + (Deff - 1), '0')
-                filename = `${prefix}${padded}${Extension}`
-            }
-
+            filename = adjustFilename(base, Extension, analysis[Extension]);
         } else if (/%/.test(base) || /girlgirlgo\.org/.test(el.U)) {
             filename = `${ZipFileName.replace(/\(\d+P\)$/, '')}-${indexNumber}${Extension}`
         } else if (/_/.test(base)) {
@@ -1309,4 +1330,56 @@ function getExtensionOfFilename(filename) {
     return lastDot !== -1 ? filename.slice(lastDot).toLowerCase() : '';
 }
 
+function analyzeByExtension(db) {
+    const groups = {};
 
+    db.forEach(item => {
+        const ext = getExtensionOfFilename(item.U);
+        if (!groups[ext]) groups[ext] = [];
+        groups[ext].push(item); // URL 객체 그대로 저장
+    });
+
+    const analysis = {};
+
+    Object.entries(groups).forEach(([ext, group]) => {
+        const lengths = group.map(x => GetFileName(x.U).length);
+        const maxLength = Math.max(...lengths);
+        const minLength = Math.min(...lengths);
+
+        let CutPoint = null;
+        if (minLength !== maxLength) {
+            const FindLast = group.findLast(t => GetFileName(t.U).length === minLength);
+            const FindCompare = group.find(t => GetFileName(t.U).length === maxLength);
+
+            const shortName = GetFileName(FindLast.U);
+            const longName = GetFileName(FindCompare.U);
+
+            for (let j = 0; j < maxLength; j++) {
+                if (shortName.charCodeAt(j) !== longName.charCodeAt(j)) {
+                    CutPoint = j;
+                    break;
+                }
+            }
+        }
+
+        // Deff 계산 (DB 입력 순서 그대로)
+        const Deff = GetFileName(group[group.length - 1].U).length - GetFileName(group[0].U).length;
+
+        analysis[ext] = { maxLength, minLength, CutPoint, Deff };
+    });
+
+    return analysis;
+}
+
+function adjustFilename(base, ext, info) {
+    if (base.length > info.maxLength || info.minLength === info.maxLength) {
+        return `${base}${ext}`;
+    } else if (info.CutPoint && info.maxLength > base.length) {
+        const prefix = base.substring(0, info.CutPoint);
+        const padded = base
+            .substring(info.CutPoint)
+            .padStart(info.maxLength - info.CutPoint + (info.Deff - 1), '0');
+        return `${prefix}${padded}${ext}`;
+    }
+    return `${base}${ext}`;
+}
