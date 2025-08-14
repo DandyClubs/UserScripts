@@ -500,7 +500,7 @@ function hideProgressUI() {
  */
 async function Xfetch(url, fetchInit = {}) {
     const defaultFetchInit = { method: "GET" };
-    const { headers, method, signal } = { ...defaultFetchInit, ...fetchInit };
+    const { headers, method, signal, zip } = { ...defaultFetchInit, ...fetchInit };
     const isStreamSupported = GM_xmlhttpRequest?.RESPONSE_TYPE_STREAM;
     const HEADERS_RECEIVED = 2;
 
@@ -541,7 +541,8 @@ async function Xfetch(url, fetchInit = {}) {
                     },
                     onerror: rej,
                     onreadystatechange: onHeadersReceived,
-                    signal // Pass the signal to GM_xmlhttpRequest
+                    signal, // Pass the signal to GM_xmlhttpRequest
+                    zip,
                 });
             });
 
@@ -580,7 +581,8 @@ async function Xfetch(url, fetchInit = {}) {
                     responseType: "stream",
                     onerror: rej,
                     onreadystatechange: onHeadersReceived,
-                    signal // Pass the signal to GM_xmlhttpRequest
+                    signal, // Pass the signal to GM_xmlhttpRequest
+                    zip,
                 });
             });
 
@@ -605,7 +607,8 @@ async function Xfetch(url, fetchInit = {}) {
                     if (status === 200 && (isNaN(contentLength) || contentLength < 1000)) {
                         console.warn(`Status 200 but empty or abnormally small response (Content-Length: ${contentLength}) for `);
                         rej(new Error(`Status 200 but empty or abnormally small response (Content-Length: ${contentLength})`));
-                        signal.abort(); // Abort the request to prevent further processing)                        
+                        signal.abort(); // Abort the request to prevent further processing)  
+                        zip.terminate();                      
                         return;                                             
                     }
                     let responseInit = { headers: hdrs, status, statusText, contentLength };                   
@@ -1000,7 +1003,7 @@ async function downloadPhotosWithRetry(DownloadImagesDB) {
     userAbortController = new AbortController();
     areadyDownloaded = true;
     const { signal: userSignal } = userAbortController;
-    const maxRetries = 3;
+    const maxRetries = 2;
     let errorList = [];
 
     AllCount = DownloadImagesDB.length;
@@ -1116,7 +1119,8 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
                         Referer: document.location.href,
                         Origin: new URL(meta.P).origin
                     },
-                    signal: combinedSignal
+                    signal: combinedSignal,
+                    zip: zip,
                 });
 
             if (!response.ok) {
@@ -1364,10 +1368,7 @@ function analyzeByExtension(db) {
                     break;
                 }
             }
-        }
-
-        // Deff 계산 (DB 입력 순서 그대로)
-        const Deff = GetFileName(group[group.length - 1].U).length - GetFileName(group[0].U).length;
+        }       
 
         analysis[ext] = { maxLength, minLength, CutPoint, Deff };
     });
@@ -1376,13 +1377,14 @@ function analyzeByExtension(db) {
 }
 
 function adjustFilename(base, ext, info) {
+    const Deff = info.maxLength - base.length;
     if (base.length > info.maxLength || info.minLength === info.maxLength) {
         return `${base}${ext}`;
     } else if (info.CutPoint && info.maxLength > base.length) {
         const prefix = base.substring(0, info.CutPoint);
         const padded = base
             .substring(info.CutPoint)
-            .padStart(info.maxLength - info.CutPoint + (info.Deff - 1), '0');
+            .padStart(info.maxLength - info.CutPoint + (Deff - 1), '0');
         return `${prefix}${padded}${ext}`;
     }
     return `${base}${ext}`;
