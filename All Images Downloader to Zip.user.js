@@ -1368,23 +1368,22 @@ function analyzeByExtension(db) {
                     break;
                 }
             }
-        }       
-
-        analysis[ext] = { maxLength, minLength, CutPoint, Deff };
+        }
+        
+        analysis[ext] = { maxLength, minLength, CutPoint };
     });
 
     return analysis;
 }
 
-function adjustFilename(base, ext, info) {
-    const Deff = info.maxLength - base.length;
+
+function adjustFilename(base, ext, info) {    
     if (base.length > info.maxLength || info.minLength === info.maxLength) {
         return `${base}${ext}`;
     } else if (info.CutPoint && info.maxLength > base.length) {
         const prefix = base.substring(0, info.CutPoint);
-        const padded = base
-            .substring(info.CutPoint)
-            .padStart(info.maxLength - info.CutPoint + (Deff - 1), '0');
+        const suffix = base.substring(info.CutPoint);
+        const padded = suffix.padStart(suffix.length + (info.maxLength - base.length), '0');
         return `${prefix}${padded}${ext}`;
     }
     return `${base}${ext}`;
