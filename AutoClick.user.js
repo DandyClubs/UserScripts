@@ -136,6 +136,7 @@ const observer = new MutationObserver(async function (mutations) {
                 PopUp = ClickBTN.href;
 
                 if (AutoClick == 1) {
+                    await sleep(getRandomIntInclusive(10, 200) * 10)
                     childWindow = window.open(PopUp, document.querySelector('body.single.single-post div.page-title div.page-title-inner.container div .entry-title').innerText.replace(/\s/g, ''));
                 }
             }
@@ -269,6 +270,14 @@ function Reset(el, link, fileName) {
 }
 
 
+function getRandomIntInclusive(min, max) {
+    const minCeiled = Math.ceil(min);
+    const maxFloored = Math.floor(max);
+    return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled); // The maximum is inclusive and the minimum is inclusive
+}
+
+
+
 async function Start() {
     let iurl = window.location.hostname;
 
@@ -372,7 +381,7 @@ async function Start() {
                     link.setAttribute('href', cachedData.U);
                     Reset(link, oldHref, cachedData.T);
                 }
-
+                await sleep(getRandomIntInclusive(10,200)*10)
                 childWindow = window.open(link.href, title);
 
                 window.addEventListener('beforeunload', () => {

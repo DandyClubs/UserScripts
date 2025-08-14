@@ -878,7 +878,7 @@ function MakeIcon() {
         { className: 'ToTop fa-solid fa-circle-chevron-up', event: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
         {
             className: 'ClearButton far fa-minus-square', event: (event) => {
-                event.preventDefault();
+                event.preventDefault();                
                 if (JSON.parse(localStorage.getItem('NewAdded')) && window.confirm("Not Yet Copy! Clear?")) {
                     localStorage.setItem('NewAdded', JSON.stringify(false));
                     clearDB();
@@ -897,7 +897,10 @@ function MakeIcon() {
         {
             className: 'AllCopy fa-solid fa-box', event: (event) => {
                 event.preventDefault();
-                AllCopy();
+                if (window.confirm("All Copy! OK?")) {
+                    AllCopy();
+                }
+                
             }
         },
         { className: 'State', event: null },

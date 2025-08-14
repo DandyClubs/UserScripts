@@ -18,7 +18,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
 // @connect      *
-// @run-at       document-body
+// @run-at       document-start
 // @noframes
 // ==/UserScript==
 
@@ -164,7 +164,7 @@ const bc = new BroadcastChannel('AllImagesChannel');
 
 
 document.addEventListener("readystatechange", async (event) => {
-    if (event.target.readyState === "complete") {
+    if (event.target.readyState === "interactive") {
         console.log('All Images Download Zip!')
         FontAwesomeCSS();
         MakeIcon();

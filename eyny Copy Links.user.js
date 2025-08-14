@@ -176,7 +176,7 @@ const siteRules = [
         coverImage: '',
         useResolution: true,
         getTitleRegex: /影片名稱[】]?\s?[:：]?\s*(.+)/i,
-        passwordRegex: /解壓密碼[】：]?(.+?)\s/,
+        passwordRegex: /解壓密碼[】：]?(.+?)\s*(.+)/,
         breakPoint: ['需要存取權'],
     },
 ]
@@ -518,19 +518,19 @@ async function CopyItems() {
 
     const copyNotice = document.querySelector('.CopyNotice');
     if (rule) {
-        analyzePage(rule).then(results => {
+        analyzePage(rule).then(results => {                        
             for (const x of results) {
-                for (const currentItem of x.links) {
-                    if (SKIP_FILTER.test(currentItem)) {
+                console.log('current Object: ', x)
+                const title = byteLengthOfCheck(x.title) > 241 ? byteLengthOf(x.title, 241).trim() : x.title
+                noticeText += title + "\n";
+                for (const currentlink of x.links) {
+                    
+                    if (SKIP_FILTER.test(currentlink)) {
                         continue;
                     }
-                    else {
-                        if (byteLengthOfCheck(x.title) > 241) {
-                            title = byteLengthOf(x.title, 241).trim();
-                        }
-                        noticeText += title + "\n";
-                        const U = currentItem;
-                        const T = x.title;
+                    else {                        
+                        const U = currentlink;
+                        const T = title;
                         const P = x.password;
                         const S = PAGE_URL;
                         linksDB.push({ U, T, P, S });
@@ -538,6 +538,17 @@ async function CopyItems() {
                         noticeText += U + "\n";
                     }
                 }
+            }
+
+            if (linksDB.length) {
+                if (copyNotice) {
+                    copyNotice.innerHTML = `<code>${noticeText}</code>`;
+                }
+                localStorage.setItem(ROOT_DOMAIN, JSON.stringify(rootDomainDB));
+                if (stateElement) {
+                    stateElement.innerText = `${rootDomainDB?.length} | ${PackageList(rootDomainDB)?.length}`;
+                }
+                JDownloaderDB(linksDB);
             }
         });
     }
@@ -548,32 +559,32 @@ async function CopyItems() {
             }
             return;
         }
-    
+
         for (let i = 0; i < titleDBIndex.length; i++) {
             const first = titleDBIndex[i];
             const last = titleDBIndex[i + 1] ? titleDBIndex[i + 1] : infoArea.length - 1;
-    
+
             let title = infoArea[first].match(TITLE_EXPR)?.[2]
                 .replace(/^(】 :|】:|：|】：|】)/, '')
                 .replace('(MP4@RF@無碼)', '')
                 .replace('J.V.I.D', 'JVID')
                 .trim() || infoArea[first];
-    
+
             if (!title || SKIP_TITLE.some(skip => title.includes(skip))) {
                 continue;
             }
-    
+
             title = lableText + FilenameConvert(title.replace(/\(MP4@KF@無碼\)/, '').replace(/【影片大小】.+/, '').replace(/^(FC2-PPV-|FC2\sPPV-|FC2PPV-)/i, 'FC2 PPV ').trim());
             if (byteLengthOfCheck(title) > 241) {
                 title = byteLengthOf(title, 241).trim();
             }
             noticeText += title + "\n";
-    
+
             const password = FindPassWord(infoArea, first, last) || '';
-    
+
             let linkStartIndex = first;
             const bdIndex = infoArea.findIndex((e, index) => index > first && index <= last && /【 藍光原檔 】|【 4K藍光原檔 】/.test(e));
-    
+
             if (bdIndex > -1) {
                 linkStartIndex = bdIndex;
             } else {
@@ -582,25 +593,25 @@ async function CopyItems() {
                     linkStartIndex = hdIndex;
                 }
             }
-    
+
             const megaLinks = infoArea.filter((e, index) => index > linkStartIndex && index <= last && /mega\.nz\/file\//.test(e));
             const katLinks = infoArea.filter((e, index) => index > linkStartIndex && index <= last && /katfile.com\/.+\.html/.test(e));
-    
+
             if (katLinks.length && megaLinks.length && megaLinks.length < katLinks.length) {
                 infoArea = infoArea.map((x, index) => (index > linkStartIndex && index <= last && katLinks.includes(x) ? 'katfile.com' : x));
             }
-    
+
             for (let j = linkStartIndex; j <= last; j++) {
                 const currentItem = infoArea[j];
                 if (/LastLine|exclude/.test(currentItem)) {
                     break;
                 }
-    
+
                 if (/^https?:/.test(currentItem)) {
                     if (/dudujb\.com/.test(currentItem)) {
                         return openInNewTab(currentItem);
                     }
-    
+
                     if (!SKIP_FILTER.test(currentItem)) {
                         const U = currentItem;
                         const T = title;
@@ -613,8 +624,7 @@ async function CopyItems() {
                 }
             }
         }
-    
-        */
+
     if (linksDB.length) {
         if (copyNotice) {
             copyNotice.innerHTML = `<code>${noticeText}</code>`;
@@ -625,8 +635,8 @@ async function CopyItems() {
         }
         JDownloaderDB(linksDB);
     }
+    */
 }
-
 function PackageList(linksDB) {
     if (linksDB?.length > 0) {
         let uniqueTitle = [...new Set(linksDB.map(x => x.T))];
