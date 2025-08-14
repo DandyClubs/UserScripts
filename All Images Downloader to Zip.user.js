@@ -599,10 +599,14 @@ async function Xfetch(url, fetchInit = {}) {
                     const contentLength = hdrs['content-length'];
 
                     
+                    // If the response is empty or too small, reject it.
+                    // This is a heuristic check for cases where the server returns 200 OK but with no actual content.
+                    // The threshold (1000 bytes) can be adjusted based on typical minimum image sizes.
                     if (status === 200 && (isNaN(contentLength) || contentLength < 1000)) {
-                        console.log(status, contentLength, isNaN(contentLength), (isNaN(contentLength) || contentLength < 1000))
+                        console.warn(`Status 200 but empty or abnormally small response (Content-Length: ${contentLength}) for `);
                         rej(new Error(`Status 200 but empty or abnormally small response (Content-Length: ${contentLength})`));
-                        return;
+                        signal.abort(); // Abort the request to prevent further processing)                        
+                        return;                                             
                     }
                     let responseInit = { headers: hdrs, status, statusText, contentLength };                   
 
