@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         All Images Downloader to Zip
 // @namespace    nature grew
-// @version      2025.08.12
+// @version      2025.08.15
 // @description  All Images Downloader to Zip
 // @author       DandyClubs
 // @include      /everia\.club\//
@@ -501,7 +501,8 @@ function hideProgressUI() {
 async function Xfetch(url, fetchInit = {}) {
     const defaultFetchInit = { method: "GET" };
     const { headers, method, signal, zip } = { ...defaultFetchInit, ...fetchInit };
-    const isStreamSupported = GM_xmlhttpRequest?.RESPONSE_TYPE_STREAM;
+    //const isStreamSupported = GM_xmlhttpRequest?.RESPONSE_TYPE_STREAM;
+    const isStreamSupported = false;
     const HEADERS_RECEIVED = 2;
 
     // Utility to parse raw response headers string into an object
@@ -523,7 +524,19 @@ async function Xfetch(url, fetchInit = {}) {
                     url,
                     method,
                     headers,
-                    responseType: "blob",
+                    responseType: "arraybuffer",
+                    onprogress: function (e) {
+                        if (e.loaded && e.total) {
+                            console.log(`진행률: ${(e.loaded / e.total * 100).toFixed(2)}%`);
+                        }
+                        if (e.response && e.response.byteLength > 0) {
+                            const chunk = new Uint8Array(e.response);
+                            zipEntry.push(chunk);
+                        }
+                    },
+                    onload: function (res) {
+                        zipEntry.push(new Uint8Array(0), true); // 종료
+                    },
                     // The signal property is not supported by GM_xmlhttpRequest, so we need to
                     // manually abort the request if the signal is aborted.
                     onabort: () => rej(new Error('Request aborted')),
@@ -548,8 +561,20 @@ async function Xfetch(url, fetchInit = {}) {
 
             // If the signal is aborted, we can reject the promise
             if (signal) {
-                signal.addEventListener('abort', () => reject(new Error('Request aborted')), { once: true });
-            }
+                signal.addEventListener('abort', () => {
+                    try {
+                        if (gmRequest && typeof gmRequest.abort === 'function') {
+                            gmRequest.abort(); // 실제 네트워크 연결 끊기
+                        }
+                        if (readableStream && typeof readableStream.cancel === 'function') {
+                            readableStream.cancel(); // 스트림 닫기
+                        }
+                    } catch (e) {
+                        console.warn("Abort cleanup error:", e);
+                    }
+                    reject(new Error('Request aborted'));
+                }, { once: true })
+            };
 
             blobPromise.catch(reject);
 
@@ -587,8 +612,20 @@ async function Xfetch(url, fetchInit = {}) {
             });
 
             if (signal) {
-                signal.addEventListener('abort', () => reject(new Error('Request aborted')), { once: true });
-            }
+                signal.addEventListener('abort', () => {
+                    try {
+                        if (gmRequest && typeof gmRequest.abort === 'function') {
+                            gmRequest.abort(); // 실제 네트워크 연결 끊기
+                        }
+                        if (readableStream && typeof readableStream.cancel === 'function') {
+                            readableStream.cancel(); // 스트림 닫기
+                        }
+                    } catch (e) {
+                        console.warn("Abort cleanup error:", e);
+                    }
+                    reject(new Error('Request aborted'));
+                }, { once: true })
+            };
 
             responsePromise.catch(reject);
 
@@ -600,7 +637,7 @@ async function Xfetch(url, fetchInit = {}) {
                     // New check for empty response based on Content-Length header
                     const contentLength = hdrs['content-length'];
 
-                    
+
                     // If the response is empty or too small, reject it.
                     // This is a heuristic check for cases where the server returns 200 OK but with no actual content.
                     // The threshold (1000 bytes) can be adjusted based on typical minimum image sizes.
@@ -608,10 +645,10 @@ async function Xfetch(url, fetchInit = {}) {
                         console.warn(`Status 200 but empty or abnormally small response (Content-Length: ${contentLength}) for `);
                         rej(new Error(`Status 200 but empty or abnormally small response (Content-Length: ${contentLength})`));
                         signal.abort(); // Abort the request to prevent further processing)  
-                        zip.terminate();                      
-                        return;                                             
+                        zip.terminate();
+                        return;
                     }
-                    let responseInit = { headers: hdrs, status, statusText, contentLength };                   
+                    let responseInit = { headers: hdrs, status, statusText, contentLength };
 
                     // Special case: status 0 might happen in some contexts
                     if (status === 0) {
@@ -958,12 +995,6 @@ function byteLengthOf(TitleText, maxByte) {
     }
 
     return TitleText;
-}
-
-
-function GetFileName(url) {
-    let name = url.split('/').pop()?.replace('.html', '')
-    return name.substring(0, name.lastIndexOf('.'))
 }
 
 const downloadedFiles = new Set();
@@ -1333,10 +1364,41 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function GetFileName(url) {
+    let name = url.split('/').pop()?.replace('.html', '')
+    return name.substring(0, name.lastIndexOf('.'))
+}
+
+
 function getExtensionOfFilename(filename) {
     const lastDot = filename.lastIndexOf('.');
     return lastDot !== -1 ? filename.slice(lastDot).toLowerCase() : '';
 }
+
+
+// 중간 단계까지 고려하여 CutPoint 찾기
+function findCutPointFromGroup(group) {
+    const names = group.map(t => GetFileName(t.U));
+    const sorted = [...names].sort((a, b) => a.length - b.length);
+    let cutPoint = null;
+
+    for (let i = 0; i < sorted.length - 1; i++) {
+        const a = sorted[i];
+        const b = sorted[i + 1];
+        const limit = Math.min(a.length, b.length);
+
+        for (let j = 0; j < limit; j++) {
+            if (a.charCodeAt(j) !== b.charCodeAt(j)) {
+                if (cutPoint === null || j < cutPoint) {
+                    cutPoint = j;
+                }
+                break;
+            }
+        }
+    }
+    return cutPoint;
+}
+
 
 function analyzeByExtension(db) {
     const groups = {};
@@ -1353,36 +1415,21 @@ function analyzeByExtension(db) {
         const lengths = group.map(x => GetFileName(x.U).length);
         const maxLength = Math.max(...lengths);
         const minLength = Math.min(...lengths);
+        const cutPoint = (minLength !== maxLength) ? findCutPointFromGroup(group) : null;
 
-        let CutPoint = null;
-        if (minLength !== maxLength) {
-            const FindLast = group.findLast(t => GetFileName(t.U).length === minLength);
-            const FindCompare = group.find(t => GetFileName(t.U).length === maxLength);
-
-            const shortName = GetFileName(FindLast.U);
-            const longName = GetFileName(FindCompare.U);
-
-            for (let j = 0; j < maxLength; j++) {
-                if (shortName.charCodeAt(j) !== longName.charCodeAt(j)) {
-                    CutPoint = j;
-                    break;
-                }
-            }
-        }
-        
-        analysis[ext] = { maxLength, minLength, CutPoint };
+        analysis[ext] = { maxLength, minLength, cutPoint };
     });
 
     return analysis;
 }
 
 
-function adjustFilename(base, ext, info) {    
+function adjustFilename(base, ext, info) {
     if (base.length > info.maxLength || info.minLength === info.maxLength) {
         return `${base}${ext}`;
-    } else if (info.CutPoint && info.maxLength > base.length) {
-        const prefix = base.substring(0, info.CutPoint);
-        const suffix = base.substring(info.CutPoint);
+    } else if (info.cutPoint !== null && info.maxLength > base.length) {
+        const prefix = base.substring(0, info.cutPoint);
+        const suffix = base.substring(info.cutPoint);
         const padded = suffix.padStart(suffix.length + (info.maxLength - base.length), '0');
         return `${prefix}${padded}${ext}`;
     }
