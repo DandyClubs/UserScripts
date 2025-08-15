@@ -133,7 +133,7 @@ const SKIPMGSID = /(START)-/
 const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/
 const BetweenRegEx = /\d{2,4}[\/\.-]\d{2}[\/\.-]\d{2,4}\s?-\s?\d{2,4}[\/\.-]\d{2}[\/\.-]\d{2,4}|\d{4}([\/\.-]\d{1,2})\s?-\s?\d{4}([\/\.-]\d{1,2})|\d{4}\s?-\s?\d{4}/
 const UPDateRegEx = /(Оновление|UPDATE|Обновление)\D+(?=((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2}))).*/
-
+const chineseRegex = /[\u4e00-\u9fff]/g;
 
 const myObserver = new ResizeObserver(entries => {
     MakeDownloadIcon()
@@ -555,10 +555,20 @@ const SiteParsers = {
                 .replace(/ролика|роликов|ролик|клипов/, 'Video Clips')
                 .replace('Удаленные видео', 'Deleted Videos')
                 .replace(/ч(\.\d+)/, 'Part$1')
-                .replace(/часть/, 'Part')
+                .replace(/часть|Часть/g, 'Part')
                 .replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3')
                 .replace(/обновление от|Обновление|Обновлено/, 'UPDATE')
                 .trim();
+
+            const extractText = titleText.match(/\([\w,\s]*\)/g) || []
+
+            for (const t of extractText) {
+                let count = (t.match(/,/g) || []).length
+                if (count >= 10) {
+                    titleText = titleText.replace(t, '')
+                }
+            }
+
 
             console.log(titleText)
             // 리마스터 및 BTS 플래그 추출
@@ -634,7 +644,15 @@ const SiteParsers = {
                 .replace(/\s?\/\s?$/, '')
                 .replace(/(\/)?([а-яА-ЯЁё]).+?(\/)?/giu, '')
                 .replace(/\(Split\s?Scenes\)/i, '')
+                .replace(/часть|Часть/g, 'Part')
                 .split(/\s/);
+
+            if (JapaneseChar.test(InfoArea[0]) || chineseRegex.test(InfoArea[0])) {
+                if (byteLengthOfCheck(titleText) + byteLengthOfCheck(InfoArea[0]) <= 240) {
+                    titleText = `${titleText}(${InfoArea[0]})`
+                }
+            }
+
 
             return {
                 TitleText: titleText,
@@ -913,7 +931,7 @@ function assembleFinalTitle(data) {
     const formattedResolution = extractedResolution ? ` ${extractedResolution}` : '';
     const formattedBTS = BTS ? ' [Behind The Scenes]' : '';
     const formattedRemastered = Remastered ? ' [Remastered]' : '';
-    
+
 
     const byteLimit = 238;
     if (formattedModelName && byteLengthOfCheck(TitleText + formattedModelName) >= byteLimit) {
@@ -1138,7 +1156,10 @@ function forceDownload(url, fileName) {
         responseType: "blob",
         onload: function (res) {
             if (res.status == 200) {
-                saveAs(res.response, fileName)
+                const contentType = res.responseHeaders.match(/content-type: (.*?)(;|$)/i)[1];
+                console.log({ contentType })
+                if (contentType === 'text/html') throw new Error(`파일이 없거나 다운로드 횟수를 초과하였습니다!`)
+                saveAs(res.response, fileName + getExtensionFromContentType(contentType))
             }
         },
         onerror: (err) => {
@@ -1177,3 +1198,49 @@ function getPreviousSibling(elem, selector) {
 };
 
 
+function getExtensionFromContentType(contentType) {
+    const mimeTypeMap = {
+        // Common image types
+        'image/jpeg': '.jpg',
+        'image/png': '.png',
+        'image/gif': '.gif',
+        'image/svg+xml': '.svg',
+        'image/webp': '.webp',
+        'image/bmp': '.bmp',
+
+        // Common audio and video types
+        'audio/mpeg': '.mp3',
+        'audio/wav': '.wav',
+        'video/mp4': '.mp4',
+        'video/webm': '.webm',
+
+        // Common types
+        'application/pdf': '.pdf',
+        'application/msword': '.doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+        'application/vnd.ms-excel': '.xls',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+        'application/vnd.ms-powerpoint': '.ppt',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+        'text/plain': '.txt',
+        'text/html': '.html',
+        'application/json': '.json',
+        'application/xml': '.xml',
+        'application/zip': '.zip',
+        'application/gzip': '.gz',
+        'application/x-tar': '.tar',
+        'application/x-rar-compressed': '.rar',
+        'application/x-7z-compressed': '.7z',
+        'application/x-bittorrent': '.torrent',
+
+        // Default or unknown type
+        'default': '.bin'
+    };
+
+    // The Content-Type header might contain charset information (e.g., 'text/html; charset=utf-8').
+    // We need to split and take only the MIME type.
+    const mimeType = contentType.split(';')[0].trim().toLowerCase();
+
+    // Return the mapped extension, or a default extension if not found
+    return mimeTypeMap[mimeType] || mimeTypeMap['default'];
+}

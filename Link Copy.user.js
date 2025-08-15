@@ -686,7 +686,7 @@ const siteConfigs = [
                 else if (/Updates|SITERIP|Collection/i.test(CopyTitleRaw)) {
                     console.log('Special case found:', CopyTitleRaw);
                     CoverImage = '';
-                    await MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast);
+                    pageLinksDB = await MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast);
                 } else {
                     // `Cast` 정보 찾기
                     const MatchTitle = MatchWebPoint !== -1 ? CopyTitleRaw.substring(MatchWebPoint + 3) : CopyTitleRaw;
@@ -744,34 +744,41 @@ const siteConfigs = [
                     console.log('CopyTitle:', CopyTitle)
 
                     // 다운로드 링크 추출 및 우선순위
-                    const getDownloadLinks = (areas) => {
-                        const priorityPatterns = [/1080p|1080\.mp4/i, /2160p/i, /720p/i];
-                        let finalLinks = [];
+                    if (!/OnlyFans|Updates|SITERIP|Collection/i.test(CopyTitleRaw)) {
+                        const getDownloadLinks = (areas) => {
+                            const priorityPatterns = [/1080p|1080\.mp4/i, /2160p/i];
+                            let finalLinks = [];
 
-                        for (const area of areas) {
-                            for (const pattern of priorityPatterns) {
-                                const links = Array.from(area.querySelectorAll('a')).filter(a => pattern.test(a.href));
-                                if (links.length > 0) {
-                                    finalLinks.push(...links);
-                                    break; // 가장 높은 해상도만 선택
+                            for (const area of areas) {
+                                for (const pattern of priorityPatterns) {
+                                    const links = Array.from(area.querySelectorAll('a')).filter(a => pattern.test(a.href));
+                                    if (links.length > 0) {
+                                        finalLinks.push(...links);
+                                        break; // 가장 높은 해상도만 선택
+                                    }
                                 }
+                                /*
+                                if (finalLinks.length === 0) {
+                                    // 해상도 패턴에 매칭되는 링크가 없을 경우
+                                    finalLinks.push(...Array.from(area.querySelectorAll('a')));
+                                }
+                                    */
                             }
-                            if (finalLinks.length === 0) {
-                                // 해상도 패턴에 매칭되는 링크가 없을 경우
-                                finalLinks.push(...Array.from(area.querySelectorAll('a')));
+                            return finalLinks;
+                        };
+
+                        const finalDownloadLinks = getDownloadLinks(DownloadArea);
+                        console.log('finalDownloadLinks:', finalDownloadLinks)
+                        if (finalDownloadLinks) {
+                            window.DownloadArea = createDownloadArea(finalDownloadLinks.map(link => link.outerHTML));
+
+                            if (finalDownloadLinks.some(link => /1080p|1080\.mp4/i, /2160p/.test(link.href))) {
+                                userCopy = true;
+                            } else {
+                                userCopy = false;
+                                userClose = false;
                             }
                         }
-                        return finalLinks;
-                    };
-
-                    const finalDownloadLinks = getDownloadLinks(DownloadArea);
-                    window.DownloadArea = createDownloadArea(finalDownloadLinks.map(link => link.outerHTML));
-
-                    if (finalDownloadLinks.some(link => /1080p|2160p/.test(link.href))) {
-                        userCopy = true;
-                    } else {
-                        userCopy = false;
-                        userClose = false;
                     }
                 }
             }
@@ -1459,7 +1466,7 @@ const siteRules = [
             let rebuildedText
             const h3 = document.querySelector('div.post_singular.hentry .entry h3')
             const rawTitle = h3 ? h3.textContent.trim() : title;
-            
+
 
             const checkRedirects = document.querySelectorAll('a[href*="https://cosplay.jav.pw/goto/"]');
             const allCollectionLinks = Array.from(checkRedirects).map(el => el.href);
@@ -2228,7 +2235,7 @@ function mainIcon(Run) {
 
 async function SecondProcess() {
     console.log('before processCopyTitle CopyTitle:', CopyTitle, copyOffsetArea, DownloadArea)
-    if (copyOffsetArea && DownloadArea) {
+    if (copyOffsetArea && DownloadArea && pageLinksDB.length === 0) {
         await processCopyTitle(currentConfig)
     }
     console.log('after processCopyTitle CopyTitle:', CopyTitle)
@@ -2258,6 +2265,9 @@ async function SecondProcess() {
 
             copyIcon.addEventListener('click', function (e) {
                 e.preventDefault();
+                if (pageLinksDB.length === 0) {
+                    DownloadArea = document.querySelectorAll(currentConfig.downloadAreaSelector);
+                }
                 const SkipTitle = [];
                 AllowDirect = false;
                 if (DownloadArea?.length) {
@@ -2493,7 +2503,7 @@ async function CopyGo(SkipTitle) {
             //await showThenHide(notice, { duration: 800, pause: 2000 });
             fadeSlideToggle(copyNotice, 1000)
             // 6) Finally, re-check the DB and return its result
-            CheckDB(listToDo(DownloadArea), 'CopyGo');            
+            CheckDB(listToDo(DownloadArea), 'CopyGo');
         })
 }
 
@@ -2685,12 +2695,13 @@ async function UpdateDB(Target, UrlTitle) {
         Target = Target.match(K2SRegExp)[1] + Target.match(K2SRegExp)[2].slice(0, 18)
     }
     const searchDB = await localStorageDB.find(({ U }) => U === Target)
-    //console.log({searchDB})
+    console.log({searchDB})
 
     if (searchDB) {
         searchDB.T = UrlTitle
     }
     else {
+        console.log({ Target, UrlTitle })
         localStorageDB.push({ U: Target, T: UrlTitle, S: PageURL })
         if (!JSON.parse(localStorage.getItem('NewAdded'))) {
             localStorage.setItem('NewAdded', JSON.stringify(true))
@@ -2771,7 +2782,7 @@ async function CheckDB(listTo, fromStep) {
             console.log({ isAutoCloseEnabled, userClose })
             await sleep(1000)
             // AutoClose 변수와 localStorage 값을 모두 확인하여 실행합니다.
-            if (isAutoCloseEnabled) {                
+            if (isAutoCloseEnabled && userClose) {
                 self.close();
             }
         }
@@ -2783,7 +2794,7 @@ async function CheckDB(listTo, fromStep) {
 
 
     }
-    PackageCount = PackageList(localStorageDB);    
+    PackageCount = PackageList(localStorageDB);
     return isMatchFound;
 }
 
@@ -2809,7 +2820,7 @@ async function CopyLink() {
     SkipTitle = []
 
 
-    console.log({ pageLinksDB })
+    console.log('CopyLink: ', { pageLinksDB })
     // 1) If no temporary links waiting, gather fresh links
     if (pageLinksDB.length === 0) {
         let collected = await CollectionLinks(DownloadArea) || [];
@@ -2840,13 +2851,16 @@ async function CopyLink() {
     // 2) Otherwise replay from pageLinksDB
     else {
         // Group by title, then push URLs under each
+
+        console.log('Use pageLinksDB: ', pageLinksDB)
         const uniqueTitles = [...new Set(pageLinksDB.map(e => e.T))].sort();
         for (const t of uniqueTitles) {
             noticeLines.push(t);
             const urls = pageLinksDB.filter(e => e.T === t).map(e => e.U);
             for (const u of urls) {
-                UpdateDB(u, t);
+                await UpdateDB(u, t);
                 allLinks.push(u);
+                noticeLines.push(u);
             }
         }
 
@@ -2854,8 +2868,6 @@ async function CopyLink() {
         if (DirectCopy.test(PageURL) || AllowDirect) {
             JDownloaderDB(pageLinksDB);
         }
-
-        noticeLines = noticeLines.concat(allLinks);
     }
 
     if (allLinks.length === 0) {
@@ -2866,6 +2878,7 @@ async function CopyLink() {
     const noticeEl = document.querySelector('.CopyNotice .copyText');
     noticeEl.textContent = noticeLines.join("\n");
 
+    console.log('CopyLink: ', { localStorageDB })
     // 4) Persist state & refresh counters
     localStorage.setItem(RootDomain, JSON.stringify(localStorageDB));
     await sleep(100);
@@ -2964,7 +2977,6 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
                 obs.disconnect();
                 document.querySelector('.CopyState').remove()
                 DownloadArea = document.querySelectorAll('div#download, div#downloadhidden')
-                MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast)
             }
         });
         downloadhiddenobserver.observe(WatchElementArea, { childList: true, subtree: true });
@@ -2988,8 +3000,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
 
     // Build a DB of filenames split into parts, mapped to their link elements
     let FileNameDB = [];
-    for (let link of AllLinks) {
-        // Remove quality/resolution suffix like ".xxx.1080p" then split into filename parts
+    for (let link of AllLinks) {        
         let fileNameParts = link.innerText
             .replace(/\.xxx\.\d+p.*/i, '')
             .split('/')
@@ -3051,10 +3062,11 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
                 continue; // Skip this IAC if no matches found
             }
 
+            // Extract resolution info (e.g., 1080p, 720p)
+            const Resolution = /[0-9]{3,4}p/.test(Links[0].innerText) ? '.XXX.' + Links[0].innerText.match(/[0-9]{3,4}p/)[0] : '';
             // Extract base filename without quality or resolution
             const LinkText = Links[0].innerText.replace(/\.xxx\.\d+p.*/i, '').split('/').pop().trim();
-            // Extract resolution info (e.g., 1080p, 720p)
-            Resolution = LinkText.match(/[0-9]{3,4}p/) ? '.XXX.' + LinkText.match(/[0-9]{3,4}p/)[0] : '';
+            
 
             console.log('LinkText: ', LinkText)
             console.log(MatchWeb, IAC)
@@ -3087,7 +3099,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
                         : '';
                 console.log('CastTitle: ', CastTitle);
 
-                // Compose full title string
+                // Compose full title string                
 
                 console.log(MatchWeb, Episode, Released, IAC)
                 Title = MatchWeb + Episode + Released + IAC.replace(Released, '').trim()
@@ -3106,7 +3118,6 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
             for (let j of Links) {
                 let U = j.href;
                 pageLinksDB.push({ U, T, S });
-
             }
         }
     }
