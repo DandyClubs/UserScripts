@@ -168,7 +168,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log('All Images Download Zip!')
     FontAwesomeCSS();
     MakeIcon();
-    //AddDBResetButton()
+    AddDBResetButton()
 
     await jobDB.init();
 
@@ -205,7 +205,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 function AddDBResetButton() {
     const btn = document.createElement('button');
     btn.textContent = '🧹 Reset Job DB';
-    btn.style = 'position:fixed;bottom:10px;right:10px;z-index:9999;';
+    btn.style = 'position:fixed;bottom:10px;right:10px;z-index:9999;width: 30px;height: 20px;font-size: 12px;border-radius: 5px;border: 1px; ';
     btn.onclick = () => {
         indexedDB.deleteDatabase('AllImagesJobQueueDB');
         alert('JobQueue DB가 삭제되었습니다. 페이지를 새로고침하세요.');
