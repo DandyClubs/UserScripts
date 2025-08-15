@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy
-// @version      2025.08.12
+// @version      2025.08.15
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.org/
@@ -1026,7 +1026,7 @@ const siteConfigs = [
     {
         regex: /cosplay\.jav\.pw\/\d+/,
         config: {
-            copyOffsetAreaSelector: 'div.post_singular.hentry h3, div.post_singular.hentry .title',
+            copyOffsetAreaSelector: 'div.post_singular.hentry .entry h3, div.post_singular.hentry .title',
             downloadAreaSelector: 'div.post_singular.hentry div.entry',
         },
     },
@@ -1222,8 +1222,8 @@ const siteConfigs = [
         regex: /3xplanet\.net/,
         condition: () => document.querySelector('article'),
         config: {
-            copyOffsetAreaSelector: 'article .entry-title',
-            downloadAreaSelector: '.td-post-content'
+            copyOffsetAreaSelector: 'div.tdb-single-title div.tdb-block-inner.td-fix-index .tdb-title-text',
+            downloadAreaSelector: 'div.td_block_wrap.tdb_single_content.td-post-content div.tdb-block-inner'
         }
     },
     {
@@ -1457,8 +1457,9 @@ const siteRules = [
         regex: /cosplay\.jav\.pw\/\d+/,
         handler: async (title, copyOffsetArea, DownloadArea) => {
             let rebuildedText
-            const h3 = copyOffsetArea
+            const h3 = document.querySelector('div.post_singular.hentry .entry h3')
             const rawTitle = h3 ? h3.textContent.trim() : title;
+            
 
             const checkRedirects = document.querySelectorAll('a[href*="https://cosplay.jav.pw/goto/"]');
             const allCollectionLinks = Array.from(checkRedirects).map(el => el.href);
@@ -2238,9 +2239,9 @@ async function SecondProcess() {
         if (!copyOffsetArea) {
             reject(new Error('No copyOffsetArea'));
         }
-        let IconSetBox = document.querySelector(".IconSet");
 
-        if (!IconSetBox) {
+
+        if (!document.querySelector(".IconSet")) {
             LinkCopyCenterBox.insertAdjacentHTML('afterend', `
             <div class="IconSet" style="max-width: max-content; visibility: hidden; position: fixed;">
                 <i class="CopyIcon far fa-clone" style="color: goldenrod !important; visibility: hidden;"></i>
@@ -2250,10 +2251,10 @@ async function SecondProcess() {
         `);
             document.body.insertAdjacentHTML('beforeend', `<div class="CopyNotice" style="display: none;"><div class="copyText"></div></div>`);
 
-            IconSetBox = document.querySelector(".IconSet");
-            const copyIcon = IconSetBox.querySelector('CopyIcon')
-            const closeIcon = IconSetBox.querySelector('CloseIcon')
-            const Minus = IconSetBox.querySelector('Minus')
+            const IconSetBox = document.querySelector(".IconSet");
+            const copyIcon = IconSetBox.querySelector('.CopyIcon')
+            const closeIcon = IconSetBox.querySelector('.CloseIcon')
+            const Minus = IconSetBox.querySelector('.Minus')
 
             copyIcon.addEventListener('click', function (e) {
                 e.preventDefault();
@@ -2451,7 +2452,6 @@ async function CopyGo(SkipTitle) {
             if (!shortUrlExists()) {
                 console.log('No more short links. Proceeding with copy.');
                 obs.disconnect();
-                await CopyLink();
             }
         });
 
@@ -2463,36 +2463,38 @@ async function CopyGo(SkipTitle) {
         })
     } else {
         console.log('No short links detected. Starting copy.');
-        await CopyLink();
+
     }
-    // Update UI notification styles
-    if (LinkCopyCenterBox) {
-        // 대상 요소를 찾습니다.
-        const copyNotice = document.querySelector('.CopyNotice');
-        const copyText = document.querySelector('.CopyNotice .copyText');
-        const linkCopyCenterBox = document.querySelector('.LinkCopyCenterBox');
+    Promise.resolve(CopyLink())
+        .then(() => {
+            // Update UI notification styles
+            const copyNotice = document.querySelector('.CopyNotice');
+            const copyText = document.querySelector('.CopyNotice .copyText');
+            const linkCopyCenterBox = document.querySelector('.LinkCopyCenterBox');
 
-        // 변수들을 미리 계산합니다.
-        const fontSizeValue = Number(((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2));
-        const topValue = linkCopyCenterBox.offsetTop + linkCopyCenterBox.offsetHeight * 1.2;
-        const leftValue = window.innerWidth / 2 - linkCopyCenterBox.offsetWidth * 1.5;
+            // 변수들을 미리 계산합니다.
+            const fontSizeValue = Number(((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2));
+            const topValue = linkCopyCenterBox.offsetTop + linkCopyCenterBox.offsetHeight * 1.2;
+            const leftValue = linkCopyCenterBox.offsetLeft - linkCopyCenterBox.offsetWidth / 5
 
-        // 계산된 값을 요소의 style 속성에 직접 할당합니다.
-        copyNotice.style.fontSize = `${fontSizeValue}rem`;
-        copyNotice.style.top = `${topValue}px`;
-        copyNotice.style.left = `${leftValue}px`;
-        copyNotice.style.height = copyText.scrollHeight + "px";
-    }
+            // 계산된 값을 요소의 style 속성에 직접 할당합니다.
+            copyNotice.style.fontSize = `${fontSizeValue}rem`;
+            copyNotice.style.top = `${topValue}px`;
+            copyNotice.style.left = `${leftValue}px`;
+            copyNotice.style.height = copyText.scrollHeight + "px";
 
-    const copyIcon = document.querySelector(".CopyIcon");
-    if (copyIcon) copyIcon.style.color = "orange";
-    const closeIcon = document.querySelector(".CloseIcon");
-    if (closeIcon) closeIcon.style.visibility = "visible";
 
-    const notice = document.querySelector('.CopyNotice');
-    //await showThenHide(notice, { duration: 800, pause: 2000 });
-    await fadeSlideToggle(notice, 1000)
+            const copyIcon = document.querySelector(".CopyIcon");
+            if (copyIcon) copyIcon.style.color = "orange";
+            const closeIcon = document.querySelector(".CloseIcon");
+            if (closeIcon) closeIcon.style.visibility = "visible";
+            console.log(copyText, copyText.innerText)
 
+            //await showThenHide(notice, { duration: 800, pause: 2000 });
+            fadeSlideToggle(copyNotice, 1000)
+            // 6) Finally, re-check the DB and return its result
+            CheckDB(listToDo(DownloadArea), 'CopyGo');            
+        })
 }
 
 
@@ -2764,11 +2766,12 @@ async function CheckDB(listTo, fromStep) {
 
         // 매칭이 발견되었을 때만 AutoClose 로직을 실행합니다.
         if (isMatchFound.length > 0) {
+            await sleep(5000)
             const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));
-            console.log({ isAutoCloseEnabled })
+            console.log({ isAutoCloseEnabled, userClose })
+            await sleep(1000)
             // AutoClose 변수와 localStorage 값을 모두 확인하여 실행합니다.
-            if (isAutoCloseEnabled) {
-                await sleep(5000)
+            if (isAutoCloseEnabled) {                
                 self.close();
             }
         }
@@ -2780,7 +2783,7 @@ async function CheckDB(listTo, fromStep) {
 
 
     }
-    PackageCount = PackageList(localStorageDB);
+    PackageCount = PackageList(localStorageDB);    
     return isMatchFound;
 }
 
@@ -2892,10 +2895,6 @@ async function CopyLink() {
             AutoClose = true;
         }
     }
-
-    // 6) Finally, re-check the DB and return its result
-    const result = await CheckDB(listToDo(DownloadArea), 'CopyLink');
-    console.log('Final DB state:', result);
     return allLinks
 }
 
