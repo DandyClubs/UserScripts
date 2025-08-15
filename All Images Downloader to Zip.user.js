@@ -105,6 +105,7 @@ let DownloadImagesDB = []
 let Title, Author, Images, ZipFileName, ArchivesFileName, Tag
 let AllCount = 0
 let errorCount = 0
+let addCount = 0
 
 
 class JobQueueDB {
@@ -503,6 +504,7 @@ async function Xfetch(url, fetchInit = {}) {
     const { headers, method, signal } = { ...defaultFetchInit, ...fetchInit };
     const isStreamSupported = GM_xmlhttpRequest?.RESPONSE_TYPE_STREAM;
     const HEADERS_RECEIVED = 2;
+    
     // Utility to parse raw response headers string into an object
     function parseHeaders(rawHeaders) {
         const headers = {};
@@ -519,7 +521,7 @@ async function Xfetch(url, fetchInit = {}) {
         return new Promise((resolve, reject) => {
             // This promise will hold the blob and is used by the various response methods
             const blobPromise = new Promise((res, rej) => {
-                const gmRequest = GM_xmlhttpRequest({
+                GM_xmlhttpRequest({
                     url,
                     method,
                     headers,
@@ -548,13 +550,6 @@ async function Xfetch(url, fetchInit = {}) {
             // If the signal is aborted, we can reject the promise
             if (signal) {
                 signal.addEventListener('abort', () => {
-                    try {
-                        if (gmRequest && typeof gmRequest.abort === 'function') {
-                            gmRequest.abort(); // 실제 네트워크 연결 끊기
-                        }
-                    } catch (e) {
-                        console.warn("Abort cleanup error:", e);
-                    }
                     reject(new Error('Request aborted'));
                 }, { once: true })
             };
@@ -583,7 +578,7 @@ async function Xfetch(url, fetchInit = {}) {
         console.log('Streaming Supported!')
         return new Promise((resolve, reject) => {
             const responsePromise = new Promise((res, rej) => {
-                const gmRequest = GM_xmlhttpRequest({
+                GM_xmlhttpRequest({
                     url,
                     method,
                     headers,
@@ -596,13 +591,9 @@ async function Xfetch(url, fetchInit = {}) {
 
             if (signal) {
                 signal.addEventListener('abort', () => {
-                    try {
-                        if (gmRequest && typeof gmRequest.abort === 'function') {
-                            gmRequest.abort(); // 실제 네트워크 연결 끊기
-                        }
-                    } catch (e) {
-                        console.warn("Abort cleanup error:", e);
-                    }
+                    if (readableStream && typeof readableStream.cancel === 'function') {
+                        readableStream.cancel(); // 스트림 닫기
+                    }                        
                     reject(new Error('Request aborted'));
                 }, { once: true })
             };
@@ -623,11 +614,7 @@ async function Xfetch(url, fetchInit = {}) {
                     if (status === 200 && (isNaN(contentLength) || contentLength < 1000)) {
                         console.warn(`Status 200 but empty or abnormally small response (Content-Length: ${contentLength}) for `);
                         rej(new Error(`Status 200 but empty or abnormally small response (Content-Length: ${contentLength})`));
-                        signal.abort(); // Abort the request to prevent further processing)   
-
-                        if (readableStream && typeof readableStream.cancel === 'function') {
-                            readableStream.cancel(); // 스트림 닫기
-                        }
+                        signal.abort(); // Abort the request to prevent further processing)                           
                         return;
                     }
                     let responseInit = { headers: hdrs, status, statusText, contentLength };
@@ -822,7 +809,7 @@ async function Start() {
         if (!Title) return console.warn('Title not found for ilovexs.com');
         Images = Array.from(document.querySelectorAll('#content.site-content .entry-content img'));
         Images.forEach(entry => UpdateDB(entry))
-        
+
     } else if (/girlgirlgo\.org\/random/.test(PageURL)) {
         return console.log('Random images - no processing');
     } else if (/girlgirlgo\.org/.test(PageURL)) {
@@ -924,7 +911,7 @@ async function secondStep(Title) {
         document.querySelector('.RetryFailed').addEventListener('click', () => {
             navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, () => {
                 if (errorCount > 0) {
-                    console.log("🔄 실패한 이미지 재시도");
+                    console.log("🔄 실패한 이미지 재시도", errorCount);
                     downloadPhotosWithRetry(DownloadImagesDB)
                 } else {
                     console.log("❌ 재시도할 실패 이미지 없음");
@@ -1079,7 +1066,7 @@ async function downloadPhotosWithRetry(DownloadImagesDB) {
         await sleep(2500)
         hideProgressUI()
         await sleep(2500)
-        if (localStorage.getItem('AutoDownload') == "1" && AutoClose && AllCount === ImagesDB.length) {
+        if (localStorage.getItem('AutoDownload') == "1" && AutoClose && AllCount === addCount) {
             self.close();
         }
     }
@@ -1091,7 +1078,7 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
     injectGraphicProgressLayer();
     let failed = [];
     const zip = new fflate.Zip();
-    let addCount = 0;
+    addCount = 0;
     // streamSaver에도 사용자 취소 신호 전달
     const fileStream = streamSaver.createWriteStream(ArchivesFileName, { signal: userSignal });
 
@@ -1129,13 +1116,29 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
             const combinedSignal = AbortSignal.any([userSignal, activityController.signal]);
 
 
+            const usefoamgirl = 'foamgirl.net' === RootDomain;
+            let modHeader
+            if ('foamgirl.net' === RootDomain) {
+                modHeader = {
+                    Referer: PageURL,
+                    Origin: new URL(PageURL).origin
+                }
+
+            } else if ('everia.club' === RootDomain) {
+                modHeader = {
+                    Referer: meta.P,
+                    Origin: new URL(meta.P).origin
+                }
+            }else{
+                modHeader = {
+                    Referer: PageURL,
+                    Origin: new URL(PageURL).origin
+                }
+            }
 
             const response = await Xfetch(meta.P,
                 {
-                    headers: {
-                        Referer: meta.P,
-                        Origin: new URL(meta.P).origin
-                    },
+                    headers: modHeader,
                     signal: combinedSignal,
                 });
 
@@ -1225,7 +1228,7 @@ function NextPage(url) {
                 }
 
                 const images = [...container.querySelectorAll('img')]
-                Images.forEach(entry => UpdateDB(entry))
+                images.forEach(entry => UpdateDB(entry))
 
                 resolve(html)
             },
