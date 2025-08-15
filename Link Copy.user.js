@@ -277,8 +277,8 @@ let AllCopyLinks = []
 let PackageName = ''
 let AutoCopy = JSON.parse(localStorage.getItem('AutoCopy')) || false
 let AutoClose = JSON.parse(localStorage.getItem('AutoClose')) || false
-let userCopy = JSON.parse(localStorage.getItem('AutoCopy')) || false
-let userClose = JSON.parse(localStorage.getItem('AutoClose')) || false
+let userCopy = true
+let userClose = true
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RootDomain = extractRootDomain(PageURL)
@@ -1423,17 +1423,25 @@ const siteRules = [
                     .filter(line => line); // Filter out empty lines
             };
 
+            let Resolution = ''
+            const bodyContentText = document.querySelector('div.body-content')
+            if (bodyContentText) {
+                let info = cleanText(document.querySelector('div.body-content')?.innerText);
+                const subTitle = info.find(txt => /^Name\s?:/.test(txt))?.match(/^Name\s?:\s?(.+)/)?.[1]?.trim().replace(/\.?mp4$/i, '');
+                const compareText = compareSentencesByWordMatch(subTitle, title)
+            
 
-            let info = cleanText(document.querySelector('div.body-content')?.innerText);
-            const subTitle = info.find(txt => /^Name\s?:/.test(txt))?.match(/^Name\s?:\s?(.+)/)?.[1]?.trim().replace(/\.?mp4$/i, '');
-            const compareText = compareSentencesByWordMatch(subTitle, title)
-
-            const Resolution = /[0-9]{3,4}p/.test(title)
+            Resolution = /[0-9]{3,4}p/.test(title)
                 ? title.match(/[0-9]{3,4}p/)[0]
                 : /[0-9]{3,4}p/.test(subTitle)
                     ? subTitle.match(/[0-9]{3,4}p/)[0]
                     : ''
-            title = compareText.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
+                title = compareText.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|\()[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
+            }
+            else{
+                Resolution = /[0-9]{3,4}p/.test(title)
+                title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|\()[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
+            }
             return `${title} ${Resolution}`
         },
     },
@@ -1529,7 +1537,7 @@ const siteRules = [
         regex: /ultoporn\.com\/\d+/,
         handler: (title) => {
             const Resolution = /[0-9]{3,4}p/.test(title) ? title.match(/[0-9]{3,4}p/)[0] : ''
-            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
+            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|\()[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
             return `${title} ${Resolution}`
         },
     },
@@ -1537,7 +1545,7 @@ const siteRules = [
         regex: /hidefporn\.ws\/\d+/,
         handler: (title) => {
             const Resolution = /[0-9]{3,4}p/.test(title) ? title.match(/[0-9]{3,4}p/)[0] : ''
-            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
+            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|\()[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
             return `${title} ${Resolution}`
         },
     },
@@ -2695,7 +2703,7 @@ async function UpdateDB(Target, UrlTitle) {
         Target = Target.match(K2SRegExp)[1] + Target.match(K2SRegExp)[2].slice(0, 18)
     }
     const searchDB = await localStorageDB.find(({ U }) => U === Target)
-    console.log({searchDB})
+    console.log({ searchDB })
 
     if (searchDB) {
         searchDB.T = UrlTitle
@@ -3000,7 +3008,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
 
     // Build a DB of filenames split into parts, mapped to their link elements
     let FileNameDB = [];
-    for (let link of AllLinks) {        
+    for (let link of AllLinks) {
         let fileNameParts = link.innerText
             .replace(/\.xxx\.\d+p.*/i, '')
             .split('/')
@@ -3066,7 +3074,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
             const Resolution = /[0-9]{3,4}p/.test(Links[0].innerText) ? '.XXX.' + Links[0].innerText.match(/[0-9]{3,4}p/)[0] : '';
             // Extract base filename without quality or resolution
             const LinkText = Links[0].innerText.replace(/\.xxx\.\d+p.*/i, '').split('/').pop().trim();
-            
+
 
             console.log('LinkText: ', LinkText)
             console.log(MatchWeb, IAC)

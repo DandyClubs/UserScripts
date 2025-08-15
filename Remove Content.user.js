@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Remove Content
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.12
+// @version      2025.08.15
 // @description  try to take over the world!
 // @author       You
 // @match        https://blogjav.net/*
@@ -265,6 +265,22 @@ function processContent(node, selector, isExtra = false) {
     for (const item of items) {
         let textContent = item.textContent;
 
+        if (/hidefporn\.ws|ultoporn\.com|k2sporn\.com|wetholefans\.com/.test(PageURL)) {
+            const resolutionMatch = textContent.match(/(\d+)p/);
+            const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
+            if (resolution) {
+                const Title = textContent.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|\()[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(resolutionMatch[0], '').trim()
+                if (resolution >= 1080) {
+                    console.log('Title:', Title, '\nResolution:', resolution)
+                    localStorage.setItem(Title, AddDate)
+                }
+                else if (resolution <= 720 && localStorage.getItem(Title)) {
+                    console.log('Low resolution content removed:', resolution);
+                    item.closest(Active.removeTagSelector)?.remove();
+                    continue;
+                }
+            }
+        }
         // 추가 선택자의 경우 특정 단어로 제거
         if (isExtra) {
             if (RemoveContentEX.test(textContent) || /femdom/i.test(textContent)) {
@@ -274,7 +290,7 @@ function processContent(node, selector, isExtra = false) {
             }
         }
         // 일반 링크의 경우 URL 또는 텍스트로 제거
-        else {
+        
             if (/\/(femdom|transsexuals)\//i.test(item.href)) {
                 console.log('Link content removed:', item.href.match(/\/(femdom|transsexuals)\//i));
                 item.closest(Active.removeTagSelector)?.remove();
@@ -282,28 +298,11 @@ function processContent(node, selector, isExtra = false) {
             }            
 
             if (RemoveContentEX.test(textContent)) {
-                console.log('Keyword content removed:', textContent.match(RemoveContentEX));
+                console.log('Keyword content removed:', textContent.match(RemoveContentEX));                
                 item.closest(Active.removeTagSelector)?.remove();
                 continue;
             }
 
-            if (/hidefporn\.ws|ultoporn\.com|k2sporn\.com/.test(PageURL)) {
-                const resolutionMatch = textContent.match(/(\d+)p/);
-                const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
-                if (resolution) {
-                    Title = textContent.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(resolutionMatch[0], '').trim()
-                    console.log('Title:', Title, 'Resolution:', resolution)
-                    if (resolution > 1080) {
-                        localStorage.setItem(Title, AddDate)
-                    }
-                    else if (resolution < 720 && localStorage.getItem(Title)) {
-                        console.log('Low resolution content removed:', resolution);
-                        item.closest(Active.removeTagSelector)?.remove();
-                        continue;
-                    }
-                }
-            }
-        }
 
         // 제거되지 않은 경우 텍스트 대체
         replaceText(item);
