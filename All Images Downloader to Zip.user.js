@@ -100,7 +100,7 @@ let GetDPI, DefaultFontSize, CneterBoxFontSize, StateFontSize, StateLineHeight, 
 
 
 let JobList = []
-let ImagesDB = []
+let ImagesDB = new Set();
 let DownloadImagesDB = []
 let Title, Author, Images, ZipFileName, ArchivesFileName, Tag
 let AllCount = 0
@@ -500,11 +500,9 @@ function hideProgressUI() {
  */
 async function Xfetch(url, fetchInit = {}) {
     const defaultFetchInit = { method: "GET" };
-    const { headers, method, signal, zip } = { ...defaultFetchInit, ...fetchInit };
-    //const isStreamSupported = GM_xmlhttpRequest?.RESPONSE_TYPE_STREAM;
-    const isStreamSupported = false;
+    const { headers, method, signal } = { ...defaultFetchInit, ...fetchInit };
+    const isStreamSupported = GM_xmlhttpRequest?.RESPONSE_TYPE_STREAM;
     const HEADERS_RECEIVED = 2;
-
     // Utility to parse raw response headers string into an object
     function parseHeaders(rawHeaders) {
         const headers = {};
@@ -516,34 +514,23 @@ async function Xfetch(url, fetchInit = {}) {
     }
 
     if (!isStreamSupported) {
+        console.log('Streaming Not Supported!')
         // Fallback for browsers/userscript engines without streaming support
         return new Promise((resolve, reject) => {
             // This promise will hold the blob and is used by the various response methods
             const blobPromise = new Promise((res, rej) => {
-                GM_xmlhttpRequest({
+                const gmRequest = GM_xmlhttpRequest({
                     url,
                     method,
                     headers,
-                    responseType: "arraybuffer",
-                    onprogress: function (e) {
-                        if (e.loaded && e.total) {
-                            console.log(`진행률: ${(e.loaded / e.total * 100).toFixed(2)}%`);
-                        }
-                        if (e.response && e.response.byteLength > 0) {
-                            const chunk = new Uint8Array(e.response);
-                            zipEntry.push(chunk);
-                        }
-                    },
-                    onload: function (res) {
-                        zipEntry.push(new Uint8Array(0), true); // 종료
-                    },
+                    responseType: "blob",
                     // The signal property is not supported by GM_xmlhttpRequest, so we need to
                     // manually abort the request if the signal is aborted.
                     onabort: () => rej(new Error('Request aborted')),
                     onload: (response) => {
                         console.log('response.status:', response.status);
                         // The crucial check: A successful status AND a non-empty response body.
-                        if (response.status === 200 && response.response.byteLength > 10000) {
+                        if (response.status === 200 && response.response.byteLength > 0) {
                             res(response.response);
                         } else if (response.status === 200 && response.response.byteLength === 0) {
                             // Specifically reject 200 with an empty body, as this is the issue.
@@ -554,8 +541,7 @@ async function Xfetch(url, fetchInit = {}) {
                     },
                     onerror: rej,
                     onreadystatechange: onHeadersReceived,
-                    signal, // Pass the signal to GM_xmlhttpRequest
-                    zip,
+                    signal, // Pass the signal to GM_xmlhttpRequest                    
                 });
             });
 
@@ -565,9 +551,6 @@ async function Xfetch(url, fetchInit = {}) {
                     try {
                         if (gmRequest && typeof gmRequest.abort === 'function') {
                             gmRequest.abort(); // 실제 네트워크 연결 끊기
-                        }
-                        if (readableStream && typeof readableStream.cancel === 'function') {
-                            readableStream.cancel(); // 스트림 닫기
                         }
                     } catch (e) {
                         console.warn("Abort cleanup error:", e);
@@ -597,17 +580,17 @@ async function Xfetch(url, fetchInit = {}) {
         });
     } else {
         // Streaming supported
+        console.log('Streaming Supported!')
         return new Promise((resolve, reject) => {
             const responsePromise = new Promise((res, rej) => {
-                GM_xmlhttpRequest({
+                const gmRequest = GM_xmlhttpRequest({
                     url,
                     method,
                     headers,
                     responseType: "stream",
                     onerror: rej,
                     onreadystatechange: onHeadersReceived,
-                    signal, // Pass the signal to GM_xmlhttpRequest
-                    zip,
+                    signal, // Pass the signal to GM_xmlhttpRequest                    
                 });
             });
 
@@ -616,9 +599,6 @@ async function Xfetch(url, fetchInit = {}) {
                     try {
                         if (gmRequest && typeof gmRequest.abort === 'function') {
                             gmRequest.abort(); // 실제 네트워크 연결 끊기
-                        }
-                        if (readableStream && typeof readableStream.cancel === 'function') {
-                            readableStream.cancel(); // 스트림 닫기
                         }
                     } catch (e) {
                         console.warn("Abort cleanup error:", e);
@@ -637,15 +617,17 @@ async function Xfetch(url, fetchInit = {}) {
                     // New check for empty response based on Content-Length header
                     const contentLength = hdrs['content-length'];
 
-
                     // If the response is empty or too small, reject it.
                     // This is a heuristic check for cases where the server returns 200 OK but with no actual content.
                     // The threshold (1000 bytes) can be adjusted based on typical minimum image sizes.
                     if (status === 200 && (isNaN(contentLength) || contentLength < 1000)) {
                         console.warn(`Status 200 but empty or abnormally small response (Content-Length: ${contentLength}) for `);
                         rej(new Error(`Status 200 but empty or abnormally small response (Content-Length: ${contentLength})`));
-                        signal.abort(); // Abort the request to prevent further processing)  
-                        zip.terminate();
+                        signal.abort(); // Abort the request to prevent further processing)   
+
+                        if (readableStream && typeof readableStream.cancel === 'function') {
+                            readableStream.cancel(); // 스트림 닫기
+                        }
                         return;
                     }
                     let responseInit = { headers: hdrs, status, statusText, contentLength };
@@ -834,25 +816,29 @@ async function Start() {
         Title = GetRequiredElement("article header.entry-header .single-post-title.entry-title", "Title");
         if (!Title) return console.warn('Title not found for everia.club');
         Images = Array.from(document.querySelectorAll('article > div.entry-content img'));
-        Images.forEach(img => UpdateDB(img.getAttribute('data-src') || img.src, ''));
+        Images.forEach(entry => UpdateDB(entry))
     } else if (/ilovexs\.com/.test(PageURL)) {
         Title = GetRequiredElement("#content.site-content h4.entry-title", "Title");
         if (!Title) return console.warn('Title not found for ilovexs.com');
         Images = Array.from(document.querySelectorAll('#content.site-content .entry-content img'));
-        Images.forEach(img => UpdateDB(img.src, ''));
+        Images.forEach(entry => UpdateDB(entry))
+        
+    } else if (/girlgirlgo\.org\/random/.test(PageURL)) {
+        return console.log('Random images - no processing');
     } else if (/girlgirlgo\.org/.test(PageURL)) {
         await onElementLoaded('article div.post-body h1.post-title.entry-title');
         Title = GetRequiredElement("article div.post-body h1.post-title.entry-title", "Title");
         if (!Title) return console.warn('Title not found for girlgirlgo.org');
         Author = document.querySelector('article div.post-body div.post-meta-top.entry-meta div.post-author strong.author.vcard a.on-popunder');
         Images = Array.from(document.querySelectorAll('article div.post-body div.post-media-body img'));
-        Images.forEach(img => UpdateDB(img.getAttribute('data-src')));
-        if (/girlgirlgo\.org\/random/.test(PageURL)) return console.log('Random images - no processing');
+        Images.forEach(entry => UpdateDB(entry))
+
+
     } else if (/foamgirl\.net\/\d+\.html/.test(PageURL)) {
         Title = GetRequiredElement(".single_mianimage .item_title h1", "Title");
         if (!Title) return console.warn('Title not found for foamgirl.net');
         Images = Array.from(document.querySelectorAll('.single_mianimage #content img'));
-        Images.forEach(img => UpdateDB(img.src, ''));
+        Images.forEach(entry => UpdateDB(entry))
 
         const navRight = document.querySelector('.mbx-nav-right');
         const maxPage = Number(navRight?.innerText.replace(/^.*[\\/]/, '')) || 1;
@@ -887,7 +873,7 @@ async function secondStep(Title) {
     document.querySelector('.CenterBox').style.visibility = 'visible';
 
     Title = Title.textContent.trim();
-    Title = Title.endsWith(`(${ImagesDB.length}P)`) ? Title : `${Title}(${ImagesDB.length}P)`;
+    Title = Title.endsWith(`(${Array.from(ImagesDB).length}P)`) ? Title : `${Title}(${Array.from(ImagesDB).length}P)`;
     ZipFileName = byteLengthOf(FilenameConvert(Author ? `[${Author.innerText.trim()}] ${Title}` : Title), 240);
     if (!ZipFileName) {
         await UpdateJobQueue(PageURL, 'remove')
@@ -937,8 +923,7 @@ async function secondStep(Title) {
 
         document.querySelector('.RetryFailed').addEventListener('click', () => {
             navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, () => {
-                if (errorList.length > 0) {
-                    errorCount = errorList.length
+                if (errorCount > 0) {
                     console.log("🔄 실패한 이미지 재시도");
                     downloadPhotosWithRetry(DownloadImagesDB)
                 } else {
@@ -1000,8 +985,6 @@ function byteLengthOf(TitleText, maxByte) {
 const downloadedFiles = new Set();
 
 
-
-
 function activityTimeoutSignal(ms) {
     const controller = new AbortController();
     let timeoutId = null;
@@ -1036,6 +1019,7 @@ async function downloadPhotosWithRetry(DownloadImagesDB) {
     const { signal: userSignal } = userAbortController;
     const maxRetries = 2;
     let errorList = [];
+    errorCount = 0
 
     AllCount = DownloadImagesDB.length;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -1099,6 +1083,7 @@ async function downloadPhotosWithRetry(DownloadImagesDB) {
             self.close();
         }
     }
+    downloadedFiles.clear()
 }
 
 
@@ -1144,14 +1129,14 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
             const combinedSignal = AbortSignal.any([userSignal, activityController.signal]);
 
 
+
             const response = await Xfetch(meta.P,
                 {
                     headers: {
-                        Referer: document.location.href,
+                        Referer: meta.P,
                         Origin: new URL(meta.P).origin
                     },
                     signal: combinedSignal,
-                    zip: zip,
                 });
 
             if (!response.ok) {
@@ -1240,9 +1225,7 @@ function NextPage(url) {
                 }
 
                 const images = [...container.querySelectorAll('img')]
-                images.forEach(entry => {
-                    UpdateDB(entry.src, '')
-                })
+                Images.forEach(entry => UpdateDB(entry))
 
                 resolve(html)
             },
@@ -1286,8 +1269,6 @@ function GetUrl(url) {
     })
 }
 
-
-
 function CheckOnline(url) {
     return new Promise((resolve) => {
         GM_xmlhttpRequest({
@@ -1307,24 +1288,23 @@ function CheckOnline(url) {
 
 
 
-function UpdateDB(Target, DownloadUrl) {
-    let searchDB = ImagesDB.find(({ U }) => U === Target)
-    if (searchDB) {
-        searchDB.T = DownloadUrl
+function UpdateDB(el) {
+    if (!el) return
+
+    const url = el.getAttribute('data-lazy-src') || el.getAttribute('data-src') || el.src
+    if (getExtensionOfFilename(url)) {
+        ImagesDB.add(url)
     }
-    else {
-        ImagesDB.push({ U: Target, T: DownloadUrl })
-    }
-    //console.log(ImagesDB)
     return ImagesDB
 }
 
-async function generateZIP(DB) {
+async function generateZIP(ImagesDB) {
     console.log('Download to Zip')
 
     DownloadImagesDB = []
     ArchivesFileName = ZipFileName + ".zip"
 
+    const DB = Array.from(ImagesDB)
     const analysis = analyzeByExtension(DB)
 
     if (Object.keys(analysis).length === 0) {
@@ -1334,26 +1314,24 @@ async function generateZIP(DB) {
 
     await Promise.allSettled(DB.map(async (el, i) => {
         let filename = ''
-        let Extension = getExtensionOfFilename(el.U)
+        let Extension = getExtensionOfFilename(el)
         let indexNumber = (i + 1).toString().padStart(3, '0')
-        let base = GetFileName(el.U)
+        let base = GetFileName(el)
 
 
-        if (/blogger\.googleusercontent\.com/.test(el.U)) {
+        if (/blogger\.googleusercontent\.com/.test(el)) {
             filename = `${ZipFileName} ${indexNumber}.jpg`
-        } else if (/cdn\.foamgirl\.net/.test(el.U)) {
+        } else if (/cdn\.foamgirl\.net/.test(el)) {
             filename = adjustFilename(base, Extension, analysis[Extension]);
-        } else if (/%/.test(base) || /girlgirlgo\.org/.test(el.U)) {
+        } else if (/%/.test(base) || /girlgirlgo\.org/.test(el)) {
             filename = `${ZipFileName.replace(/\(\d+P\)$/, '')}-${indexNumber}${Extension}`
         } else if (/_/.test(base)) {
-            const last = base.lastIndexOf('_') + 1
-            const padded = base.substring(last).padStart(maxLength - last + 1, '0')
-            filename = `${base.substring(0, last).replace('_', ' ')}${padded}${Extension}`
+            filename = adjustFilename(base, Extension, analysis[Extension]).replace('_', ' ');
         } else {
-            filename = base.padStart(maxLength, '0') + Extension
+            filename = adjustFilename(base, Extension, analysis[Extension]);
         }
 
-        DownloadImagesDB.push({ P: el.U, F: filename })
+        DownloadImagesDB.push({ P: el, F: filename })
     }))
 
     return DownloadImagesDB
@@ -1364,21 +1342,25 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function GetFileName(url) {
-    let name = url.split('/').pop()?.replace('.html', '')
-    return name.substring(0, name.lastIndexOf('.'))
+
+function GetFileName(path) {
+    // 경로 구분자 무시하고 파일명만 추출
+    const p = path.split(/[\\/]/).pop()?.replace('.html', '');
+    const i = p.lastIndexOf('.');
+    return i > 0 ? p.slice(0, i) : p;
 }
 
 
-function getExtensionOfFilename(filename) {
-    const lastDot = filename.lastIndexOf('.');
-    return lastDot !== -1 ? filename.slice(lastDot).toLowerCase() : '';
+function getExtensionOfFilename(path) {
+    const p = path.split(/[\\/]/).pop()?.replace('.html', '');
+    const lastDot = p.lastIndexOf('.');
+    return lastDot !== -1 ? p.slice(lastDot).toLowerCase() : '';
 }
 
 
 // 중간 단계까지 고려하여 CutPoint 찾기
 function findCutPointFromGroup(group) {
-    const names = group.map(t => GetFileName(t.U));
+    const names = group.map(t => GetFileName(t));
     const sorted = [...names].sort((a, b) => a.length - b.length);
     let cutPoint = null;
 
@@ -1404,7 +1386,7 @@ function analyzeByExtension(db) {
     const groups = {};
 
     db.forEach(item => {
-        const ext = getExtensionOfFilename(item.U);
+        const ext = getExtensionOfFilename(item);
         if (!groups[ext]) groups[ext] = [];
         groups[ext].push(item); // URL 객체 그대로 저장
     });
@@ -1412,7 +1394,7 @@ function analyzeByExtension(db) {
     const analysis = {};
 
     Object.entries(groups).forEach(([ext, group]) => {
-        const lengths = group.map(x => GetFileName(x.U).length);
+        const lengths = group.map(x => GetFileName(x).length);
         const maxLength = Math.max(...lengths);
         const minLength = Math.min(...lengths);
         const cutPoint = (minLength !== maxLength) ? findCutPointFromGroup(group) : null;
