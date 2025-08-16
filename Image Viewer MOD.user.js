@@ -918,6 +918,7 @@ function GetOnline(details) {
                 "Referer": details.url, // 이전 페이지 정보
             },
             responseType: 'text',
+            timeout: 60000,
             onload: function (resp) {
                 //let container = document.implementation.createHTMLDocument().documentElement;
                 //container.innerHTML = resp.responseText;
@@ -1467,8 +1468,7 @@ const image = {
             console.log(url)
             GM_xmlhttpRequest({
                 method: "GET",
-                url: url,
-                headers: { referer: url, origin: url },
+                url: url,                
                 responseType: 'blob',
                 timeout: 600000,
                 onload: function (resp) {

@@ -640,7 +640,7 @@ function ImageToBlob(url) {
         GM_xmlhttpRequest({
             method: "GET",
             url: url,
-            headers: { referer: url, origin: url },
+            headers: { 'referer': url, 'origin': url },
             responseType: 'blob',
             onload: function (resp) {
                 const blob = resp.response;
@@ -1120,19 +1120,19 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
             let modHeader
             if ('foamgirl.net' === RootDomain) {
                 modHeader = {
-                    Referer: PageURL,
-                    Origin: new URL(PageURL).origin
+                    'Referer': PageURL,
+                    'Origin': new URL(PageURL).origin
                 }
 
             } else if ('everia.club' === RootDomain) {
                 modHeader = {
-                    Referer: meta.P,
-                    Origin: new URL(meta.P).origin
+                    'Referer': meta.P,
+                    'Origin': new URL(meta.P).origin
                 }
             }else{
                 modHeader = {
-                    Referer: PageURL,
-                    Origin: new URL(PageURL).origin
+                    'Referer': PageURL,
+                    'Origin': new URL(PageURL).origin
                 }
             }
 
@@ -1214,8 +1214,8 @@ function NextPage(url) {
             method: "GET",
             url: url,
             headers: {
-                Referer: document.location.href,
-                Origin: new URL(url).origin
+                "Referer": document.location.href,
+                "Origin": new URL(url).origin
             },
             onload: function (resp) {
                 const html = document.createElement('html')
@@ -1247,8 +1247,8 @@ function GetUrl(url) {
             method: "GET",
             url: url,
             headers: {
-                Referer: document.location.href,
-                Origin: new URL(url).origin
+                'Referer': document.location.href,
+                'Origin': new URL(url).origin
             },
             onload: function (resp) {
                 try {
