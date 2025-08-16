@@ -605,9 +605,14 @@ const SiteParsers = {
             if (releaseDate) {
                 titleText = titleText.replace(releaseDate, '').replace(/\s?\/\)/g, '').replace(' / )', ')').trim();
                 FixreleaseDate = releaseDate.replace(/-|\//g, '.');
+            } else{
+                const infoAreaReleaseDate = SearchMatch(InfoArea, "(Дата релиза|Дата выхода)\s?(:|：)?(.+)", "/\/|-/g, '.'");
+                if (infoAreaReleaseDate) {
+                    FixreleaseDate = infoAreaReleaseDate.replace(/-|\//g, '.');
+                }
             }
 
-            // 제작자 추출
+            // 제작자 추출            
             let maker;
             if (/^\[.*?\]/.test(titleText)) {
                 const makerMatch = /^\[(.*?)\]/.exec(titleText);
@@ -616,13 +621,10 @@ const SiteParsers = {
                     maker = makerMatch[1]?.replace(/(\/|\.(com|net)).*/, '').trim();
                 }
             } else {
-                const makerSearch = SearchMatch(InfoArea, "(Выпущено|Подсайт и сайт)\s?(:|：)?(.+)", "/\/|-/g, '.'");
-                maker = makerSearch ? makerSearch.replace(/,.+/, '').replace(/\..*/, '').trim() : '';
-                if (maker) {
-                    titleText = maker ? titleText.replace(maker, '').replace(/\(\s+\)/, '').trim() : titleText;
-                    const cleanedTitleText = removeParts(titleText, maker)
-                    titleText = cleanedTitleText;
-                    const rebuildMaker = formatSentences(maker);
+                const makerSearch = SearchMatch(InfoArea, "(Выпущено|Подсайт и сайт|Разработчик/Издатель)\s?(:|：)?(.+)");
+                if (makerSearch) {
+                    titleText = titleText.replace(makerSearch, '').replace(/\(\s+\)/, '').trim()
+                    const rebuildMaker = formatSentences(makerSearch.replace(/\.(com|net)/gi, ''));
                     maker = rebuildMaker;
                 }
             }
@@ -652,7 +654,7 @@ const SiteParsers = {
             
 
             titleText = titleText.replace(TAGS_REGEX, '').trim();
-
+            
             const titleDB = titleText
                 .replace(/(\/.*?([а-яА-ЯЁё]).+?)?\[.*г.+?\]/, '')
                 .replace(/\s?\/\s?\)$/, ')')
@@ -660,8 +662,10 @@ const SiteParsers = {
                 .replace(/(\/)?([а-яА-ЯЁё]).+?(\/)?/giu, '')
                 .replace(/\(Split\s?Scenes\)/i, '')
                 .replace(/часть|Часть/g, 'Part')
-                .replace(/[\/\s][а-яА-ЯЁё\s]*\s/ig, '')
+                .replace(/(\/\s)[а-яА-ЯЁё\s-]+/gi, '')                
                 .split(/\s/);
+
+            titleText = titleDB.join(' ') 
 
             if (JapaneseChar.test(InfoArea[0]) || chineseRegex.test(InfoArea[0])) {
                 if (InfoArea[0].match(JapaneseChar)?.length >= 10) {
@@ -879,14 +883,22 @@ function GetTitle(parsedData) {
     // 3. 표지 이미지 다운로드 로직
     handleCoverImageDownload(finalTitle);
 
+    preserveText = 
+
     console.log('최종 타이틀:', finalTitle);
-    CopyTitle = FilenameConvert(nameCorrection(finalTitle));
+    CopyTitle = nameCorrection(finalTitle).replace(/\.com/i, '.com').replace(/\.net/i, '.net')
+    console.log('CopyTitle:', CopyTitle)    
+    CopyTitle = FilenameConvert(CopyTitle);
     CopyTitle = mbConvertKana(CopyTitle, 'rans');
-    const copyTitle = document.querySelector('.CopyTitle')
+    FullCopyTitle = nameCorrection(FullCopyTitle).replace(/\.com/i, '.com').replace(/\.net/i, '.net')
+    FullCopyTitle = FilenameConvert(FullCopyTitle);
+    FullCopyTitle = mbConvertKana(FullCopyTitle, 'rans');   
+    const copyTitle = document.querySelector('.CopyTitle')    
     const fullCopyTitle = document.querySelector('.FullCopyTitle')
-    copyTitle?.setAttribute('title', CopyTitle)
+    copyTitle?.setAttribute('title', CopyTitle)    
     fullCopyTitle?.setAttribute('title', FullCopyTitle)
     console.log('정리된 최종 타이틀', '\nCopyTitle: ' + CopyTitle, byteLengthOfCheck(CopyTitle), '\nFullCopyTitle: ' + FullCopyTitle, byteLengthOfCheck(FullCopyTitle));
+    
 }
 
 /**
