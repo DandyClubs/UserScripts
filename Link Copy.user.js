@@ -370,6 +370,7 @@ const SearchIDRegExp = /^(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-
 const K2SRegExp = /(.*k2s\.cc\/file\/)(.*\/?)/
 const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/
 const extractID = /(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})|T\d{2}-\d{3})(?!(C_\d+|file\d+))/
+const ID3D = /(MCB3DBD-\d+)(.*)$/i
 
 
 
@@ -847,7 +848,7 @@ const siteConfigs = [
                         } else {
                             linkGroups['Other'].push(link);
                         }
-                    }                    
+                    }
                     console.log('linkGroups:', linkGroups)
 
                     const priorityOrder = ['2160p', '1080p', '720p', 'Photos', 'Other'];
@@ -1363,12 +1364,22 @@ const siteConfigs = [
                         Title = `${fcId} ${InfoArea[0]}`
                     } else {
                         let cleanIDTitle, cleanIDInfoTitle, compareInfoAreaID, newTitle
-                        const InfoTitle = InfoArea.find(line => line.match(SearchIDRegExp))
+                        let infoTitle = InfoArea.find(line => line.match(SearchIDRegExp)) || ''
                         let entryID = Title.match(SearchIDRegExp)?.[2] || ''
-                        let infoAreaID = InfoTitle?.match(SearchIDRegExp)?.[2] || ''
-                        cleanIDTitle = Title.replace(entryID, '').trim()
-                        cleanIDInfoTitle = InfoTitle.replace(infoAreaID, '').trim()
-
+                        let infoAreaID
+                        if (infoTitle && entryID) {
+                            infoAreaID = infoTitle?.match(SearchIDRegExp)?.[2] || ''
+                            cleanIDTitle = Title.replace(entryID, '').trim()
+                            cleanIDInfoTitle = infoTitle.replace(infoAreaID, '').trim()
+                        } else {
+                            infoTitle = InfoArea.find(line => line.match(ID3D))
+                            infoAreaID = infoTitle?.match(ID3D)?.[1] || ''
+                            entryID = Title.match(ID3D)?.[1] || ''
+                            if (infoAreaID && entryID) {
+                                cleanIDTitle = Title.replace(entryID, '').trim()
+                                cleanIDInfoTitle = infoTitle.replace(infoAreaID, '').trim()
+                            }
+                        }
                         if (entryID && infoAreaID) {
                             let IDMatch = entryID ?? infoAreaID
                             let ID = IDMatch ? IDMatch.trim() : '';
@@ -1382,6 +1393,7 @@ const siteConfigs = [
                         }
                         console.log({ newTitle })
                         Title = newTitle
+
                     }
                     Title = mbConvertKana(Title.trim(), 'rans');
                 }
@@ -1462,16 +1474,16 @@ const siteRules = [
                 let info = cleanText(document.querySelector('div.body-content')?.innerText);
                 const subTitle = info.find(txt => /^Name\s?:/.test(txt))?.match(/^Name\s?:\s?(.+)/)?.[1]?.trim().replace(/\.?mp4$/i, '');
                 const compareText = compareSentencesByWordMatch(subTitle, title)
-            
 
-            Resolution = /[0-9]{3,4}p/.test(title)
-                ? title.match(/[0-9]{3,4}p/)[0]
-                : /[0-9]{3,4}p/.test(subTitle)
-                    ? subTitle.match(/[0-9]{3,4}p/)[0]
-                    : ''
+
+                Resolution = /[0-9]{3,4}p/.test(title)
+                    ? title.match(/[0-9]{3,4}p/)[0]
+                    : /[0-9]{3,4}p/.test(subTitle)
+                        ? subTitle.match(/[0-9]{3,4}p/)[0]
+                        : ''
                 title = compareText.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|\()[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
             }
-            else{
+            else {
                 Resolution = /[0-9]{3,4}p/.test(title)
                 title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s(\[|\()[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
             }
