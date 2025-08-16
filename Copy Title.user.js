@@ -59,35 +59,6 @@ GM_addStyle(`
     border-bottom: 1px dotted black;
 }
 
-.CopyTitle:before, .FullCopyTitle:before { 
-    visibility: hidden;
-    opacity: 0;
-    width: max-content;
-    background-color: black;
-    color: #fff;
-    text-align: center;
-    border-radius: 5px;
-    padding: 5px 5px;
-    transition: opacity 1s ease-in-out;
-    position: absolute;
-    z-index: 1;
-    left: 0;
-    top: 110%;
-}
-.CopyTitle:before {
-    content: attr(data-hover);
-} 
-
-.FullCopyTitle:before {
-    content: attr(data-hover);
-}
-
-.CopyTitle:hover:before ,.FullCopyTitle:hover:before {
-    opacity: 1;
-    visibility: visible;
-}
- 
-
 .CenterBox {
 	right: 30%;
 	left: auto;
@@ -670,12 +641,13 @@ const SiteParsers = {
             }
 
             const titleDB = titleText
-                .replace(/(\/.*?([а-яА-ЯЁё]).+?)?\[.*г.+?\]/, '')
+                .replace(/(\/.*?([а-яА-ЯЁё]).+?)?\[.*г.+?\]/, '')                
                 .replace(/\s?\/\s?\)$/, ')')
                 .replace(/\s?\/\s?$/, '')
                 .replace(/(\/)?([а-яА-ЯЁё]).+?(\/)?/giu, '')
                 .replace(/\(Split\s?Scenes\)/i, '')
                 .replace(/часть|Часть/g, 'Part')
+                .replace(/[\/\s][а-яА-ЯЁё\s]*\s/ig, '')
                 .split(/\s/);
 
             if (JapaneseChar.test(InfoArea[0]) || chineseRegex.test(InfoArea[0])) {
@@ -896,8 +868,8 @@ function GetTitle(parsedData) {
     CopyTitle = mbConvertKana(CopyTitle, 'rans');
     const copyTitle = document.querySelector('.CopyTitle')
     const fullCopyTitle = document.querySelector('.FullCopyTitle')
-    copyTitle?.setAttribute('data-hover', CopyTitle)
-    fullCopyTitle?.setAttribute('data-hover', FullCopyTitle) 
+    copyTitle?.setAttribute('title', CopyTitle)
+    fullCopyTitle?.setAttribute('title', FullCopyTitle) 
     console.log('정리된 최종 타이틀', '\nCopyTitle: ' + CopyTitle, byteLengthOfCheck(CopyTitle), '\nFullCopyTitle: ' + FullCopyTitle, byteLengthOfCheck(FullCopyTitle));
 }
 

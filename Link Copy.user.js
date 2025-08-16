@@ -1486,7 +1486,8 @@ const siteRules = [
         regex: /girlscanner\.org/,
         handler: (title) => title.replace(/^(new|Watch\/Download:)/i, '')
             .replace(/\\’/, "'")
-            .replace(/[[:blank:]]{3,}.+/i, '')
+            .replace(/[[:blank:]]{3,}.+/gi, '')
+            .replace(/[\s]{3,}.+/gi, '')
             .trim(),
     },
     {
@@ -2652,9 +2653,9 @@ async function CollectionLinks(DownloadArea) {
         });
 
     // 2c) Skip links whose children are images (unless they pass your emoji/class test)
-    if (!/models-nudeteen\.org|girlscanner\.org/.test(PageURL)) {
+    if (!/models-nudeteen\.org|girlscanner\.org|avtv\./.test(PageURL)) {
         links = links.filter(a =>
-            /uploadgig\.com\/file\/download|alfafile\.net\/file/.test(a.href) ||
+            !/uploadgig\.com\/file\/download|alfafile\.net\/file/.test(a.href) &&
             ![...a.children].some(img => img.tagName === 'IMG' && !MatchRegexElement(img, /emoji/, 'class'))
         );
     }
@@ -2970,7 +2971,7 @@ function listToDo(areas, type = 'Default') {
         if (SkipFilter.test(href)) continue;
         // Skip links with image children for certain hosts
         if (
-            /(uploadgig\.com\/file\/download|alfafile\.net\/file)/.test(href) &&
+            !/(uploadgig\.com\/file\/download|alfafile\.net\/file)/.test(href) &&
             a.querySelector('img')
         ) continue;
 
