@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy
-// @version      2025.08.15
+// @version      2025.08.16
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.org/
@@ -769,10 +769,10 @@ const siteConfigs = [
 
                         const finalDownloadLinks = getDownloadLinks(DownloadArea);
                         console.log('finalDownloadLinks:', finalDownloadLinks)
-                        if (finalDownloadLinks) {
+                        if (finalDownloadLinks.length > 0) {
                             window.DownloadArea = createDownloadArea(finalDownloadLinks.map(link => link.outerHTML));
 
-                            if (finalDownloadLinks.some(link => /1080p|1080\.mp4/i, /2160p/.test(link.href))) {
+                            if (finalDownloadLinks.some(link => /1080p|1080\.mp4|2160p/i.test(link.href))) {
                                 userCopy = true;
                             } else {
                                 userCopy = false;
@@ -803,7 +803,7 @@ const siteConfigs = [
                 let LinkDBAll = [];
                 DownloadArea.forEach(section => {
                     Array.from(section.querySelectorAll('a')).forEach(a => {
-                        if (!a.href.match(SkipFilter)) {
+                        if (!a.href.match(SkipFilter) && !/top-modelz\.org/.test(a.href)) {
                             LinkDBAll.push(a);
                         }
                     });
@@ -815,25 +815,58 @@ const siteConfigs = [
                 }
 
                 const uniqueTitle = [...new Set(
-                    LinkDBAll.map(x => x.textContent.replace(/\d+p(?!x).*|(tezfiles\.com|k2s\.cc|rapidgator\.net)\s-\s|\s-\s\d+\.\d+\s(MB|GB)/g, ''))
+                    LinkDBAll.map(x => x.textContent.replace(/\d+p(?!x).*|(tezfiles\.com|k2s\.cc|rapidgator\.net)\s-\s|\s-\s\d+\.\d+\s(MB|GB)/ig, ''))
                 )];
 
                 let SearchDB = [];
                 const CheckDB = (url, DB) => DB.some(s => s.href.includes(url));
 
+
                 for (const x of uniqueTitle) {
+                    const linkGroups = {
+                        '2160p': [],
+                        '1080p': [],
+                        '720p': [],
+                        'Other': [],
+                        'Photos': []
+                    };
                     const linksForTitle = LinkDBAll.filter(t => t.textContent.includes(x));
 
-                    let foundLink = linksForTitle.find(t => /2160p(?!x)/.test(t.textContent)) ||
-                        linksForTitle.find(t => /1080p(?!x)/.test(t.textContent)) ||
-                        linksForTitle.find(t => /720p(?!x)/.test(t.textContent)) ||
-                        linksForTitle.find(t => !/(\d+p|zip|rar)/.test(t.textContent)) ||
-                        linksForTitle.find(t => /(zip|rar)/.test(t.textContent));
 
-                    if (foundLink && !CheckDB(foundLink.href, SearchDB)) {
-                        SearchDB.push(foundLink);
+                    // 링크들을 우선순위에 따라 각 그룹에 할당합니다.
+                    // Assign links to each group based on priority.
+                    for (const link of linksForTitle) {
+                        if (/2160p(?!x)/.test(link.textContent)) {
+                            linkGroups['2160p'].push(link);
+                        } else if (/1080p(?!x)/.test(link.textContent)) {
+                            linkGroups['1080p'].push(link);
+                        } else if (/720p(?!x)/.test(link.textContent)) {
+                            linkGroups['720p'].push(link);
+                        } else if (/\d+px\.(zip|rar)/.test(link.textContent)) {
+                            linkGroups['Photos'].push(link);
+                        } else {
+                            linkGroups['Other'].push(link);
+                        }
+                    }                    
+                    console.log('linkGroups:', linkGroups)
+
+                    const priorityOrder = ['2160p', '1080p', '720p', 'Photos', 'Other'];
+
+                    for (const groupName of priorityOrder) {
+                        // 그룹에 링크가 하나라도 있다면
+                        if (linkGroups[groupName].length > 0) {
+                            // 해당 그룹의 모든 링크를 추가합니다.
+                            for (const foundLink of linkGroups[groupName]) {
+                                if (!CheckDB(foundLink.href, SearchDB)) {
+                                    SearchDB.push(foundLink);
+                                }
+                            }
+                            // 그리고 루프를 즉시 멈춥니다.
+                            break;
+                        }
                     }
                 }
+                console.log('SearchDB:', SearchDB)
 
                 if (SearchDB.length > 0) {
                     const LinkDB = SearchDB.map(entry => entry.outerHTML);

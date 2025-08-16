@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Copy Title
-// @version      2025.08.13
+// @version      2025.08.16
 // @description  try to take over the world!
 // @author       You
 // @include      /javbus.com\/.+\/([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)/
@@ -49,13 +49,44 @@ GM_addStyle(`
     margin: .25rem;
 }
 
-.FullCopyTitle {
+.CopyTitle, .FullCopyTitle {
     text-align: center;
     cursor: pointer;
     color: dodgerblue !important;
     text-shadow: 1px 1px 1px red, 0 0 2px blue, 0 0 1px black;
     margin: .5em;
+    position: relative;
+    border-bottom: 1px dotted black;
 }
+
+.CopyTitle:before, .FullCopyTitle:before { 
+    visibility: hidden;
+    opacity: 0;
+    width: max-content;
+    background-color: black;
+    color: #fff;
+    text-align: center;
+    border-radius: 5px;
+    padding: 5px 5px;
+    transition: opacity 1s ease-in-out;
+    position: absolute;
+    z-index: 1;
+    left: 0;
+    top: 110%;
+}
+.CopyTitle:before {
+    content: attr(data-hover);
+} 
+
+.FullCopyTitle:before {
+    content: attr(data-hover);
+}
+
+.CopyTitle:hover:before ,.FullCopyTitle:hover:before {
+    opacity: 1;
+    visibility: visible;
+}
+ 
 
 .CenterBox {
 	right: 30%;
@@ -287,7 +318,7 @@ async function Start() {
                 document.querySelector('.CopyTitle').insertAdjacentHTML('afterend', '<i class="FullCopyTitle fa-solid fa-expand"></i>');
                 document.querySelector('.FullCopyTitle').addEventListener("click", async function (e) {
                     e.preventDefault();
-                    e.target.style.setProperty("color", "Orange", "important");
+                    e.target.style.setProperty("color", "Orange", "important");                    
                     updateClipboard(FullCopyTitle);
                 });
                 OffSetArea = document.querySelector('article.article div.article-thumbnail');
@@ -335,7 +366,7 @@ async function Start() {
                 document.querySelector('.CopyTitle').insertAdjacentHTML('afterend', '<i class="FullCopyTitle fa-solid fa-expand"></i>');
                 document.querySelector('.FullCopyTitle').addEventListener("click", async function (e) {
                     e.preventDefault();
-                    e.target.style.setProperty("color", "Orange", "important");
+                    e.target.style.setProperty("color", "Orange", "important");                    
                     updateClipboard(FullCopyTitle);
                 });
             }
@@ -863,6 +894,10 @@ function GetTitle(parsedData) {
     console.log('최종 타이틀:', finalTitle);
     CopyTitle = FilenameConvert(nameCorrection(finalTitle));
     CopyTitle = mbConvertKana(CopyTitle, 'rans');
+    const copyTitle = document.querySelector('.CopyTitle')
+    const fullCopyTitle = document.querySelector('.FullCopyTitle')
+    copyTitle?.setAttribute('data-hover', CopyTitle)
+    fullCopyTitle?.setAttribute('data-hover', FullCopyTitle) 
     console.log('정리된 최종 타이틀', '\nCopyTitle: ' + CopyTitle, byteLengthOfCheck(CopyTitle), '\nFullCopyTitle: ' + FullCopyTitle, byteLengthOfCheck(FullCopyTitle));
 }
 

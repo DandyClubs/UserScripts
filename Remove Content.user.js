@@ -275,7 +275,7 @@ function processContent(node, selector, isExtra = false) {
                     localStorage.setItem(Title, AddDate)
                 }
                 else if (resolution <= 720 && localStorage.getItem(Title)) {
-                    console.log('Low resolution content removed:', resolution);
+                    console.log('Low resolution content removed:', resolution, Title);
                     item.closest(Active.removeTagSelector)?.remove();
                     continue;
                 }
