@@ -127,8 +127,9 @@ const LAST_TAGS_REGEX = /\s*\[[^\]]+\][^\[]*$/
 const TAGS_REGEX = /\[[^\]]+]/g
 
 const SearchID = /^【?([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)】?/
+const SearchFC2ID = /(^FC2.+\d{6})(.*)/
 const ChinaID = /([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})/i
-const JapaneseChar = /[ぁ-んァ-ン一-龯]/
+const JapaneseChar = /[ぁ-んァ-ン一-龯]/g
 const ExcludeChar = /[<\/:>*?"|\\]/g
 const SKIPMGSID = /(START)-/
 //YYYY-MM-DD or MM-DD-YYYY
@@ -289,7 +290,7 @@ async function Start() {
                 document.querySelector('.CopyTitle').insertAdjacentHTML('afterend', '<i class="FullCopyTitle fa-solid fa-expand"></i>');
                 document.querySelector('.FullCopyTitle').addEventListener("click", async function (e) {
                     e.preventDefault();
-                    e.target.style.setProperty("color", "Orange", "important");                    
+                    e.target.style.setProperty("color", "Orange", "important");
                     updateClipboard(FullCopyTitle);
                 });
                 OffSetArea = document.querySelector('article.article div.article-thumbnail');
@@ -337,7 +338,7 @@ async function Start() {
                 document.querySelector('.CopyTitle').insertAdjacentHTML('afterend', '<i class="FullCopyTitle fa-solid fa-expand"></i>');
                 document.querySelector('.FullCopyTitle').addEventListener("click", async function (e) {
                     e.preventDefault();
-                    e.target.style.setProperty("color", "Orange", "important");                    
+                    e.target.style.setProperty("color", "Orange", "important");
                     updateClipboard(FullCopyTitle);
                 });
             }
@@ -628,20 +629,32 @@ const SiteParsers = {
 
             // ID
             const IDSearch = SearchMatch(InfoArea, "Студийный код фильма\s?(:|：)?(.+)", "/\/|-/g, '.'");
-            const ID = IDSearch ? IDSearch.trim() : ''
+            let ID = IDSearch ? IDSearch.trim() : ''
+
             if (ID) {
                 titleText = titleText.replace(ID, '').replace(/\[\]/g, '').replace(/\(\)/g, '');
             }
-            let codeID = titleText.match(ChinaID)
+            let FC2ID = titleText.match(/FC2.+\d{6}/)
+            if (FC2ID?.length > 0 && FC2ID[0]) {
+                ID = FC2ID[0];
+                titleText = titleText.replace('-', ' ');
+                titleText = titleText.replace(/^FC2.+\s/, ' ');
+                maker = ''
+            }
+            let codeID
+            if(!ID){
+                codeID = titleText.match(ChinaID)            
+                if (codeID && codeID?.length > 0) {
+                    titleText = `${titleText.replace(codeID[0], '').replace(/\[\]/g, '').trim()}`;
+                    codeID = codeID[0];
+                }
+            }
+            
 
             titleText = titleText.replace(TAGS_REGEX, '').trim();
-            if (codeID && codeID?.length > 0) {
-                titleText = `${titleText.replace(codeID[0], '').replace(/\[\]/g, '').trim()}`;
-                codeID = codeID[0];
-            }
 
             const titleDB = titleText
-                .replace(/(\/.*?([а-яА-ЯЁё]).+?)?\[.*г.+?\]/, '')                
+                .replace(/(\/.*?([а-яА-ЯЁё]).+?)?\[.*г.+?\]/, '')
                 .replace(/\s?\/\s?\)$/, ')')
                 .replace(/\s?\/\s?$/, '')
                 .replace(/(\/)?([а-яА-ЯЁё]).+?(\/)?/giu, '')
@@ -651,7 +664,10 @@ const SiteParsers = {
                 .split(/\s/);
 
             if (JapaneseChar.test(InfoArea[0]) || chineseRegex.test(InfoArea[0])) {
-                if (byteLengthOfCheck(titleText) + byteLengthOfCheck(InfoArea[0]) <= 240) {
+                if (InfoArea[0].match(JapaneseChar)?.length >= 10) {
+                    titleText = InfoArea[0]
+                }
+                else if (byteLengthOfCheck(titleText) + byteLengthOfCheck(InfoArea[0]) <= 240) {
                     titleText = `${titleText}(${InfoArea[0]})`
                 }
             }
@@ -869,7 +885,7 @@ function GetTitle(parsedData) {
     const copyTitle = document.querySelector('.CopyTitle')
     const fullCopyTitle = document.querySelector('.FullCopyTitle')
     copyTitle?.setAttribute('title', CopyTitle)
-    fullCopyTitle?.setAttribute('title', FullCopyTitle) 
+    fullCopyTitle?.setAttribute('title', FullCopyTitle)
     console.log('정리된 최종 타이틀', '\nCopyTitle: ' + CopyTitle, byteLengthOfCheck(CopyTitle), '\nFullCopyTitle: ' + FullCopyTitle, byteLengthOfCheck(FullCopyTitle));
 }
 

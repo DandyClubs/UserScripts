@@ -93,7 +93,13 @@ const siteModules = [
         enabled: true,
         linkRegExp: /fastpic\.(?:ru|org)\/view/,
         imageURLRegExp: /src="(?<url>http[^"]+)" class="image img-fluid"/,
-        getURL: getURLFromPage,
+        getURL: (link, extractor) => { // 익명 함수로 변경
+            const headers = {
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "User-Agent": navigator.userAgent,
+            };
+            return getURLFromPage(link, extractor, { headers }); // headers 객체를 requestDetails에 추가
+        },
     },
     {
         id: 'fastpicDirect',
@@ -901,22 +907,30 @@ let openInTab = (url, openInBackground) => {
 }
 
 
-function GetOnline(url) {
-    let el = url;
-    console.log(el)
-
-    GM_xmlhttpRequest({
-        method: "GET",
-        url: el,
-        headers: { referer: el, origin: el },
-        responseType: 'text',
-        onload: function (resp) {
-            let container = document.implementation.createHTMLDocument().documentElement;
-            container.innerHTML = resp.responseText;
-            console.log(container.querySelector('img.image.img-fluid'))
-        }
+function GetOnline(details) {
+    return new Promise((resolve, reject) => {
+        GM_xmlhttpRequest({
+            method: "GET",
+            url: details.url,
+            headers: {
+                "User-Agent": navigator.userAgent, // 현재 브라우저의 User-Agent
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "Referer": details.url, // 이전 페이지 정보
+            },
+            responseType: 'text',
+            onload: function (resp) {
+                //let container = document.implementation.createHTMLDocument().documentElement;
+                //container.innerHTML = resp.responseText;
+                resolve(resp)
+            },
+            onerror: function (err) {
+                reject(err);
+            },
+            ontimeout: function (err) {
+                reject(err);
+            },
+        })
     })
-
 }
 
 async function getURLFromPage(link, extractor, requestDetails) {
@@ -929,6 +943,30 @@ async function getURLFromPage(link, extractor, requestDetails) {
     }
     return url;
 }
+
+
+// // 헤더 추가 코드 
+// async function NewgetURLFromPage(link, extractor, requestDetails = {}) {
+//     // headers가 없으면 기본값으로 설정
+//     const finalRequestDetails = {
+//         ...requestDetails,
+//         headers: {
+//             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+//             "User-Agent": navigator.userAgent,
+//             ...(requestDetails.headers || {}) // 기존 headers가 있다면 병합
+//         }
+//     };
+
+//     const html = await getPageHtml({ url: link.url, ...finalRequestDetails });
+//     const match = extractor.imageURLRegExp?.exec(html);
+//     let url = match ? (match.groups ? match.groups.url : match[1]) : null;
+//     if (!url) {
+//         console.error(`[Image Viewer] Failed to get URL from page source: ${link.url}`);
+//     }
+//     return url;
+// }
+
+
 
 
 async function getPageHtml(requestDetails) {
@@ -1060,7 +1098,7 @@ function expandAboveViewport(el) {
     const rect = el.getBoundingClientRect();
     if (rect.bottom < window.innerHeight) {
         triggerExpand(el, ExpandTag);
-    } else{
+    } else {
         ExpandTag.observe(el)
     }
 }
@@ -1247,7 +1285,7 @@ function observeViewerModal(viewer) {
                     startFullSizeProcessing();
                     if (/(rutracker\.org|pornolab\.net|trupornolabs.org)/.test(PageURL)) {
                         let AutoExpandTag = '.sp-head.folded.clickable:not(.unfolded)'
-                        Ex = [...document.querySelectorAll(AutoExpandTag)]
+                        let Ex = [...document.querySelectorAll(AutoExpandTag)]
                         Ex.forEach(el => {
                             ExpandTag.observe(el)
                             //expandAboveViewport(el)
