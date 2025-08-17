@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy
-// @version      2025.08.16
+// @version      2025.08.17
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.org/
@@ -2980,6 +2980,7 @@ function listToDo(areas, type = 'Default') {
         // Skip links with image children for certain hosts
         if (/(uploadgig\.com\/file\/download|alfafile\.net\/file)/.test(href)) {
             a.querySelector('img')?.remove()
+            a.textContent = a.href
         }
 
         // Normalize K2S URLs
