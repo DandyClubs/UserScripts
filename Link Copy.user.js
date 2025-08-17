@@ -1450,11 +1450,7 @@ const siteConfigs = [
 ];
 // 사이트별 특별 제목 처리 규칙을 정의하는 배열
 
-const siteRules = [
-    {
-        regex: /javarchive\.com\/\d{4,6}/,
-        handler: (title) => title.replace(/^\[4K\]/i, ''),
-    },
+const siteRules = [    
     {
         regex: /k2sporn\.com\/\d{4,6}/,
         handler: (title) => {
@@ -1787,7 +1783,7 @@ async function processCopyTitle(currentConfig) {
 
     CopyTitle = CopyTitle || copyOffsetArea?.textContent.trim() || '';
     if (/naughtyblog\.org/.test(PageURL) && /SITERIP|OnlyFans|Collection|Updates/i.test(CopyTitle)) {
-        CopyTitle = ''
+        CopyTitle = getDirectInnerText(copyOffsetArea)?.trim()
     }
 
     // 사이트별 특별 규칙 적용
@@ -1802,7 +1798,7 @@ async function processCopyTitle(currentConfig) {
 
 
     // 공통 제목 정리 로직
-    CopyTitle = CopyTitle.trim() || getDirectInnerText(copyOffsetArea)?.trim()
+    CopyTitle = CopyTitle
         .replace('–', '-')
         .replace('[KBJ]', '')
         .replace(/\s+/g, ' ')
@@ -2667,7 +2663,7 @@ async function CollectionLinks(DownloadArea) {
 
     // 2c) Skip links whose children are images (unless they pass your emoji/class test)
     if (!/models-nudeteen\.org|girlscanner\.org|avtv\./.test(PageURL)) {
-        links = links.filter(a =>            
+        links = links.filter(a =>
             ![...a.children].some(img => img.tagName === 'IMG' && !MatchRegexElement(img, /emoji/, 'class'))
         );
     }
@@ -2826,13 +2822,13 @@ async function CheckDB(listTo, fromStep) {
         console.log('isMatchFound:', isMatchFound, isMatchFound.length)
         if (minusElement) {
             // 매칭 여부에 따라 요소의 가시성을 설정합니다.
-            minusElement.style.visibility = isMatchFound.length > 0 ? 'visible' : 'hidden';            
+            minusElement.style.visibility = isMatchFound.length > 0 ? 'visible' : 'hidden';
         }
 
         // 매칭이 발견되었을 때만 AutoClose 로직을 실행합니다.
         if (isMatchFound.length > 0) {
             await sleep(5000)
-            const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));            
+            const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));
             console.log({ isAutoCloseEnabled, userClose })
             await sleep(1000)
             // AutoClose 변수와 localStorage 값을 모두 확인하여 실행합니다.
@@ -2982,7 +2978,7 @@ function listToDo(areas, type = 'Default') {
         // Skip filtering patterns
         if (SkipFilter.test(href)) continue;
         // Skip links with image children for certain hosts
-        if (/(uploadgig\.com\/file\/download|alfafile\.net\/file)/.test(href)){
+        if (/(uploadgig\.com\/file\/download|alfafile\.net\/file)/.test(href)) {
             a.querySelector('img')?.remove()
         }
 
