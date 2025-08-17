@@ -68,7 +68,7 @@
         /javarchive\.com\/\d{6}.*\.html/,
         /javfree\.me\/\d+/,
         /javpink\.com\/\?p=/,
-        /jpavs.net\/.+htm/,
+        /jpavs.net\/.+htm/,        
         /justjavhd\.com\/\d{4}\//,
         /k2sporn\.com\/\d+.*\.html/,
         /littlecaprice-dreams\.com\/project/,
@@ -131,6 +131,7 @@
         { site: /bo_table=(AVSubs_E|AVSubs_M|AVSubs_S|AVSubs_C)/, c: el => /bo_table=(AVSubs_E|AVSubs_M|AVSubs_S|AVSubs_C)&wr_id/.test(el.href), a: 'NEW_TAB' },
         { site: /eyny\.com/, c: el => /圖片模式/.test(el.textContent), a: 'SAME_TAB' },
         { site: /porndude\.tv/, c: el => el.closest('article.movie-item'), a: 'NEW_TAB' },
+        { site: /xchina\.co/, c: el => el.closest('div.list div.item'), a: 'NEW_TAB' },
         { site: /thotsbay|cyberleaks/, c: el => el.parentElement.classList.contains('structItem-title'), a: 'NEW_TAB' },
         { site: /theleaksbay\.com/, c: el => el.classList.contains('image-link'), a: 'NEW_TAB' },
         { site: /xxx-sharing\.net/, c: el => el.getAttribute('id')?.match(/thread_title/), a: 'NEW_TAB' },
@@ -172,13 +173,13 @@
             /post-thumbnail/,
             /post-title/,
             /post_category/,
-            /post_thumb_top/,
+            /post_thumb_top/,            
             /short-title/,
             /structItem-iconContainer/,
             /td-image-wrap/,
             /topnews-x/,
             /thumbnail-link/,
-            /thumbnail/,
+            /thumbnail/,            
         ]
     };
 
