@@ -1337,7 +1337,7 @@ const siteConfigs = [
         condition: () => window.top === window.self,
         config: {
             copyOffsetAreaSelector: '.post-single h2.title',
-            downloadAreaSelector: 'div.post-single.hentry div.entry p',
+            downloadAreaSelector: 'div.post-single.hentry:first-child div.entry p',
             postProcess: (config) => {
                 copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
                 DownloadArea = document.querySelectorAll(config.downloadAreaSelector);
