@@ -1121,18 +1121,18 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
             if ('foamgirl.net' === RootDomain) {
                 modHeader = {
                     'Referer': PageURL,
-                    'Origin': new URL(PageURL).origin
+                    //'Origin': new URL(PageURL).origin
                 }
 
             } else if ('everia.club' === RootDomain) {
                 modHeader = {
                     'Referer': meta.P,
-                    'Origin': new URL(meta.P).origin
+                    //'Origin': new URL(meta.P).origin
                 }
             }else{
                 modHeader = {
                     'Referer': PageURL,
-                    'Origin': new URL(PageURL).origin
+                    //'Origin': new URL(PageURL).origin
                 }
             }
 

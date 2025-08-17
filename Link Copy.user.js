@@ -2325,6 +2325,7 @@ async function SecondProcess() {
                 const SkipTitle = [];
                 AllowDirect = false;
                 if (DownloadArea?.length) {
+                    userClose = JSON.parse(localStorage.getItem('AutoClose'))
                     CopyGo(SkipTitle);
                 }
             })
@@ -2666,8 +2667,7 @@ async function CollectionLinks(DownloadArea) {
 
     // 2c) Skip links whose children are images (unless they pass your emoji/class test)
     if (!/models-nudeteen\.org|girlscanner\.org|avtv\./.test(PageURL)) {
-        links = links.filter(a =>
-            !/uploadgig\.com\/file\/download|alfafile\.net\/file/.test(a.href) &&
+        links = links.filter(a =>            
             ![...a.children].some(img => img.tagName === 'IMG' && !MatchRegexElement(img, /emoji/, 'class'))
         );
     }
@@ -2826,13 +2826,13 @@ async function CheckDB(listTo, fromStep) {
         console.log('isMatchFound:', isMatchFound, isMatchFound.length)
         if (minusElement) {
             // 매칭 여부에 따라 요소의 가시성을 설정합니다.
-            minusElement.style.visibility = isMatchFound.length > 0 ? 'visible' : 'hidden';
+            minusElement.style.visibility = isMatchFound.length > 0 ? 'visible' : 'hidden';            
         }
 
         // 매칭이 발견되었을 때만 AutoClose 로직을 실행합니다.
         if (isMatchFound.length > 0) {
             await sleep(5000)
-            const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));
+            const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));            
             console.log({ isAutoCloseEnabled, userClose })
             await sleep(1000)
             // AutoClose 변수와 localStorage 값을 모두 확인하여 실행합니다.
@@ -2982,10 +2982,9 @@ function listToDo(areas, type = 'Default') {
         // Skip filtering patterns
         if (SkipFilter.test(href)) continue;
         // Skip links with image children for certain hosts
-        if (
-            !/(uploadgig\.com\/file\/download|alfafile\.net\/file)/.test(href) &&
-            a.querySelector('img')
-        ) continue;
+        if (/(uploadgig\.com\/file\/download|alfafile\.net\/file)/.test(href)){
+            a.querySelector('img')?.remove()
+        }
 
         // Normalize K2S URLs
         let target = href;
