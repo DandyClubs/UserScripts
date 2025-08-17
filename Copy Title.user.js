@@ -561,6 +561,7 @@ const SiteParsers = {
                 .replace(/часть|Часть/g, 'Part')
                 .replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3')
                 .replace(/обновление от|Обновление|Обновлено/, 'UPDATE')
+                .replace(/эпизодов|эпизод/, 'episode')
                 .trim();
 
             const extractText = titleText.match(/\([\w,\s]*\)/g) || []
