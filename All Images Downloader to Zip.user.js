@@ -575,7 +575,7 @@ async function Xfetch(url, fetchInit = {}) {
         });
     } else {
         // Streaming supported
-        console.log('Streaming Supported!')
+        //console.log('Streaming Supported!')
         return new Promise((resolve, reject) => {
             const responsePromise = new Promise((res, rej) => {
                 GM_xmlhttpRequest({
@@ -590,10 +590,7 @@ async function Xfetch(url, fetchInit = {}) {
             });
 
             if (signal) {
-                signal.addEventListener('abort', () => {
-                    if (readableStream && typeof readableStream.cancel === 'function') {
-                        readableStream.cancel(); // 스트림 닫기
-                    }                        
+                signal.addEventListener('abort', () => {                    
                     reject(new Error('Request aborted'));
                 }, { once: true })
             };
