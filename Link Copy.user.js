@@ -606,7 +606,9 @@ const siteConfigs = [
             postProcess: async (config) => {
 
                 copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
+                if (!copyOffsetArea) return;
                 DownloadArea = document.querySelectorAll('div#download, div#downloadhidden, div.DownloadArea');
+                
                 makeSearch()
 
                 //Extracting Text Before Each <br> and the Last Line
