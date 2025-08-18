@@ -1718,6 +1718,7 @@ async function Start() {
 
     if (currentConfig) {
 
+        
         // Step 1: `postProcess`에서 동적 셀렉터를 설정할 경우를 대비해 먼저 실행
         if (currentConfig.postProcess) {
             currentConfig.postProcess(currentConfig)
@@ -2985,7 +2986,7 @@ function listToDo(areas, type = 'Default') {
             if (image) {
                 image?.remove()
                 a.textContent = 'Download'
-                a.style.cssText += `
+                a.parentElement.style.cssText += `
                                     white-space: nowrap;
                                     overflow: hidden;
                                     text-overflow: ellipsis;
