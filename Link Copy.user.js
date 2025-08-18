@@ -608,7 +608,7 @@ const siteConfigs = [
                 copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
                 if (!copyOffsetArea) return;
                 DownloadArea = document.querySelectorAll('div#download, div#downloadhidden, div.DownloadArea');
-                
+
                 makeSearch()
 
                 //Extracting Text Before Each <br> and the Last Line
@@ -1452,7 +1452,7 @@ const siteConfigs = [
 ];
 // 사이트별 특별 제목 처리 규칙을 정의하는 배열
 
-const siteRules = [    
+const siteRules = [
     {
         regex: /k2sporn\.com\/\d{4,6}/,
         handler: (title) => {
@@ -2981,8 +2981,17 @@ function listToDo(areas, type = 'Default') {
         if (SkipFilter.test(href)) continue;
         // Skip links with image children for certain hosts
         if (/(uploadgig\.com\/file\/download|alfafile\.net\/file)/.test(href)) {
-            a.querySelector('img')?.remove()
-            a.textContent = a.href
+            const image = a.querySelector('img')
+            if (image) {
+                image?.remove()
+                a.textContent = 'Download'
+                a.style.cssText += `
+                                    white-space: nowrap;
+                                    overflow: hidden;
+                                    text-overflow: ellipsis;
+                                    `
+            }
+
         }
 
         // Normalize K2S URLs
