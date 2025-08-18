@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         AutoClick
-// @version      2025.08.11
+// @version      2025.08.18
 // @description  This automatically clicks
 // @author       DandyClubs
 // @include      /^https?:\/\/(cosplayjav|nylons)\.pl\/(download|thumbnails)\/\?forPost=.*$/
@@ -18,6 +18,7 @@
 // @include      https://themezon.net/*
 // @include      https://shrinkme.*/*
 // @include      https://bestgirlsexy.com/*
+// @include      https://en.mrproblogger.com/*
 // @run-at       document-start
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
@@ -143,7 +144,14 @@ const observer = new MutationObserver(async function (mutations) {
 
             // Add a single message event listener
             window.addEventListener('message', function (e) {
-                if (!/terabox\.com|1024tera\.com|terabox\.app/.test(e.origin)) return;
+                if (!/terabox\.com|1024tera\.com|terabox\.app|en\.mrproblogger\.com/.test(e.origin)) return;
+
+                if (e.data.code && Link) {
+                    const shortcode = new URL(Link).pathname
+                    if (shortcode !== e.data.code) {
+                        childWindow.postMessage({ link: Link }, e.origin);
+                    }
+                }
 
                 if (e.data.Q && childWindow) {
                     childWindow.postMessage({ A: parentWindow }, e.origin);
@@ -199,7 +207,7 @@ function UpdateJobList() {
     // get all keys except 'JobList'
     const jobKeys = GM_listValues().filter(e => e !== 'JobList');
 
-    
+
     // Save the updated list back, as a JSON string
     GM_setValue('JobList', jobKeys.length ? jobKeys : []);
     // Update the global variable if needed    
@@ -329,6 +337,22 @@ async function Start() {
             }, 500);
             break;
 
+        case "en.mrproblogger.com": {
+            const code = new URL(PageURL).pathname
+            if (window.opener) {
+                window.opener.postMessage(
+                    { code: code },
+                    'https://allasiangirls.net'
+                );
+                window.addEventListener('message', function (e) {
+                    if (e.data.link) {
+                        location.href = e.data.link;
+                    }
+                })
+            }
+            break;
+        }
+
         case "allasiangirls.net": {
             AutoClick = localStorage.getItem('AutoClick');
             MakeIcon();
@@ -381,7 +405,7 @@ async function Start() {
                     link.setAttribute('href', cachedData.U);
                     Reset(link, oldHref, cachedData.T);
                 }
-                await sleep(getRandomIntInclusive(10,200)*10)
+                await sleep(getRandomIntInclusive(0, 500) * 10)
                 childWindow = window.open(link.href, title);
 
                 window.addEventListener('beforeunload', () => {
@@ -399,13 +423,13 @@ async function Start() {
 
         case "terabox.com":
         case "1024tera.com":
-        case "terabox.app":        
+        case "terabox.app":
             window.addEventListener('beforeunload', () => UpdateJobList());
             observer.observe(document, config);
             break;
         case "themezon.net":
             observer.observe(document, config);
-            break;  
+            break;
         case "sehuatang.net":
             setTimeout(() => {
                 document.querySelector('body > a.enter-btn')?.click();
