@@ -55,8 +55,7 @@ GM_addStyle(`
     color: dodgerblue !important;
     text-shadow: 1px 1px 1px red, 0 0 2px blue, 0 0 1px black;
     margin: .5em;
-    position: relative;
-    border-bottom: 1px dotted black;
+    position: relative;    
 }
 
 .CenterBox {
@@ -78,8 +77,7 @@ GM_addStyle(`
 }
 
 .CenterBox i {
-    flex-basis: auto;
-    padding: .25rem;
+    flex-basis: auto;    
     cursor: pointer;
 }
 
@@ -344,7 +342,7 @@ async function Start() {
             }
         },
         'pornolab.net': {
-            titleSelector: '.maintitle a#topic-title',
+            titleSelector: '.maintitle',
             infoSelector: 'div.post-user-message',
             //infoProcessor: (element) => element.innerHTML.replace(/<br>{2}/gm, '<br>').split(/<br>/).map((value) => removeHTML(value).replace(/\n/, '').replace(/ч(\.\d+)/, 'Part$1').trim())
         }
