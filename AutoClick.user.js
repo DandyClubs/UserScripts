@@ -138,15 +138,15 @@ const observer = new MutationObserver(async function (mutations) {
 
                 if (AutoClick == 1) {
                     await sleep(getRandomIntInclusive(10, 200) * 10)
-                    const width = '1280';
-                    const height = '960';
+                    // const width = '1280';
+                    // const height = '960';
 
-                    // 팝업을 가운데 위치시키기 위해 아래와 같이 값 구하기
-                    const left = Math.ceil((window.screen.width - width) / 2);
-                    const top = Math.ceil((window.screen.height - height) / 2);
-                    const strOption = `width=${width}, height=${height}, top=${top}, left=${left}, location=no, menubar=no, resizable=no, scrollbars=yes, status=no, toolbar=no`;
+                    // // 팝업을 가운데 위치시키기 위해 아래와 같이 값 구하기
+                    // const left = Math.ceil((window.screen.width - width) / 2);
+                    // const top = Math.ceil((window.screen.height - height) / 2);
+                    // const strOption = `width=${width}, height=${height}, top=${top}, left=${left}, location=no, menubar=no, resizable=no, scrollbars=yes, status=no, toolbar=no`;
                     const popupName = document.querySelector('body.single.single-post div.page-title div.page-title-inner.container div .entry-title').innerText.replace(/\s/g, '')
-                    childWindow = window.open(PopUp, popupName, strOption);
+                    childWindow = window.open(PopUp, popupName);
                 }
             }
 
@@ -369,15 +369,15 @@ async function Start() {
 
             clickBtn.addEventListener('click', e => {
                 e.preventDefault();
-                const width = '1280';
-                const height = '960';
+                // const width = '1280';
+                // const height = '960';
 
-                // 팝업을 가운데 위치시키기 위해 아래와 같이 값 구하기
-                const left = Math.ceil((window.screen.width - width) / 2);
-                const top = Math.ceil((window.screen.height - height) / 2);
-                const strOption = `width=${width}, height=${height}, top=${top}, left=${left}, location=no, menubar=no, resizable=no, scrollbars=yes, status=no, toolbar=no`;
+                // // 팝업을 가운데 위치시키기 위해 아래와 같이 값 구하기
+                // const left = Math.ceil((window.screen.width - width) / 2);
+                // const top = Math.ceil((window.screen.height - height) / 2);
+                // const strOption = `width=${width}, height=${height}, top=${top}, left=${left}, location=no, menubar=no, resizable=no, scrollbars=yes, status=no, toolbar=no`;
                 const title = document.querySelector(titleSelector)?.innerText || "";
-                childWindow = window.open(clickBtn.href, title, strOption);
+                childWindow = window.open(clickBtn.href, title);
             });
 
             observer.observe(document, config);
@@ -422,14 +422,14 @@ async function Start() {
                 }
                 await sleep(getRandomIntInclusive(0, 500) * 10)
                 e.preventDefault();
-                const width = '1280';
-                const height = '960';
+                // const width = '1280';
+                // const height = '960';
 
-                // 팝업을 가운데 위치시키기 위해 아래와 같이 값 구하기
-                const left = Math.ceil((window.screen.width - width) / 2);
-                const top = Math.ceil((window.screen.height - height) / 2);
-                const strOption = `width=${width}, height=${height}, top=${top}, left=${left}, location=no, menubar=no, resizable=no, scrollbars=yes, status=no, toolbar=no`;
-                childWindow = window.open(link.href, title, strOption);
+                // // 팝업을 가운데 위치시키기 위해 아래와 같이 값 구하기
+                // const left = Math.ceil((window.screen.width - width) / 2);
+                // const top = Math.ceil((window.screen.height - height) / 2);
+                // const strOption = `width=${width}, height=${height}, top=${top}, left=${left}, location=no, menubar=no, resizable=no, scrollbars=yes, status=no, toolbar=no`;
+                childWindow = window.open(link.href, title);
 
                 window.addEventListener('beforeunload', () => {
                     if (childWindow && !childWindow.closed) {
