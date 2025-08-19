@@ -175,8 +175,9 @@ const siteRules = [
         priority: ['3840', '1920', '1280', '720'],
         coverImage: '',
         useResolution: true,
-        getTitleRegex: /影片名稱[】]?\s?[:：]?\s*(.+)/i,
-        passwordRegex: /解壓密碼[】：]?(.+?)\s*(.+)/,
+        getTitleRegex: /(?<=影片名稱】[：:])(.*?)(?=(?:【影片大小.*$)?(?:$))/m,
+        getTitleMatchPoint: 0,
+        passwordRegex: /解壓密碼】[：:]?(.*?)\s*(.+)/,
         breakPoint: ['需要存取權'],
     },
 ]
@@ -520,8 +521,8 @@ async function CopyItems() {
     if (rule) {
         analyzePage(rule).then(results => {                        
             for (const x of results) {
-                console.log('current Object: ', x)
-                const title = byteLengthOfCheck(x.title) > 241 ? byteLengthOf(x.title, 241).trim() : x.title
+                console.log('current Object: ', x)                
+                const title = byteLengthOfCheck(x.title) > 241 ? byteLengthOf(x.title, 241).trim() : x.title                    
                 noticeText += title + "\n";
                 for (const currentlink of x.links) {
                     
