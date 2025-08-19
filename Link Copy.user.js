@@ -1564,7 +1564,7 @@ const siteRules = [
                         const cleandedNewTitle = newTitle.replace(newID, '').trim()
                         rebuildedText = `${rawID || newID} ${compareJapaneseCharacters(cleandedRawTitle, cleandedNewTitle)}`;
                         const Maker = /^\[.*?\]\s/.exec(rebuildedText) || /^\[.*?\]\s/.exec(newTitle)
-                        if (Maker.length) {
+                        if (Maker?.length) {
                             rebuildedText = Maker + rebuildedText.replace(Maker[0], '')
                         }
                         copyOffsetArea.textContent = rebuildedText.trim()

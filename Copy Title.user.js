@@ -525,7 +525,7 @@ const padZero = (num, length) => {
 
 const formatSentences = s => {
     const [first, ...rest] = s.split('/').map(t => t.trim()).filter(Boolean);
-    return rest.length ? `${first} (${rest.join(' ')})` : first;
+    return rest.length ? `${first}[${rest.join(' ')}]` : first;
 };
 
 
@@ -617,7 +617,7 @@ const SiteParsers = {
                 const makerMatch = /^\[(.*?)\]/.exec(titleText);
                 if (makerMatch && makerMatch.length) {
                     titleText = titleText.replace(makerMatch[0], '');
-                    maker = makerMatch[1]?.replace(/(\/|\.(com|net)).*/, '').trim();
+                    maker = formatSentences(makerMatch[1])?.replace(/(\.(com|net))/gi, '').trim();
                 }
             } else {
                 const makerSearch = SearchMatch(InfoArea, "(Выпущено|Подсайт и сайт|Разработчик/Издатель)\s?(:|：)?(.+)");
