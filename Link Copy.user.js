@@ -1544,8 +1544,7 @@ const siteRules = [
             console.log({ needsFilenameFetch })
 
             const rawIDMatch = SearchIDRegExp.exec(rawTitle) || ''
-            const rawID = rawIDMatch ? (rawIDMatch.groups ? rawIDMatch.groups[1] : rawIDMatch[1]) : '';
-
+            const rawID = rawIDMatch ? (rawIDMatch.groups ? rawIDMatch.groups[1] : rawIDMatch[1]) : '';            
             if (needsFilenameFetch) {
                 try {
                     const service = /katfile/.test(GetFileNameLink)
@@ -1564,6 +1563,10 @@ const siteRules = [
                         const cleandedRawTitle = rawTitle.replace(rawID, '').trim()
                         const cleandedNewTitle = newTitle.replace(newID, '').trim()
                         rebuildedText = `${rawID || newID} ${compareJapaneseCharacters(cleandedRawTitle, cleandedNewTitle)}`;
+                        const Maker = /^\[.*?\]\s/.exec(rebuildedText) || /^\[.*?\]\s/.exec(newTitle)
+                        if (Maker.length) {
+                            rebuildedText = Maker + rebuildedText.replace(Maker[0], '')
+                        }
                         copyOffsetArea.textContent = rebuildedText.trim()
                         console.log('Rebuilded Text:', rebuildedText)
                     }
