@@ -138,7 +138,15 @@ const observer = new MutationObserver(async function (mutations) {
 
                 if (AutoClick == 1) {
                     await sleep(getRandomIntInclusive(10, 200) * 10)
-                    childWindow = window.open(PopUp, document.querySelector('body.single.single-post div.page-title div.page-title-inner.container div .entry-title').innerText.replace(/\s/g, ''));
+                    const width = '1280';
+                    const height = '960';
+
+                    // 팝업을 가운데 위치시키기 위해 아래와 같이 값 구하기
+                    const left = Math.ceil((window.screen.width - width) / 2);
+                    const top = Math.ceil((window.screen.height - height) / 2);
+                    const strOption = `width=${width}, height=${height}, top=${top}, left=${left}, location=no, menubar=no, resizable=no, scrollbars=yes, status=no, toolbar=no`;
+                    const popupName = document.querySelector('body.single.single-post div.page-title div.page-title-inner.container div .entry-title').innerText.replace(/\s/g, '')
+                    childWindow = window.open(PopUp, popupName, strOption);
                 }
             }
 
@@ -361,8 +369,15 @@ async function Start() {
 
             clickBtn.addEventListener('click', e => {
                 e.preventDefault();
+                const width = '1280';
+                const height = '960';
+
+                // 팝업을 가운데 위치시키기 위해 아래와 같이 값 구하기
+                const left = Math.ceil((window.screen.width - width) / 2);
+                const top = Math.ceil((window.screen.height - height) / 2);
+                const strOption = `width=${width}, height=${height}, top=${top}, left=${left}, location=no, menubar=no, resizable=no, scrollbars=yes, status=no, toolbar=no`;
                 const title = document.querySelector(titleSelector)?.innerText || "";
-                childWindow = window.open(clickBtn.href, title);
+                childWindow = window.open(clickBtn.href, title, strOption);
             });
 
             observer.observe(document, config);
@@ -406,7 +421,15 @@ async function Start() {
                     Reset(link, oldHref, cachedData.T);
                 }
                 await sleep(getRandomIntInclusive(0, 500) * 10)
-                childWindow = window.open(link.href, title);
+                e.preventDefault();
+                const width = '1280';
+                const height = '960';
+
+                // 팝업을 가운데 위치시키기 위해 아래와 같이 값 구하기
+                const left = Math.ceil((window.screen.width - width) / 2);
+                const top = Math.ceil((window.screen.height - height) / 2);
+                const strOption = `width=${width}, height=${height}, top=${top}, left=${left}, location=no, menubar=no, resizable=no, scrollbars=yes, status=no, toolbar=no`;
+                childWindow = window.open(link.href, title, strOption);
 
                 window.addEventListener('beforeunload', () => {
                     if (childWindow && !childWindow.closed) {
