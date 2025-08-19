@@ -122,7 +122,7 @@ FC2(-)?PPV
 `;
 
 const LAST_TAGS_REGEX = /\s*\[[^\]]+\][^\[]*$/
-const TAGS_REGEX = /\[[^\]]+]/g
+const TAGS_REGEX = /\[[^\]]+]|\(,.*?[\)\]]/g
 
 const SearchID = /^【?([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)】?/
 const SearchFC2ID = /(^FC2.+\d{6})(.*)/
