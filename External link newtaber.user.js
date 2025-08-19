@@ -4,7 +4,7 @@
 // @description     Fully refactored with a rule pipeline for maximum clarity and maintainability.
 // @icon            https://cdn1.iconfinder.com/data/icons/feather-2/24/external-link-32.png
 // @icon64          https://cdn1.iconfinder.com/data/icons/feather-2/24/external-link-128.png
-// @run-at          document-start
+// @run-at          document-body
 // @include         *
 // @exclude         /qqupload.com/
 // @exclude         /drive.google.com/
