@@ -93,7 +93,7 @@
         imgElement.dataset.retryCount = imgElement.dataset.retryCount ? parseInt(imgElement.dataset.retryCount) : 0;
 
         retryQueue.push({ imgElement });
-        console.log(`[ImageRetry] 큐에 이미지 추가됨: ${imgElement}`);
+        console.log(`[ImageRetry] 큐에 이미지 추가됨: `, imgElement);
 
         if (!isProcessing) {
             processQueue();
@@ -116,7 +116,7 @@
         let retryCount = parseInt(imgElement.dataset.retryCount);
 
         if (retryCount >= MAX_RETRY_COUNT) {
-            console.warn(`[ImageRetry] 최대 재시도 횟수 초과: ${imgElement}`);
+            console.warn(`[ImageRetry] 최대 재시도 횟수 초과: `, imgElement);
             return;
         }
 
@@ -124,14 +124,14 @@
         const imgElementSrc = imgElement.getAttribute('src');
         const exists = await checkImageExistenceWithGM(imgElement.getAttribute('src'));
         if (!exists) {
-            console.log(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${imgElement}`);
+            console.log(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: `, imgElement);
             return;
         }
 
         imgElement.dataset.retryCount = ++retryCount;
         imgElement.onerror = null;
         imgElement.setAttribute('src', imgElementSrc)
-        console.log(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): ${imgElement}`);
+        console.log(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement );
 
         imgElement.onerror = function () {
             enqueueFailedImage(this);

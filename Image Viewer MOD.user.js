@@ -1396,8 +1396,7 @@ const image = {
 
         if (imageURL) {
             link.dataset.ivImgUrl = imageURL
-            link.classList.add('ViewerGallery')
-            viewer.update()
+            link.classList.add('ViewerGallery')            
             return imageURL
         }
 
