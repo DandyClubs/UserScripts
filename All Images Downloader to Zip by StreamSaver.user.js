@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         All Images Downloader to Zip by File System Access
+// @name         All Images Downloader to Zip
 // @namespace    nature grew
-// @version      2025.08.19
+// @version      2025.08.15
 // @description  All Images Downloader to Zip
 // @author       DandyClubs
 // @include      /everia\.club\//
@@ -13,6 +13,7 @@
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
 // @require      https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.min.js
+// @require      https://cdn.jsdelivr.net/npm/streamsaver@2.0.6/StreamSaver.min.js
 // @grant		 GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setClipboard
@@ -106,61 +107,6 @@ let AllCount = 0
 let errorCount = 0
 let addCount = 0
 
-class FileHandleDB {
-    constructor() {
-        this.dbName = 'AllImagesFileHandleDB';
-        this.storeName = 'FileHandleStore';
-        this.db = null;
-    }
-
-    async init() {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.dbName, 1);
-
-            request.onupgradeneeded = (e) => {
-                const db = e.target.result;
-                db.createObjectStore(this.storeName);
-            };
-
-            request.onsuccess = (e) => {
-                this.db = e.target.result;
-                resolve();
-            };
-
-            request.onerror = (e) => reject(e.target.error);
-        });
-    }
-
-    async setHandle(key, handle) {
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction(this.storeName, 'readwrite');
-            const store = tx.objectStore(this.storeName);
-            const request = store.put(handle, key);
-            tx.oncomplete = () => resolve();
-            tx.onerror = () => reject(tx.error);
-        });
-    }
-
-    async getHandle(key) {
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction(this.storeName, 'readonly');
-            const store = tx.objectStore(this.storeName);
-            const request = store.get(key);
-            tx.oncomplete = () => resolve(request.result);
-            tx.onerror = () => reject(tx.error);
-        });
-    }
-
-    async deleteHandle(key) {
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction(this.storeName, 'readwrite');
-            const store = tx.objectStore(this.storeName);
-            const request = store.delete(key);
-            tx.oncomplete = () => resolve();
-            tx.onerror = () => reject(tx.error);
-        });
-    }
-}
 
 class JobQueueDB {
     constructor() {
@@ -212,8 +158,6 @@ class JobQueueDB {
     }
 }
 
-// 파일 핸들을 관리하는 인스턴스
-const fileHandleDB = new FileHandleDB();
 
 const jobDB = new JobQueueDB();
 
@@ -225,7 +169,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     FontAwesomeCSS();
     MakeIcon();
     AddDBResetButton()
-    await fileHandleDB.init()
+
     await jobDB.init();
 
     bc.onmessage = (e) => {
@@ -560,7 +504,7 @@ async function Xfetch(url, fetchInit = {}) {
     const { headers, method, signal } = { ...defaultFetchInit, ...fetchInit };
     const isStreamSupported = GM_xmlhttpRequest?.RESPONSE_TYPE_STREAM;
     const HEADERS_RECEIVED = 2;
-    
+
     // Utility to parse raw response headers string into an object
     function parseHeaders(rawHeaders) {
         const headers = {};
@@ -646,7 +590,7 @@ async function Xfetch(url, fetchInit = {}) {
             });
 
             if (signal) {
-                signal.addEventListener('abort', () => {                    
+                signal.addEventListener('abort', () => {
                     reject(new Error('Request aborted'));
                 }, { once: true })
             };
@@ -928,11 +872,8 @@ async function secondStep(Title) {
 
     console.log('DownloadImagesDB: ', DownloadImagesDB)
 
-    document.querySelector('.DownButton').addEventListener('click', async e => {
+    document.querySelector('.DownButton').addEventListener('click', e => {
         e.preventDefault();
-        // File System Access API 사용을 위해 사용자 상호작용이 필요한 함수를 호출
-        await window.showSaveFilePicker()
-        await fileHandleDB.deleteHandle(ArchivesFileName);
         navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, async () => {
             await downloadPhotosWithRetry(DownloadImagesDB);
         });
@@ -1092,7 +1033,11 @@ async function downloadPhotosWithRetry(DownloadImagesDB) {
                 console.error("⛔ 치명적 오류:", fatalErr);
                 AutoClose = false
             }
+            // IndexedDB 임시 데이터 제거 (streamSaver 버퍼 제거)
 
+            if (typeof cleanupStreamSaverTempFiles === 'function') {
+                await cleanupStreamSaverTempFiles();
+            }
             break;
         }
     }
@@ -1125,80 +1070,35 @@ async function downloadPhotosWithRetry(DownloadImagesDB) {
     downloadedFiles.clear()
 }
 
-/**
- * File System Access API를 사용하여 사진을 다운로드하고 ZIP으로 압축합니다.
- * @param {Array<object>} DB - 다운로드할 이미지 메타데이터 배열
- * @param {AbortSignal} userSignal - 사용자 중단 신호
- * @param {boolean} isRetry - 재시도 여부
- * @returns {Promise<object>}
- */
+
 async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
     injectGraphicProgressLayer();
-
+    let failed = [];
     const zip = new fflate.Zip();
     addCount = 0;
-    let failed = [];
+    // streamSaver에도 사용자 취소 신호 전달
+    const fileStream = streamSaver.createWriteStream(ArchivesFileName, { signal: userSignal });
 
-    // 1. 파일 핸들 획득 (IndexedDB에서 재사용하거나 새로 요청)
-    let fileHandle = await fileHandleDB.getHandle(ArchivesFileName);
-    if (!fileHandle) {
-        // 핸들이 없으면 사용자에게 파일 선택 창을 띄웁니다.
-        console.log("📝 파일 핸들 요청");
-        try {
-            fileHandle = await window.showSaveFilePicker({
-                suggestedName: ArchivesFileName,
-                types: [{
-                    description: 'ZIP 파일',
-                    accept: { 'application/zip': ['.zip'] },
-                }],
-            });
-            // 획득한 핸들을 IndexedDB에 저장합니다.
-            await fileHandleDB.setHandle(ArchivesFileName, fileHandle);
-        } catch (err) {
-            console.error('❌ 파일 선택 취소 또는 오류:', err);
-            throw new Error('User canceled file selection or an error occurred.', { cause: err });
-        }
-    }
-
-    // 2. WritableStream 생성
-    let writableStream;
-    try {
-        writableStream = await fileHandle.createWritable();
-    } catch (err) {
-        console.error('❌ WritableStream 생성 실패:', err);
-        // 저장된 핸들 무효화
-        await fileHandleDB.deleteHandle(ArchivesFileName);
-        // 사용자에게 재시도하라는 메시지를 표시하고, 오류를 다시 던져서 다운로드 프로세스를 중단합니다.
-        alert('저장 권한이 만료되었습니다. 다시 시도해 주세요.');
-        throw new Error('Stored file handle is invalid. Download aborted.', { cause: err });
-    }
-
-    // 3. ReadableStream 생성 및 WritableStream으로 연결
     const rs = new ReadableStream({
         start(controller) {
             zip.ondata = (err, chunk, final) => {
-                if (err) {
-                    controller.error(err);
-                    return;
-                }
+                if (err) return controller.error(err);
                 controller.enqueue(chunk);
-                if (final) {
-                    controller.close();
-                }
+                if (final) controller.close();
             };
         }
     });
 
-    // WritableStream에 스트림 파이핑. pipeTo가 Promise를 반환하므로 await를 사용
-    const pipePromise = rs.pipeTo(writableStream).catch(err => {
+    const pipePromise = rs.pipeTo(fileStream).catch(err => {
         if (err.name !== 'AbortError') {
             console.error("❌ 저장 스트림 오류", err);
         }
         throw err;
     });
 
-    // 4. 이미지 다운로드 및 ZIP 스트림에 추가
     for (const meta of DB) {
+
+        // 루프 시작 시 사용자 취소 신호 확인
         if (userSignal.aborted) {
             zip.terminate();
             break;
@@ -1209,22 +1109,38 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
         const activityController = activityTimeoutSignal(30000);
 
         try {
+            // 사용자 취소 신호와 활동 감지 타임아웃 신호를 결합
             const combinedSignal = AbortSignal.any([userSignal, activityController.signal]);
-            let modHeader;
+
+
+            const usefoamgirl = 'foamgirl.net' === RootDomain;
+            let modHeader
             if ('foamgirl.net' === RootDomain) {
-                modHeader = { 'Referer': PageURL };
+                modHeader = {
+                    'Referer': PageURL,
+                    //'Origin': new URL(PageURL).origin
+                }
+
             } else if ('everia.club' === RootDomain) {
-                modHeader = { 'Referer': meta.P };
+                modHeader = {
+                    'Referer': meta.P,
+                    //'Origin': new URL(meta.P).origin
+                }
             } else {
-                modHeader = { 'Referer': PageURL };
+                modHeader = {
+                    'Referer': PageURL,
+                    //'Origin': new URL(PageURL).origin
+                }
             }
 
-            const response = await Xfetch(meta.P, {
-                headers: modHeader,
-                signal: combinedSignal,
-            });
+            const response = await Xfetch(meta.P,
+                {
+                    headers: modHeader,
+                    signal: combinedSignal,
+                });
 
             if (!response.ok) {
+                // Xfetch에서 이미 오류를 처리했지만, 혹시 모를 경우를 대비
                 throw new Error(`HTTP ${response.status} or empty response`);
             }
 
@@ -1234,38 +1150,46 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
 
             const reader = response.body.getReader();
             while (true) {
+                // 데이터를 읽을 때마다 활동 타임아웃을 재설정
                 const { value, done } = await reader.read();
                 if (done) break;
+
+                // 데이터 수신 시 타임아웃 재설정
                 activityController.resetTimeout();
                 file.push(value);
             }
             file.push(new Uint8Array(0), true);
 
+            // 다운로드 완료 시 타임아웃 정리
             activityController.clearTimeout();
+
             addCount++;
             updateProgressUI(addCount, DB.length);
-
         } catch (err) {
+            // 사용자 취소 신호인 경우에만 루프를 중단하고,
+            // 그 외의 오류는 다시 던져서 전체 프로세스를 중단합니다.
             if (err.name === 'AbortError') {
                 zip.terminate();
                 throw err;
             }
+
+            // Xfetch에서 발생한 오류나 기타 다른 오류가 여기로 오게 됩니다.
+            // 다운로드 루프를 중단하고 전체 함수를 종료하기 위해 오류를 다시 던집니다.
             console.warn(`[실패] ${meta.P}`, err);
             failed.push(meta);
-            // 오류가 발생하면 zip.terminate()를 호출하여 스트림을 중단합니다.
-            zip.terminate();
-            // 오류를 다시 던져서 전체 프로세스를 중단합니다.
-            throw err;
+            updateProgressUI(addCount, DB.length);
+            zip.terminate(); // 불완전 ZIP 종료
+            throw err; // 여기서 오류를 다시 던져야 루프가 멈추고 함수가 종료됩니다.
         }
     }
 
     if (userSignal.aborted || failed.length) {
-        zip.terminate();
+        zip.terminate(); // 불완전 ZIP 종료
     } else {
-        zip.end();
+        zip.end(); // 완전한 종료
     }
 
-    await pipePromise; // WritableStream으로의 파이핑이 완료될 때까지 대기
+    await pipePromise; // 스트림 저장 완료 대기
 
     return { addCount, failed };
 }
