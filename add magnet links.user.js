@@ -288,6 +288,7 @@ async function jobWorker() {
 
         if (jobIndex === -1 && failedJobIndex === -1) {
             // No more pending jobs to process
+            isProcessing = false;
             break;
         }
 
