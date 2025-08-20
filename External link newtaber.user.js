@@ -16,7 +16,6 @@
 // @grant           GM_openInTab
 // ==/UserScript==
 
-(function () {
 
     function removeGscHash() {
         if (location.hash && location.hash.startsWith('#gsc.tab=')) {
@@ -349,5 +348,3 @@
             return attributeValue ? regex.test(attributeValue) : false;
         }
     }
-
-})();
