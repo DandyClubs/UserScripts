@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            External link newtaber MOD (Pipeline Refactored)
-// @version         2025.08.12
+// @version         2025.08.20
 // @description     Fully refactored with a rule pipeline for maximum clarity and maintainability.
 // @icon            https://cdn1.iconfinder.com/data/icons/feather-2/24/external-link-32.png
 // @icon64          https://cdn1.iconfinder.com/data/icons/feather-2/24/external-link-128.png
@@ -67,6 +67,7 @@
         /javarchive\.com\/\d{6}.*\.html/,
         /javfree\.me\/\d+/,
         /javpink\.com\/\?p=/,
+        /foamgirl\.net\/\d+\.html/,
         /jpavs.net\/.+htm/,        
         /justjavhd\.com\/\d{4}\//,
         /k2sporn\.com\/\d+.*\.html/,
