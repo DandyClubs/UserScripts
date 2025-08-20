@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         all-voyeur.net
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.11
+// @version      2025.08.20
 // @description  try to take over the world!
 // @author       You
 // @match        https://all-voyeur.net/*
@@ -203,9 +203,9 @@ async function Start() {
     document.body.insertAdjacentHTML('beforeend', `
         <div class="CenterBox" style="display: none;">
             <i class="ToTop fa-solid fa-circle-chevron-up"></i>
-            &nbsp;<i class="ClearButton far fa-minus-square"></i>
-            &nbsp;<i class="CopyButton fas fa-paste"></i>
-            &nbsp;<i class="State"></i>
+            <i class="ClearButton far fa-minus-square"></i>
+            <i class="CopyButton fas fa-paste"></i>
+            <i class="State"></i>
         </div>
     `);
 

@@ -163,7 +163,7 @@ const JobManager = {
     },
     updateList() {
         const jobs = GM_listValues().filter(e => e !== 'JobList');
-        GM_setValue('JobList', jobs.length ? jobs[0] : []);
+        GM_setValue('JobList', jobs.length ? 'Next Go!' : '');
     }
 };
 
@@ -483,6 +483,7 @@ const siteHandlers = {
 async function Downloader(el) {
     const jobs = JobManager.keys();
     if (jobs[0] !== PageURL) return;
+    GM_setValue('JobList', jobs.length ? 'Start Click!' : '');
 
     const messageHandler = async (e) => {
         const origin = new URL(e.origin).origin;
