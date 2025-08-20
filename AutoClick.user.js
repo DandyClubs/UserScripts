@@ -420,8 +420,7 @@ async function Start() {
                     link.setAttribute('href', cachedData.U);
                     Reset(link, oldHref, cachedData.T);
                 }
-                await sleep(getRandomIntInclusive(0, 500) * 10)
-                e.preventDefault();
+                await sleep(getRandomIntInclusive(0, 500) * 10)                
                 // const width = '1280';
                 // const height = '960';
 
