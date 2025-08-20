@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         AutoClick
-// @version      2025.08.19
+// @version      2025.08.20
 // @description  This automatically clicks
 // @author       DandyClubs
 // @include      /^https?:\/\/(cosplayjav|nylons)\.pl\/(download|thumbnails)\/\?forPost=.*$/
