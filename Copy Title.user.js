@@ -555,7 +555,7 @@ const SiteParsers = {
             titleText = titleText
                 .replace(/ролика|роликов|ролик|клипов/, 'Video Clips')
                 .replace('Удаленные видео', 'Deleted Videos')
-                .replace(/ч(\.\d+)/, 'Part$1')
+                .replace(/ч(\.\d+)/g, 'Part$1')
                 .replace(/часть|Часть/g, 'Part')
                 .replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3')
                 .replace(/обновление от|Обновление|Обновлено/, 'UPDATE')
@@ -569,10 +569,12 @@ const SiteParsers = {
                 if (count >= 10) {
                     titleText = titleText.replace(t, '')
                 }
-            }
+            }            
+
+            const extractedModelName = SearchMatch(InfoArea, "(В ролях|Погоняло бесстыдницы|В ролях|Имя актрисы|Имя модели|Погоняло принцессы|Погоняло волшебницы|Истинное имя бесстыдницы|Название Белоснежки|Название девки|Погоняло курицы с кривыми лапами)\s?(:|：)?(.+)", '/', '-')?.replace(/:|：/, '').replace(/\(.+/, '').replace(/ч(\.\d+)/g, '') || '';
+            const cleanedModelName = extractedModelName.split(',').filter(element => !new RegExp(escapeRegExp(element)).test(titleText)).join(' ').trim()
 
 
-            console.log(titleText)
             // 리마스터 및 BTS 플래그 추출
             const remastered = /Remastered/.test(titleText);
             const bts = /Behind\s?The\s?Scenes/.test(titleText);
@@ -644,10 +646,11 @@ const SiteParsers = {
             }
             let codeID
             if (!ID) {
-                codeID = titleText.match(ChinaID)
-                if (codeID && codeID?.length > 0) {
-                    titleText = `${titleText.replace(codeID[0], '').replace(/\[\]/g, '').trim()}`;
-                    codeID = codeID[0];
+                const extracodeID = titleText.split(' ').find(e => e.match(ChinaID))
+                console.log(extractedModelName.includes(codeID))
+                if (extracodeID && !extractedModelName.includes(extracodeID)) {
+                    titleText = `${titleText.replace(extracodeID, '').replace(/\[\]/g, '').trim()}`;
+                    codeID = extracodeID;
                 }
             }
 
@@ -658,6 +661,7 @@ const SiteParsers = {
                 .replace(/(\/.*?([а-яА-ЯЁё]).+?)?\[.*г.+?\]/, '')
                 .replace(/\s?\/\s?\)$/, ')')
                 .replace(/\s?\/\s?$/, '')
+                .replace(/ч(\.\d+)/g, 'Part$1')
                 .replace(/\/\s(?=[а-яА-ЯЁё]).*?(?=[\(|\[])/gi, '')
                 .replace(/\(Split\s?Scenes\)/i, '')
                 .replace(/часть|Часть/g, 'Part')
@@ -691,13 +695,12 @@ const SiteParsers = {
                 extractedId: ID,
                 extractedcodeID: codeID,
                 extractedResolution: resolution,
+                cleanedModelName,                
             };
         },
         refine: (parsedData) => {
-            const { TitleText, TitleDB, Remastered, BTS, BetweenYear, ReleaseDate, Maker, extractedId, extractedcodeID, extractedResolution } = parsedData;
-            const extractedModelName = SearchMatch(InfoArea, "(В ролях|Погоняло бесстыдницы|В ролях|Имя актрисы|Имя модели|Погоняло принцессы|Погоняло волшебницы|Истинное имя бесстыдницы|Название Белоснежки|Название девки|Погоняло курицы с кривыми лапами)\s?(:|：)?(.+)", '/', '-')?.replace(/:|：/, '').replace(/\(.+/, '') || '';
-            const cleanedModelName = extractedModelName.split(',').filter(element => !new RegExp(escapeRegExp(element)).test(TitleText)).join(' ').trim()
-
+            const { TitleText, TitleDB, Remastered, BTS, BetweenYear, ReleaseDate, Maker, extractedId, extractedcodeID, extractedResolution, cleanedModelName } = parsedData;
+            
             return {
                 ...parsedData,
                 extractedId,
@@ -958,14 +961,14 @@ function extractDefaultId(titleDB) {
 function assembleFinalTitle(data) {
     // Destructuring을 사용하여 필요한 모든 데이터를 추출합니다.
     // NOTE: refine 단계에서 반환된 객체의 키와 일치하도록 변수명을 수정했습니다.
-    let { extractedcodeID, extractedId, Maker, ReleaseDate, ModelName, TitleText, BetweenYear, Remastered, BTS, extractedResolution } = data;
+    let { extractedcodeID, extractedId, Maker, ReleaseDate, extractedModelName, TitleText, BetweenYear, Remastered, BTS, extractedResolution } = data;
 
     // 기본값 설정: 값이 없으면 빈 문자열을 할당하여 undefined 오류를 방지합니다.
     TitleText = extractedId ? TitleText.replace(extractedId, '').trim() : TitleText
     const formattedId = extractedId && extractedcodeID ? `${extractedId} ${extractedcodeID} ` : extractedId || extractedcodeID ? `${extractedId || extractedcodeID} ` : '';
     const formattedMaker = Maker && ReleaseDate ? `${Maker}` : Maker ? `${Maker} ` : '';
     const formattedReleaseDate = ReleaseDate ? `.${ReleaseDate}.` : ''
-    const formattedModelName = ModelName ? `(${ModelName})` : '';
+    const formattedModelName = extractedModelName ? `(${extractedModelName})` : '';
     const formattedResolution = extractedResolution ? ` ${extractedResolution}` : '';
     const formattedBTS = BTS ? ' [Behind The Scenes]' : '';
     const formattedRemastered = Remastered ? ' [Remastered]' : '';
