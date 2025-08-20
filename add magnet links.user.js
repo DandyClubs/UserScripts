@@ -1,22 +1,90 @@
 // ==UserScript==
 // @name        Torrent Sites - add magnet links
 // @namespace   DandyClubs
-// @version     2023.09.14
+// @version     2025.08.20
 // @description Adds a column with magnet links in lists (multi-site support)
 // @author      DandyClubs
 // @license     MIT
 // @include     https://xxxclub.to/torrents/*
 // @include     https://therarbg.com/get-posts/*
 // @grant       GM_addStyle
-// @grant       GM_setValue
-// @grant       GM_getValue
-// @grant       GM_deleteValue
-// @grant       GM_listValues
 // @grant       GM_setClipboard
 // @grant       GM_xmlhttpRequest
 // @run-at      document-idle
 // @require     https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // ==/UserScript==
+
+
+const therarbgStyle = `
+
+	main.container, div.container {
+		max-width: 1600px;		
+	}
+
+    .container, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl {
+	    max-width: 1600px;
+    }
+	.GetMagnet {
+		font-size: 13px;
+		color: dodgerblue !important;
+	}
+    .visited {
+        color: Orange !important;
+    }
+	table td.dl-buttons {
+		padding-left: 2.5px;
+		padding-right: 2.5px;
+		text-align: center !important;
+		position: relative;
+		display: table-cell !important; /* proper height of cell on multiple row torrent name */
+		width: 3%;
+	}
+
+	td.dl-buttons > a,
+	td.dl-buttons > a:hover,	
+	td.dl-buttons > a:link,
+	td.dl-buttons > a:active {
+		color: inherit;
+		text-decoration: none;
+		cursor: pointer;
+		display: inline-block !important;
+		/* margin: 0 1.5px; */
+		margin: 0 2px;
+	}
+
+	table > thead > tr > th:nth-child(3),
+	table > thead > tr > td:nth-child(3) {
+		text-align: center;
+	}
+
+`;
+
+
+const xxxclubStyle = `
+
+	main.container, div.container {
+		max-width: 1600px;
+	}
+
+    .container, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl {
+	    max-width: 1600px;
+    }
+	.GetMagnet, .GetTitle {
+		font-size: 13px;
+		color: dodgerblue !important;
+        cursor: pointer;
+	}
+    .visited {
+        color: Orange !important;
+    }
+
+	ul > li > span:nth-child(3) {
+		text-align: center;
+	}
+
+`;
+
+
 
 /* ----------------------------
    Site Configurations
@@ -26,10 +94,12 @@ const siteConfigs = {
         tableSelector: "div.browsetableinside",
         cellSelectorInitial: "ul > li > span:nth-child(2)",
         cellSelectorNew: "ul > li > span:nth-child(3)",
+        insertHeadersCellsInitial: (cell, index, title) => cell.insertAdjacentHTML('afterend', (index === 0 ? `<span>${title}</span>` : `<span>${title}</span>`)),
         getKey: (cell) => cell.querySelector('a[href*="/torrents/details/"]').textContent,
         getHref: (cell) => cell.querySelector('a[href*="/torrents/details/"]').href,
         extractMagnet: (doc) => doc.querySelector('div.detailsdescr ul li.downloadboxlist span a.mg-link[href^="magnet:"]'),
-        hasTitleCopy: true
+        hasTitleCopy: true,
+        style: xxxclubStyle,
     },
     "therarbg.com": {
         tableSelector: "div.row.p-1",
@@ -37,10 +107,12 @@ const siteConfigs = {
                           table > tbody > tr:not(.blank) > td:nth-child(2)`,
         cellSelectorNew: `table > thead > tr:not(.blank) > th:nth-child(3),
                       table > tbody > tr:not(.blank) > td:nth-child(3)`,
+        insertHeadersCellsInitial : (cell, index, title) => cell.insertAdjacentHTML('afterend', (index === 0 ? `<th>${title}</th>` : `<td>${title}</td>`)),
         getKey: (cell, href, RootDomain) => href.match(new RegExp(RootDomain + '(.*)')).pop(),
         getHref: (cell) => cell.querySelector('a').href,
         extractMagnet: (doc) => doc.querySelector('div.table-responsive a[href^="magnet:"]'),
-        hasTitleCopy: false
+        hasTitleCopy: false,
+        style: therarbgStyle,
     }
 }
 
@@ -53,6 +125,14 @@ function FontAwesomeCSS() {
     css.rel = 'stylesheet'
     css.type = 'text/css'
     document.head.appendChild(css)
+}
+
+
+function AddStyles(CSS, ID) {
+    let styleSheet = document.createElement("style")
+    styleSheet.textContent = CSS
+    styleSheet.id = ID
+    document.head.appendChild(styleSheet)
 }
 
 function sleep(ms) {
@@ -76,23 +156,19 @@ const config = siteConfigs[RootDomain]
 
 if (!config) return  // not supported site
 
+
 let JobList = []
 let isProcessing = false
 const oneDay = 1000 * 60 * 60 * 24
 const Now = new Date().toISOString().slice(0, 10)
 
 // cleanup old keys
-for (let Key of GM_listValues()) {
-    let v = GM_getValue(Key, "")
-    if (v.includes("|")) {
-        let AddedDay = v.split('|')[1]
-        if (((new Date(Now) - new Date(AddedDay)) / oneDay) > 180) GM_deleteValue(Key)
-    } else {
-        GM_deleteValue(Key)
-    }
+for (const [Key] of Object.entries(localStorage)) {     
+    const AddedDay = JSON.parse(localStorage.getItem(Key)).D    
+    if (((new Date(Now) - new Date(AddedDay)) / oneDay) > 180){
+        localStorage.removeItem(Key)
+    } 
 }
-
-
 
 function appendColumn() {
     const tables = document.querySelectorAll(config.tableSelector)
@@ -101,23 +177,23 @@ function appendColumn() {
     tables.forEach((table) => {
         const headersCellsInitial = table.querySelectorAll(config.cellSelectorInitial)
         headersCellsInitial.forEach((cell, index) => {
-            cell.insertAdjacentHTML('afterend', (index === 0 ? `<th>${title}</th>` : `<td>${title}</td>`))
+            config.insertHeadersCellsInitial(cell, index, title)
         })
 
         const headersCellsNew = table.querySelectorAll(config.cellSelectorNew)
         headersCellsNew.forEach((cell, index) => {
+            cell.classList.add('hideCell');
             if (index === 0) {
                 cell.innerHTML = title
             } else {
                 let url = config.getHref(headersCellsInitial[index])
-                let Key = config.getKey(headersCellsInitial[index], href, RootDomain)
-                let Link = GM_getValue(Key, '|').split('|')
-                let MagnetLink = Link[0] || ''
+                let Key = config.getKey(headersCellsInitial[index], url, RootDomain)
+                let MagnetLink = JSON.parse(localStorage.getItem(Key))?.M || ''                
 
                 cell.classList.add('dl-buttons')
                 cell.innerHTML = `
           ${config.hasTitleCopy ? `<span><i class="GetTitle fa-solid fa-paste" data-key="${Key}"></i></span>` : ""}
-          <span><i class="GetMagnet fa-solid fa-magnet ${MagnetLink ? 'visited' : 'not-processed'}" data-key="${Key}" data-url="${url}" href="${MagnetLink ? MagnetLink : '#unprocessed'}" title="ML"></i></span>`
+          <span><a class="GetMagnet fa-solid fa-magnet ${MagnetLink ? 'visited' : 'not-processed'}" data-key="${Key}" data-url="${url}" href="${MagnetLink ? MagnetLink : '#unprocessed'}" title="ML"></a></span>`
 
                 if (MagnetLink) {                    
                     cell.querySelector('.GetMagnet').style.setProperty('color', 'Orange', 'important')
@@ -174,13 +250,13 @@ async function processJob(el) {
     let retrievedLink = config.extractMagnet(container)
 
     if (retrievedLink) {
-        let Key = el.getAttribute('data-key')
-        GM_setValue(Key, retrievedLink + '|' + new Date().toISOString().slice(0, 10))
+        let Key = el.getAttribute('data-key')        
+        localStorage.setItem(Key, JSON.stringify({ M: retrievedLink, D: new Date().toISOString().slice(0, 10) }))
         el.setAttribute('href', retrievedLink)
         el.classList.add('visited')
         el.classList.remove('not-processed')        
         el.style.setProperty('color', 'Orange', 'important')
-        el.removeEventListener('click', GetMagnet)
+        el.removeEventListener('click', GetMagnet, false);
         el.click()
         JobList = JobList.filter(job => job.el !== el)   // ✅ 정상 응답일 때만 제거
     }
@@ -207,9 +283,10 @@ async function jobWorker() {
 
     while (true) {
         // Find the first pending job that hasn't exceeded its retry limit
-        const jobIndex = JobList.findIndex(job => job.status === 'pending' && job.retries < 1) || JobList.findIndex(job => job.status === 'failed' && job.retries === 1);
+        const jobIndex = JobList.findIndex(job => job.status === 'pending' && job.retries < 1)
+        const failedJobIndex = JobList.findIndex(job => job.status === 'failed' && job.retries === 1);
 
-        if (jobIndex === -1) {
+        if (jobIndex === -1 && failedJobIndex === -1) {
             // No more pending jobs to process
             break;
         }
@@ -235,23 +312,26 @@ async function jobWorker() {
     isProcessing = false;
 }
 
+
+function GetMagnet(event) {
+    event.preventDefault();
+    const link = this; // 'this' refers to the element the listener is on.
+    if (!JobList.some(job => job.el === link)) {
+        // Add a new job object to the list
+        JobList.push({
+            el: link,
+            status: 'pending',
+            retries: 0
+        });
+
+        jobWorker(); // Start the worker
+    }
+}
+
+
 function addClickListeners(links) {
     links.forEach((link) => {
-        link.addEventListener('click', function GetMagnet(event) {
-            event.preventDefault();
-
-            // Check if this element is already a job in the list
-            if (!JobList.some(job => job.el === link)) {                
-                // Add a new job object to the list
-                JobList.push({
-                    el: link,
-                    status: 'pending',
-                    retries: 0
-                });
-
-                jobWorker(); // Start the worker
-            }
-        }, false);
+        link.addEventListener('click', GetMagnet, false)     
     });
 }
 
@@ -264,4 +344,6 @@ async function createColumn() {
    Run
 ----------------------------- */
 FontAwesomeCSS()
+AddStyles(config.style, config.style)
 createColumn()
+
