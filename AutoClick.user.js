@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         AutoClick (Refactored)
-// @version      2025.08.20-r1
+// @version      2025.08.20
 // @description  Auto actions and cross-window messaging with maintainable structure
 // @author       DandyClubs
 // @include      /^https?:\/\/(cosplayjav|nylons)\.pl\/(download|thumbnails)\/\?forPost=.*$/
@@ -157,10 +157,13 @@ const CacheManager = {
 const JobManager = {
     keys() { return GM_listValues().filter(k => k !== 'JobList'); },
     add(url) { GM_setValue(url, true); },
-    remove(url) { GM_deleteValue(url); },
+    remove(url) {
+        GM_deleteValue(url);
+        JobManager.updateList();
+    },
     updateList() {
         const jobs = GM_listValues().filter(e => e !== 'JobList');
-        GM_setValue('JobList', jobs.length ? jobs : []);
+        GM_setValue('JobList', jobs.length ? jobs[0] : []);
     }
 };
 
@@ -499,8 +502,7 @@ async function Downloader(el) {
                 }
             }
         } else if (e.data.S || e.data.action === 'closed') {
-            JobManager.remove(PageURL);
-            JobManager.updateList();
+            JobManager.remove(PageURL);            
             self.close();
         }
     };
