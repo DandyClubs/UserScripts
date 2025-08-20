@@ -595,7 +595,7 @@ const SiteParsers = {
 
             // 날짜 범위 및 제작자 추출
             const betweenMatch = BetweenRegEx.exec(titleText);
-            const betweenYear = betweenMatch ? ` [${betweenMatch[0].replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3')}]` : '';
+            const betweenYear = betweenMatch ? ` [${betweenMatch[0].replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3').replace(/-|\//g, '.') }]` : '';
             if (betweenMatch) {
                 titleText = titleText.replace(betweenMatch[1], '').replace(/\(\s?\)/g, '').trim();
             }
@@ -604,7 +604,7 @@ const SiteParsers = {
             const releaseDate = DateRegEx.test(titleText) && !BetweenRegEx.test(titleText) && !UPDateRegEx.test(titleText) ? titleText.match(DateRegEx)[1].trim() : '';
             let FixreleaseDate = ''
             if (releaseDate) {
-                titleText = titleText.replace(releaseDate, '').replace(/\s?\/\)/g, '').replace(' / )', ')').trim();
+                titleText = titleText.replace(releaseDate, '').replace(/\s?\/\)/g, '').replace(/\s?\/ (\.|-)/, '').replace(' / )', ')').replace('.replace('(г.) ',  '').trim();
                 FixreleaseDate = releaseDate.replace(/-|\//g, '.');
             } else {
                 const infoAreaReleaseDate = SearchMatch(InfoArea, "(Дата релиза|Дата выхода)\s?(:|：)?(.+)", "/\/|-/g, '.'");
@@ -649,7 +649,7 @@ const SiteParsers = {
                 const extracodeID = titleText.split(' ').find(e => e.match(ChinaID))
                 console.log(extractedModelName.includes(codeID))
                 if (extracodeID && !extractedModelName.includes(extracodeID)) {
-                    titleText = `${titleText.replace(extracodeID, '').replace(/\[\]/g, '').trim()}`;
+                    titleText = `${titleText.replace(extracodeID, '').replace(/\[\]/g, '').replace(/\(|\)/g, '').trim()}`;
                     codeID = extracodeID;
                 }
             }
