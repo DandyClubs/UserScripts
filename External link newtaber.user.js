@@ -59,6 +59,7 @@
         /20pie\.com.*\.html/,
         /avcensdownload.pro\/video(?!tag)/,
         /.\/viewtopic.php\?(f|t|id)/,
+        /viewthread\.php\?tid/,
         /forum\/viewtopic\.php\?t/,
         /hdreactor\.club.*\.html/,
         /hiderefer/,
