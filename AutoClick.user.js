@@ -498,9 +498,9 @@ async function Downloader(el) {
             parentWindow = e.data.A;
 
             if (window.opener && parentWindow) {
-                await sleep(2500);
-                el.click();
                 await sleep(5000);
+                el.click();
+                await sleep(2500);
 
                 const allowed = ['https://allasiangirls.net', 'https://bestgirlsexy.com'];
                 if (allowed.includes(origin)) {
