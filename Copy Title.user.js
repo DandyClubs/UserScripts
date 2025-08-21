@@ -561,10 +561,10 @@ const SiteParsers = {
                 .replace(/часть|Часть/g, 'Part')
                 .replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3')
                 .replace(/обновление от|Обновление|Обновлено/g, 'UPDATE')
-                .replace(/эпизодов|эпизод/g, 'episode')
-                .replace(/\[.*г.*?\]/, '')
+                .replace(/эпизодов|эпизод/g, 'episode') 
+                .replace(/сцена из|Сцена из фильма/i, 'Scene from')               
                 .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?:\/)/, '')
-                .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?=[\(|\[])/gi, '')
+                .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?=[\(|\[])/gi, '')                
                 .trim();
 
             const extractText = titleText.match(/\([\w,\s]*\)/g) || []
@@ -693,10 +693,10 @@ const SiteParsers = {
 
             titleText = titleText.replace(TAGS_REGEX, '').trim();
 
-            const titleDB = titleText
-                .replace(/\[.*г.*?\]/, '')
+            const titleDB = titleText                
                 .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?:\/)/, '')
                 .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?=[\(|\[])/gi, '')                
+                .replace(/\[.*г.*?\]/, '')
                 .replace(/\s?\/\s?\)$/, ')')
                 .replace(/\s?\/\s?$/, '')
                 .replace(/ч(\.\d+)/g, 'Part$1')
