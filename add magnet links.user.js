@@ -174,11 +174,27 @@ function setClearList(name, value) {
     document.cookie = `${name}=${value}; max-age=${diffInSeconds};`
 }
 
+function getCookie(name) {
+    let cookie = document.cookie;
+    if (document.cookie != "") {
+        let cookie_array = cookie.split("; ");
+        for (var index in cookie_array) {
+            var cookie_name = cookie_array[index].split("=")
+            if (cookie_name[0] == name) {
+                return cookie_name[1];
+            }
+        }
+    }
+    return null;
+}
+
 
 const cookieCheck = getCookie("ClearList");
 if (!cookieCheck || cookieCheck !== "Y") {    
     // cleanup old keys
-    for (const [Key] of Object.entries(localStorage)) {
+    const oneDay = 1000 * 60 * 60 * 24
+    const Now = new Date().toISOString().slice(0, 10)
+    for (const [Key] of Object.entries(localStorage)) {        
         const AddedDay = JSON.parse(localStorage.getItem(Key)).D
         if (((new Date(Now) - new Date(AddedDay)) / oneDay) > 180) {
             localStorage.removeItem(Key)

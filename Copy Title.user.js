@@ -595,7 +595,7 @@ const SiteParsers = {
 
             // 날짜 범위 및 제작자 추출
             const betweenMatch = BetweenRegEx.exec(titleText);
-            const betweenYear = betweenMatch ? ` [${betweenMatch[0].replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3').replace(/-|\//g, '.') }]` : '';
+            const betweenYear = betweenMatch ? ` [${betweenMatch[0].replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3')}]` : '';
             if (betweenMatch) {
                 titleText = titleText.replace(betweenMatch[1], '').replace(/\(\s?\)/g, '').trim();
             }
