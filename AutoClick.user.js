@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         AutoClick (Refactored)
-// @version      2025.08.20
+// @version      2025.08.22
 // @description  Auto actions and cross-window messaging with maintainable structure
 // @author       DandyClubs
 // @include      /^https?:\/\/(cosplayjav|nylons)\.pl\/(download|thumbnails)\/\?forPost=.*$/
@@ -216,7 +216,12 @@ const UIManager = {
             resetIcon = document.querySelector('.Reset');
         }
 
-        resetIcon.insertAdjacentHTML('beforeend', `<span class="fileName">${fileName}</span>`);
+        let fileNameEl = document.querySelector('.Reset .fileName');
+        if (!fileNameEl) {
+            resetIcon.insertAdjacentHTML('beforeend', `<span class="fileName">${fileName}</span>`);
+        } else {
+            fileNameEl.innerText = fileName;
+        }
 
         const newResetIcon = resetIcon.cloneNode(true);
         resetIcon.replaceWith(newResetIcon);
@@ -245,7 +250,7 @@ async function autoClickBySelector(sel) {
 }
 
 function setupBeforeUnloadForJobs() {
-    window.addEventListener('beforeunload', () => JobManager.remove(PageURL));    
+    window.addEventListener('beforeunload', () => JobManager.remove(PageURL));
 }
 
 /* ===============================
@@ -503,7 +508,6 @@ async function Downloader(el) {
                 }
             }
         } else if (e.data.S || e.data.action === 'closed') {
-            await sleep(2500);
             //JobManager.remove(PageURL);            
             self.close();
         }
