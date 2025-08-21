@@ -516,6 +516,11 @@ async function Downloader(el) {
     window.addEventListener('message', messageHandler);
     if (window.opener) {
         window.opener.postMessage({ Q: 'parentWindow?' }, '*');
+    }else{
+        await sleep(5000);
+        el.click();
+        await sleep(5000);
+        self.close();
     }
 }
 
