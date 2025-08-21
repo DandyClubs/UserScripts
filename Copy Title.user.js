@@ -343,8 +343,7 @@ async function Start() {
         },
         'pornolab.net': {
             titleSelector: '.maintitle',
-            infoSelector: 'div.post-user-message > div',
-            //infoProcessor: (element) => element.innerHTML.replace(/<br>{2}/gm, '<br>').split(/<br>/).map((value) => removeHTML(value).replace(/\n/, '').replace(/ч(\.\d+)/, 'Part$1').trim())
+            infoSelector: 'div.post-user-message',
         }
     };
 
@@ -371,15 +370,14 @@ async function Start() {
     }
 
     if (currentSiteConfig.infoSelector) {
-        InfoArea = document.querySelector(currentSiteConfig.infoSelector);
-        if (InfoArea) {
-            if (currentSiteConfig.infoProcessor) {
-                InfoArea = currentSiteConfig.infoProcessor(InfoArea);
-            } else {
-                InfoArea = InfoArea.innerText.replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n').replace(/\t/g, '').split(/\n/);
-                InfoArea = InfoArea.filter(e => e.trim())
-            }
+        const element = document.querySelector(currentSiteConfig.infoSelector)
+        if (element){
+        if (currentSiteConfig.infoProcessor) {
+            InfoArea = currentSiteConfig.infoProcessor(element);
+        } else {
+            InfoArea = getInfoArea(element)
         }
+    }
     }
 
     if (currentSiteConfig.castSelector) {
@@ -549,6 +547,8 @@ function removeParts(A, B) {
 const SiteParsers = {
     'pornolab\\.net': {
         parse: () => {
+
+            const searchRegex = (p) => new RegExp(`(?:${p.join('|')})\\s*[:\\-]\\s*(.+)$`);
             let titleText = TitleArea.textContent.replace('[uncen]', '');
 
             // 러시아어 단어 및 날짜 형식 정리
@@ -559,7 +559,7 @@ const SiteParsers = {
                 .replace(/часть|Часть/g, 'Part')
                 .replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3')
                 .replace(/обновление от|Обновление|Обновлено/, 'UPDATE')
-                .replace(/эпизодов|эпизод/, 'episode')                
+                .replace(/эпизодов|эпизод/, 'episode')
                 .trim();
 
             const extractText = titleText.match(/\([\w,\s]*\)/g) || []
@@ -569,7 +569,7 @@ const SiteParsers = {
                 if (count >= 10) {
                     titleText = titleText.replace(t, '')
                 }
-            }            
+            }
             const searchModelPatterns = `
             В ролях
             Погоняло бесстыдницы
@@ -581,16 +581,16 @@ const SiteParsers = {
             Название Белоснежки
             Название девки
             Погоняло курицы с кривыми лапами
-            `.trim().split(/\r?\n/).filter(e => e.trim());
+            `.trim().split(/\r?\n/).map(e => e.trim()).filter(Boolean);
 
-            const searchRegex = new RegExp(`(?:${searchModelPatterns.join('|')})\\s*[:\\-]\\s*(.+)$`);
+
 
             const findModelName = InfoArea.map(line => {
-                const m = line.match(searchRegex);
+                const m = line.match(searchRegex(searchModelPatterns));
                 return m ? m[1].trim() : null;
             }).filter(Boolean);
 
-            const extractedModelName = findModelName.filter(e => e.replace(/Качество видео.+/, '').trim()).join(',');
+            const extractedModelName = findModelName.map(e => e.replace(/Amateur.*/i, '').trim()).filter(Boolean).join(',');
             const cleanedModelName = extractedModelName.split(/,|\saka\s/g).filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join(' ').trim()
             console.log({ findModelName, extractedModelName, cleanedModelName })
 
@@ -625,7 +625,7 @@ const SiteParsers = {
             const releaseDate = DateRegEx.test(titleText) && !BetweenRegEx.test(titleText) && !UPDateRegEx.test(titleText) ? titleText.match(DateRegEx)[1].trim() : '';
             let FixreleaseDate = ''
             if (releaseDate) {
-                titleText = titleText.replace(releaseDate, '').replace(/\s?\/\)/g, '').replace(/\s?\/ (\.|-)/, '').replace(' / )', ')').replace('(г.) ',  '').trim();
+                titleText = titleText.replace(releaseDate, '').replace(/\s?\/\)/g, '').replace(/\s?\/ (\.|-)/, '').replace(' / )', ')').replace('(г.) ', '').trim();
                 FixreleaseDate = releaseDate.replace(/-|\//g, '.');
             } else {
                 const infoAreaReleaseDate = SearchMatch(InfoArea, "(Дата релиза|Дата выхода)\s?(:|：)?(.+)", "/\/|-/g, '.'");
@@ -635,6 +635,14 @@ const SiteParsers = {
             }
 
             // 제작자 추출            
+
+            const makerSearchPatterns = `
+            Выпущено
+            Подсайт и сайт
+            Издатель
+            `.trim().split(/\r?\n/).map(e => e.trim()).filter(Boolean);
+
+
             let maker;
             if (/^\[.*?\]/.test(titleText)) {
                 const makerMatch = /^\[(.*?)\]/.exec(titleText);
@@ -643,7 +651,12 @@ const SiteParsers = {
                     maker = formatSentences(makerMatch[1].replace(/(\.(com|net))/gi, ''));
                 }
             } else {
-                const makerSearch = SearchMatch(InfoArea, "(Выпущено|Подсайт и сайт|Разработчик/Издатель)\s?(:|：)?(.+)");
+                const makerSearch = InfoArea.map(line => {
+                    const m = line.match(searchRegex(makerSearchPatterns));
+                    return m ? m[1].trim() : null;
+                }).filter(Boolean).join(' ');
+
+
                 if (makerSearch) {
                     titleText = titleText.replace(makerSearch, '').replace(/\(\s+\)/, '').trim()
                     const rebuildMaker = formatSentences(makerSearch.replace(/\.(com|net)/gi, ''));
@@ -668,7 +681,6 @@ const SiteParsers = {
             let codeID
             if (!ID) {
                 const extracodeID = titleText.split(' ').find(e => e.match(ChinaID))
-                console.log(extractedModelName.includes(codeID))
                 if (extracodeID && !extractedModelName.includes(extracodeID)) {
                     titleText = `${titleText.replace(extracodeID, '').replace(/\[\]/g, '').replace(/\(|\)/g, '').trim()}`;
                     codeID = extracodeID;
@@ -717,12 +729,12 @@ const SiteParsers = {
                 extractedId: ID,
                 extractedcodeID: codeID,
                 extractedResolution: resolution,
-                cleanedModelName,                
+                cleanedModelName,
             };
         },
         refine: (parsedData) => {
             const { TitleText, TitleDB, Remastered, BTS, BetweenYear, ReleaseDate, Maker, extractedId, extractedcodeID, extractedResolution, cleanedModelName } = parsedData;
-            
+
             return {
                 ...parsedData,
                 extractedId,
@@ -910,10 +922,7 @@ function GetTitle(parsedData) {
 
     // 3. 표지 이미지 다운로드 로직
     handleCoverImageDownload(finalTitle);
-
-    preserveText =
-
-        console.log('최종 타이틀:', finalTitle);
+    console.log('최종 타이틀:', finalTitle);
     CopyTitle = nameCorrection(finalTitle).replace(/\.com/i, '.com').replace(/\.net/i, '.net')
     console.log('CopyTitle:', CopyTitle)
     CopyTitle = FilenameConvert(CopyTitle);
@@ -1231,15 +1240,38 @@ function forceDownload(url, fileName) {
     })
 }
 
-
+/**
+ * HTML 요소를 <br> 태그를 기준으로 분리한 후,
+ * 각 분리된 요소의 innerText에서 줄바꿈을 처리하여 최종 배열을 생성합니다.
+ * <br> 태그가 연속으로 나오는 경우에도 빈 줄을 깔끔하게 처리합니다.
+ * @param {HTMLElement} InfoSelector - 텍스트를 추출할 HTML 요소.
+ * @returns {Array<string>} - 줄 단위로 분리되고 정리된 순수한 텍스트 배열.
+ */
 function getInfoArea(InfoSelector) {
-    const info = InfoSelector.innerText
-        .split(/(?:(?:\r\n|\r|\n)\s*){2,}/)
-        .map(item => item.trim())
-        .filter(item => item);
+    // innerHTML을 가져와 <br> 태그를 기준으로 문자열을 분리합니다.
+    const tempArray = InfoSelector.innerHTML.split(/<br\s*\/?>/);
 
-    console.log('Info: ', info);
-    return info;
+    // 각 분리된 아이템을 임시 div에 넣고 innerText를 추출하여 배열을 만듭니다.
+    const infoArray = tempArray.flatMap(item => {
+        // 임시 div 요소를 생성합니다.
+        const tempDiv = document.createElement('div');
+        // 분리된 HTML 조각을 임시 div의 innerHTML에 넣습니다.
+        tempDiv.innerHTML = item;
+
+        // innerText가 있는 경우에만 처리합니다.
+        if (tempDiv.innerText.trim() !== '') {
+            // 임시 div의 innerText를 가져와 줄바꿈을 기준으로 배열을 생성합니다.
+            return tempDiv.innerText
+                .split(/(?:(?:\r\n|\r|\n))/)
+                .map(line => line.trim()) // 각 줄의 앞뒤 공백 제거
+                .filter(Boolean); // 빈 문자열 제거
+        } else {
+            return []; // innerText가 비어 있으면 빈 배열을 반환하여 flatMap이 건너뛰도록 합니다.
+        }
+    });
+
+    console.log('Info: ', infoArray);
+    return infoArray.slice(0, 20); // 처음 20개 항목만 가져옵니다.
 }
 
 
