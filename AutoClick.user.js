@@ -504,7 +504,7 @@ async function Downloader(el) {
             }
         } else if (e.data.S || e.data.action === 'closed') {
             await sleep(2500);
-            JobManager.remove(PageURL);            
+            //JobManager.remove(PageURL);            
             self.close();
         }
     };
