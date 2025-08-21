@@ -163,7 +163,7 @@ const JobManager = {
     },
     updateList() {
         const jobs = GM_listValues().filter(e => e !== 'JobList');
-        GM_setValue('JobList', jobs.length ? 'Next Go!' : '');
+        GM_setValue('JobList', jobs.length ? `Next Go! ${jobs[0]}` : '');
     }
 };
 
@@ -245,7 +245,7 @@ async function autoClickBySelector(sel) {
 }
 
 function setupBeforeUnloadForJobs() {
-    window.addEventListener('beforeunload', () => JobManager.updateList());
+    window.addEventListener('beforeunload', () => JobManager.remove(PageURL));    
 }
 
 /* ===============================
