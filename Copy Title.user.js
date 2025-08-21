@@ -371,13 +371,13 @@ async function Start() {
 
     if (currentSiteConfig.infoSelector) {
         const element = document.querySelector(currentSiteConfig.infoSelector)
-        if (element){
-        if (currentSiteConfig.infoProcessor) {
-            InfoArea = currentSiteConfig.infoProcessor(element);
-        } else {
-            InfoArea = getInfoArea(element)
+        if (element) {
+            if (currentSiteConfig.infoProcessor) {
+                InfoArea = currentSiteConfig.infoProcessor(element);
+            } else {
+                InfoArea = getInfoArea(element)
+            }
         }
-    }
     }
 
     if (currentSiteConfig.castSelector) {
@@ -551,15 +551,17 @@ const SiteParsers = {
             const searchRegex = (p) => new RegExp(`(?:${p.join('|')})\\s*[:\\-]\\s*(.+)$`);
             let titleText = TitleArea.textContent.replace('[uncen]', '');
 
+            console.log({ titleText })
+
             // 러시아어 단어 및 날짜 형식 정리
             titleText = titleText
-                .replace(/ролика|роликов|ролик|клипов/, 'Video Clips')
+                .replace(/ролика|роликов|ролик|клипов/g, 'Video Clips')
                 .replace('Удаленные видео', 'Deleted Videos')
                 .replace(/ч(\.\d+)/g, 'Part$1')
                 .replace(/часть|Часть/g, 'Part')
                 .replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3')
-                .replace(/обновление от|Обновление|Обновлено/, 'UPDATE')
-                .replace(/эпизодов|эпизод/, 'episode')
+                .replace(/обновление от|Обновление|Обновлено/g, 'UPDATE')
+                .replace(/эпизодов|эпизод/g, 'episode')
                 .trim();
 
             const extractText = titleText.match(/\([\w,\s]*\)/g) || []
@@ -591,10 +593,8 @@ const SiteParsers = {
             }).filter(Boolean);
 
             const extractedModelName = findModelName.map(e => e.replace(/Amateur.*/i, '').trim()).filter(Boolean).join(',');
-            const cleanedModelName = extractedModelName.split(/,|\saka\s/g).filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join(' ').trim()
-            console.log({ findModelName, extractedModelName, cleanedModelName })
-
-
+            let cleanedModelName = extractedModelName.split(/,|\saka\s/g).filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join(' ').trim()
+            console.log({ findModelName, extractedModelName, cleanedModelName })       
 
             // 리마스터 및 BTS 플래그 추출
             const remastered = /Remastered/.test(titleText);
@@ -695,6 +695,7 @@ const SiteParsers = {
                 .replace(/\s?\/\s?\)$/, ')')
                 .replace(/\s?\/\s?$/, '')
                 .replace(/ч(\.\d+)/g, 'Part$1')
+                .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?:\/)/, '')
                 .replace(/\/\s(?=[а-яА-ЯЁё]).*?(?=[\(|\[])/gi, '')
                 .replace(/\(Split\s?Scenes\)/i, '')
                 .replace(/часть|Часть/g, 'Part')
@@ -707,6 +708,7 @@ const SiteParsers = {
                 .filter(Boolean);
 
             titleText = titleDB.join(' ')
+
             const checkLang = detectJaZh(InfoArea[0])
             if (checkLang.lang === 'ja' || checkLang.lang === 'zh') {
                 if (checkLang.lang === 'ja') {
@@ -715,6 +717,10 @@ const SiteParsers = {
                 else if (byteLengthOfCheck(titleText) + byteLengthOfCheck(InfoArea[0]) <= 240) {
                     titleText = `${titleText}(${InfoArea[0]})`
                 }
+            }
+
+            if (byteLengthOfCheck(titleText) + byteLengthOfCheck(cleanedModelName) <= 240) {
+                cleanedModelName = ''
             }
 
 
@@ -729,7 +735,7 @@ const SiteParsers = {
                 extractedId: ID,
                 extractedcodeID: codeID,
                 extractedResolution: resolution,
-                cleanedModelName,
+                extractedModelName: cleanedModelName,
             };
         },
         refine: (parsedData) => {
@@ -1248,8 +1254,23 @@ function forceDownload(url, fileName) {
  * @returns {Array<string>} - 줄 단위로 분리되고 정리된 순수한 텍스트 배열.
  */
 function getInfoArea(InfoSelector) {
+    
+    // sp-wrap 요소를 제거한 후 innerHTML을 사용합니다.
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = InfoSelector.innerHTML;
+
+    // 모든 .sp-wrap 클래스를 가진 요소를 찾습니다.
+    const spWraps = tempDiv.querySelectorAll('.sp-wrap');
+    spWraps.forEach(wrap => {
+        // 찾은 요소를 부모 노드에서 제거합니다.
+        wrap.parentNode.removeChild(wrap);
+    });
+    
     // innerHTML을 가져와 <br> 태그를 기준으로 문자열을 분리합니다.
-    const tempArray = InfoSelector.innerHTML.split(/<br\s*\/?>/);
+    const tempArray = tempDiv.innerHTML.split(/<br\s*\/?>/)
+        .map(line => line.trim()) // 각 줄의 앞뒤 공백 제거
+        .filter(Boolean)
+        .slice(0, 20); // 빈 문자열 제거;
 
     // 각 분리된 아이템을 임시 div에 넣고 innerText를 추출하여 배열을 만듭니다.
     const infoArray = tempArray.flatMap(item => {
