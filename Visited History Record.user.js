@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Visited History Record
 // @namespace   DandyClubs
-// @version     2025.08.12
+// @version     2025.08.21
 // @include     https://sis001.com/forum/forum*.html
 // @match       https://sis001.com/forum/forumdisplay.php*
 // @match       https://ultoporn.com/*
@@ -596,10 +596,17 @@ async function ClearVisited() {
 
 
 
-function setClearVisited(name, value, expiresDay) {
-    const NowTime = new Date();
-    const MidNight = new Date(NowTime.getFullYear(), NowTime.getMonth(), NowTime.getDate() + expiresDay , 9)
-    document.cookie = escape(name) + "=" + escape(value) + "; expires=" + MidNight.toUTCString();
+function setClearVisited(name, value) {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+
+    // 현재 시간과 내일 00:00:00 사이의 차이를 초 단위로 계산
+    const diffInSeconds = Math.floor((tomorrow - now) / 1000);
+
+    // Max-Age를 사용하여 쿠키 생성    
+    document.cookie = `${name}=${value}; max-age=${diffInSeconds};`
 }
 
 
@@ -659,8 +666,8 @@ function Start() {
     const cookieCheck = getCookie("ClearVisited");
     if (!cookieCheck || cookieCheck !== "Y") {
         console.log('ClearVisited');
-        ClearVisited();
-        setClearVisited("ClearVisited", "Y", 1);
+        ClearVisited();        
+        setClearVisited("ClearVisited", "Y");
     }
 
     observer.observe(document.body, { childList: true, subtree: true });

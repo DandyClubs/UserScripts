@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Torrent Sites - add magnet links
 // @namespace   DandyClubs
-// @version     2025.08.20
+// @version     2025.08.21
 // @description Adds a column with magnet links in lists (multi-site support)
 // @author      DandyClubs
 // @license     MIT
@@ -10,7 +10,7 @@
 // @grant       GM_addStyle
 // @grant       GM_setClipboard
 // @grant       GM_xmlhttpRequest
-// @run-at      document-idle
+// @run-at      document-body
 // @require     https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // ==/UserScript==
 
@@ -158,17 +158,35 @@ if (!config) return  // not supported site
 
 
 let JobList = []
-let isProcessing = false
-const oneDay = 1000 * 60 * 60 * 24
-const Now = new Date().toISOString().slice(0, 10)
+let isProcessing = false;
 
-// cleanup old keys
-for (const [Key] of Object.entries(localStorage)) {     
-    const AddedDay = JSON.parse(localStorage.getItem(Key)).D    
-    if (((new Date(Now) - new Date(AddedDay)) / oneDay) > 180){
-        localStorage.removeItem(Key)
-    } 
+
+function setClearList(name, value) {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+
+    // 현재 시간과 내일 00:00:00 사이의 차이를 초 단위로 계산
+    const diffInSeconds = Math.floor((tomorrow - now) / 1000);
+
+    // Max-Age를 사용하여 쿠키 생성    
+    document.cookie = `${name}=${value}; max-age=${diffInSeconds};`
 }
+
+
+const cookieCheck = getCookie("ClearList");
+if (!cookieCheck || cookieCheck !== "Y") {    
+    // cleanup old keys
+    for (const [Key] of Object.entries(localStorage)) {
+        const AddedDay = JSON.parse(localStorage.getItem(Key)).D
+        if (((new Date(Now) - new Date(AddedDay)) / oneDay) > 180) {
+            localStorage.removeItem(Key)
+        }
+    }
+    setClearList("ClearList", "Y");
+}
+
 
 function appendColumn() {
     const tables = document.querySelectorAll(config.tableSelector)

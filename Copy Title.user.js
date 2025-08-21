@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Copy Title
-// @version      2025.08.19
+// @version      2025.08.21
 // @description  try to take over the world!
 // @author       You
 // @include      /javbus.com\/.+\/([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)/
@@ -604,7 +604,7 @@ const SiteParsers = {
             const releaseDate = DateRegEx.test(titleText) && !BetweenRegEx.test(titleText) && !UPDateRegEx.test(titleText) ? titleText.match(DateRegEx)[1].trim() : '';
             let FixreleaseDate = ''
             if (releaseDate) {
-                titleText = titleText.replace(releaseDate, '').replace(/\s?\/\)/g, '').replace(/\s?\/ (\.|-)/, '').replace(' / )', ')').replace('.replace('(г.) ',  '').trim();
+                titleText = titleText.replace(releaseDate, '').replace(/\s?\/\)/g, '').replace(/\s?\/ (\.|-)/, '').replace(' / )', ')').replace('(г.) ',  '').trim();
                 FixreleaseDate = releaseDate.replace(/-|\//g, '.');
             } else {
                 const infoAreaReleaseDate = SearchMatch(InfoArea, "(Дата релиза|Дата выхода)\s?(:|：)?(.+)", "/\/|-/g, '.'");
