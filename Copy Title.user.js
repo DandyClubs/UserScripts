@@ -549,7 +549,7 @@ function removeParts(A, B) {
 const SiteParsers = {
     'pornolab\\.net': {
         parse: () => {
-            let titleText = TitleArea.getAttribute('title') ? TitleArea.getAttribute('title').replace('[uncen]', '') : TitleArea.innerText.replace('[uncen]', '');
+            let titleText = TitleArea.textContent.replace('[uncen]', '');
 
             // 러시아어 단어 및 날짜 형식 정리
             titleText = titleText
@@ -559,7 +559,7 @@ const SiteParsers = {
                 .replace(/часть|Часть/g, 'Part')
                 .replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3')
                 .replace(/обновление от|Обновление|Обновлено/, 'UPDATE')
-                .replace(/эпизодов|эпизод/, 'episode')
+                .replace(/эпизодов|эпизод/, 'episode')                
                 .trim();
 
             const extractText = titleText.match(/\([\w,\s]*\)/g) || []
@@ -570,9 +570,11 @@ const SiteParsers = {
                     titleText = titleText.replace(t, '')
                 }
             }            
+            const modelRegex = /(В ролях|Погоняло бесстыдницы|В ролях|Имя актрисы|Имя модели|Погоняло принцессы|Погоняло волшебницы|Истинное имя бесстыдницы|Название Белоснежки|Название девки|Погоняло курицы с кривыми лапами)\s?(:|：)?/g
+            const findModelName = InfoArea.find(e => modelRegex.test(e));
+            const extractedModelName = findModelName.replace(modelRegex, '').replace(/Качество видео.+/, '').trim();
+            const cleanedModelName = extractedModelName.split(',').filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join(' ').trim()
 
-            const extractedModelName = SearchMatch(InfoArea, "(В ролях|Погоняло бесстыдницы|В ролях|Имя актрисы|Имя модели|Погоняло принцессы|Погоняло волшебницы|Истинное имя бесстыдницы|Название Белоснежки|Название девки|Погоняло курицы с кривыми лапами)\s?(:|：)?(.+)", '/', '-')?.replace(/:|：/, '').replace(/\(.+/, '').replace(/ч(\.\d+)/g, '') || '';
-            const cleanedModelName = extractedModelName.split(',').filter(element => !new RegExp(escapeRegExp(element)).test(titleText)).join(' ').trim()
 
 
             // 리마스터 및 BTS 플래그 추출
@@ -667,15 +669,16 @@ const SiteParsers = {
                 .replace(/часть|Часть/g, 'Part')
                 .replace(/(\/\s)[а-яА-ЯЁё\s-]+/gi, '')
                 .replace(/\|/g, '')
+                .replace(/—/g, '-')
                 .replace(/\.(com|net)/gi, '')
                 .split(/\s/)
                 .map(e => e.trim())
                 .filter(Boolean);
 
-            titleText = [...new Set(titleDB)].join(' ')
-
-            if (JapaneseChar.test(InfoArea[0]) || chineseRegex.test(InfoArea[0])) {
-                if (InfoArea[0].match(JapaneseChar)?.length >= 10) {
+            titleText = titleDB.join(' ')
+            const checkLang = detectJaZh(InfoArea[0])
+            if (checkLang.lang === 'ja' || checkLang.lang === 'zh') {
+                if (checkLang.lang === 'ja') {
                     titleText = InfoArea[0]
                 }
                 else if (byteLengthOfCheck(titleText) + byteLengthOfCheck(InfoArea[0]) <= 240) {
