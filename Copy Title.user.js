@@ -343,7 +343,7 @@ async function Start() {
         },
         'pornolab.net': {
             titleSelector: '.maintitle',
-            infoSelector: 'div.post-user-message',
+            infoSelector: 'div.post-user-message > div',
             //infoProcessor: (element) => element.innerHTML.replace(/<br>{2}/gm, '<br>').split(/<br>/).map((value) => removeHTML(value).replace(/\n/, '').replace(/ч(\.\d+)/, 'Part$1').trim())
         }
     };
@@ -570,10 +570,29 @@ const SiteParsers = {
                     titleText = titleText.replace(t, '')
                 }
             }            
-            const modelRegex = /(В ролях|Погоняло бесстыдницы|В ролях|Имя актрисы|Имя модели|Погоняло принцессы|Погоняло волшебницы|Истинное имя бесстыдницы|Название Белоснежки|Название девки|Погоняло курицы с кривыми лапами)\s?(:|：)?/g
-            const findModelName = InfoArea.find(e => modelRegex.test(e));
-            const extractedModelName = findModelName.replace(modelRegex, '').replace(/Качество видео.+/, '').trim();
-            const cleanedModelName = extractedModelName.split(',').filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join(' ').trim()
+            const searchModelPatterns = `
+            В ролях
+            Погоняло бесстыдницы
+            Имя актрисы
+            Имя модели
+            Погоняло принцессы
+            Погоняло волшебницы
+            Истинное имя бесстыдницы
+            Название Белоснежки
+            Название девки
+            Погоняло курицы с кривыми лапами
+            `.trim().split(/\r?\n/).filter(e => e.trim());
+
+            const searchRegex = new RegExp(`(?:${searchModelPatterns.join('|')})\\s*[:\\-]\\s*(.+)$`);
+
+            const findModelName = InfoArea.map(line => {
+                const m = line.match(searchRegex);
+                return m ? m[1].trim() : null;
+            }).filter(Boolean);
+
+            const extractedModelName = findModelName.filter(e => e.replace(/Качество видео.+/, '').trim()).join(',');
+            const cleanedModelName = extractedModelName.split(/,|\saka\s/g).filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join(' ').trim()
+            console.log({ findModelName, extractedModelName, cleanedModelName })
 
 
 
