@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy
-// @version      2025.08.19
+// @version      2025.08.23
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.org/
@@ -282,7 +282,9 @@ let userClose = true
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RootDomain = extractRootDomain(PageURL)
-//console.log('RootDomain: ', RootDomain)
+const domainKey = RootDomain;
+const lockKey = domainKey + '-lock';
+const lockTimeout = 5000; // 5초 타임아웃
 
 const linkEreg = /(?:https|http|ftp|file):\/\/.+?(?=[,.]?(?:\s|$))/gi
 
@@ -406,7 +408,6 @@ const GetDirectLink = (url, data) => {
     return match
 
 }
-
 
 
 const io = new IntersectionObserver((entries, self) => {
@@ -2768,10 +2769,47 @@ async function UpdateDB(Target, UrlTitle) {
 }
 
 
+async function updateLocalStorage(newData) {
+    // 락 획득 시도
+    let isLocked = false;
+    let attempts = 0;
+    while (!isLocked && attempts < 10) {
+        const lockTime = localStorage.getItem(lockKey);
+        const now = Date.now();
+
+        // 락이 없거나 타임아웃이 지났을 경우 락 획득
+        if (!lockTime || (now - parseInt(lockTime, 10) > lockTimeout)) {
+            localStorage.setItem(lockKey, now.toString());
+            isLocked = true;
+        } else {
+            // 락이 이미 존재하면 잠시 대기
+            await new Promise(resolve => setTimeout(resolve, 50));
+            attempts++;
+        }
+    }
+
+    if (!isLocked) {
+        console.error('Failed to acquire lock.');
+        return;
+    }
+
+    // 락 획득 성공, 데이터 수정
+    try {        
+        localStorage.setItem(domainKey, JSON.stringify(newData));
+        console.log('Data successfully updated.');
+    } catch (error) {
+        console.error('Error updating data:', error);
+    } finally {
+        // 락 해제
+        localStorage.removeItem(lockKey);
+    }
+}
+
 async function RemoveDB(listToDelete) {
     //console.log(`RemoveDB ${listToDelete}`)
     localStorageDB = localStorageDB.filter(item => (!listToDelete.includes(item.U)));
-    localStorage.setItem(RootDomain, JSON.stringify(localStorageDB))
+    //localStorage.setItem(RootDomain, JSON.stringify(localStorageDB))
+    updateLocalStorage(localStorageDB)
     //await GM_setValue(RootDomain, JSON.stringify(localStorageDB))
     //localStorageDB = JSON.parse(await GM_getValue(RootDomain, "[]"))
     //localStorageDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
@@ -2936,7 +2974,8 @@ async function CopyLink() {
 
     console.log('CopyLink: ', { localStorageDB })
     // 4) Persist state & refresh counters
-    localStorage.setItem(RootDomain, JSON.stringify(localStorageDB));
+    //localStorage.setItem(RootDomain, JSON.stringify(localStorageDB));
+    updateLocalStorage(localStorageDB)
     await sleep(100);
 
     GetState = localStorageDB;
