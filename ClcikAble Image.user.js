@@ -51,9 +51,10 @@ img.ClickAbleItem {
 
 const maxjav = {
     MatchUrl: 'maxjav',
-    MakeClickImage: 'div.hentry > div.entry > p > img',
+    MakeClickImage: 'div.hentry div.entry p img',
     closestTag: 'div.hentry',
-    Approach: 'NextSibling',
+    Approach: 'closest',
+    SearchATag: '.title a',
 }
 const xidol = {
     MatchUrl: 'x-idol.net',

@@ -271,6 +271,72 @@ img.Favicon {
 */
 
 
+class LinkCopyDB {
+    constructor() {
+        this.dbName = 'LinkCopyDB';
+        this.storeName = 'Links';
+        this.db = null;
+    }
+
+    async init() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, 1);
+
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(this.storeName)) {
+                    db.createObjectStore(this.storeName, { keyPath: 'U' });
+                }
+            };
+
+            request.onsuccess = (e) => {
+                this.db = e.target.result;
+                resolve();
+            };
+
+            request.onerror = (e) => reject(e.target.error);
+        });
+    }
+
+    async add(data) {
+        return this._tx('readwrite', store => store.put(data));
+    }
+
+    async get(U) {
+        return this._tx('readonly', store => store.get(U));
+    }
+
+    async getAll() {
+        return this._tx('readonly', store => store.getAll());
+    }
+
+    async remove(U) {
+        return this._tx('readwrite', store => store.delete(U));
+    }
+
+    // Add this new method
+    async clearAll() {
+        return this._tx('readwrite', store => store.clear());
+    }
+
+    async _tx(mode, action) {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction([this.storeName], mode);
+            const store = tx.objectStore(this.storeName);
+            const request = action(store);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+}
+
+const linkDB = new LinkCopyDB();
+let indexedDBCache = []
+linkDB.init()
+
+const LinkCopyBC = new BroadcastChannel('LinkCopyChannel');
+
+
 let CopyLinks = []
 let AllCopyLinks = []
 
@@ -282,19 +348,13 @@ let userClose = true
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RootDomain = extractRootDomain(PageURL)
-const domainKey = RootDomain;
-const lockKey = domainKey + '-lock';
-const lockTimeout = 5000; // 5초 타임아웃
 
 const linkEreg = /(?:https|http|ftp|file):\/\/.+?(?=[,.]?(?:\s|$))/gi
 
-let localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
+
 let pageLinksDB = []
 
 let GetState, PackageCount
-//console.log(GetState)
-let MakerCfg = false
-let CfgReleaseDate = false
 let Maker = '', ReleaseDate = ''
 let SkipTitle = []
 
@@ -317,18 +377,8 @@ window.addEventListener('storage', async (e) => {
     if (toggleConfigs[e.key]) {
         handleToggle(e.key, toggleConfigs[e.key]);
     }
-    // RootDomain 관련 이벤트 처리
-    else if (e.key === RootDomain && (e.newValue || e.oldValue)) {
-        localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
-
-        if (DownloadArea?.length) {
-            await CheckDB(listToDo(DownloadArea), 'storage');
-        }
-
-        const GetState = localStorageDB;
-        const PackageCount = PackageList(localStorageDB);
-
-        updateUI(GetState, PackageCount);
+    if (DownloadArea?.length) {
+        await CheckDB(listToDo(DownloadArea), 'storage');
     }
 });
 
@@ -477,6 +527,19 @@ function observeDownloadArea(WatchArea, downloadAreaSelector) {
             subtree: true
         });
     })
+}
+
+
+async function broadcastUpdate() {
+    linkDB.getAll().then((result) => {
+        indexedDBCache = result;
+        GetState = indexedDBCache
+        PackageCount = PackageList(indexedDBCache)
+        updateUI(GetState, PackageCount)
+    }).catch(error => {
+        console.error("Failed get data:", error);
+    });
+    LinkCopyBC.postMessage('update');
 }
 
 
@@ -1545,7 +1608,7 @@ const siteRules = [
             console.log({ needsFilenameFetch })
 
             const rawIDMatch = SearchIDRegExp.exec(rawTitle) || ''
-            const rawID = rawIDMatch ? (rawIDMatch.groups ? rawIDMatch.groups[1] : rawIDMatch[1]) : '';            
+            const rawID = rawIDMatch ? (rawIDMatch.groups ? rawIDMatch.groups[1] : rawIDMatch[1]) : '';
             if (needsFilenameFetch) {
                 try {
                     const service = /katfile/.test(GetFileNameLink)
@@ -1722,7 +1785,7 @@ async function Start() {
 
     if (currentConfig) {
 
-        
+
         // Step 1: `postProcess`에서 동적 셀렉터를 설정할 경우를 대비해 먼저 실행
         if (currentConfig.postProcess) {
             currentConfig.postProcess(currentConfig)
@@ -2045,10 +2108,8 @@ async function handleToggle(key, className) {
 
 function FirstStep() {
 
-    localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
-
-    GetState = localStorageDB
-    PackageCount = PackageList(localStorageDB)
+    GetState = indexedDBCache
+    PackageCount = PackageList(indexedDBCache)
     updateUI(GetState, PackageCount)
 
     if (!LinkCopyCenterBox) {
@@ -2194,7 +2255,29 @@ function mainIcon(Run) {
     const clearBtn = LinkCopyCenterBox.querySelector('.ClearButton');
     const copyBtn = LinkCopyCenterBox.querySelector('.CopyButton');
 
-    stateEl.textContent = `${GetState?.length || 0} | ${PackageCount?.length || 0}`;
+    //stateEl.textContent = `${GetState?.length || 0} | ${PackageCount?.length || 0}`;
+
+    LinkCopyBC.onmessage = async (e) => {
+        if (e.data === 'update') {  
+            linkDB.getAll().then((result) => {
+                indexedDBCache = result;
+                GetState = indexedDBCache
+                PackageCount = PackageList(indexedDBCache)
+                updateUI(GetState, PackageCount)
+            }).catch(error => {
+                console.error("Failed get data:", error);
+            });                      
+        }
+    };
+    linkDB.getAll().then((result) => {
+        indexedDBCache = result;
+        GetState = indexedDBCache
+        PackageCount = PackageList(indexedDBCache)
+        updateUI(GetState, PackageCount)
+    }).catch(error => {
+        console.error("Failed get data:", error);
+    });
+
 
     if ((GetState?.length || 0) === 0) {
         clearBtn.style.opacity = '0.25';
@@ -2745,76 +2828,26 @@ function GetName(url) {
 }
 
 async function UpdateDB(Target, UrlTitle) {
-
     PackageName = UrlTitle || '';
     //console.log(`UpdateDB ${Target} ${UrlTitle}`)
     if (Target.match(K2SRegExp)) {
         Target = Target.match(K2SRegExp)[1] + Target.match(K2SRegExp)[2].slice(0, 18)
     }
-    const searchDB = await localStorageDB.find(({ U }) => U === Target)
-    console.log({ searchDB })
-
-    if (searchDB) {
-        searchDB.T = UrlTitle
+    console.log({ Target, UrlTitle })
+    linkDB.add({ U: Target, T: UrlTitle, S: PageURL })
+    broadcastUpdate()
+    if (!JSON.parse(localStorage.getItem('NewAdded'))) {
+        localStorage.setItem('NewAdded', JSON.stringify(true))
     }
-    else {
-        console.log({ Target, UrlTitle })
-        localStorageDB.push({ U: Target, T: UrlTitle, S: PageURL })
-        if (!JSON.parse(localStorage.getItem('NewAdded'))) {
-            localStorage.setItem('NewAdded', JSON.stringify(true))
-        }
-    }
-    //console.log(localStorageDB)
-    return localStorageDB
-}
-
-
-async function updateLocalStorage(newData) {
-    // 락 획득 시도
-    let isLocked = false;
-    let attempts = 0;
-    while (!isLocked && attempts < 10) {
-        const lockTime = localStorage.getItem(lockKey);
-        const now = Date.now();
-
-        // 락이 없거나 타임아웃이 지났을 경우 락 획득
-        if (!lockTime || (now - parseInt(lockTime, 10) > lockTimeout)) {
-            localStorage.setItem(lockKey, now.toString());
-            isLocked = true;
-        } else {
-            // 락이 이미 존재하면 잠시 대기
-            await new Promise(resolve => setTimeout(resolve, 50));
-            attempts++;
-        }
-    }
-
-    if (!isLocked) {
-        console.error('Failed to acquire lock.');
-        return;
-    }
-
-    // 락 획득 성공, 데이터 수정
-    try {        
-        localStorage.setItem(domainKey, JSON.stringify(newData));
-        console.log('Data successfully updated.');
-    } catch (error) {
-        console.error('Error updating data:', error);
-    } finally {
-        // 락 해제
-        localStorage.removeItem(lockKey);
-    }
+    return indexedDBCache
 }
 
 async function RemoveDB(listToDelete) {
-    //console.log(`RemoveDB ${listToDelete}`)
-    localStorageDB = localStorageDB.filter(item => (!listToDelete.includes(item.U)));
-    //localStorage.setItem(RootDomain, JSON.stringify(localStorageDB))
-    updateLocalStorage(localStorageDB)
-    //await GM_setValue(RootDomain, JSON.stringify(localStorageDB))
-    //localStorageDB = JSON.parse(await GM_getValue(RootDomain, "[]"))
-    //localStorageDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
-    GetState = localStorageDB
-    PackageCount = PackageList(localStorageDB)
+    //console.log(`RemoveDB ${listToDelete}`)    
+    for (const list of listToDelete) {
+        linkDB.remove(list)
+    }
+    broadcastUpdate()
     document.querySelector('.State').textContent = GetState?.length + ' | ' + PackageCount?.length
     if (GetState?.length == 0) {
         document.querySelector('.ClearButton').style = "opacity: 0.25;";
@@ -2824,7 +2857,7 @@ async function RemoveDB(listToDelete) {
         document.querySelector('.ClearButton').style = "opacity: 0.25;";
         document.querySelector('.CopyButton').style = "opacity: 1;";
     }
-    return localStorageDB
+    return indexedDBCache
 }
 
 
@@ -2852,13 +2885,14 @@ async function CheckDB(listTo, fromStep) {
     }
 
     // `GetState`가 존재하고 길이가 0보다 클 때만 로직을 실행합니다.
-    if (localStorageDB?.length > 0) {
+    if (indexedDBCache?.length > 0) {
         for (let link of listTo) {
-            const searchDB = await localStorageDB.find(({ U }) => U === link)
+            const searchDB = linkDB.get(link)
             if (searchDB) {
                 isMatchFound.push(link)
                 if (PackageName && searchDB.T !== PackageName) {
                     searchDB.T = PackageName
+                    linkDB.add(searchDB)
                 }
             }
         }
@@ -2888,7 +2922,6 @@ async function CheckDB(listTo, fromStep) {
 
 
     }
-    PackageCount = PackageList(localStorageDB);
     return isMatchFound;
 }
 
@@ -2904,9 +2937,7 @@ function PackageList(LinksDB) {
 }
 
 async function CopyLink() {
-    //console.log('Step CopyLink:', { CopyTitle, DownloadArea })
-    // Ensure our DB array exists
-    localStorageDB = JSON.parse(localStorage.getItem(RootDomain)) || []
+    //console.log('Step CopyLink:', { CopyTitle, DownloadArea })        
 
     // Prepare notice text
     let noticeLines = [];
@@ -2972,14 +3003,10 @@ async function CopyLink() {
     const noticeEl = document.querySelector('.CopyNotice .copyText');
     noticeEl.textContent = noticeLines.join("\n");
 
-    console.log('CopyLink: ', { localStorageDB })
-    // 4) Persist state & refresh counters
-    //localStorage.setItem(RootDomain, JSON.stringify(localStorageDB));
-    updateLocalStorage(localStorageDB)
+    console.log('CopyLink: ', { indexedDBCache })
+
     await sleep(100);
 
-    GetState = localStorageDB;
-    PackageCount = PackageList(localStorageDB);
     const stateEl = document.querySelector('.State');
     stateEl.textContent = `${GetState.length} | ${PackageCount.length}`;
 
@@ -3255,12 +3282,13 @@ async function ClearUrls() {
     document.querySelector('.ClearButton').style = "color: White !important;";
     //document.querySelector('.ClearButton').style.setProperty('font-size', Number(((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2)) + 'rem', 'important');
     //GM_deleteValue(RootDomain)
-    localStorage.removeItem(RootDomain)
-    localStorageDB = []
-    //localStorageDB = JSON.parse(await GM_getValue(RootDomain, "[]"))
+    linkDB.clearAll().then(() => {
+        console.log("All data has been cleared from the 'Links' object store.");
+    }).catch(error => {
+        console.error("Failed to clear data:", error);
+    });
+    broadcastUpdate()
 
-    GetState = localStorageDB
-    PackageCount = PackageList(localStorageDB)
     if (document.querySelector('.Minus')) {
         document.querySelector('.Minus').style.visibility = "hidden"
     }
@@ -3279,8 +3307,8 @@ async function ClipPaste() {
     document.querySelector('.CopyButton').style = "color: White !important;";
     //document.querySelector('.CopyButton').style.setProperty('font-size', Number(((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2)) + 'rem', 'important');
     //let ClipPasteData = JSON.parse(await GM_getValue(RootDomain, '[]'))
-    localStorageDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
-    return JDownloaderDB(localStorageDB).then(e => e)
+    indexedDBCache = await linkDB.getAll()
+    return JDownloaderDB(indexedDBCache).then(e => e)
     //updateClipboard(ClipPasteData)
 }
 
