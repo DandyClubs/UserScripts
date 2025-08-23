@@ -2885,10 +2885,8 @@ async function CheckDB(listTo, fromStep) {
 
         // Set flags indicating skip conditions
         userClose = false;
-        userCopy = false;
-
-        // Show messages for skip words/models
-        copyStateEl.innerText = `링크가 없습니다`;
+        userCopy = false;      
+        
     }
 
     // `GetState`가 존재하고 길이가 0보다 클 때만 로직을 실행합니다.
