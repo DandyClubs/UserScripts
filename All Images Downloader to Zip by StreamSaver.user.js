@@ -1018,11 +1018,11 @@ async function downloadPhotosWithRetry(DownloadImagesDB) {
             const result = await downloadPhotosAttempt(DownloadImagesDB, userSignal, attempt > 1);
             errorList = result.failed;
 
-            if (errorList.length === 0) {
-                errorCount = errorList.length;
-                console.warn(`[Attempt ${attempt}] 실패 항목 ${errorList.length}개, 재시도 준비`);
+            if (errorList.length === 0) {                
                 break;
             }
+            errorCount = errorList.length;
+            console.warn(`[Attempt ${attempt}] 실패 항목 ${errorList.length}개, 재시도 준비`);
 
 
         } catch (fatalErr) {
