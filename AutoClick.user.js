@@ -274,7 +274,7 @@ const globalObserver = new MutationObserver(async (mutations) => {
 
             // Listen for JobList changes across tabs
             GM_addValueChangeListener('JobList', function (key, oldValue, newValue, remote) {
-                if (remote) {
+                if (remote && newValue !== 'Start Click!') {
                     const jobs = JobManager.keys();
                     if (jobs[0] === PageURL) {
                         Downloader(ClickBTN);
