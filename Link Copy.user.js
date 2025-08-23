@@ -65,6 +65,7 @@
 // @grant        GM_openInTab
 // @grant        GM_getResourceText
 // @run-at       document-start
+// @connect      *
 // @noframes
 // @license      MIT
 // ==/UserScript==
