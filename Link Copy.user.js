@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Link Copy
+// @name         Link Copy (indexedDB)
 // @version      2025.08.23
 // @description  링크 복사
 // @author       DandyClubs
@@ -276,6 +276,9 @@ class LinkCopyDB {
         this.dbName = 'LinkCopyDB';
         this.storeName = 'Links';
         this.db = null;
+
+        // 이벤트 채널
+        this.bc = new BroadcastChannel("LinkCopyDBChannel");
     }
 
     async init() {
@@ -299,7 +302,9 @@ class LinkCopyDB {
     }
 
     async add(data) {
-        return this._tx('readwrite', store => store.put(data));
+        const result = await this._tx('readwrite', store => store.put(data));
+        this._notify({ type: "add", data });
+        return result;
     }
 
     async get(U) {
@@ -311,12 +316,15 @@ class LinkCopyDB {
     }
 
     async remove(U) {
-        return this._tx('readwrite', store => store.delete(U));
+        const result = await this._tx('readwrite', store => store.delete(U));
+        this._notify({ type: "remove", U });
+        return result;
     }
 
-    // Add this new method
     async clearAll() {
-        return this._tx('readwrite', store => store.clear());
+        const result = await this._tx('readwrite', store => store.clear());
+        this._notify({ type: "clear" });
+        return result;
     }
 
     async _tx(mode, action) {
@@ -328,14 +336,30 @@ class LinkCopyDB {
             request.onerror = () => reject(request.error);
         });
     }
+
+    // 내부 알림 → BroadcastChannel
+    _notify(event) {
+        this.bc.postMessage(event);
+        if (this.onchange) this.onchange(event); // ★ 같은 탭 내부에서도 바로 콜백 실행
+    }
 }
+
 
 const linkDB = new LinkCopyDB();
 let indexedDBCache = []
 linkDB.init()
 
-const LinkCopyBC = new BroadcastChannel('LinkCopyChannel');
 
+// 외부에서 DB 변경 감지
+linkDB.onchange = (event) => {
+    //console.log("로컬 DB 이벤트 발생:", event);
+    indexedDBUpdate()
+};
+
+linkDB.bc.onmessage = (event) => {
+    //console.log("멀티탭 DB 이벤트 발생:", event.data);
+    indexedDBUpdate()
+};
 
 let CopyLinks = []
 let AllCopyLinks = []
@@ -530,7 +554,7 @@ function observeDownloadArea(WatchArea, downloadAreaSelector) {
 }
 
 
-async function broadcastUpdate() {
+async function indexedDBUpdate() {
     linkDB.getAll().then((result) => {
         indexedDBCache = result;
         GetState = indexedDBCache
@@ -538,8 +562,7 @@ async function broadcastUpdate() {
         updateUI(GetState, PackageCount)
     }).catch(error => {
         console.error("Failed get data:", error);
-    });
-    LinkCopyBC.postMessage('update');
+    });    
 }
 
 
@@ -2147,10 +2170,6 @@ function FirstStep() {
 }
 
 
-
-
-
-
 function RefreshIcon(Run) {
     GetDPI = window.devicePixelRatio;
     DefaultFontSize = getDefaultFontSize();
@@ -2250,34 +2269,11 @@ function mainIcon(Run) {
     });
     myObserver.observe(LinkCopyCenterBox.querySelector('.ToTop'));
 
-    // Update State and button opacity
-    const stateEl = LinkCopyCenterBox.querySelector('.State');
+    // Update State and button opacity    
     const clearBtn = LinkCopyCenterBox.querySelector('.ClearButton');
-    const copyBtn = LinkCopyCenterBox.querySelector('.CopyButton');
-
-    //stateEl.textContent = `${GetState?.length || 0} | ${PackageCount?.length || 0}`;
-
-    LinkCopyBC.onmessage = async (e) => {
-        if (e.data === 'update') {  
-            linkDB.getAll().then((result) => {
-                indexedDBCache = result;
-                GetState = indexedDBCache
-                PackageCount = PackageList(indexedDBCache)
-                updateUI(GetState, PackageCount)
-            }).catch(error => {
-                console.error("Failed get data:", error);
-            });                      
-        }
-    };
-    linkDB.getAll().then((result) => {
-        indexedDBCache = result;
-        GetState = indexedDBCache
-        PackageCount = PackageList(indexedDBCache)
-        updateUI(GetState, PackageCount)
-    }).catch(error => {
-        console.error("Failed get data:", error);
-    });
-
+    const copyBtn = LinkCopyCenterBox.querySelector('.CopyButton');   
+    
+    indexedDBUpdate()    
 
     if ((GetState?.length || 0) === 0) {
         clearBtn.style.opacity = '0.25';
@@ -2834,8 +2830,14 @@ async function UpdateDB(Target, UrlTitle) {
         Target = Target.match(K2SRegExp)[1] + Target.match(K2SRegExp)[2].slice(0, 18)
     }
     console.log({ Target, UrlTitle })
-    linkDB.add({ U: Target, T: UrlTitle, S: PageURL })
-    broadcastUpdate()
+    try {
+       await navigator.locks.request('LinkCopyLock', { mode: 'exclusive' }, async () => {
+            await linkDB.add({ U: Target, T: UrlTitle, S: PageURL })    
+        });
+    } catch (err) {
+        console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
+    }
+    
     if (!JSON.parse(localStorage.getItem('NewAdded'))) {
         localStorage.setItem('NewAdded', JSON.stringify(true))
     }
@@ -2845,9 +2847,14 @@ async function UpdateDB(Target, UrlTitle) {
 async function RemoveDB(listToDelete) {
     //console.log(`RemoveDB ${listToDelete}`)    
     for (const list of listToDelete) {
-        linkDB.remove(list)
-    }
-    broadcastUpdate()
+        try {
+            await navigator.locks.request('LinkCopyLock', { mode: 'exclusive' }, async () => {
+                await linkDB.remove(list)
+            });
+        } catch (err) {
+            console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
+        }            
+    }    
     document.querySelector('.State').textContent = GetState?.length + ' | ' + PackageCount?.length
     if (GetState?.length == 0) {
         document.querySelector('.ClearButton').style = "opacity: 0.25;";
@@ -2885,14 +2892,22 @@ async function CheckDB(listTo, fromStep) {
     }
 
     // `GetState`가 존재하고 길이가 0보다 클 때만 로직을 실행합니다.
+    console.log(indexedDBCache)
     if (indexedDBCache?.length > 0) {
         for (let link of listTo) {
-            const searchDB = linkDB.get(link)
-            if (searchDB) {
+            const searchDB = await indexedDBCache.find(({ U }) => U === link)          
+            if (searchDB) {                
                 isMatchFound.push(link)
                 if (PackageName && searchDB.T !== PackageName) {
-                    searchDB.T = PackageName
-                    linkDB.add(searchDB)
+                    searchDB.T = PackageName    
+                    try {
+                        await navigator.locks.request('LinkCopyLock', { mode: 'exclusive' }, async () => {
+                            await linkDB.add(searchDB)                    
+                        });
+                    } catch (err) {
+                        console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
+                    }                
+                    
                 }
             }
         }
@@ -3282,12 +3297,18 @@ async function ClearUrls() {
     document.querySelector('.ClearButton').style = "color: White !important;";
     //document.querySelector('.ClearButton').style.setProperty('font-size', Number(((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2)) + 'rem', 'important');
     //GM_deleteValue(RootDomain)
-    linkDB.clearAll().then(() => {
-        console.log("All data has been cleared from the 'Links' object store.");
-    }).catch(error => {
-        console.error("Failed to clear data:", error);
-    });
-    broadcastUpdate()
+    try {
+        await navigator.locks.request('LinkCopyLock', { mode: 'exclusive' }, async () => {
+            await linkDB.clearAll().then(() => {
+                console.log("All data has been cleared from the 'Links' object store.");
+            }).catch(error => {
+                console.error("Failed to clear data:", error);
+            });    
+        });
+    } catch (err) {
+        console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
+    }    
+    
 
     if (document.querySelector('.Minus')) {
         document.querySelector('.Minus').style.visibility = "hidden"
