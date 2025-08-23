@@ -348,8 +348,6 @@ class LinkCopyDB {
 
 const linkDB = new LinkCopyDB();
 let indexedDBCache = []
-linkDB.init()
-
 
 // 외부에서 DB 변경 감지
 linkDB.onchange = (event) => {
@@ -402,16 +400,14 @@ window.addEventListener('storage', async (e) => {
     if (toggleConfigs[e.key]) {
         handleToggle(e.key, toggleConfigs[e.key]);
     }
-    if (DownloadArea?.length) {
-        await CheckDB(listToDo(DownloadArea), 'storage');
-    }
 });
 
 let currentConfig = null
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
     console.log('Start Link Copy!')
     FontAwesomeCSS()
+    await linkDB.init()
     FirstStep()
 }, { once: true })
 
@@ -563,7 +559,7 @@ async function indexedDBUpdate() {
         updateUI(GetState, PackageCount)
     }).catch(error => {
         console.error("Failed get data:", error);
-    });    
+    });
 }
 
 
@@ -2130,13 +2126,11 @@ async function handleToggle(key, className) {
 
 
 
-function FirstStep() {
-    GetState = indexedDBCache.length
-    PackageCount = PackageList(indexedDBCache).length
-    updateUI(GetState, PackageCount)
+async function FirstStep() {
 
     if (!LinkCopyCenterBox) {
-        mainIcon('First Run')
+        await mainIcon('First Run')
+        await indexedDBUpdate()
     }
     for (const site of siteConfigs) {
         if (site.regex.test(PageURL) && (!site.condition || site.condition())) {
@@ -2214,7 +2208,7 @@ function RefreshIcon(Run) {
 }
 
 
-function mainIcon(Run) {
+async function mainIcon(Run) {
     GetDPI = window.devicePixelRatio;
     DefaultFontSize = getDefaultFontSize();
     console.log('GetDPI:', GetDPI, 'DefaultFontSize:', DefaultFontSize, Run);
@@ -2271,9 +2265,8 @@ function mainIcon(Run) {
 
     // Update State and button opacity    
     const clearBtn = LinkCopyCenterBox.querySelector('.ClearButton');
-    const copyBtn = LinkCopyCenterBox.querySelector('.CopyButton');   
-    
-    indexedDBUpdate()    
+    const copyBtn = LinkCopyCenterBox.querySelector('.CopyButton');
+
 
     if ((GetState || 0) === 0) {
         clearBtn.style.opacity = '0.25';
@@ -2804,7 +2797,7 @@ async function CollectionLinks(DownloadArea) {
         }
 
         CopyLinks.push(href);
-        UpdateDB(href, `${CopyTitle}${Resolution || ''}`);
+        await UpdateDB(href, `${CopyTitle}${Resolution || ''}`);
     }
 
     // Dedupe and return as newline-separated string (or empty array)
@@ -2830,14 +2823,21 @@ async function UpdateDB(Target, UrlTitle) {
         Target = Target.match(K2SRegExp)[1] + Target.match(K2SRegExp)[2].slice(0, 18)
     }
     console.log({ Target, UrlTitle })
-    try {
-       await navigator.locks.request('LinkCopyLock', { mode: 'exclusive' }, async () => {
-            await linkDB.add({ U: Target, T: UrlTitle, S: PageURL })    
-        });
-    } catch (err) {
-        console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
+    if (navigator.locks) {
+        // HTTPS 환경일 때만 락 요청 로직 실행
+        try {
+            await navigator.locks.request('LinkCopyLock', { mode: 'exclusive' }, async () => {
+                await linkDB.add({ U: Target, T: UrlTitle, S: PageURL });
+            });
+        } catch (err) {
+            console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
+        }
+    } else {
+        // HTTP 환경이거나 API를 지원하지 않을 때의 대체 로직
+        console.log('경고: navigator.locks API는 현재 환경에서 지원되지 않습니다.');
+        await linkDB.add({ U: Target, T: UrlTitle, S: PageURL });
     }
-    
+
     if (!JSON.parse(localStorage.getItem('NewAdded'))) {
         localStorage.setItem('NewAdded', JSON.stringify(true))
     }
@@ -2847,14 +2847,21 @@ async function UpdateDB(Target, UrlTitle) {
 async function RemoveDB(listToDelete) {
     //console.log(`RemoveDB ${listToDelete}`)    
     for (const list of listToDelete) {
-        try {
-            await navigator.locks.request('LinkCopyLock', { mode: 'exclusive' }, async () => {
-                await linkDB.remove(list)
-            });
-        } catch (err) {
-            console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
-        }            
-    }    
+        if (navigator.locks) {
+            // HTTPS 환경일 때만 락 요청 로직 실행
+            try {
+                await navigator.locks.request('LinkCopyLock', { mode: 'exclusive' }, async () => {
+                    await linkDB.remove(list);
+                });
+            } catch (err) {
+                console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
+            }
+        } else {
+            // HTTP 환경이거나 API를 지원하지 않을 때의 대체 로직
+            console.log('경고: navigator.locks API는 현재 환경에서 지원되지 않습니다.');
+            await linkDB.remove(list);
+        }
+    }
     document.querySelector('.State').textContent = GetState + ' | ' + PackageCount
     if (GetState == 0) {
         document.querySelector('.ClearButton').style = "opacity: 0.25;";
@@ -2885,27 +2892,32 @@ async function CheckDB(listTo, fromStep) {
 
         // Set flags indicating skip conditions
         userClose = false;
-        userCopy = false;      
-        
-    }
+        userCopy = false;
 
-    // `GetState`가 존재하고 길이가 0보다 클 때만 로직을 실행합니다.
+    }
+   
     console.log(indexedDBCache)
     if (indexedDBCache?.length > 0) {
         for (let link of listTo) {
-            const searchDB = await indexedDBCache.find(({ U }) => U === link)          
-            if (searchDB) {                
+            const searchDB = await indexedDBCache.find(({ U }) => U === link)
+            if (searchDB) {
                 isMatchFound.push(link)
                 if (PackageName && searchDB.T !== PackageName) {
-                    searchDB.T = PackageName    
-                    try {
-                        await navigator.locks.request('LinkCopyLock', { mode: 'exclusive' }, async () => {
-                            await linkDB.add(searchDB)                    
-                        });
-                    } catch (err) {
-                        console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
-                    }                
-                    
+                    searchDB.T = PackageName
+                    if (navigator.locks) {
+                        // HTTPS 환경일 때만 락 요청 로직 실행
+                        try {
+                            await navigator.locks.request('LinkCopyLock', { mode: 'exclusive' }, async () => {
+                                await linkDB.add({ U: Target, T: UrlTitle, S: PageURL });
+                            });
+                        } catch (err) {
+                            console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
+                        }
+                    } else {
+                        // HTTP 환경이거나 API를 지원하지 않을 때의 대체 로직
+                        console.log('경고: navigator.locks API는 현재 환경에서 지원되지 않습니다.');
+                        await linkDB.add({ U: Target, T: UrlTitle, S: PageURL });
+                    }
                 }
             }
         }
@@ -3295,18 +3307,20 @@ async function ClearUrls() {
     document.querySelector('.ClearButton').style = "color: White !important;";
     //document.querySelector('.ClearButton').style.setProperty('font-size', Number(((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2)) + 'rem', 'important');
     //GM_deleteValue(RootDomain)
-    try {
-        await navigator.locks.request('LinkCopyLock', { mode: 'exclusive' }, async () => {
-            await linkDB.clearAll().then(() => {
-                console.log("All data has been cleared from the 'Links' object store.");
-            }).catch(error => {
-                console.error("Failed to clear data:", error);
-            });    
-        });
-    } catch (err) {
-        console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
-    }    
-    
+    if (navigator.locks) {
+        // HTTPS 환경일 때만 락 요청 로직 실행
+        try {
+            await navigator.locks.request('LinkCopyLock', { mode: 'exclusive' }, async () => {
+                await linkDB.clearAll();
+            });
+        } catch (err) {
+            console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
+        }
+    } else {
+        // HTTP 환경이거나 API를 지원하지 않을 때의 대체 로직
+        console.log('경고: navigator.locks API는 현재 환경에서 지원되지 않습니다.');
+        await linkDB.clearAll()
+    }
 
     if (document.querySelector('.Minus')) {
         document.querySelector('.Minus').style.visibility = "hidden"
