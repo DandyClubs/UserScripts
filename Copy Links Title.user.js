@@ -658,8 +658,8 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
     let ReleaseDate = '';
 
 
-    const FeaturingLine = infoLines.find(line => line.match(/특집\s*:/i));
-    const Featuring = FeaturingLine ? FeaturingLine.replace(/Featuring\s*:/i, '').trim() : '';
+    const FeaturingLine = infoLines.find(line => line.match(/(Featuring|Title)/i));
+    const Featuring = FeaturingLine ? FeaturingLine.replace(/(Featuring|Title)\s?:/i, '').trim() : '';
 
     infoLines.some((line) => {
         if (!ID) {
@@ -686,6 +686,8 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
                 Title = titleMatch;
             } else if (copyMatch) {
                 Title = copyMatch;
+            } else if (/Title\s?:/i.test(line)) {
+                Title = line.replace(/Title\s?:/i, '').trim()
             }
 
             Title = Title ? Title.trim() + ' ' : '';
@@ -739,10 +741,9 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
     console.log({ infoLines, cleanedinfoLines });
 
+    console.log({ CopyTitle, Title, infoLines, cleanedinfoLines });
     const infoLinesFinalTitle = Title ? `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim() : ''
-
-
-    const InfofinalTitle = infoLinesFinalTitle ? compareSentencesByWordMatch(cleanedinfoLines[0], infoLinesFinalTitle) : cleanedinfoLines[0] || '';
+    const InfofinalTitle = infoLinesFinalTitle ? infoLinesFinalTitle : compareSentencesByWordMatch(cleanedinfoLines[0], CopyTitle);
 
     console.log({ CopyTitle, InfofinalTitle });
     //preferJapanese: true 일 때, 두 문장을 비교하여 일본어가 많이 포함된 경우 우선순위를 두고, 그렇지 않으면 원본 제목을 사용합니다.

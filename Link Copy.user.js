@@ -2109,15 +2109,15 @@ async function handleToggle(key, className) {
     ev.classList.toggle('Off', !isEnabled);
 
     if (key === 'AutoCopy') {
-        const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle')
-        if (!hasCopied) {
+        const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle')        
+        if (hasCopied.length === 0) {
             CopyGo(SkipTitle)
         }
 
     } else if (key === 'AutoClose') {
         if (isEnabled) {
             const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle')
-            if (!hasCopied) {
+            if (hasCopied.length === 0) {
                 CopyGo(SkipTitle)
             }
         }
@@ -2300,7 +2300,7 @@ async function mainIcon(Run) {
             localStorage.setItem('AutoCopy', JSON.stringify(true));
             if (DownloadArea?.length > 0) {
                 const hasCopied = await CheckDB(listToDo(DownloadArea), 'click')
-                if (!hasCopied) {
+                if (hasCopied.length === 0) {
                     CopyGo(SkipTitle)
                 }
             }
@@ -2319,7 +2319,7 @@ async function mainIcon(Run) {
             localStorage.setItem('AutoCopy', JSON.stringify(true));
             if (DownloadArea?.length > 0) {
                 const hasCopied = await CheckDB(listToDo(DownloadArea), 'click')
-                if (!hasCopied) {
+                if (hasCopied.length === 0) {
                     CopyGo(SkipTitle)
                 }
             }
