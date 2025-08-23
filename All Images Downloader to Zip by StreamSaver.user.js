@@ -1018,11 +1018,11 @@ async function downloadPhotosWithRetry(DownloadImagesDB) {
             const result = await downloadPhotosAttempt(DownloadImagesDB, userSignal, attempt > 1);
             errorList = result.failed;
 
-            if (errorList.length === 0) break;
-
-            errorCount = errorList.length;
-
-            console.warn(`[Attempt ${attempt}] 실패 항목 ${errorList.length}개, 재시도 준비`);
+            if (errorList.length === 0) {
+                errorCount = errorList.length;
+                console.warn(`[Attempt ${attempt}] 실패 항목 ${errorList.length}개, 재시도 준비`);
+                break;
+            }
 
 
         } catch (fatalErr) {
@@ -1051,6 +1051,7 @@ async function downloadPhotosWithRetry(DownloadImagesDB) {
         showErrorPanel(errorList);
         AutoClose = false
         areadyDownloaded = false
+        UpdateJobQueue(PageURL, 'remove'); // ✅ JobQueue에서 제거
     } else if (userSignal.aborted) {
         UpdateJobQueue(PageURL, 'remove'); // ✅ JobQueue에서 제거
         await sleep(5000);
