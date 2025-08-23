@@ -209,22 +209,12 @@ class CopyLinksTitle {
         return result;
     }
 
+    // **수정된 부분:** searchIndex를 getAll 기반으로 수정
     async searchIndex(indexName, indexKey) {
         return this._tx('readonly', (store) => {
-            // 인덱스 이름을 명시적으로 지정합니다.
             const index = store.index(indexName);
-
-            // 인덱스의 get 메소드에 조회할 'copyId' 값을 전달합니다.
-            const request = index.get(indexKey);
-
-            return new Promise((resolve, reject) => {
-                request.onsuccess = () => {
-                    // 데이터를 찾았으면 해당 객체 전체를 반환합니다.
-                    // 데이터가 없으면 null을 반환합니다.
-                    resolve(request.result || null);
-                };
-                request.onerror = () => reject(request.error);
-            });
+            // getAll() 요청을 반환하여 _tx에서 Promise가 처리되도록 합니다.
+            return index.getAll(indexKey);
         });
     }
 
@@ -238,12 +228,18 @@ class CopyLinksTitle {
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction([this.storeName], mode);
             const store = tx.objectStore(this.storeName);
-            const request = action(store);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
+
+            try {
+                // action이 반환하는 IDBRequest 객체를 기다립니다.
+                const request = action(store);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+
+            } catch (error) {
+                reject(error);
+            }
         });
     }
-
     // 내부 알림 → BroadcastChannel
     _notify(event) {
         this.bc.postMessage(event);
@@ -254,8 +250,6 @@ class CopyLinksTitle {
 
 const CopyLinksTitleDB = new CopyLinksTitle();
 let indexedDBCache = []
-CopyLinksTitleDB.init()
-
 
 // 외부에서 DB 변경 감지
 CopyLinksTitleDB.onchange = (event) => {
@@ -312,8 +306,8 @@ const SkipTitle = [
 console.log(SkipFilter)
 
 let lastExecutionTime = performance.now()
-document.addEventListener("DOMContentLoaded", () => {    
-    
+document.addEventListener("DOMContentLoaded", () => {
+
     let cookieCheck = getCookie("ClearCopyed")
     if (!cookieCheck || cookieCheck != "Y") {
         console.log('ClearCopyed')
@@ -331,7 +325,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
         MakeIcon()
-        indexedDBUpdate()
+        CopyLinksTitleDB.init().then(() => {
+            indexedDBUpdate();
+        }).catch(error => {
+            console.error("Database initialization failed:", error);
+        });
         AddCopyIcon(document.body);
     } catch (error) {
         let errorMessage = "아이콘 추가 중 예상치 못한 오류가 발생했습니다.";
@@ -852,12 +850,11 @@ function addEventListeners(container) {
                 copyIcon.classList.remove('Copyed');
 
                 if (DomainRules.selectors.visitedLink) {
-                    console.log()
                     relativeArea?.querySelector(DomainRules.selectors.visitedLink)?.classList.remove('Copyed');
                 }
 
                 localStorage.removeItem(copyId);
-                RemoveDB(copyId);
+                await RemoveDB(copyId);
             }
         }
     });
@@ -919,7 +916,7 @@ async function CopyLink(el, noticeArea, CopyID) {
     if (coverImage && !/imagetwist\.com/.test(coverImage) && duplicateLink.indexOf(coverImage) === -1) {
         copyLinks += coverImage;
         await UpdateDB(coverImage, urlTitle, el.getAttribute("id") || PageURL, CopyID);
-    }    
+    }
     document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageCount
     if (!JSON.parse(localStorage.getItem('NewAdded'))) {
         localStorage.setItem('NewAdded', JSON.stringify(true))
@@ -958,16 +955,22 @@ function SearchMatch(Array, Search, ReplaceSTR) {
 
 
 async function UpdateDB(Target, UrlTitle, Source, CopyID) {
-    await CopyLinksTitleDB.add({ U: Target, T: UrlTitle, S: Source ? Source : '', I: CopyID ? CopyID : '' })            
+    await CopyLinksTitleDB.add({ U: Target, T: UrlTitle, S: Source ? Source : '', I: CopyID ? CopyID : '' })
 }
 
-function RemoveDB(CopyID) {    
-    CopyLinksTitleDB.searchIndex(copyIdIndex, CopyID).then(result =>{
-        console.log('RemoveDB: ', result)
-        for(const x of result){
-            CopyLinksTitleDB.remove(x)
+async function RemoveDB(CopyID) {    
+    try {
+        // searchIndex는 이제 객체 배열을 반환합니다.
+        const itemsToRemove = await CopyLinksTitleDB.searchIndex('copyIdIndex', CopyID);       
+
+        // U(keyPath) 값을 추출하여 제거합니다.
+        for (const item of itemsToRemove) {
+            await CopyLinksTitleDB.remove(item.U);
+            console.log(`Removed item with key: ${item.U}`);
         }
-    })    
+    } catch (error) {
+        console.error("Error removing items:", error);
+    }
 }
 
 function applyClickEffect(selector) {
@@ -987,7 +990,7 @@ async function clearDB() {
 }
 
 async function sendJD() {
-    applyClickEffect('.CopyButton');    
+    applyClickEffect('.CopyButton');
     JDownloaderDB(indexedDBCache)
 }
 
@@ -1011,7 +1014,7 @@ function MakeIcon() {
         { className: 'ToTop fa-solid fa-circle-chevron-up', event: () => window.scrollTo({ top: 0, behavior: 'smooth' }) },
         {
             className: 'ClearButton far fa-minus-square', event: (event) => {
-                event.preventDefault();                
+                event.preventDefault();
                 if (JSON.parse(localStorage.getItem('NewAdded')) && window.confirm("Not Yet Copy! Clear?")) {
                     localStorage.setItem('NewAdded', JSON.stringify(false));
                     clearDB();
@@ -1033,7 +1036,7 @@ function MakeIcon() {
                 if (window.confirm("All Copy! OK?")) {
                     AllCopy();
                 }
-                
+
             }
         },
         { className: 'State', event: null },
@@ -1124,7 +1127,7 @@ async function AddCopyIcon(node) {
 
         createAndAddIcons(relativeArea, copyID, isCopied);
         console.log(relativeArea, copyID, isCopied)
-    }    
+    }
 }
 
 function JDownloader(JdownloaderData, PackageName, sourceURL) {
