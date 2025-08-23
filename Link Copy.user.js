@@ -558,8 +558,8 @@ function observeDownloadArea(WatchArea, downloadAreaSelector) {
 async function indexedDBUpdate() {
     linkDB.getAll().then((result) => {
         indexedDBCache = result;
-        GetState = indexedDBCache
-        PackageCount = PackageList(indexedDBCache)
+        GetState = indexedDBCache.length
+        PackageCount = PackageList(indexedDBCache).length
         updateUI(GetState, PackageCount)
     }).catch(error => {
         console.error("Failed get data:", error);
@@ -2081,12 +2081,12 @@ function updateUI(GetState, PackageCount) {
         const copyBtn = document.querySelector('.CopyButton');
 
         if (stateEl) {
-            stateEl.textContent = `${GetState.length} | ${PackageCount.length}`;
+            stateEl.textContent = `${GetState} | ${PackageCount}`;
             clearBtn.style.color = 'LimeGreen';
             copyBtn.style.color = 'LimeGreen';
         }
 
-        if (GetState.length === 0) {
+        if (GetState === 0) {
             clearBtn.style.opacity = '0.25';
             copyBtn.style.opacity = '0.25';
         } else {
@@ -2131,9 +2131,8 @@ async function handleToggle(key, className) {
 
 
 function FirstStep() {
-
-    GetState = indexedDBCache
-    PackageCount = PackageList(indexedDBCache)
+    GetState = indexedDBCache.length
+    PackageCount = PackageList(indexedDBCache).length
     updateUI(GetState, PackageCount)
 
     if (!LinkCopyCenterBox) {
@@ -2276,7 +2275,7 @@ function mainIcon(Run) {
     
     indexedDBUpdate()    
 
-    if ((GetState?.length || 0) === 0) {
+    if ((GetState || 0) === 0) {
         clearBtn.style.opacity = '0.25';
         copyBtn.style.opacity = '0.25';
     } else {
@@ -2856,8 +2855,8 @@ async function RemoveDB(listToDelete) {
             console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
         }            
     }    
-    document.querySelector('.State').textContent = GetState?.length + ' | ' + PackageCount?.length
-    if (GetState?.length == 0) {
+    document.querySelector('.State').textContent = GetState + ' | ' + PackageCount
+    if (GetState == 0) {
         document.querySelector('.ClearButton').style = "opacity: 0.25;";
         document.querySelector('.CopyButton').style = "opacity: 0.25;";
     }
@@ -3024,12 +3023,12 @@ async function CopyLink() {
     await sleep(100);
 
     const stateEl = document.querySelector('.State');
-    stateEl.textContent = `${GetState.length} | ${PackageCount.length}`;
+    stateEl.textContent = `${GetState} | ${PackageCount}`;
 
 
     const clearBtn = document.querySelector('.ClearButton');
     const copyBtn = document.querySelector('.CopyButton');
-    if (GetState.length === 0) {
+    if (GetState === 0) {
         clearBtn.style.opacity = '0.25';
         copyBtn.style.opacity = '0.25';
     } else {
@@ -3314,8 +3313,8 @@ async function ClearUrls() {
     if (document.querySelector('.Minus')) {
         document.querySelector('.Minus').style.visibility = "hidden"
     }
-    document.querySelector('.State').textContent = GetState?.length + ' | ' + PackageCount?.length
-    if (GetState?.length == 0) {
+    document.querySelector('.State').textContent = GetState + ' | ' + PackageCount
+    if (GetState == 0) {
         document.querySelector('.ClearButton').style = "opacity: 0.25;";
         document.querySelector('.CopyButton').style = "opacity: 0.25;";
     }

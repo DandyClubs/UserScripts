@@ -384,9 +384,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function indexedDBUpdate() {
     CopyLinksTitleDB.getAll().then((result) => {
-        indexedDBCache = result;
-        GetState = indexedDBCache
-        PackageCount = PackageList(indexedDBCache)
+        indexedDBCache = result;        
+        GetState = indexedDBCache.length
+        PackageCount = PackageList(indexedDBCache).length
         updateUI(GetState, PackageCount)
     }).catch(error => {
         console.error("Failed get data:", error);
@@ -402,12 +402,12 @@ function updateUI(GetState, PackageCount) {
         const copyBtn = document.querySelector('.CopyButton');
 
         if (stateEl) {
-            stateEl.textContent = `${GetState.length} | ${PackageCount.length}`;
+            stateEl.textContent = `${GetState} | ${PackageCount}`;
             clearBtn.style.color = 'LimeGreen';
             copyBtn.style.color = 'LimeGreen';
         }
 
-        if (GetState.length === 0) {
+        if (GetState === 0) {
             clearBtn.style.opacity = '0.25';
             copyBtn.style.opacity = '0.25';
         } else {
@@ -799,8 +799,7 @@ async function showCopyNotice(noticeArea, relativeArea, finalTitle, copyLinks) {
     $(noticeArea).slideToggle('fast', 'linear');
     await sleep(500);
     $(noticeArea).slideToggle('slow');
-    await sleep(1000);
-    noticeArea.textContent = '';
+    await sleep(1000);    
 }
 
 
@@ -917,7 +916,7 @@ async function CopyLink(el, noticeArea, CopyID) {
         copyLinks += coverImage;
         await UpdateDB(coverImage, urlTitle, el.getAttribute("id") || PageURL, CopyID);
     }
-    document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageCount
+    document.querySelector('.State').innerText = GetState + ' | ' + PackageCount
     if (!JSON.parse(localStorage.getItem('NewAdded'))) {
         localStorage.setItem('NewAdded', JSON.stringify(true))
     }
@@ -986,7 +985,7 @@ function applyClickEffect(selector) {
 async function clearDB() {
     applyClickEffect('.ClearButton');
     await CopyLinksTitleDB.clearAll()
-    document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageCount
+    document.querySelector('.State').innerText = GetState + ' | ' + PackageCount
 }
 
 async function sendJD() {
@@ -1053,7 +1052,7 @@ function MakeIcon() {
     centerBox.style.setProperty('font-size', baseFontSizeRem + 'rem', 'important');
     document.querySelector('.State').style.setProperty('font-size', stateFontSizeRem, 'important');
     document.querySelector('.AllCopyState').style.setProperty('font-size', stateFontSizeRem, 'important');
-    document.querySelector('.State').innerText = `${GetState?.length || 0} | ${PackageCount || 0}`;
+    document.querySelector('.State').innerText = `${GetState || 0} | ${PackageCount || 0}`;
 }
 
 
