@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Copy Links & Title
+// @name         Copy Links & Title (indexedDB)
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.11
+// @version      2025.08.24
 // @description  try to take over the world!
 // @author       You
 // @include      /gm\d+.xyz/
@@ -149,15 +149,133 @@ GM_addStyle(`
 
 `);
 
+
+
+class CopyLinksTitle {
+    constructor() {
+        this.dbName = 'CopyLinksTitle';
+        this.storeName = 'LinksTitle';
+        this.db = null;
+
+        // 이벤트 채널
+        this.bc = new BroadcastChannel("CopyLinksTitleChannel");
+    }
+
+    async init() {
+        return new Promise((resolve, reject) => {
+            // 데이터베이스 버전을 1에서 2로 변경합니다.
+            const request = indexedDB.open(this.dbName, 1);
+
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(this.storeName)) {
+                    // Object Store를 생성합니다.
+                    const store = db.createObjectStore(this.storeName, { keyPath: 'U' });
+
+                    // CopyID에 대한 인덱스를 추가합니다.
+                    // 인덱스 이름은 'copyIdIndex'로 지정했습니다.
+                    store.createIndex('copyIdIndex', 'I', { unique: false });
+                    console.log('Object Store and "copyIdIndex" created.');
+                }
+            };
+
+            request.onsuccess = (e) => {
+                this.db = e.target.result;
+                console.log('Database opened successfully.');
+                resolve();
+            };
+
+            request.onerror = (e) => reject(e.target.error);
+        });
+    }
+
+    async add(data) {
+        const result = await this._tx('readwrite', store => store.put(data));
+        this._notify({ type: "add", data });
+        return result;
+    }
+
+    async get(U) {
+        return this._tx('readonly', store => store.get(U));
+    }
+
+    async getAll() {
+        return this._tx('readonly', store => store.getAll());
+    }
+
+    async remove(U) {
+        const result = await this._tx('readwrite', store => store.delete(U));
+        this._notify({ type: "remove", U });
+        return result;
+    }
+
+    async searchIndex(indexName, indexKey) {
+        return this._tx('readonly', (store) => {
+            // 인덱스 이름을 명시적으로 지정합니다.
+            const index = store.index(indexName);
+
+            // 인덱스의 get 메소드에 조회할 'copyId' 값을 전달합니다.
+            const request = index.get(indexKey);
+
+            return new Promise((resolve, reject) => {
+                request.onsuccess = () => {
+                    // 데이터를 찾았으면 해당 객체 전체를 반환합니다.
+                    // 데이터가 없으면 null을 반환합니다.
+                    resolve(request.result || null);
+                };
+                request.onerror = () => reject(request.error);
+            });
+        });
+    }
+
+    async clearAll() {
+        const result = await this._tx('readwrite', store => store.clear());
+        this._notify({ type: "clear" });
+        return result;
+    }
+
+    async _tx(mode, action) {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction([this.storeName], mode);
+            const store = tx.objectStore(this.storeName);
+            const request = action(store);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    // 내부 알림 → BroadcastChannel
+    _notify(event) {
+        this.bc.postMessage(event);
+        if (this.onchange) this.onchange(event); // ★ 같은 탭 내부에서도 바로 콜백 실행
+    }
+}
+
+
+const CopyLinksTitleDB = new CopyLinksTitle();
+let indexedDBCache = []
+CopyLinksTitleDB.init()
+
+
+// 외부에서 DB 변경 감지
+CopyLinksTitleDB.onchange = (event) => {
+    //console.log("로컬 DB 이벤트 발생:", event);
+    indexedDBUpdate()
+};
+
+CopyLinksTitleDB.bc.onmessage = (event) => {
+    //console.log("멀티탭 DB 이벤트 발생:", event.data);
+    indexedDBUpdate()
+};
+
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RootDomain = extractRootDomain(PageURL)
 
 let GetDPI, DefaultFontSize, elementPosition
-let GetState, searchDB
+let GetState, searchDB, PackageCount
 let copyLinks = ''
 let Copyed = ''
 
-let RootDomainDB = JSON.parse(localStorage.getItem(RootDomain) || '[]');
 let Maker
 let UrlTitle = ''
 let DirectCopy = true
@@ -194,7 +312,7 @@ const SkipTitle = [
 console.log(SkipFilter)
 
 let lastExecutionTime = performance.now()
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", () => {    
     
     let cookieCheck = getCookie("ClearCopyed")
     if (!cookieCheck || cookieCheck != "Y") {
@@ -213,6 +331,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
         MakeIcon()
+        indexedDBUpdate()
         AddCopyIcon(document.body);
     } catch (error) {
         let errorMessage = "아이콘 추가 중 예상치 못한 오류가 발생했습니다.";
@@ -265,17 +384,42 @@ document.addEventListener("DOMContentLoaded", () => {
 
 }, { once: true })
 
-window.addEventListener('storage', (e) => {
+async function indexedDBUpdate() {
+    CopyLinksTitleDB.getAll().then((result) => {
+        indexedDBCache = result;
+        GetState = indexedDBCache
+        PackageCount = PackageList(indexedDBCache)
+        updateUI(GetState, PackageCount)
+    }).catch(error => {
+        console.error("Failed get data:", error);
+    });
+}
 
-    RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
-    GetState = RootDomainDB
-    if (document.querySelector('.CenterBox')) {
-        document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageList(RootDomainDB)?.length
-        document.querySelector('.ClearButton').style = "color: dodgerblue !important;";
-        document.querySelector('.CopyButton').style = "color: dodgerblue !important;";
+
+// UI 상태를 업데이트하는 함수
+function updateUI(GetState, PackageCount) {
+    try {
+        const stateEl = document.querySelector('.State');
+        const clearBtn = document.querySelector('.ClearButton');
+        const copyBtn = document.querySelector('.CopyButton');
+
+        if (stateEl) {
+            stateEl.textContent = `${GetState.length} | ${PackageCount.length}`;
+            clearBtn.style.color = 'LimeGreen';
+            copyBtn.style.color = 'LimeGreen';
+        }
+
+        if (GetState.length === 0) {
+            clearBtn.style.opacity = '0.25';
+            copyBtn.style.opacity = '0.25';
+        } else {
+            clearBtn.style.opacity = '1';
+            copyBtn.style.opacity = '1';
+        }
+    } catch {
+        // UI 요소가 없거나 오류가 발생했을 때 재시작 로직        
     }
-
-});
+}
 
 function ClearCopyed() {
     console.log('Start Delete Copyed!')
@@ -714,8 +858,6 @@ function addEventListeners(container) {
 
                 localStorage.removeItem(copyId);
                 RemoveDB(copyId);
-                RootDomainDB = JSON.parse(localStorage.getItem(RootDomain)) || [];
-                document.querySelector('.State').innerText = `${RootDomainDB?.length || 0} | ${PackageList(RootDomainDB)?.length || 0}`;
             }
         }
     });
@@ -777,11 +919,8 @@ async function CopyLink(el, noticeArea, CopyID) {
     if (coverImage && !/imagetwist\.com/.test(coverImage) && duplicateLink.indexOf(coverImage) === -1) {
         copyLinks += coverImage;
         await UpdateDB(coverImage, urlTitle, el.getAttribute("id") || PageURL, CopyID);
-    }
-
-    localStorage.setItem(RootDomain, JSON.stringify(RootDomainDB))
-    GetState = RootDomainDB
-    document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageList(RootDomainDB)?.length
+    }    
+    document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageCount
     if (!JSON.parse(localStorage.getItem('NewAdded'))) {
         localStorage.setItem('NewAdded', JSON.stringify(true))
     }
@@ -818,20 +957,17 @@ function SearchMatch(Array, Search, ReplaceSTR) {
 }
 
 
-function UpdateDB(Target, UrlTitle, Source, CopyID) {
-    searchDB = RootDomainDB.find(({ U }) => U === Target)
-    if (searchDB) {
-        searchDB.T = UrlTitle
-    }
-    else {
-        RootDomainDB.push({ U: Target, T: UrlTitle, S: Source ? Source : '', I: CopyID ? CopyID : '' })
-    }
-    return RootDomainDB
+async function UpdateDB(Target, UrlTitle, Source, CopyID) {
+    await CopyLinksTitleDB.add({ U: Target, T: UrlTitle, S: Source ? Source : '', I: CopyID ? CopyID : '' })            
 }
 
-function RemoveDB(CopyID) {
-    RootDomainDB = RootDomainDB.filter(({ I }) => I !== CopyID)
-    localStorage.setItem(RootDomain, JSON.stringify(RootDomainDB))
+function RemoveDB(CopyID) {    
+    CopyLinksTitleDB.searchIndex(copyIdIndex, CopyID).then(result =>{
+        console.log('RemoveDB: ', result)
+        for(const x of result){
+            CopyLinksTitleDB.remove(x)
+        }
+    })    
 }
 
 function applyClickEffect(selector) {
@@ -846,16 +982,13 @@ function applyClickEffect(selector) {
 
 async function clearDB() {
     applyClickEffect('.ClearButton');
-    localStorage.removeItem(RootDomain)
-    RootDomainDB = JSON.parse(localStorage.getItem(RootDomain)) || []
-    GetState = RootDomainDB
-    document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageList(RootDomainDB)?.length
+    await CopyLinksTitleDB.clearAll()
+    document.querySelector('.State').innerText = GetState?.length + ' | ' + PackageCount
 }
 
 async function sendJD() {
-    applyClickEffect('.CopyButton');
-    var sendJDData = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : []
-    JDownloaderDB(sendJDData)
+    applyClickEffect('.CopyButton');    
+    JDownloaderDB(indexedDBCache)
 }
 
 function MakeIcon() {
@@ -917,9 +1050,7 @@ function MakeIcon() {
     centerBox.style.setProperty('font-size', baseFontSizeRem + 'rem', 'important');
     document.querySelector('.State').style.setProperty('font-size', stateFontSizeRem, 'important');
     document.querySelector('.AllCopyState').style.setProperty('font-size', stateFontSizeRem, 'important');
-    RootDomainDB = localStorage.getItem(RootDomain) ? JSON.parse(localStorage.getItem(RootDomain)) : [];
-    GetState = RootDomainDB;
-    document.querySelector('.State').innerText = `${GetState?.length || 0} | ${PackageList(RootDomainDB)?.length || 0}`;
+    document.querySelector('.State').innerText = `${GetState?.length || 0} | ${PackageCount || 0}`;
 }
 
 
