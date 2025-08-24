@@ -1267,9 +1267,9 @@ function observeViewerModal(viewer) {
                         let AutoExpandTag = '.sp-head.folded.clickable:not(.unfolded)'
                         let Ex = [...document.querySelectorAll(AutoExpandTag)]
                         Ex.forEach(el => {
-                            ExpandTag.observe(el)
+                            //ExpandTag.observe(el)
                             //expandAboveViewport(el)
-                            //el.click()
+                            el.click()
                         })
                     }
                 } else {
