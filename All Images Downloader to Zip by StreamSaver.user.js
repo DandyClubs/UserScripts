@@ -162,20 +162,23 @@ class JobQueueDB {
 
 
 const jobDB = new JobQueueDB();
+jobDB.init()
 
 document.addEventListener("DOMContentLoaded", async () => {
     console.log('All Images Download Zip!')
     AddDBResetButton()
-    await jobDB.init().then(() => {
-        updateJobUI();
+    jobDB.init().then(() => {
+        FontAwesomeCSS();
+        MakeIcon();
+        updateJobUI();        
         Start().then(Title => {
             if (Title) {
                 secondStep(Title)
             }
         });
     })
-    FontAwesomeCSS();
-    MakeIcon();
+    
+    
 
     jobDB.bc.onmessage = (e) => {
         if (e.data === 'refresh-jobs') {
