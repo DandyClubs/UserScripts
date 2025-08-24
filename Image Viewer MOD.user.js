@@ -572,29 +572,29 @@ const loadImage = (imageSrc) => new Promise((resolve, reject) => {
 let ViewerList = new Set();
 let isWorking = false
 
+let lastViewerUpdated = performance.now()
+let viewerUpdateTimer = null
 
-/**
- * @param {Function} func - 디바운싱할 함수
- * @param {number} delay - 호출을 지연시킬 시간 (밀리초)
- * @returns {Function} 디바운싱된 함수
- */
-function debounce(func, delay) {
-    let timer;
-
-    return function (...args) {
-        // 이전 타이머가 있다면 초기화
-        clearTimeout(timer);
-
-        // 새로운 타이머 설정
-        timer = setTimeout(() => {
-            // 지정된 시간이 지나면 원래 함수 실행
-            func.apply(this, args);
+function viewerUpdate() {
+    if (viewerUpdateTimer) {
+        return;
+    }
+    // viewerList의 크기가 0보다 클 때만 타이머를 설정합니다.
+    if (ViewerList.size > 0) {
+        if (ViewerList.size >= 10) {
+            viewer.update();
             ViewerList.clear();
-        }, delay);
-    };
+            viewerUpdateTimer = null; // 타이머 실행 후 초기화
+        }
+        else {
+            viewerUpdateTimer = setTimeout(() => {
+                viewer.update();
+                ViewerList.clear();
+                viewerUpdateTimer = null; // 타이머 실행 후 초기화
+            }, 5000);
+        }
+    }
 }
-
-
 
 // 이미지 URL을 저장할 대기열(큐) 인스턴스
 const imageQueue = new Queue();
@@ -759,6 +759,7 @@ async function processFullSizeQueue() {
 
         try {
             // getSize는 {width, height, isLoaded} 반환을 가정
+            imgEl.setAttribute('loading', 'eager');
             await image.getSize(imgEl);
 
             if (ImageExists(imgEl) && !ImageBigSize(imgEl)) {
@@ -813,14 +814,11 @@ function AddViewer() {
         },
         shown() {
             bindImagePreloadHandlers(viewer);
-        }
-
+        },
     });
 }
 
 // ————— Helpers ————— //
-
-let debouncedViewerUpdate = null;
 
 function bindKeyboardNavigation(viewer) {
     document.addEventListener('keydown', e => {
@@ -1223,7 +1221,7 @@ function AddEvent() {
 
             //event.stopPropagation()
             viewer.update()
-            ViewerList.clear()
+            ViewerList.clear(); // 업데이트 후 목록 초기화      
             //loadImage(event.target.closest('.ViewerGallery').getAttribute('data-iv-img-url'))
             viewer.view(event.target.getAttribute('ViewIndex'))
         }
@@ -1264,9 +1262,6 @@ function observeViewerModal(viewer) {
                 if (isOpen) {
                     console.log('뷰어 열림 → 큐 처리 재개');
                     pauseFullSizeProcessing = false;
-                    if (ViewerList.length > 0){
-                        debouncedViewerUpdate()
-                    }
                     startFullSizeProcessing();
                     if (/(rutracker\.org|pornolab\.net|trupornolabs.org)/.test(PageURL)) {
                         let AutoExpandTag = '.sp-head.folded.clickable:not(.unfolded)'
@@ -1339,40 +1334,10 @@ function ImageExists(image) {
         link.classList.remove('ViewerGallery')
         //viewer.update()
         ViewerList.delete(link)
+        viewerUpdate()
     }
     return !result;
 }
-
-
-
-function MakeIndexAll() {
-    console.log('Start All Making Index')
-    let figureTag = document.querySelectorAll('.GridBox figure.effect-layla')
-    Array.from(figureTag).forEach((e, index) => {
-        e.querySelector('figcaption').setAttribute('ViewIndex', index)
-    })
-}
-
-
-
-
-
-function CSSfigure(el, Image) {
-    let ViewerTag = document.createElement('div')
-    let figureTag = document.createElement('figure')
-    let figcaptionTag = document.createElement('figcaption')
-    Image.removeAttribute('height')
-    Image.removeAttribute('width')
-    //Image.style.cssText = `min-width: 100px; min-height: 100px;`
-    ViewerTag.classList.add('GridBox')
-    figureTag.classList.add('effect-layla')
-    ViewerTag.appendChild(figureTag)
-    Image.parentNode.replaceChild(ViewerTag, Image)
-    figureTag.appendChild(Image)
-    Image.closest('figure').insertAdjacentHTML('beforeend', '<figcaption></>')
-    return ViewerTag
-}
-
 
 
 const image = {
@@ -1381,7 +1346,7 @@ const image = {
 
         if (imageURL) {
             link.dataset.ivImgUrl = imageURL
-            link.classList.add('ViewerGallery')            
+            link.classList.add('ViewerGallery')
             return imageURL
         }
 
@@ -1407,6 +1372,7 @@ const image = {
             link.classList.remove('ViewerGallery')
             //viewer.update()
             ViewerList.delete(link)
+            viewerUpdate()
             return
         }
 
@@ -1430,6 +1396,7 @@ const image = {
         link.classList.add('ViewerGallery')
         //viewer.update()
         ViewerList.add(link)
+        viewerUpdate()
         return imageURL
     },
 
@@ -1454,7 +1421,7 @@ const image = {
             console.log(url)
             GM_xmlhttpRequest({
                 method: "GET",
-                url: url,                
+                url: url,
                 responseType: 'blob',
                 timeout: 600000,
                 onload: function (resp) {
@@ -1496,7 +1463,7 @@ const image = {
     },
 
     getSize(img) {
-        return new Promise((resolve) => {
+        return new Promise((resolve) => {            
             if (img.complete) {
                 resolve({ width: img.naturalWidth, height: img.naturalHeight, isLoaded: img.complete })
             }
@@ -1612,8 +1579,6 @@ async function Start() {
     document.body.setAttribute('id', 'ViewerJS')
 
     AddViewer()
-    
-    debouncedViewerUpdate = debounce(viewer.update, 5000)   
 
     AddEvent()
 
