@@ -584,12 +584,14 @@ function viewerUpdate() {
         if (ViewerList.size >= 10) {
             viewer.update();
             ViewerList.clear();
+            clearTimeout(viewerUpdateTimer)
             viewerUpdateTimer = null; // 타이머 실행 후 초기화
         }
         else {
             viewerUpdateTimer = setTimeout(() => {
                 viewer.update();
                 ViewerList.clear();
+                clearTimeout(viewerUpdateTimer)
                 viewerUpdateTimer = null; // 타이머 실행 후 초기화
             }, 5000);
         }
