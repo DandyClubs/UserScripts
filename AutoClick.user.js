@@ -156,14 +156,14 @@ const CacheManager = {
 
 const JobManager = {
     keys() { return GM_listValues().filter(k => k !== 'JobList'); },
-    add(url) { GM_setValue(url, true); },
+    add(url) { GM_setValue(url, 'pending'); },
     remove(url) {
         GM_deleteValue(url);
         JobManager.updateList();
     },
     updateList() {
         const jobs = GM_listValues().filter(e => e !== 'JobList');
-        GM_setValue('JobList', jobs.length ? `Next Go! ${jobs[0]}` : '');
+        GM_setValue('JobList', jobs.length ? `Next Go!` : '');
     }
 };
 
@@ -274,16 +274,16 @@ const globalObserver = new MutationObserver(async (mutations) => {
 
             // Listen for JobList changes across tabs
             GM_addValueChangeListener('JobList', function (key, oldValue, newValue, remote) {
-                if (remote && newValue !== 'Start Click!') {
+                if (remote) {
                     const jobs = JobManager.keys();
-                    if (jobs[0] === PageURL) {
+                    if (jobs[0] === PageURL && jobs[0] === 'pending' && newValue === 'Next Go!') {
                         Downloader(ClickBTN);
                     }
                 }
             });
 
             const jobs = JobManager.keys();
-            if (jobs[0] === PageURL) {
+            if (jobs[0] === PageURL && jobs[0] === 'pending') {
                 Downloader(ClickBTN);
             }
         }
@@ -488,7 +488,8 @@ const siteHandlers = {
 async function Downloader(el) {
     const jobs = JobManager.keys();
     if (jobs[0] !== PageURL) return;
-    GM_setValue('JobList', jobs.length ? 'Start Click!' : '');
+    GM_setValue('JobList', jobs[0] ? 'Start Click!' : '');
+    GM_setValue(PageURL, 'Start')
 
     const messageHandler = async (e) => {
         const origin = new URL(e.origin).origin;
@@ -501,6 +502,7 @@ async function Downloader(el) {
                 await sleep(5000);
                 el.click();
                 await sleep(2500);
+                GM_setValue(PageURL, 'Done')
 
                 const allowed = ['https://allasiangirls.net', 'https://bestgirlsexy.com'];
                 if (allowed.includes(origin)) {
