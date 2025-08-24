@@ -1440,7 +1440,7 @@ const siteConfigs = [
                     .replace(/amp;|\(\s?ブルーレイ版\s?\)|\(ブルーレイディスク版\)|:/g, '')
                     .trim();
 
-                if (!Title.match(/^Collection/)) {
+                if (!/Collection/i.test(Title)) {
                     const InfoArea = Array.from(document.querySelectorAll('.post-single div.entry p')).flatMap(p =>
                         p.innerText.replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n').split(/\n\n|\n/).filter(Boolean)
                     );
@@ -1479,7 +1479,7 @@ const siteConfigs = [
                             newTitle = `${entryID || infoAreaID} ${compareJapaneseCharacters(cleanIDTitle, cleanIDInfoTitle)}`
                         }
                         console.log({ newTitle })
-                        Title = newTitle
+                        Title = newTitle ? newTitle : Title
 
                     }
                     Title = mbConvertKana(Title.trim(), 'rans');
