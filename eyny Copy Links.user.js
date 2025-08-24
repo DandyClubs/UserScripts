@@ -255,9 +255,9 @@ function MakeIcon() {
     const iconHTML = `
         <div class="CenterBox">
             <i class="ToTop fa-solid fa-circle-chevron-up"></i>
-            &nbsp;<i class="ClearButton far fa-minus-square"></i>
-            &nbsp;<i class="CopyButton fas fa-paste"></i>
-            &emsp;<i class="State"></i>
+            <i class="ClearButton far fa-minus-square"></i>
+            <i class="CopyButton fas fa-paste"></i>
+            <i class="State"></i>
         </div>
     `;
     document.querySelector("body").insertAdjacentHTML('afterbegin', iconHTML);
