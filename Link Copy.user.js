@@ -349,6 +349,8 @@ class LinkCopyDB {
 const linkDB = new LinkCopyDB();
 let indexedDBCache = []
 
+await linkDB.init()
+
 // 외부에서 DB 변경 감지
 linkDB.onchange = (event) => {
     //console.log("로컬 DB 이벤트 발생:", event);
@@ -406,8 +408,7 @@ let currentConfig = null
 
 document.addEventListener("DOMContentLoaded", async () => {
     console.log('Start Link Copy!')
-    FontAwesomeCSS()
-    await linkDB.init()
+    FontAwesomeCSS()    
     FirstStep()
 }, { once: true })
 
