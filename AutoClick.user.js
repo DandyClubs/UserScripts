@@ -163,7 +163,7 @@ const JobManager = {
     },
     updateList() {
         const jobs = GM_listValues().filter(e => e !== 'JobList');
-        GM_setValue('JobList', jobs.length ? `Next Go!` : '');
+        GM_setValue('JobList', jobs.length ? `Next Go! ${jobs[0]}` : 'empty');
     }
 };
 
@@ -276,14 +276,14 @@ const globalObserver = new MutationObserver(async (mutations) => {
             GM_addValueChangeListener('JobList', function (key, oldValue, newValue, remote) {
                 if (remote) {
                     const jobs = JobManager.keys();
-                    if (jobs[0] === PageURL && jobs[0] === 'pending' && newValue === 'Next Go!') {
+                    if (jobs[0] === PageURL && GM_getValue(PageURL) === 'pending' && newValue === `Next Go! ${jobs[0]}`) {
                         Downloader(ClickBTN);
                     }
                 }
             });
 
             const jobs = JobManager.keys();
-            if (jobs[0] === PageURL && jobs[0] === 'pending') {
+            if (jobs[0] === PageURL && GM_getValue(PageURL) === 'pending') {
                 Downloader(ClickBTN);
             }
         }

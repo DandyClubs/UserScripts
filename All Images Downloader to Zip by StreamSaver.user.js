@@ -38,7 +38,7 @@ GM_addStyle(`
 .CenterBox {
     right: 50%;
     left: auto;
-    top: 5px;    
+    top: 5px;
     max-width: max-content;
     position: fixed !important;
     word-spacing: .5em;
@@ -50,7 +50,7 @@ GM_addStyle(`
     box-sizing: border-box !important;
     z-index: 999999;
     padding: 0 .25em;
-    margin: 0 .25em;	
+    margin: 0 .25em;
 	background-color: rgba(0,0,0,0.5) !important;
 }
 
@@ -111,8 +111,10 @@ let addCount = 0
 class JobQueueDB {
     constructor() {
         this.dbName = 'AllImagesJobQueueDB';
-        this.storeName = 'AllImagesStore';
+        this.storeName = 'ImagesStore';
         this.db = null;
+
+        this.bc = new BroadcastChannel('AllImagesChannel');
     }
 
     async init() {
@@ -161,25 +163,27 @@ class JobQueueDB {
 
 const jobDB = new JobQueueDB();
 
-const bc = new BroadcastChannel('AllImagesChannel');
-
-
 document.addEventListener("DOMContentLoaded", async () => {
     console.log('All Images Download Zip!')
+    AddDBResetButton()
+    await jobDB.init().then(() => {
+        updateJobUI();
+        Start().then(Title => {
+            if (Title) {
+                secondStep(Title)
+            }
+        });
+    })
     FontAwesomeCSS();
     MakeIcon();
-    AddDBResetButton()
 
-    await jobDB.init();
-
-    bc.onmessage = (e) => {
+    jobDB.bc.onmessage = (e) => {
         if (e.data === 'refresh-jobs') {
             updateJobUI();
             checkAndStartJob();
         }
     };
 
-    updateJobUI();
     window.addEventListener('storage', (e) => {
         if (e.key === 'AutoDownload') {
             let ev = document.querySelector(".AutoDownload")
@@ -193,12 +197,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     })
 
-
-    Start().then(Title => {
-        if (Title) {
-            secondStep(Title)
-        }
-    });
 }, { once: true });
 
 
@@ -251,7 +249,7 @@ async function checkAndStartJob() {
 
 // JobQueue 변경 발생 시 Broadcast
 function broadcastJobChange() {
-    bc.postMessage('refresh-jobs');
+    jobDB.bc.postMessage('refresh-jobs');
 }
 
 /**
@@ -543,7 +541,7 @@ async function Xfetch(url, fetchInit = {}) {
                     },
                     onerror: rej,
                     onreadystatechange: onHeadersReceived,
-                    signal, // Pass the signal to GM_xmlhttpRequest                    
+                    signal, // Pass the signal to GM_xmlhttpRequest
                 });
             });
 
@@ -585,7 +583,7 @@ async function Xfetch(url, fetchInit = {}) {
                     responseType: "stream",
                     onerror: rej,
                     onreadystatechange: onHeadersReceived,
-                    signal, // Pass the signal to GM_xmlhttpRequest                    
+                    signal, // Pass the signal to GM_xmlhttpRequest
                 });
             });
 
@@ -611,7 +609,7 @@ async function Xfetch(url, fetchInit = {}) {
                     if (status === 200 && (isNaN(contentLength) || contentLength < 1000)) {
                         console.warn(`Status 200 but empty or abnormally small response (Content-Length: ${contentLength}) for `);
                         rej(new Error(`Status 200 but empty or abnormally small response (Content-Length: ${contentLength})`));
-                        signal.abort(); // Abort the request to prevent further processing)                           
+                        signal.abort(); // Abort the request to prevent further processing)
                         return;
                     }
                     let responseInit = { headers: hdrs, status, statusText, contentLength };
@@ -713,8 +711,8 @@ function MakeIcon() {
 
     // 모든 요소를 한 번에 생성
     document.body.insertAdjacentHTML('beforeend',
-        `<div class="CenterBox" style="max-width: max-content; position: fixed;">            
-            <i class="ToTop fa-solid fa-circle-chevron-up"></i>            
+        `<div class="CenterBox" style="max-width: max-content; position: fixed;">
+            <i class="ToTop fa-solid fa-circle-chevron-up"></i>
         </div>
         `
     );
@@ -788,7 +786,6 @@ function GetRequiredElement(selector, label = 'Element') {
 
 
 async function Start() {
-    await jobDB.init();
 
     window.addEventListener('beforeunload', async () => {
         await UpdateJobQueue(PageURL, 'remove');
@@ -1018,7 +1015,7 @@ async function downloadPhotosWithRetry(DownloadImagesDB) {
             const result = await downloadPhotosAttempt(DownloadImagesDB, userSignal, attempt > 1);
             errorList = result.failed;
 
-            if (errorList.length === 0) {                
+            if (errorList.length === 0) {
                 break;
             }
             errorCount = errorList.length;
