@@ -743,7 +743,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
     console.log({ CopyTitle, Title, infoLines, cleanedinfoLines });
     const infoLinesFinalTitle = Title ? `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim() : ''
-    const InfofinalTitle = infoLinesFinalTitle ? infoLinesFinalTitle : compareSentencesByWordMatch(cleanedinfoLines[0], CopyTitle);
+    const InfofinalTitle = infoLinesFinalTitle ? infoLinesFinalTitle : compareSentencesByWordMatch(CopyTitle, cleanedinfoLines[0]);
 
     console.log({ CopyTitle, InfofinalTitle });
     //preferJapanese: true 일 때, 두 문장을 비교하여 일본어가 많이 포함된 경우 우선순위를 두고, 그렇지 않으면 원본 제목을 사용합니다.

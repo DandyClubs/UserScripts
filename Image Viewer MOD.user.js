@@ -545,7 +545,7 @@ function Management() {
 
 
 
-let viewer, AddStyleRun = true
+let viewer = null, AddStyleRun = true
 let startTime, endTime
 
 const loadImage = (imageSrc) => new Promise((resolve, reject) => {
@@ -569,7 +569,7 @@ const loadImage = (imageSrc) => new Promise((resolve, reject) => {
 
 
 
-let ViewerList
+let ViewerList = new Set();
 let isWorking = false
 
 
@@ -589,6 +589,7 @@ function debounce(func, delay) {
         timer = setTimeout(() => {
             // 지정된 시간이 지나면 원래 함수 실행
             func.apply(this, args);
+            ViewerList.clear();
         }, delay);
     };
 }
@@ -674,49 +675,6 @@ async function processQueue() {
     }
 }
 
-function CheckSize(Access, Target) {
-    let SRC
-    //console.log(document.querySelector('li.viewer-active').getAttribute('data-index'))
-    if (ViewerList.length - 1 == document.querySelector('li.viewer-active').getAttribute('data-index')) {
-        Access = 'JumpFirst'
-        Target = ViewerList[0]
-    }
-    else if (document.querySelector('li.viewer-active').getAttribute('data-index') == 0) {
-        Access = 'JumpLast'
-        Target = ViewerList[ViewerList.length - 1]
-    }
-    switch (Access) {
-        case "previousSibling":
-            SRC = document.querySelector('li.viewer-active').previouselementsibling?.querySelector('img').getAttribute('data-original-url')
-            break
-        case "nextSibling":
-            SRC = document.querySelector('li.viewer-active').nextElementSibling?.querySelector('img').getAttribute('data-original-url')
-            break
-        case "AccessTaget":
-            SRC = Target.getAttribute('data-original-url')
-            break
-        case "JumpFirst":
-            SRC = Target.querySelector('img').getAttribute('data-original-url')
-            break
-        case "JumpLast":
-            SRC = Target.querySelector('img').getAttribute('data-original-url')
-            break
-    }
-
-    let ATag = Array.prototype.slice.call(document.querySelectorAll('a.ViewerGallery')).find(function (el) {
-        return el.getAttribute('data-iv-img-url') === SRC;
-    })
-    let isSize = ATag.hasAttribute('data-ivnatural-width')
-
-    if (!isSize && SRC) {
-        loadImage(SRC)
-            .then((x) => {
-                ATag.dataset.ivnaturalWidth = x.width.toString()
-                ATag.dataset.ivnaturalHeight = x.height.toString()
-            })
-            .catch((err) => { console.log(err) })
-    }
-}
 
 const imageFullSizeQueue = new Queue()
 let isFullSizeProcessing = false
@@ -1265,6 +1223,7 @@ function AddEvent() {
 
             //event.stopPropagation()
             viewer.update()
+            ViewerList.clear()
             //loadImage(event.target.closest('.ViewerGallery').getAttribute('data-iv-img-url'))
             viewer.view(event.target.getAttribute('ViewIndex'))
         }
@@ -1305,6 +1264,9 @@ function observeViewerModal(viewer) {
                 if (isOpen) {
                     console.log('뷰어 열림 → 큐 처리 재개');
                     pauseFullSizeProcessing = false;
+                    if (ViewerList.length > 0){
+                        debouncedViewerUpdate()
+                    }
                     startFullSizeProcessing();
                     if (/(rutracker\.org|pornolab\.net|trupornolabs.org)/.test(PageURL)) {
                         let AutoExpandTag = '.sp-head.folded.clickable:not(.unfolded)'
@@ -1376,9 +1338,7 @@ function ImageExists(image) {
         const link = image.closest('a');
         link.classList.remove('ViewerGallery')
         //viewer.update()
-        if (debouncedViewerUpdate) {
-            debouncedViewerUpdate();
-        }
+        ViewerList.delete(link)
     }
     return !result;
 }
@@ -1446,9 +1406,7 @@ const image = {
             image.markAsBroken(link)
             link.classList.remove('ViewerGallery')
             //viewer.update()
-            if (debouncedViewerUpdate) {
-                debouncedViewerUpdate();
-            }
+            ViewerList.delete(link)
             return
         }
 
@@ -1471,9 +1429,7 @@ const image = {
         link.dataset.ivImgUrl = imageURL
         link.classList.add('ViewerGallery')
         //viewer.update()
-        if (debouncedViewerUpdate) {
-            debouncedViewerUpdate();
-        }
+        ViewerList.add(link)
         return imageURL
     },
 
@@ -1657,8 +1613,7 @@ async function Start() {
 
     AddViewer()
     
-    debouncedViewerUpdate = debounce(viewer.update, 2000)
-    viewer.update()
+    debouncedViewerUpdate = debounce(viewer.update, 5000)   
 
     AddEvent()
 
