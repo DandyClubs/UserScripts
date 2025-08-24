@@ -162,7 +162,7 @@ class JobQueueDB {
 
 
 const jobDB = new JobQueueDB();
-jobDB.init()
+await jobDB.init()
 
 document.addEventListener("DOMContentLoaded", async () => {
     console.log('All Images Download Zip!')
