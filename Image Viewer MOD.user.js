@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Image Viewer MOD (Refactored) 
-// @version      2025.08.16
+// @version      2025.08.24
 // @description  View full image without leaving the page or on a new tab without ads
 // @namespace    https://github.com/nikolay-borzov
 // @author       nikolay-borzov
@@ -548,7 +548,6 @@ function Management() {
 let viewer, AddStyleRun = true
 let startTime, endTime
 
-
 const loadImage = (imageSrc) => new Promise((resolve, reject) => {
     const image = new Image();
 
@@ -572,6 +571,27 @@ const loadImage = (imageSrc) => new Promise((resolve, reject) => {
 
 let ViewerList
 let isWorking = false
+
+
+/**
+ * @param {Function} func - 디바운싱할 함수
+ * @param {number} delay - 호출을 지연시킬 시간 (밀리초)
+ * @returns {Function} 디바운싱된 함수
+ */
+function debounce(func, delay) {
+    let timer;
+
+    return function (...args) {
+        // 이전 타이머가 있다면 초기화
+        clearTimeout(timer);
+
+        // 새로운 타이머 설정
+        timer = setTimeout(() => {
+            // 지정된 시간이 지나면 원래 함수 실행
+            func.apply(this, args);
+        }, delay);
+    };
+}
 
 
 
@@ -841,6 +861,8 @@ function AddViewer() {
 }
 
 // ————— Helpers ————— //
+
+let debouncedViewerUpdate = null;
 
 function bindKeyboardNavigation(viewer) {
     document.addEventListener('keydown', e => {
@@ -1353,7 +1375,10 @@ function ImageExists(image) {
     if (result) {
         const link = image.closest('a');
         link.classList.remove('ViewerGallery')
-        viewer.update()
+        //viewer.update()
+        if (debouncedViewerUpdate) {
+            debouncedViewerUpdate();
+        }
     }
     return !result;
 }
@@ -1420,7 +1445,10 @@ const image = {
         if (!imageURL) {
             image.markAsBroken(link)
             link.classList.remove('ViewerGallery')
-            viewer.update()
+            //viewer.update()
+            if (debouncedViewerUpdate) {
+                debouncedViewerUpdate();
+            }
             return
         }
 
@@ -1442,7 +1470,10 @@ const image = {
 
         link.dataset.ivImgUrl = imageURL
         link.classList.add('ViewerGallery')
-        viewer.update()
+        //viewer.update()
+        if (debouncedViewerUpdate) {
+            debouncedViewerUpdate();
+        }
         return imageURL
     },
 
@@ -1625,6 +1656,9 @@ async function Start() {
     document.body.setAttribute('id', 'ViewerJS')
 
     AddViewer()
+    
+    debouncedViewerUpdate = debounce(viewer.update, 2000)
+    viewer.update()
 
     AddEvent()
 

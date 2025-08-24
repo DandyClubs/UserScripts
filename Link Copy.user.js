@@ -383,7 +383,7 @@ let SkipTitle = []
 
 let GetDPI, DefaultFontSize
 let Target, DownloadArea, CopyTitle = '', copyOffsetArea, InfoArea, Resolution = '', TitleLast = '', Series = '', Title, ID = '', TitleID, CopyTitleTmp, InfoTitleTmp, CoverImage, MatchWebRegExp, Gallery, DownloadAreaSelector
-const SkipFilter = new RegExp('katfile\\.com\/\?op=registration|77file\\.com|xtvtv\\.com\/explanation|niceff\.com|fboom\\.me\/code|k2s\\.cc\/(pr|code)|facebook\\.com|magnet:|fireget\\.com\/premium\\.html|tezfiles\\.com\/.+\/premium|nyaa\\.si|twitter\\.com|ouo\\.io|tma\\.cx|3xplanetpremium|clubwarp\\.com|clubwarp\\.top/|teraboxapp\\.com|turb\\.cc|turbobit\\.net|terabox\\.com|keep2share\\.cc\/pr\/|javascript|pixhost\\.to\/gallery\/|imgchili\\.net\/show|#$|^\/|^(?=.*' + window.location.origin + ')(?!.*\\?site).*$', 'i')
+const SkipFilter = new RegExp('katfile\\.com\\/\\?op=registration|77file\\.com|xtvtv\\.com\\/explanation|niceff\\.com|fboom\\.me\/code|k2s\\.cc\/(pr|code)|facebook\\.com|magnet:|fireget\\.com\\/premium\\.html|tezfiles\\.com\\/.+\\/premium|nyaa\\.si|twitter\\.com|ouo\\.io|tma\\.cx|3xplanetpremium|clubwarp\\.com|clubwarp\\.top/|teraboxapp\\.com|turb\\.cc|turbobit\\.net|terabox\\.com|keep2share\\.cc\/pr\\/|javascript|pixhost\\.to\\/gallery\\/|imgchili\\.net\\/show|#$|^\\/|^(?=.*' + window.location.origin + ')(?!.*\\?site).*$', 'i')
 const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i')
 //const WaitChangeLink = new RegExp('tma\\.cx\/', 'i')
 const WaitChangeLink = new RegExp('TestTest\\.cx\/', 'i')
@@ -3124,8 +3124,15 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
 
 
     DownloadArea = document.querySelectorAll('div#download, div#downloadhidden')
-    const linkItems = Array.from(DownloadArea).map(e => e.querySelectorAll('a'))
-    const filteredLinks = linkItems.filter(l => !SkipFilter.test(l.href))
+    // Collect all <a> elements inside DownloadArea
+    let filteredLinks = []
+    for (let el of DownloadArea) {
+        for (let x of el.querySelectorAll('a')) {
+            if (!SkipFilter.test(x.href)) {
+                filteredLinks.push(x);
+            }
+        }
+    }
     if (filteredLinks.length === 0) {
         const downloadhiddenobserver = new MutationObserver((mutations, obs) => {
             const newLinkItems = Array.from(WatchElementArea.querySelectorAll('a')).filter(l => !SkipFilter.test(l.href));
@@ -3143,9 +3150,12 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
         console.log('DownloadArea is empty')
     }
     // Collect all <a> elements inside DownloadArea
+    // Collect all <a> elements inside DownloadArea
     for (let el of DownloadArea) {
         for (let x of el.querySelectorAll('a')) {
-            AllLinks.push(x);
+            if (!SkipFilter.test(x.href)) {
+                AllLinks.push(x);
+            }
         }
     }
     console.log('AllLinks:', AllLinks);
