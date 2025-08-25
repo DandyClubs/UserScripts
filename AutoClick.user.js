@@ -227,7 +227,7 @@ const UIManager = {
     addResetButton(el, originalLink, fileName) {
         let resetIcon = document.querySelector('.Reset');
         if (!resetIcon) {
-            el.insertAdjacentHTML('afterend', '<i class="Reset fa-solid fa-eraser"></i>');
+            el.insertAdjacentHTML('afterend', '<i class="Reset fa-solid fa-eraser" style="display: flex;align-items: center; justify-content: center;"></i>');
             resetIcon = document.querySelector('.Reset');
         }
 
