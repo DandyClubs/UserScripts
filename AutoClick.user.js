@@ -21,6 +21,7 @@
 // @include      https://en.mrproblogger.com/*
 // @include      https://misskon.com/*
 // @include      https://www.mediafire.com/file/*
+// @include      https://www.mediafire.com/folder/*
 // @run-at       document-start
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
