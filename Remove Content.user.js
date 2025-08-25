@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Remove Content
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.19
+// @version      2025.08.25
 // @description  try to take over the world!
 // @author       You
 // @match        https://blogjav.net/*
@@ -18,6 +18,7 @@
 // @match        https://ultoporn.com/*
 // @match        https://k2sporn.com/*
 // @match        https://hidefporn.ws/*
+// @match        https://misskon.com/*
 // @match        https://www.t66y.com/thread*
 // @match        https://eyny.com/forum.php?mod=forumdisplay*
 // @match        https://bestgirlsexy.com/*
@@ -149,6 +150,10 @@ const siteConfigs = {
         linkSelector: 'tr.t_one.tac td.tal h3 a[href*="htm_data"]',
         extraSelector: 'tr.tr3.t_one.tac td a',
         removeTagSelector: 'tr',
+    },
+    'misskon.com': {
+        linkSelector: 'article.item-list .post-box-title a',        
+        removeTagSelector: 'article.item-list',
     }
 };
 
