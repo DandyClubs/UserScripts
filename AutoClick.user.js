@@ -498,6 +498,7 @@ async function handleMissKon() {
                 link.setAttribute('href', e.data.token);
                 CacheManager.set(oldLink, { U: e.data.token, T: copyTitle });
                 UIManager.addResetButton(link, oldLink, copyTitle);
+                childWindow.postMessage({ action: 'closed' }, '*');
             }
         }
     };

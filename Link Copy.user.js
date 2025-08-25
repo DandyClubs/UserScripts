@@ -388,8 +388,8 @@ let GetDPI, DefaultFontSize
 let Target, DownloadArea, CopyTitle = '', copyOffsetArea, InfoArea, Resolution = '', TitleLast = '', Series = '', Title, ID = '', TitleID, CopyTitleTmp, InfoTitleTmp, CoverImage, MatchWebRegExp, Gallery, DownloadAreaSelector
 const SkipFilter = new RegExp('katfile\\.com\\/\\?op=registration|77file\\.com|xtvtv\\.com\\/explanation|niceff\\.com|fboom\\.me\/code|k2s\\.cc\/(pr|code)|facebook\\.com|magnet:|fireget\\.com\\/premium\\.html|tezfiles\\.com\\/.+\\/premium|nyaa\\.si|twitter\\.com|ouo\\.io|tma\\.cx|3xplanetpremium|clubwarp\\.com|clubwarp\\.top/|teraboxapp\\.com|turb\\.cc|turbobit\\.net|terabox\\.com|keep2share\\.cc\/pr\\/|javascript|pixhost\\.to\\/gallery\\/|imgchili\\.net\\/show|#$|^\\/|^(?=.*' + window.location.origin + ')(?!.*\\?site).*$', 'i')
 const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i')
-//const WaitChangeLink = new RegExp('tma\\.cx\/', 'i')
-const WaitChangeLink = new RegExp('TestTest\\.cx\/', 'i')
+const WaitChangeLink = new RegExp('tma\\.cx\/', 'i')
+//const WaitChangeLink = new RegExp('TestTest\\.cx\/', 'i')
 const LAST_TAGS_REGEX = /\s*\[[^\]]+\][^\[]*$/
 const HexCode = /x([0-9A-Fa-f]{2})/g   // xYY 타입
 
@@ -409,7 +409,7 @@ let currentConfig = null
 
 document.addEventListener("DOMContentLoaded", async () => {
     console.log('Start Link Copy!')
-    FontAwesomeCSS()    
+    FontAwesomeCSS()
     FirstStep()
 }, { once: true })
 
@@ -564,6 +564,33 @@ async function indexedDBUpdate() {
     });
 }
 
+
+// MutationObserver가 종료될 때까지 기다리는 함수
+function waitForObserver(targetElement) {
+    return new Promise((resolve, reject) => {
+        // 1. MutationObserver 생성
+        const observer = new MutationObserver((mutations, obs) => {
+            // 2. 타겟의 값이 바뀌면 옵저버 종료
+            // 여기서는 'href' 속성이 변경되었는지 확인합니다.
+            // 실제 구현에 맞게 조건문을 수정할 수 있습니다.
+            const hasHrefChanged = mutations.some(mutation => mutation.type === 'attributes' && mutation.attributeName === 'href');
+
+            if (hasHrefChanged) {
+                // 옵저버 종료
+                obs.disconnect();
+
+                // 3. Promise 해결 (resolve)
+                resolve("Observer disconnected successfully.");
+            }
+        });
+
+        // 4. 관찰 시작
+        observer.observe(targetElement, {
+            attributes: true,
+            attributeFilter: ['href']
+        });
+    });
+}
 
 /**
 * 특정 영역에 변경이 발생하면 콜백 함수를 실행합니다.
@@ -1536,15 +1563,12 @@ const siteConfigs = [
     },
     {
         regex: /misskon\.com\/\d+/,
-        condition: () => document.querySelector('article#the-post .post-title.entry-title'),
         config: {
-            copyOffsetAreaSelector: 'article#the-post .post-title.entry-title',
-            downloadAreaSelector: 'article#the-post div.entry p',
-            postProcess: () => {
-                let Title = copyOffsetArea?.textContent.trim() || '';
-                DownloadArea = document.querySelectorAll('article#the-post div.entry p');                
+            copyOffsetAreaSelector: 'article#the-post .post-title.entry-title',            
+            postProcess: async () => {
+                let Title = copyOffsetArea?.textContent.trim() || '';                
                 Title = mbConvertKana(Title, 'rans');
-                CopyTitle = byteLengthOf(Title, 241).trim();
+                CopyTitle = byteLengthOf(Title, 241).trim();                
             }
         }
     },
@@ -1610,7 +1634,7 @@ const siteRules = [
                 .replace(/\s+/g, ' ');
             return /^fc2/.test(cleanedTitle) ? cleanedTitle.toUpperCase() : cleanedTitle;
         },
-    },
+    },    
     {
         // cosplay.jav.pw 규칙 추가
         regex: /cosplay\.jav\.pw\/\d+/,
@@ -1704,6 +1728,22 @@ const siteRules = [
 
 // 사이트별 다운로드 영역 처리 규칙을 정의하는 배열
 const waitDownloadArea = [
+    {
+        regex: /misskon\.com\/\d+/,
+        handler: async () => {
+            const checkRedirects = document.querySelector('a.shortc-button[href*="https://ouo.io/"]');
+            if (checkRedirects) {
+                try {
+                    const result = await waitForObserver(checkRedirects);
+                    console.log(`변경된 href 값: ${checkRedirects.href}`);
+
+                } catch (error) {
+                    console.error("오류 발생:", error.message);
+                }
+            }
+            DownloadArea = document.querySelectorAll('article#the-post div.entry p');
+        },
+    },
     {
         regex: /ultoporn\.com\/\d+/,
         handler: async () => {
@@ -2125,7 +2165,7 @@ async function handleToggle(key, className) {
     ev.classList.toggle('Off', !isEnabled);
 
     if (key === 'AutoCopy') {
-        const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle')        
+        const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle')
         if (hasCopied.length === 0) {
             CopyGo(SkipTitle)
         }
@@ -2911,7 +2951,7 @@ async function CheckDB(listTo, fromStep) {
         userCopy = false;
 
     }
-   
+
     console.log(indexedDBCache)
     if (indexedDBCache?.length > 0) {
         for (let link of listTo) {
