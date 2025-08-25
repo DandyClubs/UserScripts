@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy (indexedDB)
-// @version      2025.08.23
+// @version      2025.08.25
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.org/
@@ -18,6 +18,7 @@
 // @include      /pornobunny\.org/
 // @include      /adult-porno\.org/
 // @include      /pornrip\.cc/
+// @include      /misskon\.com/
 // @include      /fhdporn\.video/
 // @include      /asianscan\.biz/
 // @include      /sharepornlink\.com\/.*/
@@ -1528,6 +1529,20 @@ const siteConfigs = [
                 let Title = copyOffsetArea?.textContent.trim() || '';
                 DownloadArea = document.querySelectorAll('div.entry > p');
                 CoverImage = DownloadArea?.[0]?.querySelector('img')?.src || '';
+                Title = mbConvertKana(Title, 'rans');
+                CopyTitle = byteLengthOf(Title, 241).trim();
+            }
+        }
+    },
+    {
+        regex: /misskon\.com\/\d+/,
+        condition: () => document.querySelector('article#the-post .post-title.entry-title'),
+        config: {
+            copyOffsetAreaSelector: 'article#the-post .post-title.entry-title',
+            downloadAreaSelector: 'article#the-post div.entry p',
+            postProcess: () => {
+                let Title = copyOffsetArea?.textContent.trim() || '';
+                DownloadArea = document.querySelectorAll('article#the-post div.entry p');                
                 Title = mbConvertKana(Title, 'rans');
                 CopyTitle = byteLengthOf(Title, 241).trim();
             }

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         AutoClick (Refactored)
-// @version      2025.08.22
+// @version      2025.08.25
 // @description  Auto actions and cross-window messaging with maintainable structure
 // @author       DandyClubs
 // @include      /^https?:\/\/(cosplayjav|nylons)\.pl\/(download|thumbnails)\/\?forPost=.*$/
@@ -19,6 +19,8 @@
 // @include      https://shrinkme.*/*
 // @include      https://bestgirlsexy.com/*
 // @include      https://en.mrproblogger.com/*
+// @include      https://misskon.com/*
+// @include      https://www.mediafire.com/file/*
 // @run-at       document-start
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
@@ -36,12 +38,16 @@
  * =============================== */
 GM_addStyle(`
 .AutoClickCenterBox {
-  right: 50%;
+  right: 40%;
   left: auto;
-  top: 0;
-  margin: 0 auto;
+  top: 5px;
+  border-radius: .25em !important;
   max-width: max-content;
   position: fixed !important;
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: space-around;
+  align-items: baseline;
   word-spacing: .5rem;
   font-style: initial !important;
   text-align: center;
@@ -49,7 +55,15 @@ GM_addStyle(`
   border-radius: .25em !important;
   -webkit-box-sizing: border-box !important;
   box-sizing: border-box !important;
+  background-color: rgba(0,0,0,0.5) !important;
+  text-shadow: 1px 1px 1px red, 0 0 2px blue, 0 0 1px black;
   z-index: 999999;
+}
+
+.AutoClick {
+ margin: .2em;
+ cursor: pointer;
+ font-size: .7em;
 }
 .AutoClick, .Reset { cursor: pointer; }
 .AutoClick.On { color: Chartreuse !important; }
@@ -289,7 +303,6 @@ const globalObserver = new MutationObserver(async (mutations) => {
         }
         return;
     }
-
     // allasiangirls.net — fix shrinkme & popup workflow & messaging
     if (/allasiangirls\.net\/.+/.test(href)) {
         ClickBTN = document.querySelector('div.entry-content.single-page a.button.primary.is-primary');
@@ -445,6 +458,67 @@ async function handleBestGirlSexy() {
     }
 }
 
+async function handleMissKon() {
+    AutoClick = localStorage.getItem('AutoClick') || '0';
+    UIManager.setResponsiveFont();
+    UIManager.syncIcon();
+    const copyTitle = document.querySelector('article#the-post .post-title.entry-title')
+        ?.textContent.replace(/part\d+$/i, '').trim();
+    if (!copyTitle) return;
+
+    await sleep(3000);
+    const mediaFireLink = querySelectorIncludesText('a.shortc-button', 'MediaFire');
+    const teraLink = querySelectorIncludesText('a.shortc-button', 'Terabox');
+    if (mediaFireLink.length === 0 && teraLink === 0) return;
+
+
+    const oldLink = mediaFireLink[0].href || teraLink[0].href;
+    const link = mediaFireLink[0] || teraLink[0];
+    parentWindow = PageURL;
+
+    const cached = CacheManager.get(oldLink);
+    
+    const title = copyTitle.replace(/\s/g, '');
+
+    const handleMessage = async (e) => {
+        if (!/terabox\.com|1024tera\.com|terabox\.app|mediafire\.com/.test(e.origin)) return;
+
+        if (/terabox\.com|1024tera\.com|terabox\.app/.test(e.origin)) {
+            if (e.data.Q) {
+                childWindow?.postMessage({ A: parentWindow }, e.origin);
+            } else if (e.data.token) {
+                link.setAttribute('href', e.data.token);
+                CacheManager.set(oldLink, { U: e.data.token, T: e.data.FileName });
+                UIManager.addResetButton(link, oldLink, e.data.FileName);
+                childWindow?.postMessage({ S: parentWindow }, e.origin);
+            }
+        } else {
+            if (e.data.token) {
+                link.setAttribute('href', e.data.token);
+                CacheManager.set(oldLink, { U: e.data.token, T: copyTitle });
+                UIManager.addResetButton(link, oldLink, copyTitle);
+            }
+        }
+    };
+
+    window.addEventListener('message', handleMessage, { once: false });
+
+    if (cached) {
+        link.setAttribute('href', cached.U);
+        UIManager.addResetButton(link, oldLink, cached.T);
+    } else if (AutoClick){
+        await sleep(getRandomIntInclusive(0, 500) * 10);
+        childWindow = openPopup(link.href, title);
+    }
+
+    window.addEventListener('beforeunload', () => {
+        if (childWindow && !childWindow.closed) {
+            childWindow.postMessage({ action: 'closed' }, '*');
+        }
+    });
+
+}
+
 async function handleMrProBlogger() {
     // relay for code -> opener
     const code = new URL(PageURL).pathname;
@@ -453,6 +527,19 @@ async function handleMrProBlogger() {
         window.addEventListener('message', function (e) {
             if (e.data.link) {
                 location.href = e.data.link;
+            }
+        });
+    }
+}
+
+async function handleMediaFire() {
+    // relay for code -> opener    
+    if (window.opener) {
+        window.opener.postMessage({ token: PageURL }, 'https://misskon.com');
+        window.addEventListener('message', function (e) {
+            if (e.data.action === 'closed') {
+                //JobManager.remove(PageURL);            
+                self.close();
             }
         });
     }
@@ -474,6 +561,8 @@ const siteHandlers = {
     "en.mrproblogger.com": handleMrProBlogger,
     "allasiangirls.net": handleAllAsianGirls,
     "bestgirlsexy.com": handleBestGirlSexy,
+    "misskon.com": handleMissKon,
+    "mediafire.com": handleMediaFire,
     "imgmffmv.sbs": () => globalObserver.observe(document, config),
     "terabox.com": () => { setupBeforeUnloadForJobs(); globalObserver.observe(document, config); },
     "1024tera.com": () => { setupBeforeUnloadForJobs(); globalObserver.observe(document, config); },
@@ -518,7 +607,7 @@ async function Downloader(el) {
     window.addEventListener('message', messageHandler);
     if (window.opener) {
         window.opener.postMessage({ Q: 'parentWindow?' }, '*');
-    }else{
+    } else {
         await sleep(5000);
         el.click();
         await sleep(5000);
