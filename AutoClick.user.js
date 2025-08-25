@@ -176,7 +176,7 @@ const JobManager = {
         GM_deleteValue(url);
         JobManager.updateList();
     },
-    updateList() {        
+    updateList() {
         GM_setValue('JobList', `Next Go!`);
     }
 };
@@ -283,21 +283,22 @@ const globalObserver = new MutationObserver(async (mutations) => {
             GetFileName = (GetFileNameElement?.textContent || GetFileNameElement?.innerText || '').trim();
 
             // Ensure page is registered
-            const keys = JobManager.keys();
-            if (!keys.includes(PageURL)) JobManager.add(PageURL);
+            if (!GM_getValue(PageURL)) {
+                JobManager.add(PageURL);
+            }
 
             // Listen for JobList changes across tabs
             GM_addValueChangeListener('JobList', function (key, oldValue, newValue, remote) {
                 if (remote && newValue === 'Next Go!') {
                     const jobs = JobManager.keys();
-                    if (jobs[0] === PageURL && GM_getValue(PageURL) === 'pending') {
+                    if (jobs[0] === PageURL && GM_getValue(PageURL) === 'pending' && GM_getValue('JobList') === 'Next Go!') {
                         Downloader(ClickBTN);
                     }
                 }
             });
 
             const jobs = JobManager.keys();
-            if (jobs[0] === PageURL && GM_getValue(PageURL) === 'pending') {
+            if (jobs[0] === PageURL && GM_getValue(PageURL) === 'pending' && GM_getValue('JobList') === 'Next Go!') {
                 Downloader(ClickBTN);
             }
         }
@@ -477,7 +478,7 @@ async function handleMissKon() {
     parentWindow = PageURL;
 
     const cached = CacheManager.get(oldLink);
-    
+
     const title = copyTitle.replace(/\s/g, '');
 
     const handleMessage = async (e) => {
@@ -507,7 +508,7 @@ async function handleMissKon() {
     if (cached) {
         link.setAttribute('href', cached.U);
         UIManager.addResetButton(link, oldLink, cached.T);
-    } else if (AutoClick){
+    } else if (AutoClick) {
         await sleep(getRandomIntInclusive(0, 500) * 10);
         childWindow = openPopup(link.href, title);
     }
@@ -534,12 +535,12 @@ async function handleMrProBlogger() {
 }
 
 async function handleMediaFire() {
-    // relay for code -> opener    
+    // relay for code -> opener
     if (window.opener) {
         window.opener.postMessage({ token: PageURL }, 'https://misskon.com');
         window.addEventListener('message', function (e) {
             if (e.data.action === 'closed') {
-                //JobManager.remove(PageURL);            
+                //JobManager.remove(PageURL);
                 self.close();
             }
         });
@@ -575,9 +576,11 @@ const siteHandlers = {
 /* ===============================
  * Downloader Orchestrator (TeraBox)
  * =============================== */
-async function Downloader(el) {    
-    GM_setValue('JobList', 'Start Click!');
-    GM_setValue(PageURL, 'Start')
+async function Downloader(el) {
+    GM_setValue('JobList', 'Start Click!')
+    const jobs = JobManager.keys();
+    if (jobs[0] !== PageURL) return GM_setValue('JobList', 'Next Go!')
+    //GM_setValue(PageURL, 'Start')
     const messageHandler = async (e) => {
         const origin = new URL(e.origin).origin;
         if (!/bestgirlsexy\.com|allasiangirls\.net/.test(origin)) return;
@@ -597,7 +600,7 @@ async function Downloader(el) {
                 }
             }
         } else if (e.data.S || e.data.action === 'closed') {
-            //JobManager.remove(PageURL);            
+            JobManager.remove(PageURL);
             self.close();
         }
     };
