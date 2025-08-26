@@ -170,10 +170,14 @@ const CacheManager = {
 };
 
 const JobManager = {
-    keys() { return GM_listValues().filter(k => GM_getValue(k) === 'pending'); },
+    keys() { return GM_listValues().filter(k => k !== 'JobList'); },
     add(url) { GM_setValue(url, 'pending'); },
     remove(url) {
         GM_deleteValue(url);
+        const jobs = JobManager.keys();
+        if (jobs[0]) {
+            GM_setValue(jobs[0], 'NEXT')
+        }
         JobManager.updateList();
     },
     updateList() {
@@ -291,14 +295,18 @@ const globalObserver = new MutationObserver(async (mutations) => {
             GM_addValueChangeListener('JobList', function (key, oldValue, newValue, remote) {
                 if (remote && newValue === 'Next Go!') {
                     const jobs = JobManager.keys();
-                    if (jobs[0] === PageURL && GM_getValue(PageURL) === 'pending' && GM_getValue('JobList') === 'Next Go!') {
+                    if (jobs[0] === PageURL && GM_getValue(PageURL) === 'NEXT' && GM_getValue('JobList') === 'Next Go!') {
                         Downloader(ClickBTN);
                     }
                 }
             });
 
             const jobs = JobManager.keys();
-            if (jobs[0] === PageURL && GM_getValue(PageURL) === 'pending' && GM_getValue('JobList') === 'Next Go!') {
+            if (jobs[0] && GM_getValue(jobs[0]) !== 'NEXT') {
+                GM_setValue(jobs[0], 'NEXT')
+            }
+
+            if (jobs[0] === PageURL && GM_getValue(PageURL) === 'NEXT' && GM_getValue('JobList') === 'Next Go!') {
                 Downloader(ClickBTN);
             }
         }
@@ -532,6 +540,12 @@ async function handleMrProBlogger() {
             }
         });
     }
+    const check = setTimeout(() => {        
+        if (/en.mrproblogger.com/.test(PageURL)) {
+            clearTimeout(check);
+            location.href = PageURL;
+        }
+    }, 30000);
 }
 
 async function handleMediaFire() {
@@ -580,7 +594,7 @@ async function Downloader(el) {
     GM_setValue('JobList', 'Start Click!')
     const jobs = JobManager.keys();
     if (jobs[0] !== PageURL) return GM_setValue('JobList', 'Next Go!')
-    //GM_setValue(PageURL, 'Start')
+    GM_setValue(PageURL, 'Start')
     const messageHandler = async (e) => {
         const origin = new URL(e.origin).origin;
         if (!/bestgirlsexy\.com|allasiangirls\.net/.test(origin)) return;
@@ -593,6 +607,8 @@ async function Downloader(el) {
                 el.click();
                 await sleep(2500);
                 GM_setValue(PageURL, 'Done')
+                const jobs = JobManager.keys();
+                GM_setValue(jobs[0], 'NEXT')
 
                 const allowed = ['https://allasiangirls.net', 'https://bestgirlsexy.com'];
                 if (allowed.includes(origin)) {
