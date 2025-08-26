@@ -286,7 +286,7 @@ const globalObserver = new MutationObserver(async (mutations) => {
 
             const jobs = JobManager.keys();
             const order = jobs.indexOf(PageURL)
-            await sleep(getRandomIntInclusive(0, 1000) + 5000 * order);
+            await sleep(getRandomIntInclusive(0, 10) * 100 + 5000 * order);
             Downloader(ClickBTN);
 
         }
