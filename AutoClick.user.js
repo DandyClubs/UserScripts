@@ -92,6 +92,7 @@ let childWindow = null;
 let parentWindow = null;
 let GetFileNameElement = null;
 let GetFileName = null;
+let isClicked = false
 
 const titleSelector = 'body.single.single-post div.page-title div.page-title-inner.container div .entry-title';
 
@@ -280,9 +281,9 @@ const globalObserver = new MutationObserver(async (mutations) => {
     // terabox / 1024tera — detect download button then orchestrate Job queue & messaging
     if (/(terabox|1024tera)\.(app|com)\/.+sharing/.test(href)) {
         ClickBTN = document.querySelector('div.action-bar div.action-bar-download.action-bar-btn');
-        if (ClickBTN) {
+        const isLogin = document.querySelector('div.header-main-box div.header-right-menus div.user-card-box')
+        if (ClickBTN && isLogin) {
             globalObserver.disconnect();
-
             GetFileNameElement = document.querySelector('div.info div.file-name-info span.file-name');
             GetFileName = (GetFileNameElement?.textContent || GetFileNameElement?.innerText || '').trim();
 
@@ -540,7 +541,7 @@ async function handleMrProBlogger() {
             }
         });
     }
-    const check = setTimeout(() => {        
+    const check = setTimeout(() => {
         if (/en.mrproblogger.com/.test(PageURL)) {
             clearTimeout(check);
             location.href = PageURL;
@@ -591,10 +592,11 @@ const siteHandlers = {
  * Downloader Orchestrator (TeraBox)
  * =============================== */
 async function Downloader(el) {
+
     GM_setValue('JobList', 'Start Click!')
     const jobs = JobManager.keys();
     if (jobs[0] !== PageURL) return GM_setValue('JobList', 'Next Go!')
-    GM_setValue(PageURL, 'Start')
+    GM_setValue(PageURL, 'Start')    
     const messageHandler = async (e) => {
         const origin = new URL(e.origin).origin;
         if (!/bestgirlsexy\.com|allasiangirls\.net/.test(origin)) return;
@@ -602,9 +604,10 @@ async function Downloader(el) {
         if (e.data.A) {
             parentWindow = e.data.A;
 
-            if (window.opener && parentWindow) {
+            if (window.opener && parentWindow && !isClicked) {
                 await sleep(5000);
                 el.click();
+                isClicked = true;
                 await sleep(2500);
                 GM_setValue(PageURL, 'Done')
                 const jobs = JobManager.keys();
