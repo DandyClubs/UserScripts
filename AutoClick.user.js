@@ -171,18 +171,10 @@ const CacheManager = {
 };
 
 const JobManager = {
-    keys() { return GM_listValues().filter(k => k !== 'JobList'); },
-    add(url) { GM_setValue(url, 'pending'); },
+    keys() { return GM_listValues() },
+    add(url) { GM_setValue(url); },
     remove(url) {
         GM_deleteValue(url);
-        const jobs = JobManager.keys();
-        if (jobs[0]) {
-            GM_setValue(jobs[0], 'NEXT')
-        }
-        JobManager.updateList();
-    },
-    updateList() {
-        GM_setValue('JobList', `Next Go!`);
     }
 };
 
@@ -292,24 +284,11 @@ const globalObserver = new MutationObserver(async (mutations) => {
                 JobManager.add(PageURL);
             }
 
-            // Listen for JobList changes across tabs
-            GM_addValueChangeListener('JobList', function (key, oldValue, newValue, remote) {
-                if (remote && newValue === 'Next Go!') {
-                    const jobs = JobManager.keys();
-                    if (jobs[0] === PageURL && GM_getValue(PageURL) === 'NEXT' && GM_getValue('JobList') === 'Next Go!') {
-                        Downloader(ClickBTN);
-                    }
-                }
-            });
-
             const jobs = JobManager.keys();
-            if (jobs[0] && GM_getValue(jobs[0]) !== 'NEXT') {
-                GM_setValue(jobs[0], 'NEXT')
-            }
+            const order = jobs.indexOf(PageURL)
+            await sleep(getRandomIntInclusive(0, 1000) + 5000 * order);
+            Downloader(ClickBTN);
 
-            if (jobs[0] === PageURL && GM_getValue(PageURL) === 'NEXT' && GM_getValue('JobList') === 'Next Go!') {
-                Downloader(ClickBTN);
-            }
         }
         return;
     }
@@ -444,7 +423,7 @@ async function handleBestGirlSexy() {
                 CacheManager.set(oldHref, { U: e.data.token, T: e.data.FileName });
                 UIManager.addResetButton(link, oldHref, e.data.FileName);
                 childWindow?.postMessage({ S: parentWindow }, e.origin);
-                await sleep(2500);
+                await sleep(5000);
                 self.close();
             }
         };
@@ -592,11 +571,6 @@ const siteHandlers = {
  * Downloader Orchestrator (TeraBox)
  * =============================== */
 async function Downloader(el) {
-
-    GM_setValue('JobList', 'Start Click!')
-    const jobs = JobManager.keys();
-    if (jobs[0] !== PageURL) return GM_setValue('JobList', 'Next Go!')
-    GM_setValue(PageURL, 'Start')    
     const messageHandler = async (e) => {
         const origin = new URL(e.origin).origin;
         if (!/bestgirlsexy\.com|allasiangirls\.net/.test(origin)) return;
@@ -605,14 +579,9 @@ async function Downloader(el) {
             parentWindow = e.data.A;
 
             if (window.opener && parentWindow && !isClicked) {
-                await sleep(5000);
                 el.click();
                 isClicked = true;
-                await sleep(2500);
-                GM_setValue(PageURL, 'Done')
-                const jobs = JobManager.keys();
-                GM_setValue(jobs[0], 'NEXT')
-
+                await sleep(5000)
                 const allowed = ['https://allasiangirls.net', 'https://bestgirlsexy.com'];
                 if (allowed.includes(origin)) {
                     window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, origin);
