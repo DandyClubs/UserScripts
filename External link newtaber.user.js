@@ -180,7 +180,8 @@
             /td-image-wrap/,
             /topnews-x/,
             /thumbnail-link/,
-            /thumbnail/,            
+            /thumbnail/,
+            /topic-title/,            
         ]
     };
 
