@@ -1238,10 +1238,11 @@ function forceDownload(url, fileName) {
             if (res.status == 200) {
                 const matchContentType = res.responseHeaders.match(/content-type: (.*?)(;|$)/i);                
                 const contentType = matchContentType ? matchContentType[1] : null;
-                console.log({ matchContentType, contentType })
+                console.log({ matchContentType, contentType })                
                 if (contentType && contentType === 'text/html') throw new Error(`파일이 없거나 다운로드 횟수를 초과하였습니다!`)
                 if (contentType) {
-                    saveAs(res.response, fileName + getExtensionFromContentType(contentType))
+                    const extension = getExtensionFromContentType(contentType);
+                    saveAs(res.response, fileName + extension)
                 } else {
                     saveAs(res.response, fileName)
                 }
