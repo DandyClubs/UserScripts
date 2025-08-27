@@ -1054,7 +1054,7 @@ let PreLoadDB = []
 
 const ExpandTag = new IntersectionObserver((entries, self) => {
     for (const entry of entries) {
-        const el = entry.target;
+        const el = entry.target;        
         if (entry.isIntersecting) {
             triggerExpand(el, self);
         } else {
@@ -1063,7 +1063,7 @@ const ExpandTag = new IntersectionObserver((entries, self) => {
             if (rect.bottom < window.innerHeight) {
                 triggerExpand(el, self);
             }
-        }
+        }            
     }
 }, { root: null, rootMargin: "0px 0px 500px 0px", threshold: 0.5 });
 
@@ -1563,8 +1563,8 @@ async function Start() {
         Ex = [...document.querySelectorAll(AutoExpandTag)]
         Ex.forEach(el => {
             //ExpandTag.observe(el)
-            expandAboveViewport(el)
-            //el.click()
+            //expandAboveViewport(el)
+            el.click()
         })
     }
 
