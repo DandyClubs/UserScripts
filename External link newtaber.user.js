@@ -181,7 +181,8 @@
             /topnews-x/,
             /thumbnail-link/,
             /thumbnail/,
-            /topic-title/,            
+            /topic-title/,    
+            /topictitle/,        
         ]
     };
 
