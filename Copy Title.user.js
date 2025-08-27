@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Copy Title
-// @version      2025.08.21
+// @version      2025.08.27
 // @description  try to take over the world!
 // @author       You
 // @include      /javbus.com\/.+\/([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)/
@@ -561,10 +561,10 @@ const SiteParsers = {
                 .replace(/часть|Часть/g, 'Part')
                 .replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3')
                 .replace(/обновление от|Обновление|Обновлено/g, 'UPDATE')
-                .replace(/эпизодов|эпизод/g, 'episode') 
-                .replace(/сцена из|Сцена из фильма/i, 'Scene from')               
+                .replace(/эпизодов|эпизод/g, 'episode')
+                .replace(/сцена из|Сцена из фильма/i, 'Scene from')
                 .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?:\/)/, '')
-                .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?=[\(|\[])/gi, '')                
+                .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?=[\(|\[])/gi, '')
                 .trim();
 
             const extractText = titleText.match(/\([\w,\s]*\)/g) || []
@@ -597,7 +597,7 @@ const SiteParsers = {
 
             const extractedModelName = findModelName.map(e => e.replace(/Amateur.*/i, '').trim()).filter(Boolean).join(',');
             let cleanedModelName = extractedModelName.split(/,|\saka\s/g).filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join(' ').trim()
-            console.log({ findModelName, extractedModelName, cleanedModelName })       
+            console.log({ findModelName, extractedModelName, cleanedModelName })
 
             // 리마스터 및 BTS 플래그 추출
             const remastered = /Remastered/.test(titleText);
@@ -693,15 +693,15 @@ const SiteParsers = {
 
             titleText = titleText.replace(TAGS_REGEX, '').trim();
 
-            const titleDB = titleText                
+            const titleDB = titleText
                 .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?:\/)/, '')
-                .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?=[\(|\[])/gi, '')                
+                .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?=[\(|\[])/gi, '')
                 .replace(/\[.*г.*?\]/, '')
                 .replace(/\s?\/\s?\)$/, ')')
                 .replace(/\s?\/\s?$/, '')
                 .replace(/ч(\.\d+)/g, 'Part$1')
                 .replace(/\(Split\s?Scenes\)/i, '')
-                .replace(/часть|Часть/g, 'Part')                
+                .replace(/часть|Часть/g, 'Part')
                 .replace(/\|/g, '')
                 .replace(/—/g, '-')
                 .replace(/\.(com|net)/gi, '')
@@ -1236,10 +1236,15 @@ function forceDownload(url, fileName) {
         responseType: "blob",
         onload: function (res) {
             if (res.status == 200) {
-                const contentType = res.responseHeaders.match(/content-type: (.*?)(;|$)/i)[1];
-                console.log({ contentType })
-                if (contentType === 'text/html') throw new Error(`파일이 없거나 다운로드 횟수를 초과하였습니다!`)
-                saveAs(res.response, fileName + getExtensionFromContentType(contentType))
+                const matchContentType = res.responseHeaders.match(/content-type: (.*?)(;|$)/i);                
+                const contentType = matchContentType ? matchContentType[1] : null;
+                console.log({ matchContentType, contentType })
+                if (contentType && contentType === 'text/html') throw new Error(`파일이 없거나 다운로드 횟수를 초과하였습니다!`)
+                if (contentType) {
+                    saveAs(res.response, fileName + getExtensionFromContentType(contentType))
+                } else {
+                    saveAs(res.response, fileName)
+                }
             }
         },
         onerror: (err) => {
@@ -1256,7 +1261,7 @@ function forceDownload(url, fileName) {
  * @returns {Array<string>} - 줄 단위로 분리되고 정리된 순수한 텍스트 배열.
  */
 function getInfoArea(InfoSelector) {
-    
+
     // sp-wrap 요소를 제거한 후 innerHTML을 사용합니다.
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = InfoSelector.innerHTML;
@@ -1267,7 +1272,7 @@ function getInfoArea(InfoSelector) {
         // 찾은 요소를 부모 노드에서 제거합니다.
         wrap.parentNode.removeChild(wrap);
     });
-    
+
     // innerHTML을 가져와 <br> 태그를 기준으로 문자열을 분리합니다.
     const tempArray = tempDiv.innerHTML.split(/<br\s*\/?>/)
         .map(line => line.trim()) // 각 줄의 앞뒤 공백 제거
