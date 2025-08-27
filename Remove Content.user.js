@@ -129,7 +129,7 @@ const siteConfigs = {
         removeTagSelector: 'tr',
     },
     'pornolab.net': {
-        linkSelector: 'div.torTopic a#tt-3082175.torTopic, td a.gen, td div a.med.tLink',
+        linkSelector: 'div.torTopic a.torTopic, td a.gen, td div a.med.tLink',
         removeTagSelector: 'tr',
     },
     'xxxclub.to': {
