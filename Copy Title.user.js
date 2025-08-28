@@ -49,11 +49,11 @@ GM_addStyle(`
     margin: .25rem;
 }
 
-.CopyTitle, .FullCopyTitle {
+.CopyTitle, .FullCopyTitle, .closeIcon {
     text-align: center;
     cursor: pointer;
     color: dodgerblue !important;
-    text-shadow: 1px 1px 1px red, 0 0 2px blue, 0 0 1px black;
+    text-shadow: -1px -1px 0px rgba(255, 255, 255, 0.3), 1px 1px 0px rgba(0, 0, 0, 0.3);
     margin: .5em;
     position: relative;    
 }
@@ -94,7 +94,7 @@ GM_addStyle(`
 
 .CoverDownload {
 	cursor: pointer;
-	text-shadow: -1px -1px 0px rgba(255, 255, 255, 0.3), 1px 1px 0px rgba(0, 0, 0, 0.8);
+	text-shadow: -1px -1px 0px rgba(255, 255, 255, 0.3), 1px 1px 0px rgba(0, 0, 0, 0.3);
 	padding: .5rem;
 	margin: .5rem;
 }
@@ -471,8 +471,8 @@ function MakeIcon() {
         updateClipboard(CopyTitle);
     });
 
-    addIconToCenterBox("CloseIcon fa-solid fa-square-xmark", "", "red");
-    addEventToIcon("CloseIcon", function () {
+    addIconToCenterBox("closeIcon fa-solid fa-square-xmark", "", "red");
+    addEventToIcon("closeIcon", function () {
         self.close();
     });
 

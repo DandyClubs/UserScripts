@@ -90,7 +90,7 @@ GM_addStyle(`
     margin: .25em;
     color: LimeGreen !important;
     font-style: initial !important;
-    text-shadow: 1px 1px 1px red, 0 0 2px blue, 0 0 1px black;
+    text-shadow: -1px -1px 0px rgba(255, 255, 255, 0.3), 1px 1px 0px rgba(0, 0, 0, 0.8);
 }
 
 .IconSet {
