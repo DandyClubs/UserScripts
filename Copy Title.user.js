@@ -32,7 +32,7 @@ const FontAwesomeCSS = function () {
     css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css'
     css.rel = 'stylesheet'
     css.type = 'text/css'
-    document.getElementsByTagName('head')[0].appendChild(css)
+    document.head.appendChild(css)
 }
 
 
@@ -52,10 +52,9 @@ GM_addStyle(`
 .CopyTitle, .FullCopyTitle, .closeIcon {
     text-align: center;
     cursor: pointer;
-    color: dodgerblue !important;
-    text-shadow: -1px -1px 0px rgba(255, 255, 255, 0.3), 1px 1px 0px rgba(0, 0, 0, 0.3);
+    color: dodgerblue !important;    
     margin: .5em;
-    position: relative;    
+    position: relative;        
 }
 
 .CenterBox {
@@ -476,6 +475,7 @@ function MakeIcon() {
         self.close();
     });
 
+    
     // 6. 스타일 및 기타 로직
     const getDPI = window.devicePixelRatio;
     const defaultFontSize = getDefaultFontSize();
@@ -1105,7 +1105,7 @@ function getNextSibling(element, tag) {
 
 
 document.addEventListener("DOMContentLoaded", () => {
-    FontAwesomeCSS()
+    FontAwesomeCSS()    
     Start()
 }, { once: true })
 
