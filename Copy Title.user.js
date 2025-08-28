@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Copy Title
-// @version      2025.08.27
+// @version      2025.08.28
 // @description  try to take over the world!
 // @author       You
 // @include      /javbus.com\/.+\/([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)/
@@ -12,8 +12,8 @@
 // @include      /kin8tengoku\.com\/moviepages\/.*\/index\.html/
 // @include      https://av-wiki.net/*
 // @include      /bestjavporn\.com\/ja\/video\//
-// @include      https://fc2ppvdb.com/articles/*
 // @include      https://allasiangirls.net/*
+// @include      /misskon\.com\/\d+/
 // @exclude      https://av-wiki.net/?s=*
 // @grant		 GM_addStyle
 // @grant		 GM_openInTab
@@ -280,6 +280,9 @@ async function Start() {
         'allasiangirls.net': {
             titleSelector: 'body.single.single-post div.page-title div.page-title-inner.container div .entry-title'
         },
+        'misskon.com': {
+            titleSelector: 'article#the-post div.post-inner .post-title.entry-title'
+        },
         'av-wiki.net': {
             titleSelector: 'article.article section.article-body div.blockquote-like p',
             infoSelector: 'article.article section.article-body dl.dltable',
@@ -318,9 +321,6 @@ async function Start() {
                 OffSetArea = document.querySelector('div#mediaspace.video-js');
                 OffSetArea.style.setProperty('position', 'relative');
             }
-        },
-        'fc2ppvdb.com': {
-            titleSelector: '.items-center.title-font a'
         },
         'getchu.com': {
             titleSelector: 'form div table tbody tr td div.bold',
@@ -822,28 +822,6 @@ const SiteParsers = {
             };
         }
     },
-    'fc2ppvdb\\.com': {
-        parse: () => {
-            // fc2ppvdb.com의 parse 로직은 현재 GetTitle에 직접 구현되어 있으므로, 이 부분은 그대로 둡니다.
-            // 만약 필요하다면 별도의 로직을 여기에 추가할 수 있습니다.
-            const titleText = TitleArea.innerText
-                .replace(/–/g, '-')
-                .normalize('NFC')
-                .trim();
-            const titleDB = titleText.split(/\s/);
-            return {
-                TitleText: titleText,
-                TitleDB: titleDB
-            };
-        },
-        refine: (parsedData) => {
-            const extractedId = extractFc2Id();
-            return {
-                ...parsedData,
-                extractedId
-            };
-        }
-    },
     'getchu\\.com': {
         parse: () => {
             const titleText = TitleArea.innerText.trim();
@@ -858,6 +836,21 @@ const SiteParsers = {
             return {
                 ...parsedData,
                 extractedId
+            };
+        }
+    },
+    'misskon\\.com': {
+        parse: () => {
+            const titleText = TitleArea.innerText.trim();
+            const titleDB = titleText.split(/\s/);
+            return {
+                TitleText: titleText,
+                TitleDB: titleDB
+            };
+        },
+        refine: (parsedData) => {            
+            return {
+                ...parsedData,
             };
         }
     },
@@ -958,14 +951,6 @@ function extractAvWikiId() {
         id = getNextSibling(querySelectorIncludesText(InfoArea, 'dt', 'メーカー品番'), 'dd')?.innerText.trim();
     }
     return id || '';
-}
-
-/**
- * fc2ppvdb.com에서 ID를 추출하는 헬퍼 함수
- */
-function extractFc2Id() {
-    const idElement = TitleArea.closest('.items-center.text-white')?.nextElementSibling?.querySelector('span.text-white');
-    return idElement?.textContent.replace(/-/g, ' ').trim() || '';
 }
 
 /**
