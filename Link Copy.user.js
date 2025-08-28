@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy (indexedDB)
-// @version      2025.08.25
+// @version      2025.08.29
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.org/
@@ -90,7 +90,7 @@ GM_addStyle(`
     margin: .25em;
     color: LimeGreen !important;
     font-style: initial !important;
-    text-shadow: -1px -1px 0px rgba(255, 255, 255, 0.3), 1px 1px 0px rgba(0, 0, 0, 0.8);
+    text-shadow: 1px 1px 1px red, 0 0 2px blue, 0 0 1px black;
 }
 
 .IconSet {
@@ -2450,9 +2450,11 @@ async function SecondProcess() {
 
             copyIcon.addEventListener('click', function (e) {
                 e.preventDefault();
-                if (pageLinksDB.length === 0) {
+                
+                if (pageLinksDB.length === 0 && !DownloadArea && currentConfig.downloadAreaSelector) {
                     DownloadArea = document.querySelectorAll(currentConfig.downloadAreaSelector);
                 }
+                
                 const SkipTitle = [];
                 AllowDirect = false;
                 if (DownloadArea?.length) {

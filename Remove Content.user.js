@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Remove Content
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.25
+// @version      2025.08.28
 // @description  try to take over the world!
 // @author       You
 // @match        https://blogjav.net/*
@@ -33,6 +33,7 @@
 // @exclude      /maxjav\.xyz/\d+/
 // @exclude      /javfree\.me/\d+/
 // @exclude      /hidefporn\.ws\/\d+/
+// @exclude      /misskon\.com\/\d+/
 // @exclude      https://pornolab.net/forum/viewtopic*
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @require      https://raw.githubusercontent.com/DandyClubs/Filter/main/Filters.js
@@ -372,10 +373,17 @@ function processQueue() {
 // 💡 개선된 부분: 메인 로직 및 MutationObserver
 // ----------------------------------------------------
 
-function setClearTitle(name, value, expiresDay) {
-    const NowTime = new Date();
-    const MidNight = new Date(NowTime.getFullYear(), NowTime.getMonth(), NowTime.getDate() + expiresDay, 9)
-    document.cookie = escape(name) + "=" + escape(value) + "; expires=" + MidNight.toUTCString();
+function setClearTitle(name, value) {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+
+    // 현재 시간과 내일 00:00:00 사이의 차이를 초 단위로 계산
+    const diffInSeconds = Math.floor((tomorrow - now) / 1000);
+
+    // Max-Age를 사용하여 쿠키 생성    
+    document.cookie = `${name}=${value}; max-age=${diffInSeconds};`
 }
 
 
@@ -387,7 +395,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!cookieCheck || cookieCheck !== "Y") {
         console.log('ClearTitle');
         ClearTitle();
-        setClearTitle("ClearTitle", "Y", 1);
+        setClearTitle("ClearTitle", "Y");
     }
 
     // 초기 페이지 콘텐츠 처리

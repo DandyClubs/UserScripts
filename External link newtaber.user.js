@@ -239,13 +239,13 @@
         // 1. 최우선: 항상 새 탭 규칙
         {
             name: 'Always New Tab',
-            condition: (el) => alwaysNewTabPatterns.some(rx => rx.test(el.href)),
+            condition: (el) => alwaysNewTabPatterns.some(rx => el.href && rx.test(el.href)),
             action: RuleActions.NEW_TAB,
         },
         // 2. 차단 규칙
         {
             name: 'Block New Tab',
-            condition: (el) => sameNewTabPatterns.some(rx => rx.test(el.href)),
+            condition: (el) => sameNewTabPatterns.some(rx => el.href && rx.test(el.href)),
             action: RuleActions.REMOVE_TARGET,
         },
 
