@@ -304,7 +304,7 @@ async function Start() {
             coverImageSelector: 'article.post header.entry-header div#video-player-area div#video-player div.responsive-player',
             postProcessing: () => {
                 OffSetArea = document.querySelector('article.post header.entry-header div#video-player-area div#video-player');
-                OffSetArea.insertAdjacentHTML('beforeend', '<div class="IconSet" style="visibility: hidden; position: absolute;"></div>');
+                OffSetArea.insertAdjacentHTML('beforeend', '<div class="CopyTitleIconSet" style="visibility: hidden; position: absolute;"></div>');
                 document.querySelector('.CopyTitleIconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
                 OffSetArea.style.setProperty('position', 'relative');
             }
@@ -314,7 +314,7 @@ async function Start() {
             postProcessing: async () => {
                 await onElementLoaded('div.vjs-poster', 'div#movie').then(() => {
                     CoverImage = document.querySelector('div.vjs-poster');
-                    CoverImage.insertAdjacentHTML('beforeend', '<div class="IconSet" style="visibility: hidden; position: absolute;"></div>');
+                    CoverImage.insertAdjacentHTML('beforeend', '<div class="CopyTitleIconSet" style="visibility: hidden; position: absolute;"></div>');
                 }).catch(() => { });
                 document.querySelector('.CopyTitleIconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
                 OffSetArea = document.querySelector('div#mediaspace.video-js');
@@ -329,7 +329,7 @@ async function Start() {
             coverImageSelector: 'table.m_border tbody tr td table tbody tr td.m_main_c table tbody tr td img[src*="/data/item_img"]',
             postProcessing: () => {
                 OffSetArea = CoverImage.closest('table');
-                OffSetArea.insertAdjacentHTML('beforeend', '<div class="IconSet" style="visibility: hidden; position: absolute;"></div>');
+                OffSetArea.insertAdjacentHTML('beforeend', '<div class="CopyTitleIconSet" style="visibility: hidden; position: absolute;"></div>');
                 document.querySelector('.CopyTitleIconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
                 OffSetArea.style.setProperty('position', 'relative');
                 document.querySelector('.CopyTitle').insertAdjacentHTML('afterend', '<i class="FullCopyTitle fa-solid fa-expand"></i>');
@@ -1128,7 +1128,7 @@ function FixLink(str) {
 function MakeDownloadIcon() {
     if (!OffSetArea) return;
 
-    const iconSet = document.querySelector('.IconSet');
+    const iconSet = document.querySelector('.CopyTitleIconSet');
     if (!iconSet) return;
 
     const iconHeight = iconSet.offsetHeight;
