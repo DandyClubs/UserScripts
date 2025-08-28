@@ -57,7 +57,7 @@ GM_addStyle(`
     position: relative;        
 }
 
-.CenterBox {
+.CopyTitleCenterBox {
 	right: 30%;
 	left: auto;
 	top: 25%;
@@ -75,12 +75,12 @@ GM_addStyle(`
     z-index: 99999;
 }
 
-.CenterBox i {
+.CopyTitleCenterBox i {
     flex-basis: auto;    
     cursor: pointer;
 }
 
-.IconSet {
+.CopyTitleIconSet {
 	visibility: visible;
 	position: absolute;
 	scale: 1.2;
@@ -239,8 +239,8 @@ async function Start() {
                 }
             },
             postProcessing: () => {
-                document.querySelector('#video_jacket').insertAdjacentHTML('beforeend', '<div class="IconSet" style="visibility: hidden; position: absolute;"></div>');
-                document.querySelector('.IconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
+                document.querySelector('#video_jacket').insertAdjacentHTML('beforeend', '<div class="CopyTitleIconSet" style="visibility: hidden; position: absolute;"></div>');
+                document.querySelector('.CopyTitleIconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
                 OffSetArea = document.querySelector('#video_jacket');
                 OffSetArea.style.setProperty('position', 'relative');
                 CoverImage = document.querySelector('div#video_jacket img#video_jacket_img');
@@ -295,7 +295,7 @@ async function Start() {
                 });
                 OffSetArea = document.querySelector('article.article div.article-thumbnail');
                 OffSetArea.insertAdjacentHTML('beforeend', '<div class="IconSet" style="visibility: hidden; position: absolute;"></div>');
-                document.querySelector('.IconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
+                document.querySelector('.CopyTitleIconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
                 OffSetArea.style.setProperty('position', 'relative');
             }
         },
@@ -305,7 +305,7 @@ async function Start() {
             postProcessing: () => {
                 OffSetArea = document.querySelector('article.post header.entry-header div#video-player-area div#video-player');
                 OffSetArea.insertAdjacentHTML('beforeend', '<div class="IconSet" style="visibility: hidden; position: absolute;"></div>');
-                document.querySelector('.IconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
+                document.querySelector('.CopyTitleIconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
                 OffSetArea.style.setProperty('position', 'relative');
             }
         },
@@ -316,7 +316,7 @@ async function Start() {
                     CoverImage = document.querySelector('div.vjs-poster');
                     CoverImage.insertAdjacentHTML('beforeend', '<div class="IconSet" style="visibility: hidden; position: absolute;"></div>');
                 }).catch(() => { });
-                document.querySelector('.IconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
+                document.querySelector('.CopyTitleIconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
                 OffSetArea = document.querySelector('div#mediaspace.video-js');
                 OffSetArea.style.setProperty('position', 'relative');
             }
@@ -330,7 +330,7 @@ async function Start() {
             postProcessing: () => {
                 OffSetArea = CoverImage.closest('table');
                 OffSetArea.insertAdjacentHTML('beforeend', '<div class="IconSet" style="visibility: hidden; position: absolute;"></div>');
-                document.querySelector('.IconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
+                document.querySelector('.CopyTitleIconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
                 OffSetArea.style.setProperty('position', 'relative');
                 document.querySelector('.CopyTitle').insertAdjacentHTML('afterend', '<i class="FullCopyTitle fa-solid fa-expand"></i>');
                 document.querySelector('.FullCopyTitle').addEventListener("click", async function (e) {
@@ -407,12 +407,12 @@ async function Start() {
 
 function MakeIcon() {
     // 1. CenterBox 요소를 한 번만 찾아서 변수에 할당
-    document.querySelector("body").insertAdjacentHTML('afterbegin', '<div class="CenterBox"></div>');
-    const centerBox = document.querySelector('.CenterBox');
+    document.querySelector("body").insertAdjacentHTML('afterbegin', '<div class="CopyTitleCenterBox"></div>');
+    const centerBox = document.querySelector('.CopyTitleCenterBox');
 
     // centerBox가 없으면 함수 종료
     if (!centerBox) {
-        console.error("CenterBox element not found.");
+        console.error("CopyTitleCenterBox element not found.");
         return;
     }
 
