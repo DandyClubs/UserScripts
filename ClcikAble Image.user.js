@@ -135,6 +135,15 @@ class Queue {
     }
 
     enqueue(item) {
+        // 큐의 모든 요소를 순회하며 현재 추가하려는 item이 이미 존재하는지 확인합니다.
+        for (let i = this.front; i < this.rear; i++) {
+            if (this.items[i] === item) {
+                console.log(`'${item}'은(는) 이미 큐에 존재합니다. 추가되지 않습니다.`);
+                return; // 중복 값이므로 함수를 종료합니다.
+            }
+        }
+
+        // 중복이 아닐 경우에만 큐에 추가합니다.        
         this.items[this.rear] = item;
         this.rear++;
     }
