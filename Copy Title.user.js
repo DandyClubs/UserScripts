@@ -13,7 +13,7 @@
 // @include      https://av-wiki.net/*
 // @include      /bestjavporn\.com\/ja\/video\//
 // @include      https://allasiangirls.net/*
-// @include      /misskon\.com\/\d+/
+// @include      https://misskon.com/*
 // @exclude      https://av-wiki.net/?s=*
 // @grant		 GM_addStyle
 // @grant		 GM_openInTab
