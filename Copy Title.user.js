@@ -1060,7 +1060,8 @@ function handleCoverImageDownload(title) {
             fullCoverImageUrl = fullCoverImageUrl.replace('/pb_p_', '/pb_e_');
         }
 
-        loadImage(fullCoverImageUrl, 10000).then(() => {
+        loadImage(fullCoverImageUrl, 10000).then(async () => {
+            await sleep(1000)
             MakeDownloadIcon();
             document.querySelector('.CoverDownload').addEventListener("click", function (e) {
                 e.preventDefault();
@@ -1070,6 +1071,11 @@ function handleCoverImageDownload(title) {
             console.error("이미지 로딩 실패:", error);
         });
     }
+}
+
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
