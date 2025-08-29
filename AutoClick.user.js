@@ -303,7 +303,7 @@ const globalObserver = new MutationObserver(async (mutations) => {
             }
 
             globalObserver.disconnect();
-            await sleep(3000);
+            await sleep(1000);
 
             parentWindow = PageURL;
             const cached = CacheManager.get(link);
@@ -399,9 +399,7 @@ async function handleAllAsianGirls() {
 async function handleBestGirlSexy() {
     const copyTitle = document.querySelector('div#content.site-content div.elementor-widget-container .elementor-heading-title')
         ?.textContent.replace(/part\d+$/i, '').trim();
-    if (!copyTitle) return;
-
-    await sleep(3000);
+    if (!copyTitle) return;    
 
     const teraLinks = querySelectorIncludesText('A', 'TeraBox');
     if (!teraLinks?.length) return;
@@ -454,8 +452,7 @@ async function handleMissKon() {
     const copyTitle = document.querySelector('article#the-post .post-title.entry-title')
         ?.textContent.replace(/part\d+$/i, '').trim();
     if (!copyTitle) return;
-
-    await sleep(3000);
+    
     const mediaFireLink = querySelectorIncludesText('a.shortc-button', 'MediaFire');
     const teraLink = querySelectorIncludesText('a.shortc-button', 'Terabox');
     if (mediaFireLink.length === 0 && teraLink === 0) return;
