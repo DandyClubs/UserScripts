@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ClcikAble Image
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.13
+// @version      2025.08.29
 // @description  try to take over the world!
 // @author       You
 // @match        https://maxjav.com/*
@@ -12,12 +12,14 @@
 // @match        https://top-modelz.org/*
 // @match        https://av18plus.com/*
 // @match        https://x-idol.net/*
+// @match        https://misskon.com/*
 // @exclude      /maxjav\.com/\d+/
 // @exclude      /maxjav\.xyz/\d+/
 // @exclude      /blogjav\.net\/\d+/
 // @exclude      /jappydolls\.net\/\d+/
 // @exclude      https://x-idol.net/?p*
 // @exclude      https://top-modelz.org/*.html
+// @exclude      /misskon\.com\/\d+/
 // @run-at       document-body
 // @grant        none
 // @noframes
@@ -104,6 +106,13 @@ const topmodelz = {
     SearchATag: 'div.news-detalis h2 a',
 }
 
+const misskon = {
+    MatchUrl: 'misskon.com',
+    MakeClickImage: 'article.item-list div.post-thumbnail a img',
+    Approach: 'closest',
+    closestTag: 'article.item-list',
+    SearchATag: 'div.post-thumbnail a',
+}
 
 const ChostExtractors = /* #__PURE__ */ Object.freeze({
     __proto__: null,
@@ -114,6 +123,7 @@ const ChostExtractors = /* #__PURE__ */ Object.freeze({
     topmodelz,
     av18plus,
     xidol,
+    misskon,
 })
 
 
@@ -168,7 +178,7 @@ async function Management() {
         while (!queue.isEmpty()) {
             const node = queue.peek();
             if (node) node.click();
-            await sleep(750);
+            await sleep(1000);
             queue.dequeue();
         }
     } catch (err) {
