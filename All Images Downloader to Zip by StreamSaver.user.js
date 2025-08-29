@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         All Images Downloader to Zip
 // @namespace    nature grew
-// @version      2025.08.15
+// @version      2025.08.29
 // @description  All Images Downloader to Zip
 // @author       DandyClubs
 // @include      /everia\.club\//
@@ -760,6 +760,16 @@ function MakeIcon() {
         centerBox.style.cssText = `--SetLeft: ${Math.floor(centerBox.offsetLeft - centerBox.offsetHeight * 2.5)}px; font-size: ${CenterBoxFontSize};`;
     }
 
+
+    let lastExecutionTime = performance.now();
+    window.visualViewport.addEventListener('resize', () => {
+        const now = performance.now();
+        if (now - lastExecutionTime >= 500) {            
+            RefreshIcon(performance.now());
+        }
+        lastExecutionTime = now;
+    });
+
     // ResizeObserver 설정
     const myObserver = new ResizeObserver(() => {
         if (centerBox.offsetLeft > 0) {
@@ -778,6 +788,23 @@ function MakeIcon() {
     });
 }
 
+
+function RefreshIcon(Run) {
+    const centerBox = document.querySelector(".CenterBox");
+    if (!centerBox) return
+    // 폰트 사이즈 계산
+
+    const baseRem = 16 / DefaultFontSize;
+    const scaleFactor = 1 / (GetDPI / 1.5);
+    const CenterBoxFontSize = (scaleFactor * baseRem).toFixed(2) + 'rem';
+    const StateFontSize = (scaleFactor * 0.65 * baseRem).toFixed(2) + 'rem';
+    const StateLineHeight = (scaleFactor * baseRem).toFixed(2) + 'rem';
+
+    // 폰트 사이즈 스타일 적용
+    centerBox.style.setProperty('font-size', CenterBoxFontSize, 'important');
+    centerBox.style.cssText = `--SetLeft: ${Math.floor(centerBox.offsetLeft - centerBox.offsetHeight * 2.5)}px; font-size: ${CenterBoxFontSize};`;
+
+}
 function GetRequiredElement(selector, label = 'Element') {
     let el = document.querySelector(selector)
     if (!el) {

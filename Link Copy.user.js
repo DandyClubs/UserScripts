@@ -2296,7 +2296,6 @@ async function mainIcon(Run) {
             RefreshIcon(performance.now());
         }
         lastExecutionTime = now;
-
     });
 
     window.addEventListener('pageshow', () => {
