@@ -557,6 +557,7 @@ const SiteParsers = {
             titleText = titleText
                 .replace(/ролика|роликов|ролик|клипов/g, 'Video Clips')
                 .replace('Удаленные видео', 'Deleted Videos')
+                .replace('видео', 'Videos')
                 .replace(/ч(\.\d+)/g, 'Part$1')
                 .replace(/часть|Часть/g, 'Part')
                 .replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3')
