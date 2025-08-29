@@ -1562,7 +1562,7 @@ const siteConfigs = [
         }
     },
     {
-        regex: /misskon\.com\/\d+/,
+        regex: /misskon\.com\/.+/,
         config: {
             copyOffsetAreaSelector: 'article#the-post .post-title.entry-title',            
             postProcess: async () => {
@@ -1729,7 +1729,7 @@ const siteRules = [
 // 사이트별 다운로드 영역 처리 규칙을 정의하는 배열
 const waitDownloadArea = [
     {
-        regex: /misskon\.com\/\d+/,
+        regex: /misskon\.com\/.+/,
         handler: async () => {
             const checkRedirects = document.querySelector('a.shortc-button[href*="https://ouo.io/"]');
             if (checkRedirects) {
