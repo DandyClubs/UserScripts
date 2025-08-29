@@ -70,7 +70,7 @@ GM_addStyle(`
 	gap: 5px;
 	position: fixed !important;
 	color: dodgerblue !important;
-	background-color: transparent !important;
+	background-color: rgba(0,0,0,0.5) !important;
 	text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 0px -1px white;
     z-index: 99999;
 }
