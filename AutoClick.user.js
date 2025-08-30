@@ -173,7 +173,7 @@ const CacheManager = {
 
 const JobManager = {
     keys() { return GM_listValues() },
-    add(url) { GM_setValue(url); },
+    add(url) { GM_setValue(url, true) },
     remove(url) {
         GM_deleteValue(url);
     }
@@ -223,10 +223,12 @@ const UIManager = {
     },
     addResetButton(el, originalLink, fileName) {
         let resetIcon = document.querySelector('.Reset');
-        if (!resetIcon) {
-            el.insertAdjacentHTML('afterend', '<i class="Reset fa-solid fa-eraser" style="display: flex;align-items: center; justify-content: center;"></i>');
-            resetIcon = document.querySelector('.Reset');
+        if (resetIcon) {
+            resetIcon.remove();
         }
+        el.insertAdjacentHTML('afterend', '<i class="Reset fa-solid fa-eraser" style="display: flex;align-items: center; justify-content: center;"></i>');
+        resetIcon = document.querySelector('.Reset');
+
 
         let fileNameEl = document.querySelector('.Reset .fileName');
         if (!fileNameEl) {
@@ -480,7 +482,7 @@ async function handleMissKon(where = 'mediafire') {
             if (e.data.Q) {
                 childWindow?.postMessage({ A: parentWindow }, e.origin);
             } else if (e.data.token) {
-                link.setAttribute('href', e.data.token);
+                link.href = e.data.token;
                 CacheManager.set(oldLink, { U: e.data.token, T: e.data.FileName });
                 UIManager.addResetButton(link, oldLink, e.data.FileName);
                 childWindow?.postMessage({ S: parentWindow }, e.origin);
@@ -488,15 +490,15 @@ async function handleMissKon(where = 'mediafire') {
         } else {
             if (e.data.token) {
                 if (e.data.token === 'NotFound') {
-                    link.setAttribute('href', '');
+                    link.remove();
                     CacheManager.set(oldLink, { U: e.data.token, T: 'File Not Found' });
                     UIManager.addResetButton(link, oldLink, 'File Not Found');
                     childWindow.postMessage({ action: 'closed' }, e.origin);
                     if (teraLink[0]) {
-                        handleMissKon('TeraBox')
+                        return handleMissKon('TeraBox')
                     }
                 } else {
-                    link.setAttribute('href', e.data.token);
+                    link.href = e.data.token;
                     CacheManager.set(oldLink, { U: e.data.token, T: copyTitle });
                     UIManager.addResetButton(link, oldLink, copyTitle);
                     childWindow.postMessage({ action: 'closed' }, e.origin);
@@ -508,9 +510,13 @@ async function handleMissKon(where = 'mediafire') {
     window.addEventListener('message', handleMessage, { once: false });
 
     if (cached) {
-        link.setAttribute('href', cached.U);
+        link.href = cached.U;
         UIManager.addResetButton(link, oldLink, cached.T);
-    } else if (AutoClick) {
+        if (cached.U === 'NotFound') {
+            link.remove();
+            return handleMissKon('TeraBox')
+        }
+    } else if (AutoClick === '1') {
         await sleep(getRandomIntInclusive(0, 500) * 10);
         childWindow = openPopup(link.href, title);
     }
@@ -592,7 +598,7 @@ const siteHandlers = {
 async function Downloader(el) {
     const messageHandler = async (e) => {
         const origin = new URL(e.origin).origin;
-        if (!/bestgirlsexy\.com|allasiangirls\.net/.test(origin)) return;
+        if (!/bestgirlsexy\.com|allasiangirls\.net|misskon\.com/.test(origin)) return;
 
         if (e.data.A) {
             parentWindow = e.data.A;
@@ -601,7 +607,7 @@ async function Downloader(el) {
                 el.click();
                 isClicked = true;
                 await sleep(5000)
-                const allowed = ['https://allasiangirls.net', 'https://bestgirlsexy.com'];
+                const allowed = ['https://allasiangirls.net', 'https://bestgirlsexy.com', 'https://misskon.com'];
                 if (allowed.includes(origin)) {
                     window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, origin);
                 }
