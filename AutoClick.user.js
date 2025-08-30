@@ -223,12 +223,10 @@ const UIManager = {
     },
     addResetButton(el, originalLink, fileName) {
         let resetIcon = document.querySelector('.Reset');
-        if (resetIcon) {
-            resetIcon.remove();
+        if (!resetIcon) {
+            el.insertAdjacentHTML('afterend', '<i class="Reset fa-solid fa-eraser" style="display: flex;align-items: center; justify-content: center;"></i>');
+            resetIcon = document.querySelector('.Reset');            
         }
-        el.insertAdjacentHTML('afterend', '<i class="Reset fa-solid fa-eraser" style="display: flex;align-items: center; justify-content: center;"></i>');
-        resetIcon = document.querySelector('.Reset');
-
 
         let fileNameEl = document.querySelector('.Reset .fileName');
         if (!fileNameEl) {
@@ -473,6 +471,11 @@ async function handleMissKon() {
 
     const cached = CacheManager.get(oldLink);
 
+    if (cached && cached.U === 'NotFound') {
+        link.remove();
+        return handleMissKon('TeraBox')
+    }
+
     const title = copyTitle.replace(/\s/g, '');
 
     const handleMessage = async (e) => {
@@ -510,7 +513,7 @@ async function handleMissKon() {
     window.addEventListener('message', handleMessage, { once: false });
 
     if (cached) {
-        link.href = cached.U;        
+        link.href = cached.U;
         if (cached.U === 'NotFound') {
             link.remove();
             return handleMissKon('TeraBox')

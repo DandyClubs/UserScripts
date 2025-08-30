@@ -228,11 +228,13 @@ margin: .25em;
 	max-width: max-content;
 	border-radius: .25em !important;
 	-webkit-box-sizing: border-box !important;
-	box-sizing: border-box !important;
-	background-color: rgba(0, 0, 0, 0.9) !important;
+	box-sizing: border-box !important;	
 	top: 100%;
 	left: 25%;
+}
 
+.CopyState.innerText {
+    background-color: rgba(0, 0, 0, 0.9) !important;
 }
 
 .CopyButton, .ClearButton {
@@ -2618,6 +2620,9 @@ function CheckSkipTitle() {
         copyStateEl.innerText = '';
         if (W.length) copyStateEl.innerText += 'Skip Word: ' + W.join('/');
         if (M.length) copyStateEl.innerText += (W.length ? '\n' : '') + 'Skip Model: ' + M.join('/');
+        if (copyStateEl.innerText.trim()){
+            copyStateEl.classList.add('innerText')
+        }
     }
 
     // Special handling for titles starting with [Cospuri]
