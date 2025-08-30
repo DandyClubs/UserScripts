@@ -22,6 +22,7 @@
 // @include      https://misskon.com/*
 // @include      https://www.mediafire.com/file/*
 // @include      https://www.mediafire.com/folder/*
+// @include      https://www.mediafire.com/error.php*
 // @run-at       document-start
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
@@ -399,7 +400,7 @@ async function handleAllAsianGirls() {
 async function handleBestGirlSexy() {
     const copyTitle = document.querySelector('div#content.site-content div.elementor-widget-container .elementor-heading-title')
         ?.textContent.replace(/part\d+$/i, '').trim();
-    if (!copyTitle) return;    
+    if (!copyTitle) return;
 
     const teraLinks = querySelectorIncludesText('A', 'TeraBox');
     if (!teraLinks?.length) return;
@@ -452,7 +453,7 @@ async function handleMissKon() {
     const copyTitle = document.querySelector('article#the-post .post-title.entry-title')
         ?.textContent.replace(/part\d+$/i, '').trim();
     if (!copyTitle) return;
-    
+
     const mediaFireLink = querySelectorIncludesText('a.shortc-button', 'MediaFire');
     const teraLink = querySelectorIncludesText('a.shortc-button', 'Terabox');
     if (mediaFireLink.length === 0 && teraLink === 0) return;
@@ -526,9 +527,14 @@ async function handleMrProBlogger() {
 }
 
 async function handleMediaFire() {
+
     // relay for code -> opener
     if (window.opener) {
-        window.opener.postMessage({ token: PageURL }, 'https://misskon.com');
+        if (PageURL.startsWith('https://www.mediafire.com/error.php')) {
+            window.opener.postMessage({ token: 'error' }, 'https://misskon.com');
+        } else {
+            window.opener.postMessage({ token: PageURL }, 'https://misskon.com');
+        }
         window.addEventListener('message', function (e) {
             if (e.data.action === 'closed') {
                 //JobManager.remove(PageURL);
