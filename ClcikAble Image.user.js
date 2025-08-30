@@ -171,13 +171,14 @@ class Queue {
 
     isEmpty() {
         return this.size === 0;
-    }
+    }    
 }
 
 
 const queue = new Queue();
 
 let ManagementWorking = false
+let lastDelayTime = 0
 
 async function Management() {
     if (ManagementWorking) return;    // guard against re-entry
@@ -186,24 +187,19 @@ async function Management() {
     try {
         while (!queue.isEmpty()) {
             const node = queue.peek();     
-            if (node) node.click();
-            const delay = queue.size
-            if (delay > 20) {
-                await sleep(delay * 10 + 1000);
-            } else if (delay >= 5){
-                await sleep(delay * 50 + 750);
-            }else{
-                await sleep(1000);
-            }
+            if (node) node.click();            
+            lastDelayTime = lastDelayTime + 100
+            const delayTime = lastDelayTime + 1000;                        
+            await sleep(delayTime);            
             queue.dequeue();
         }
     } catch (err) {
         console.error('Error in Management:', err);
     } finally {
         ManagementWorking = false;
+        lastDelayTime = 0;
     }
 }
-
 
 
 const extractors = Object.values(ChostExtractors).filter(Boolean)
