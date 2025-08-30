@@ -189,8 +189,8 @@ async function Management() {
             const node = queue.peek();     
             if (node) node.click();     
             lastDelayTime++;                   
-            const delayTime = (lastDelayTime * 50) + (queue.size * 150) + 1000;
-            await sleep(delayTime);            
+            const delayTime = (lastDelayTime * 50) + (queue.size * 100) + 1000;            
+            await sleep(Math.min(delayTime, 3000));            
             queue.dequeue();
         }
     } catch (err) {
