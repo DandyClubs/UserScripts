@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         AutoClick (Refactored)
-// @version      2025.08.25
+// @version      2025.08.30
 // @description  Auto actions and cross-window messaging with maintainable structure
 // @author       DandyClubs
 // @include      /^https?:\/\/(cosplayjav|nylons)\.pl\/(download|thumbnails)\/\?forPost=.*$/
@@ -481,10 +481,17 @@ async function handleMissKon() {
             }
         } else {
             if (e.data.token) {
-                link.setAttribute('href', e.data.token);
-                CacheManager.set(oldLink, { U: e.data.token, T: copyTitle });
-                UIManager.addResetButton(link, oldLink, copyTitle);
-                childWindow.postMessage({ action: 'closed' }, '*');
+                if (e.data.token === 'NotFound') {
+                    link.setAttribute('href', '');
+                    CacheManager.set(oldLink, { U: e.data.token, T: 'File Not Found' });
+                    UIManager.addResetButton(link, oldLink, 'File Not Found');
+                    childWindow.postMessage({ action: 'closed' }, e.origin);
+                } else {
+                    link.setAttribute('href', e.data.token);
+                    CacheManager.set(oldLink, { U: e.data.token, T: copyTitle });
+                    UIManager.addResetButton(link, oldLink, copyTitle);
+                    childWindow.postMessage({ action: 'closed' }, e.origin);
+                }
             }
         }
     };
@@ -531,7 +538,7 @@ async function handleMediaFire() {
     // relay for code -> opener
     if (window.opener) {
         if (PageURL.startsWith('https://www.mediafire.com/error.php')) {
-            window.opener.postMessage({ token: 'error' }, 'https://misskon.com');
+            window.opener.postMessage({ token: 'NotFound' }, 'https://misskon.com');
         } else {
             window.opener.postMessage({ token: PageURL }, 'https://misskon.com');
         }
