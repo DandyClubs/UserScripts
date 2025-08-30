@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ClcikAble Image
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.29
+// @version      2025.08.30
 // @description  try to take over the world!
 // @author       You
 // @match        https://maxjav.com/*
@@ -188,8 +188,8 @@ async function Management() {
         while (!queue.isEmpty()) {
             const node = queue.peek();     
             if (node) node.click();            
-            lastDelayTime = lastDelayTime + 100
-            const delayTime = lastDelayTime + 1000;                        
+            lastDelayTime = lastDelayTime + 100;
+            const delayTime = lastDelayTime + (queue.size * 50) + 1000;                        
             await sleep(delayTime);            
             queue.dequeue();
         }
