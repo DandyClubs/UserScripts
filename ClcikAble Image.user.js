@@ -177,8 +177,8 @@ class Queue {
 
 const queue = new Queue();
 
-let ManagementWorking = false
-let lastDelayTime = 0
+let ManagementWorking = false;
+let lastDelayTime = 0;
 
 async function Management() {
     if (ManagementWorking) return;    // guard against re-entry
@@ -187,16 +187,16 @@ async function Management() {
     try {
         while (!queue.isEmpty()) {
             const node = queue.peek();     
-            if (node) node.click();            
-            lastDelayTime = lastDelayTime + 100;
-            const delayTime = lastDelayTime + (queue.size * 50) + 1000;                        
+            if (node) node.click();     
+            lastDelayTime++;                   
+            const delayTime = (lastDelayTime * 50) + (queue.size * 150) + 1000;
             await sleep(delayTime);            
             queue.dequeue();
         }
     } catch (err) {
         console.error('Error in Management:', err);
     } finally {
-        ManagementWorking = false;
+        ManagementWorking = false;        
         lastDelayTime = 0;
     }
 }
