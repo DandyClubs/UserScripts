@@ -317,8 +317,8 @@ async function Start() {
         centerBox.insertAdjacentHTML('afterend', `
             <div class="IconSet" style="max-width: max-content; position: fixed;">
                 <i class="CopyIcon far fa-clone" style="color: goldenrod !important;"></i>
-                &nbsp;<i class="CloseIcon fa-solid fa-square-xmark" style="color: goldenrod !important;"></i>
-                &nbsp;<i class="Minus fa-solid fa-magnifying-glass-minus" style="color: goldenrod !important; visibility:hidden;"></i>
+                <i class="CloseIcon fa-solid fa-square-xmark" style="color: goldenrod !important;"></i>
+                <i class="Minus fa-solid fa-magnifying-glass-minus" style="color: goldenrod !important; visibility:hidden;"></i>
             </div>
         `);
 
