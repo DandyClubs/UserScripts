@@ -172,6 +172,14 @@ class Queue {
     isEmpty() {
         return this.size === 0;
     }
+
+    getFrontIndex() {
+        // 큐가 비어있으면 -1을 반환하여 인덱스가 없음을 나타냅니다.
+        if (this.isEmpty()) {
+            return -1;
+        }
+        return this.front;
+    }
 }
 
 
@@ -186,9 +194,12 @@ async function Management() {
     try {
         while (!queue.isEmpty()) {
             const node = queue.peek();
+            const currentIndex = queue.getFrontIndex(); // 현재 처리할 요소의 인덱스를 가져옵니다.
             if (node) node.click();
-            if (queue.size >= 5){
-                await sleep(queue.size * 50 + 1000);
+            if (currentIndex > 20) {
+                await sleep(currentIndex * 10 + 1000);
+            }else if (currentIndex >= 5){
+                await sleep(currentIndex * 50 + 750);
             }else{
                 await sleep(1000);
             }
