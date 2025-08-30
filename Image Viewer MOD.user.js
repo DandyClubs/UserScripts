@@ -1054,7 +1054,7 @@ let PreLoadDB = []
 
 const ExpandTag = new IntersectionObserver((entries, self) => {
     for (const entry of entries) {
-        const el = entry.target;        
+        const el = entry.target;
         if (entry.isIntersecting) {
             triggerExpand(el, self);
         } else {
@@ -1063,7 +1063,7 @@ const ExpandTag = new IntersectionObserver((entries, self) => {
             if (rect.bottom < window.innerHeight) {
                 triggerExpand(el, self);
             }
-        }            
+        }
     }
 }, { root: null, rootMargin: "0px 0px 500px 0px", threshold: 0.5 });
 
@@ -1105,7 +1105,7 @@ const IO = new IntersectionObserver((entries, self) => {
             self.unobserve(imgEl);
         }
     }
-}, { root: null, rootMargin: "500px 0px", threshold: 0 });
+}, { root: null, rootMargin: "0px 0px", threshold: 0 });
 
 
 function AtoBLinks(link) {
@@ -1465,7 +1465,7 @@ const image = {
     },
 
     getSize(img) {
-        return new Promise((resolve) => {            
+        return new Promise((resolve) => {
             if (img.complete) {
                 resolve({ width: img.naturalWidth, height: img.naturalHeight, isLoaded: img.complete })
             }
@@ -1523,14 +1523,10 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-document.addEventListener("readystatechange", () => {
-    console.log("Current state:", document.readyState);
-
-    if (document.readyState === "complete") {
-        viewerCSS()
-        Start()
-    }
-});
+window.addEventListener("DOMContentLoaded", () => {
+    viewerCSS()
+    Start()
+}, {once:true});
 
 async function Start() {
     startTime = performance.now()
