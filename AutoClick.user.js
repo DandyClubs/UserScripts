@@ -493,9 +493,9 @@ async function handleMissKon() {
             }
         } else {
             if (e.data.token) {
-                if (e.data.token === 'NotFound') {
-                    link.remove();
+                if (e.data.token === 'NotFound') {                    
                     CacheManager.set(oldLink, { U: e.data.token, T: 'File Not Found' });
+                    link.remove();
                     childWindow.postMessage({ action: 'closed' }, e.origin);
                     if (teraLink[0]) {
                         return handleMissKon()
