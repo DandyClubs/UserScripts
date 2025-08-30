@@ -458,23 +458,24 @@ async function handleMissKon() {
     const teraLink = querySelectorIncludesText('a.shortc-button', 'Terabox');
     if (mediaFireLink.length === 0 && teraLink === 0) return;
 
-    let oldLink, link;
+    let oldLink, link, cached;
     if (mediaFireLink.length > 0) {
         oldLink = mediaFireLink[0].href;
         link = mediaFireLink[0];
+        cached = CacheManager.get(oldLink);
+        if (cached && cached.U === 'NotFound') {
+            link.remove();
+            return handleMissKon('TeraBox')
+        }
     } else {
         oldLink = teraLink[0].href;
         link = teraLink[0];
+        cached = CacheManager.get(oldLink);
     }
 
-    parentWindow = PageURL;
+    parentWindow = PageURL;    
 
-    const cached = CacheManager.get(oldLink);
-
-    if (cached && cached.U === 'NotFound') {
-        link.remove();
-        return handleMissKon('TeraBox')
-    }
+    
 
     const title = copyTitle.replace(/\s/g, '');
 
@@ -516,7 +517,7 @@ async function handleMissKon() {
         link.href = cached.U;
         if (cached.U === 'NotFound') {
             link.remove();
-            return handleMissKon('TeraBox')
+            return handleMissKon()
         }
         UIManager.addResetButton(link, oldLink, cached.T);
     } else if (AutoClick === '1') {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Remove Content
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.28
+// @version      2025.08.30
 // @description  try to take over the world!
 // @author       You
 // @match        https://blogjav.net/*
@@ -44,6 +44,7 @@
 
 // 페이지 URL을 가져오는 부분은 동일합니다.
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+const RootDomain = extractRootDomain(PageURL)
 
 // 정규식 관련 헬퍼 함수는 그대로 유지합니다.
 const RegexFrom = (strings, flags) =>
@@ -383,7 +384,7 @@ function setClearTitle(name, value) {
     const diffInSeconds = Math.floor((tomorrow - now) / 1000);
 
     // Max-Age를 사용하여 쿠키 생성    
-    document.cookie = `${name}=${value}; max-age=${diffInSeconds};`
+    document.cookie = `${name}=${value}; max-age=${diffInSeconds}; domain=${RootDomain}; path=/;`
 }
 
 
