@@ -171,7 +171,7 @@ function setClearList(name, value) {
     const diffInSeconds = Math.floor((tomorrow - now) / 1000);
 
     // Max-Age를 사용하여 쿠키 생성    
-    document.cookie = `${name}=${value}; max-age=${diffInSeconds};`
+    document.cookie = `${name}=${value}; max-age=${diffInSeconds}; domain=${RootDomain}; path=/;`
 }
 
 function getCookie(name) {
