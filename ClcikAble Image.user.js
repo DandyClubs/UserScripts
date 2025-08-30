@@ -187,7 +187,11 @@ async function Management() {
         while (!queue.isEmpty()) {
             const node = queue.peek();
             if (node) node.click();
-            await sleep(1000);
+            if (queue.size >= 5){
+                await sleep(queue.size * 500);
+            }else{
+                await sleep(1000);
+            }
             queue.dequeue();
         }
     } catch (err) {

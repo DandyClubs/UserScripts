@@ -28,7 +28,7 @@
 // ==/UserScript==
 
 
-const FontAwesomeCSS = function() {
+const FontAwesomeCSS = function () {
     let css = document.createElement('link')
     css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css'
     css.rel = 'stylesheet'
@@ -38,7 +38,7 @@ const FontAwesomeCSS = function() {
 
 
 
-GM_addStyle (`
+GM_addStyle(`
 @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@600&family=Noto+Sans+KR:wght@600&family=Noto+Sans:wght@600&display=swap');
 
 :root {
@@ -134,27 +134,27 @@ function escapeRegExp(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
 const skipWordsList = /sis001\.com/.test(PageURL)
-? [
-    '中字高清',
-    '经典酒店偷拍',
-    '桃花主题房偷拍',
-    'HEYZO',
-    '1Pondo',
-    '1PON',
-]
-: [
-    '中字高清',
-    '经典酒店偷拍',
-    '桃花主题房偷拍',
-    '酒店偷拍',
-];
+    ? [
+        '中字高清',
+        '经典酒店偷拍',
+        '桃花主题房偷拍',
+        'HEYZO',
+        '1Pondo',
+        '1PON',
+    ]
+    : [
+        '中字高清',
+        '经典酒店偷拍',
+        '桃花主题房偷拍',
+        '酒店偷拍',
+    ];
 
 // Escape each keyword, join with OR '|', and make spaces optional
 const SkipWorld = new RegExp(
     skipWordsList
-    .map(word => escapeRegExp(word))
-    .join('|')
-    .replace(/\s/g, '\\s?'),
+        .map(word => escapeRegExp(word))
+        .join('|')
+        .replace(/\s/g, '\\s?'),
     'gi'
 );
 
@@ -310,7 +310,7 @@ const queue = new Queue();
 
 const extractors = Object.values(hostExtractors).filter(Boolean)
 const Active = extractors.find((extractor) => PageURL.includes(extractor.MatchUrl))
-if(!Active){ return}
+if (!Active) { return }
 
 
 let visited
@@ -350,7 +350,7 @@ const observer = new MutationObserver(mutations => {
 });
 
 
-async function OpenTab(A) {    
+async function OpenTab(A) {
     GM_openInTab(A.href, { active: false, insert: false })
 
     if (A.classList.contains('RecordHistory')) {
@@ -365,10 +365,10 @@ function RefreshItems() {
     return new Promise((resolve) => {
         const nodes = [...new Set(Active.root.querySelectorAll(Active.exlink))];
         AddNodes = nodes.filter(a =>
-                                !SkipWorld.test(a.textContent) &&
-                                !a.classList?.contains('visited') &&
-                                MatchRegexElement(a, Active.RegexElement, 'href', Active.Class)
-                               );
+            !SkipWorld.test(a.textContent) &&
+            !a.classList?.contains('visited') &&
+            MatchRegexElement(a, Active.RegexElement, 'href', Active.Class)
+        );
         resolve(AddNodes);
     });
 }
@@ -378,26 +378,34 @@ function MakeIcon() {
     let DefaultFontSize = getDefaultFontSize()
     console.log('GetDPI: ', GetDPI, 'DefaultFontSize: ', DefaultFontSize)
     let CenterBoxZIndex = 99999
-    let CenterBoxFontSize = Number(((1/(GetDPI/1.5))*0.9*(16/DefaultFontSize)).toFixed(2)) + 'rem'
+    let CenterBoxFontSize = Number(((1 / (GetDPI / 1.5)) * 0.9 * (16 / DefaultFontSize)).toFixed(2)) + 'rem'
 
-    if(document.querySelector("div.VisitedCenterBox")){ return }
+    if (document.querySelector("div.VisitedCenterBox")) { return }
     document.querySelector("body").insertAdjacentHTML('afterbegin', '<div class="VisitedCenterBox" style="max-width: max-content; position: fixed;"></div>')
 
-    if(Active.OpenTab){
+    if (Active.OpenTab) {
         let VisitedCenterBox = document.querySelector("div.VisitedCenterBox")
         VisitedCenterBox.insertAdjacentHTML('afterbegin', '<div class="OpenTab fa-solid fa-arrow-up-right-from-square"></div>')
         VisitedCenterBox.insertAdjacentHTML('beforeend', '&emsp;<i class="VisitedState"></i>')
         VisitedState = document.querySelector('.VisitedState')
 
-        document.querySelector(".OpenTab").addEventListener('click', async function(e) {
+        document.querySelector(".OpenTab").addEventListener('click', async function (e) {
             e.preventDefault()
             document.querySelector('.OpenTab').style.visibility = "hidden"
             let OpenCount = AddNodes?.length <= 40 ? AddNodes : AddNodes.slice(0, 30)
             let Index = 1
-            while(OpenCount.length >= Index){
+            while (OpenCount.length >= Index) {
                 await OpenTab(OpenCount[Index - 1])
                 VisitedState.innerText = OpenCount.length - Index
-                await sleep(250)
+                if (Index <= 5) {
+                    await sleep(250);
+                } else if (Index > 5) {
+                    await sleep(1000);
+                } else if (Index > 10) {
+                    await sleep(2000);
+                } else if (Index > 20) {
+                    await sleep(3000);
+                }
                 Index++
             }
             await sleep(1000)
@@ -406,17 +414,17 @@ function MakeIcon() {
             })
             document.querySelector('.OpenTab').style.visibility = "visible"
             VisitedCenterBox.style.cssText = `font-size: ${CenterBoxFontSize}; z-index: ${CenterBoxZIndex}; display: block;`
-            VisitedState.style.cssText = `font-size: ${Number(((1/(GetDPI/1.5))*0.75*(16/DefaultFontSize)).toFixed(2))}rem;`
+            VisitedState.style.cssText = `font-size: ${Number(((1 / (GetDPI / 1.5)) * 0.75 * (16 / DefaultFontSize)).toFixed(2))}rem;`
         })
     }
 }
 
 
 function MatchRegexElement(Taget, regex, attributeToSearch, ClassName) {
-    if(ClassName){
+    if (ClassName) {
         return regex.test(Taget.getAttribute(attributeToSearch)) && Taget.classList.contains(ClassName)
     }
-    else{
+    else {
         return regex.test(Taget.getAttribute(attributeToSearch))
     }
 }
@@ -424,18 +432,18 @@ function MatchRegexElement(Taget, regex, attributeToSearch, ClassName) {
 
 
 const GetTitle = el => el.textContent.trim()
-.replace(/\(\d+P\)$/, '')
-.replace(/\[\d.+\]$/, '')
-.replace('(MP4@RF@無碼)', '')
-.replace(/\(.+?\)\s?$/, '')
-.replace(/\[.+?\]\s?$/, '')
-.replace(/\.mp4-\w+/i, '')
-.replace(/\s-\s/g, ' ')
-.replace(/^.+\.(com|net)(:|\s-)\s/, '')
-.replace(/\s+/, ' ')
-.replace(/^Nude\sLeaked\s-/i, '')
-.replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD|2K].+$/i, '')
-.trim();
+    .replace(/\(\d+P\)$/, '')
+    .replace(/\[\d.+\]$/, '')
+    .replace('(MP4@RF@無碼)', '')
+    .replace(/\(.+?\)\s?$/, '')
+    .replace(/\[.+?\]\s?$/, '')
+    .replace(/\.mp4-\w+/i, '')
+    .replace(/\s-\s/g, ' ')
+    .replace(/^.+\.(com|net)(:|\s-)\s/, '')
+    .replace(/\s+/, ' ')
+    .replace(/^Nude\sLeaked\s-/i, '')
+    .replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD|2K].+$/i, '')
+    .trim();
 
 const GetID = el => {
     const parts = el.href.split('/');
@@ -443,16 +451,16 @@ const GetID = el => {
 }
 
 
-let listenerId = GM_addValueChangeListener('NewItem', function(key, oldValue, newValue, remote) {
-    if(remote){
-        let el = querySelectorIncludesText(Active.exlink, newValue)        
+let listenerId = GM_addValueChangeListener('NewItem', function (key, oldValue, newValue, remote) {
+    if (remote) {
+        let el = querySelectorIncludesText(Active.exlink, newValue)
         VisitedCSS(el, GM_getValue(newValue))
         //console.log("The value of the '" + key + "' key has changed from '" + oldValue + "' to '" + newValue + "'");
     }
 });
 
 
-function querySelectorIncludesText (selector, text){
+function querySelectorIncludesText(selector, text) {
     return Array.from(document.querySelectorAll(selector))
         .find(el => el.textContent.includes(text));
 }
@@ -478,8 +486,8 @@ const initVisitedListeners = async (node) => {
     }
 
     let HistoryFilter = [...node.querySelectorAll(Active.exlink)].filter(a =>
-                                                                         MatchRegexElement(a, Active.RegexElement, "href", Active.Class) && !a.classList?.contains('visited')
-                                                                        );
+        MatchRegexElement(a, Active.RegexElement, "href", Active.Class) && !a.classList?.contains('visited')
+    );
 
     for (let el of HistoryFilter) {
         let linkInfo;
@@ -527,7 +535,7 @@ function VisitedCSS(el, X) {
                 el.parentElement.parentElement.style.setProperty('position', 'relative');
             }
             break;
-        case 'everia.club':{
+        case 'everia.club': {
             const article = el.closest('article.blog-entry');
             if (article) {
                 article.style.setProperty('position', 'relative');
@@ -615,7 +623,7 @@ function getCookie(name) {
     let cookie = document.cookie;
     if (document.cookie != "") {
         let cookie_array = cookie.split("; ");
-        for ( var index in cookie_array) {
+        for (var index in cookie_array) {
             var cookie_name = cookie_array[index].split("=")
             if (cookie_name[0] == name) {
                 return cookie_name[1];
@@ -632,7 +640,7 @@ function SaveVisited(el) {
     if (Active.Get === 'GetID') {
         linkInfo = GetID(el);
     } else {
-        linkInfo = GetTitle(el)        
+        linkInfo = GetTitle(el)
     }
 
     el.classList.add('visited');
@@ -666,7 +674,7 @@ function Start() {
     const cookieCheck = getCookie("ClearVisited");
     if (!cookieCheck || cookieCheck !== "Y") {
         console.log('ClearVisited');
-        ClearVisited();        
+        ClearVisited();
         setClearVisited("ClearVisited", "Y");
     }
 
