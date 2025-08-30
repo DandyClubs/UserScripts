@@ -448,7 +448,7 @@ async function handleBestGirlSexy() {
     }
 }
 
-async function handleMissKon(where = 'mediafire') {
+async function handleMissKon() {
     AutoClick = localStorage.getItem('AutoClick') || '0';
     UIManager.setResponsiveFont();
     UIManager.syncIcon();
@@ -461,7 +461,7 @@ async function handleMissKon(where = 'mediafire') {
     if (mediaFireLink.length === 0 && teraLink === 0) return;
 
     let oldLink, link;
-    if (where === 'mediafire' && mediaFireLink.length > 0) {
+    if (mediaFireLink.length > 0) {
         oldLink = mediaFireLink[0].href;
         link = mediaFireLink[0];
     } else {
@@ -495,7 +495,7 @@ async function handleMissKon(where = 'mediafire') {
                     UIManager.addResetButton(link, oldLink, 'File Not Found');
                     childWindow.postMessage({ action: 'closed' }, e.origin);
                     if (teraLink[0]) {
-                        return handleMissKon('TeraBox')
+                        return handleMissKon()
                     }
                 } else {
                     link.href = e.data.token;
@@ -510,12 +510,12 @@ async function handleMissKon(where = 'mediafire') {
     window.addEventListener('message', handleMessage, { once: false });
 
     if (cached) {
-        link.href = cached.U;
-        UIManager.addResetButton(link, oldLink, cached.T);
+        link.href = cached.U;        
         if (cached.U === 'NotFound') {
             link.remove();
             return handleMissKon('TeraBox')
         }
+        UIManager.addResetButton(link, oldLink, cached.T);
     } else if (AutoClick === '1') {
         await sleep(getRandomIntInclusive(0, 500) * 10);
         childWindow = openPopup(link.href, title);
