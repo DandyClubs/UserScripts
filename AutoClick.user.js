@@ -452,7 +452,7 @@ async function handleMissKon() {
     UIManager.syncIcon();
     const copyTitle = document.querySelector('article#the-post .post-title.entry-title')
         ?.textContent.replace(/part\d+$/i, '').trim();
-    if (!copyTitle) return;
+    if (!copyTitle || /AI\sGenerated/i.test(copyTitle)) return;
 
     const mediaFireLink = querySelectorIncludesText('a.shortc-button', 'MediaFire');
     const teraLink = querySelectorIncludesText('a.shortc-button', 'Terabox');
