@@ -17,7 +17,7 @@
 // @exclude      https://av-wiki.net/?s=*
 // @grant		 GM_addStyle
 // @grant		 GM_openInTab
-// @run-at       document-body
+// @run-at       document-start
 // @grant        unsafeWindow
 // @grant		 GM_xmlhttpRequest
 // @connect      *
