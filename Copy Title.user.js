@@ -62,8 +62,7 @@ GM_addStyle(`
 	left: auto;
 	top: 25%;
 	margin: 0 auto;
-    max-width: 4rem;
-	display: flex;
+    display: flex;
 	flex-wrap: nowrap;
     justify-content: center;
     align-items: center;
@@ -73,8 +72,8 @@ GM_addStyle(`
     border-radius: .25em !important;
     -webkit-box-sizing: border-box !important;
     box-sizing: border-box !important;
-	background-color: rgba(0,0,0,0.2) !important;
-	text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 0px -1px white;
+	text-shadow: 2px 4px 4px rgba(0,0,0,0.2),
+                 0px -5px 10px rgba(255,255,255,0.15);    
     z-index: 99999;
 }
 
@@ -96,7 +95,8 @@ GM_addStyle(`
 
 .CoverDownload {
 	cursor: pointer;
-	text-shadow: -1px -1px 0px rgba(255, 255, 255, 0.3), 1px 1px 0px rgba(0, 0, 0, 0.3);
+	text-shadow: 2px 4px 4px rgba(0,0,0,0.2),
+                 0px -5px 10px rgba(255,255,255,0.15);    
 	padding: .5rem;
 	margin: .5rem;
 }
