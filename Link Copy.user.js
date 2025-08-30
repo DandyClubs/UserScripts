@@ -1566,11 +1566,11 @@ const siteConfigs = [
     {
         regex: /misskon\.com\/.+/,
         config: {
-            copyOffsetAreaSelector: 'article#the-post .post-title.entry-title',            
+            copyOffsetAreaSelector: 'article#the-post .post-title.entry-title',
             postProcess: async () => {
-                let Title = copyOffsetArea?.textContent.trim() || '';                
+                let Title = copyOffsetArea?.textContent.trim() || '';
                 Title = mbConvertKana(Title, 'rans');
-                CopyTitle = byteLengthOf(Title, 241).trim();                
+                CopyTitle = byteLengthOf(Title, 241).trim();
             }
         }
     },
@@ -1636,7 +1636,7 @@ const siteRules = [
                 .replace(/\s+/g, ' ');
             return /^fc2/.test(cleanedTitle) ? cleanedTitle.toUpperCase() : cleanedTitle;
         },
-    },    
+    },
     {
         // cosplay.jav.pw 규칙 추가
         regex: /cosplay\.jav\.pw\/\d+/,
@@ -2451,11 +2451,11 @@ async function SecondProcess() {
 
             copyIcon.addEventListener('click', function (e) {
                 e.preventDefault();
-                
+
                 if (pageLinksDB.length === 0 && !DownloadArea && currentConfig.downloadAreaSelector) {
                     DownloadArea = document.querySelectorAll(currentConfig.downloadAreaSelector);
                 }
-                
+
                 const SkipTitle = [];
                 AllowDirect = false;
                 if (DownloadArea?.length) {
@@ -2620,7 +2620,7 @@ function CheckSkipTitle() {
         copyStateEl.innerText = '';
         if (W.length) copyStateEl.innerText += 'Skip Word: ' + W.join('/');
         if (M.length) copyStateEl.innerText += (W.length ? '\n' : '') + 'Skip Model: ' + M.join('/');
-        if (copyStateEl.innerText.trim()){
+        if (copyStateEl.innerText.trim()) {
             copyStateEl.classList.add('innerText')
         }
     }
@@ -2691,9 +2691,10 @@ async function CopyGo(SkipTitle) {
             const closeIcon = document.querySelector(".CloseIcon");
             if (closeIcon) closeIcon.style.visibility = "visible";
             console.log(copyText, copyText.innerText)
-
-            //await showThenHide(notice, { duration: 800, pause: 2000 });
-            fadeSlideToggle(copyNotice, 1000)
+            if (copyText.innerText.trim()) {
+                //await showThenHide(notice, { duration: 800, pause: 2000 });
+                fadeSlideToggle(copyNotice, 1000)
+            }
             // 6) Finally, re-check the DB and return its result
             CheckDB(listToDo(DownloadArea), 'CopyGo');
         })
