@@ -188,7 +188,7 @@ async function Management() {
             const node = queue.peek();
             if (node) node.click();
             if (queue.size >= 5){
-                await sleep(queue.size * 500);
+                await sleep(queue.size * 50 + 1000);
             }else{
                 await sleep(1000);
             }

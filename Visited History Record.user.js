@@ -402,9 +402,9 @@ function MakeIcon() {
                 } else if (Index > 5) {
                     await sleep(1000);
                 } else if (Index > 10) {
-                    await sleep(2000);
+                    await sleep(1500);
                 } else if (Index > 20) {
-                    await sleep(3000);
+                    await sleep(2000);
                 }
                 Index++
             }
