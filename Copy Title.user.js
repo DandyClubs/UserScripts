@@ -842,7 +842,8 @@ const SiteParsers = {
     },
     'misskon\\.com': {
         parse: () => {
-            const titleText = TitleArea.innerText.trim();
+            let titleText = TitleArea.innerText.trim();
+            titleText = titleText.replace(/(\d+)\sphotos/i, `$1P`).replace(/(\d+)\svideos/i, `$1V`).replace(/P(\s\+\s)/, 'P ')
             const titleDB = titleText.split(/\s/);
             return {
                 TitleText: titleText,
