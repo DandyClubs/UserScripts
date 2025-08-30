@@ -48,8 +48,8 @@ GM_addStyle(`
   position: fixed !important;
   display: flex;
   flex-wrap: nowrap;
-  justify-content: space-around;
-  align-items: baseline;
+  justify-content: center;
+  align-items: center;
   word-spacing: .5rem;
   font-style: initial !important;
   text-align: center;
@@ -225,7 +225,7 @@ const UIManager = {
         let resetIcon = document.querySelector('.Reset');
         if (!resetIcon) {
             el.insertAdjacentHTML('afterend', '<i class="Reset fa-solid fa-eraser" style="display: flex;align-items: center; justify-content: center;"></i>');
-            resetIcon = document.querySelector('.Reset');            
+            resetIcon = document.querySelector('.Reset');
         }
 
         let fileNameEl = document.querySelector('.Reset .fileName');
@@ -473,9 +473,9 @@ async function handleMissKon() {
         cached = CacheManager.get(oldLink);
     }
 
-    parentWindow = PageURL;    
+    parentWindow = PageURL;
 
-    
+
 
     const title = copyTitle.replace(/\s/g, '');
 
@@ -495,12 +495,13 @@ async function handleMissKon() {
             if (e.data.token) {
                 if (e.data.token === 'NotFound') {
                     link.remove();
-                    CacheManager.set(oldLink, { U: e.data.token, T: 'File Not Found' });                    
+                    CacheManager.set(oldLink, { U: e.data.token, T: 'File Not Found' });
                     childWindow.postMessage({ action: 'closed' }, e.origin);
                     if (teraLink[0]) {
                         return handleMissKon()
+                    } else {
+                        UIManager.addResetButton(link, oldLink, 'File Not Found');
                     }
-                    UIManager.addResetButton(link, oldLink, 'File Not Found');
                 } else {
                     link.href = e.data.token;
                     CacheManager.set(oldLink, { U: e.data.token, T: copyTitle });
@@ -518,8 +519,9 @@ async function handleMissKon() {
         if (cached.U === 'NotFound') {
             link.remove();
             return handleMissKon()
+        } else {
+            UIManager.addResetButton(link, oldLink, cached.T);
         }
-        UIManager.addResetButton(link, oldLink, cached.T);
     } else if (AutoClick === '1') {
         await sleep(getRandomIntInclusive(0, 500) * 10);
         childWindow = openPopup(link.href, title);

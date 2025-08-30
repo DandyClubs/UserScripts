@@ -103,8 +103,8 @@ GM_addStyle(`
     margin: .25em;
     display: flex;
 	flex-wrap: nowrap;
-	justify-content: space-around;
-	align-items: baseline;
+	justify-content: center;
+	align-items: center;
 	gap: 5px;
     border-radius: .25em !important;
     -webkit-box-sizing: border-box !important;

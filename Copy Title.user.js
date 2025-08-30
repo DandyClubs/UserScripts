@@ -65,12 +65,15 @@ GM_addStyle(`
     max-width: 4rem;
 	display: flex;
 	flex-wrap: nowrap;
-    justify-content: space-evenly;
-    align-items: baseline;
-	gap: 5px;
+    justify-content: center;
+    align-items: center;
+	gap: 2px;
 	position: fixed !important;
 	color: dodgerblue !important;
-	background-color: rgba(0,0,0,0.5) !important;
+    border-radius: .25em !important;
+    -webkit-box-sizing: border-box !important;
+    box-sizing: border-box !important;
+	background-color: rgba(0,0,0,0.2) !important;
 	text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 0px -1px white;
     z-index: 99999;
 }
@@ -101,8 +104,7 @@ GM_addStyle(`
 `);
 
 
-let GetDPI = window.devicePixelRatio
-let DefaultFontSize = getDefaultFontSize()
+let GetDPI, DefaultFontSize
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RootDomain = extractRootDomain(PageURL)
@@ -477,8 +479,8 @@ function MakeIcon() {
 
     
     // 6. 스타일 및 기타 로직
-    const getDPI = window.devicePixelRatio;
-    const defaultFontSize = getDefaultFontSize();
+    getDPI = window.devicePixelRatio;
+    defaultFontSize = getDefaultFontSize();
     const centerBoxFontSize = Number(((1 / (getDPI / 1.5)) * (16 / defaultFontSize)).toFixed(2)) + 'rem';
 
     centerBox.style.cssText = `font-size: ${centerBoxFontSize};`;
