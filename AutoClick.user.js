@@ -458,6 +458,8 @@ async function handleMissKon() {
     const teraLink = querySelectorIncludesText('a.shortc-button', 'Terabox');
     if (mediaFireLink.length === 0 && teraLink === 0) return;
 
+    const title = copyTitle.replace(/\s/g, '');
+
     let oldLink, link, cached;
     if (mediaFireLink.length > 0) {
         oldLink = mediaFireLink[0].href;
@@ -466,18 +468,24 @@ async function handleMissKon() {
         if (cached && cached.U === 'NotFound') {
             link.remove();
             return handleMissKon('TeraBox')
+        }else{
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                childWindow = openPopup(oldLink.href, title.replace(/\s/g, ''));
+            });
         }
+
     } else {
         oldLink = teraLink[0].href;
-        link = teraLink[0];
+        link = teraLink[0];        
         cached = CacheManager.get(oldLink);
+        link.addEventListener('click', (e) => {
+            e.preventDefault();           
+            childWindow = openPopup(oldLink.href, title.replace(/\s/g, ''));
+        });
     }
 
-    parentWindow = PageURL;
-
-
-
-    const title = copyTitle.replace(/\s/g, '');
+    parentWindow = PageURL;    
 
     const handleMessage = async (e) => {
         if (!/terabox\.com|1024tera\.com|terabox\.app|mediafire\.com/.test(e.origin)) return;
