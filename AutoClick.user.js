@@ -555,7 +555,7 @@ async function handleMrProBlogger() {
 }
 
 async function handleMediaFire() {
-
+await sleep(500);
     // relay for code -> opener
     if (window.opener) {
         if (PageURL.startsWith('https://www.mediafire.com/error.php')) {
