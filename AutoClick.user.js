@@ -314,7 +314,7 @@ const globalObserver = new MutationObserver(async (mutations) => {
             } else {
                 PopUp = ClickBTN.href;
                 if (AutoClick === '1') {
-                    await sleep(getRandomIntInclusive(10, 200) * 10);
+                    await sleep(getRandomIntInclusive(10, 100) * 10);
                     const popupName = document.querySelector(titleSelector)?.innerText.replace(/\s/g, '') || '';
                     childWindow = openPopup(PopUp, popupName);
                 }
@@ -435,7 +435,7 @@ async function handleBestGirlSexy() {
             continue; // 이미 캐시된 경우 팝업 필요 없음
         }
 
-        await sleep(getRandomIntInclusive(0, 500) * 10);
+        await sleep(getRandomIntInclusive(0, 100) * 10);
         childWindow = openPopup(link.href, title);
 
         window.addEventListener('beforeunload', () => {
@@ -523,7 +523,7 @@ async function handleMissKon() {
             UIManager.addResetButton(link, oldLink, cached.T);
         }
     } else if (AutoClick === '1') {
-        await sleep(getRandomIntInclusive(0, 500) * 10);
+        await sleep(getRandomIntInclusive(0, 100) * 10);
         childWindow = openPopup(link.href, title);
     }
 
