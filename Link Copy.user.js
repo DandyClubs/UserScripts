@@ -1868,13 +1868,9 @@ async function Start() {
     if (currentConfig) {
 
 
-        // Step 1: `postProcess`에서 동적 셀렉터를 설정할 경우를 대비해 먼저 실행
-        if (currentConfig.postProcess) {
-            currentConfig.postProcess(currentConfig)
-        }
+        
 
-
-        // Step 2: `copyOffsetArea`가 이미 설정되지 않았으면 기본 셀렉터로 찾기
+        // Step 1: `copyOffsetArea`가 이미 설정되지 않았으면 기본 셀렉터로 찾기
 
         if (!copyOffsetArea && currentConfig.copyOffsetAreaSelector) {
             copyOffsetArea = document.querySelector(currentConfig.copyOffsetAreaSelector);
@@ -1882,6 +1878,12 @@ async function Start() {
                 throw new Error('필수 요소 copyOffsetArea를 찾을 수 없습니다.');
             }
         }
+
+        // Step 2: `postProcess`에서 동적 셀렉터를 설정할 경우를 대비해 먼저 실행
+        if (currentConfig.postProcess) {
+            currentConfig.postProcess(currentConfig)
+        }
+
 
 
         // Step 3: `DownloadArea`가 이미 설정되지 않았으면 기본 셀렉터나 동적 함수로 찾기
