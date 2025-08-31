@@ -875,12 +875,12 @@ const siteConfigs = [
                                         break; // 가장 높은 해상도만 선택
                                     }
                                 }
-                                /*
+                                /*                                
                                 if (finalLinks.length === 0) {
                                     // 해상도 패턴에 매칭되는 링크가 없을 경우
                                     finalLinks.push(...Array.from(area.querySelectorAll('a')));
-                                }
-                                    */
+                                } 
+                                    */                               
                             }
                             return finalLinks;
                         };
@@ -888,7 +888,7 @@ const siteConfigs = [
                         const finalDownloadLinks = getDownloadLinks(DownloadArea);
                         console.log('finalDownloadLinks:', finalDownloadLinks)
                         if (finalDownloadLinks.length > 0) {
-                            window.DownloadArea = createDownloadArea(finalDownloadLinks.map(link => link.outerHTML));
+                            DownloadArea = createDownloadArea(finalDownloadLinks.map(link => link.outerHTML));
 
                             if (finalDownloadLinks.some(link => /1080p|1080\.mp4|2160p/i.test(link.href))) {
                                 userCopy = true;
@@ -896,6 +896,9 @@ const siteConfigs = [
                                 userCopy = false;
                                 userClose = false;
                             }
+                        }else {
+                            userCopy = false;
+                            userClose = false;
                         }
                     }
                 }
@@ -2453,9 +2456,11 @@ async function SecondProcess() {
             copyIcon.addEventListener('click', function (e) {
                 e.preventDefault();
 
-                if (pageLinksDB.length === 0 && !DownloadArea && currentConfig.downloadAreaSelector) {
+                if (pageLinksDB.length === 0 && currentConfig.downloadAreaSelector) {
                     DownloadArea = document.querySelectorAll(currentConfig.downloadAreaSelector);
                 }
+                userClose = true;
+                userCopy = true;
 
                 const SkipTitle = [];
                 AllowDirect = false;
@@ -2668,6 +2673,7 @@ async function CopyGo(SkipTitle) {
         console.log('No short links detected. Starting copy.');
 
     }
+    if(!userCopy) return
     Promise.resolve(CopyLink())
         .then(() => {
             // Update UI notification styles
