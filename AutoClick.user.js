@@ -471,7 +471,7 @@ async function handleMissKon() {
         }else{
             link.addEventListener('click', (e) => {
                 e.preventDefault();
-                childWindow = openPopup(oldLink.href, title.replace(/\s/g, ''));
+                childWindow = openPopup(oldLink, title.replace(/\s/g, ''));
             });
         }
 
@@ -481,7 +481,7 @@ async function handleMissKon() {
         cached = CacheManager.get(oldLink);
         link.addEventListener('click', (e) => {
             e.preventDefault();           
-            childWindow = openPopup(oldLink.href, title.replace(/\s/g, ''));
+            childWindow = openPopup(oldLink, title.replace(/\s/g, ''));
         });
     }
 

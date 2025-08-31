@@ -12,14 +12,12 @@
 // @match        https://top-modelz.org/*
 // @match        https://av18plus.com/*
 // @match        https://x-idol.net/*
-// @match        https://misskon.com/*
 // @exclude      /maxjav\.com/\d+/
 // @exclude      /maxjav\.xyz/\d+/
 // @exclude      /blogjav\.net\/\d+/
 // @exclude      /jappydolls\.net\/\d+/
 // @exclude      https://x-idol.net/?p*
 // @exclude      https://top-modelz.org/*.html
-// @exclude      /misskon\.com\/\d+/
 // @run-at       document-body
 // @grant        none
 // @noframes
