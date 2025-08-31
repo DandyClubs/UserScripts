@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy (indexedDB)
-// @version      2025.08.29
+// @version      2025.08.31
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.org/
@@ -1569,6 +1569,7 @@ const siteConfigs = [
             copyOffsetAreaSelector: 'article#the-post .post-title.entry-title',
             postProcess: async () => {
                 let Title = copyOffsetArea?.textContent.trim() || '';
+                Title = Title.replace(/(\d+)\sphotos/i, `$1P`).replace(/(\d+)\svideos?/i, `$1V`).replace(/P(\s\+\s)/, 'P')
                 Title = mbConvertKana(Title, 'rans');
                 CopyTitle = byteLengthOf(Title, 241).trim();
             }
