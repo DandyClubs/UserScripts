@@ -224,7 +224,9 @@ async function Start() {
                 }
             },
             postProcessing: () => {
-                // No specific post-processing for javbus.com in the original code
+                if (TitleArea && TitleArea.firstElementChild) { // For cases like javbus where firstElementChild is needed
+                    TitleArea = TitleArea.firstElementChild;
+                }
             }
         },
         'javlibrary.com': {
@@ -279,7 +281,7 @@ async function Start() {
             coverImageSelector: 'article#center_column div.common_detail_cover div.detail_left div.detail_data div h2 img.enlarge_image'
         },
         'allasiangirls.net': {
-            titleSelector: 'body.single.single-post div.page-title div.page-title-inner.container div .entry-title'
+            titleSelector: 'body.single.single-post div.page-title div.page-title-inner .entry-title'
         },
         'misskon.com': {
             titleSelector: 'article#the-post div.post-inner .post-title.entry-title'
@@ -361,11 +363,7 @@ async function Start() {
     }
 
     TitleArea = document.querySelector(currentSiteConfig.titleSelector);
-
-    if (TitleArea && TitleArea.firstElementChild) { // For cases like javbus where firstElementChild is needed
-        TitleArea = TitleArea.firstElementChild;
-    }
-
+    
     if (!TitleArea) {
         return;
     }
