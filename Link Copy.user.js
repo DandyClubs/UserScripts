@@ -388,7 +388,7 @@ let SkipTitle = []
 
 let GetDPI, DefaultFontSize
 let Target, DownloadArea, CopyTitle = '', copyOffsetArea, InfoArea, Resolution = '', TitleLast = '', Series = '', Title, ID = '', TitleID, CopyTitleTmp, InfoTitleTmp, CoverImage, MatchWebRegExp, Gallery, DownloadAreaSelector
-const SkipFilter = new RegExp('katfile\\.com\\/\\?op=registration|77file\\.com|xtvtv\\.com\\/explanation|niceff\\.com|fboom\\.me\/code|k2s\\.cc\/(pr|code)|facebook\\.com|magnet:|fireget\\.com\\/premium\\.html|tezfiles\\.com\\/.+\\/premium|nyaa\\.si|twitter\\.com|ouo\\.io|tma\\.cx|3xplanetpremium|clubwarp\\.com|clubwarp\\.top/|terabox\.(app|com)|turb\\.cc|turbobit\\.net|terabox\\.com|keep2share\\.cc\/pr\\/|javascript|pixhost\\.to\\/gallery\\/|imgchili\\.net\\/show|#$|^\\/|^(?=.*' + window.location.origin + ')(?!.*\\?site).*$', 'i')
+const SkipFilter = new RegExp('katfile\\.com\\/\\?op=registration|77file\\.com|xtvtv\\.com\\/explanation|niceff\\.com|fboom\\.me\/code|k2s\\.cc\/(pr|code)|facebook\\.com|magnet:|fireget\\.com\\/premium\\.html|tezfiles\\.com\\/.+\\/premium|nyaa\\.si|twitter\\.com|ouo\\.io|tma\\.cx|3xplanetpremium|clubwarp\\.com|clubwarp\\.top/|terabox\\.(app|com)|turb\\.cc|turbobit\\.net|teraboxapp\\.com|keep2share\\.cc\/pr\\/|javascript|pixhost\\.to\\/gallery\\/|imgchili\\.net\\/show|#$|^\\/|^(?=.*' + window.location.origin + ')(?!.*\\?site).*$', 'i')
 const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i')
 const WaitChangeLink = new RegExp('tma\\.cx\/', 'i')
 //const WaitChangeLink = new RegExp('TestTest\\.cx\/', 'i')
