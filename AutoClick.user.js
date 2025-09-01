@@ -96,7 +96,7 @@ class Queue {
         }
 
         // 중복이 아닐 경우에만 큐에 추가합니다.        
-        this.items[this.rear] = item;
+        this.items[this.rear] = item;                        
         this.rear++;
     }
 
@@ -106,7 +106,7 @@ class Queue {
         }
         const item = this.items[this.front];
         delete this.items[this.front];
-        this.front++;
+        this.front++;                     
         return item;
     }
 
@@ -133,29 +133,23 @@ const AutoClickBC = new BroadcastChannel('AutoClickChannel')
 
 let queueIndex = 0;
 
-let isProcessing = false;
-
 // 큐 관리 함수
 // 큐 관리 함수
 async function Management() {
     // Management() 함수가 이미 실행 중이거나 작업 슬롯이 꽉 찼거나 큐가 비어있으면 종료
-    if (isProcessing || queueIndex >= 5 || queue.isEmpty()) {
+    if (queueIndex >= 5 || queue.isEmpty()) {
         return;
     }
-
     // 하나의 작업을 시작
-    const node = queue.peek();
+    //const node = queue.peek();    
+    const node = queue.dequeue();
 
-    if (node) {
-        isProcessing = true;
-        queueIndex++;
-        console.log(`새 작업 시작: ${node}`);
+    if (node) {        
+        console.log(`새 작업 시작: ${node} ${queueIndex}`);
 
         // 작업 페이지로 메시지 전송
         AutoClickBC.postMessage({ type: 'startTask', url: node });
-
-        // 함수 종료. 다음 작업은 `onmessage` 핸들러에 의해 시작됩니다.
-        isProcessing = false;
+        queueIndex++;        
     }
 }
 
@@ -206,7 +200,7 @@ function insertFontAwesome() {
     css.type = 'text/css';
     document.head.appendChild(css);
 }
-function openPopup(url, title) {    
+function openPopup(url, title) {
     try {
         return window.open(url, title || '');
     } catch (e) {
@@ -531,38 +525,11 @@ async function handleBestGirlSexy() {
 
 async function handleMissKon() {
 
-    const mutCallback = (mutationsList, observer) => {
-        for (const { addedNodes } of mutationsList) {
-            for (const node of addedNodes) {
-                if (!(node instanceof HTMLElement)) continue;
-                //console.log(node, node.matches(Active.ObserverTag))
-                if (node.nodeType == Node.ELEMENT_NODE && node.childNodes.length > 0 && node.querySelector('div.post-thumbnail a img')) {
-                    const NeedImages = [...node.querySelectorAll('div.post-thumbnail a img')]
-                        .filter((img) => img.closest('a'))
-                    for (let x of NeedImages) {
-                        x.addEventListener('click', (event) => {
-                            queue.enqueue(x.closest('a').href);
-                        });
-                    }
-                }
-            }
-        }
-    }
-
-    const attributesobserver = new MutationObserver(mutCallback)
-
     AutoClick = localStorage.getItem('AutoClick') || '0';
     UIManager.setResponsiveFont();
     UIManager.syncIcon();
     const checkSubPage = document.querySelector('body.single-post');
     if (!checkSubPage) {
-        const NeedImages = [...document.querySelectorAll('div.post-thumbnail a img')]
-            .filter((img) => img.closest('a'))
-        for (let x of NeedImages) {
-            x.addEventListener('click', (event) => {
-                queue.enqueue(x.closest('a').href);
-            });
-        }
         // 메시지 수신 핸들러 (한 번만 등록)
         AutoClickBC.onmessage = async (e) => {
             // 'taskComplete' 메시지 수신 시 처리
@@ -570,24 +537,16 @@ async function handleMissKon() {
                 const completedUrl = e.data.url;
                 console.log(`작업 완료 알림 수신: ${completedUrl}`);
 
-                // 큐에서 작업 완료 항목 제거
-                // 큐의 첫 번째 항목이 작업 완료 항목과 일치하는지 확인하는 로직 추가 가능
-                queue.dequeue();
-
                 // 작업 슬롯 하나 반환
                 queueIndex--;
-                // 다음 작업 시작
-                if (queueIndex < 5 && !queue.isEmpty()) {
-                    Management();
-                }
-            } else if (e.data && e.data.type === 'readyTask') {
-                if (queueIndex < 5 && !queue.isEmpty()) {
-                    Management();
-                }
+                // 다음 작업 시작  
+                Management();              
+                
+            } else if (e.data && e.data.type === 'addTask') {
+                queue.enqueue(e.data.url);  
+                Management();              
             }
-        };
-
-        attributesobserver.observe(document.body, { subtree: true, childList: true });
+        };        
     }
     const copyTitle = document.querySelector('article#the-post .post-title.entry-title')
         ?.textContent.replace(/part\d+$/i, '').trim();
@@ -612,7 +571,7 @@ async function handleMissKon() {
         link = mediaFireLink[0];
         cached = CacheManager.get(oldLink);
         if (cached && cached.U === 'NotFound') {
-            link.remove();
+            link.remove();            
             return handleMissKon('TeraBox')
         } else {
             link.addEventListener('click', (e) => {
@@ -642,7 +601,11 @@ async function handleMissKon() {
             } else if (e.data.token) {
                 link.href = e.data.token;
                 CacheManager.set(oldLink, { U: e.data.token, T: e.data.FileName });
-                UIManager.addResetButton(link, oldLink, e.data.FileName);
+                AutoClickBC.postMessage({
+                    type: 'taskComplete',
+                    url: PageURL
+                });
+                UIManager.addResetButton(link, oldLink, e.data.FileName);                
                 childWindow?.postMessage({ S: parentWindow }, e.origin);
             }
         } else {
@@ -651,14 +614,22 @@ async function handleMissKon() {
                     CacheManager.set(oldLink, { U: e.data.token, T: 'File Not Found' });
                     link.remove();
                     childWindow.postMessage({ action: 'closed' }, e.origin);
-                    if (teraLink[0]) {
+                    if (teraLink[0]) {                        
                         return handleMissKon()
                     } else {
+                        AutoClickBC.postMessage({
+                            type: 'taskComplete',
+                            url: PageURL
+                        });
                         UIManager.addResetButton(link, oldLink, 'File Not Found');
                     }
                 } else {
                     link.href = e.data.token;
                     CacheManager.set(oldLink, { U: e.data.token, T: copyTitle });
+                    AutoClickBC.postMessage({
+                        type: 'taskComplete',
+                        url: PageURL
+                    });
                     UIManager.addResetButton(link, oldLink, copyTitle);
                     childWindow.postMessage({ action: 'closed' }, e.origin);
                 }
@@ -671,25 +642,25 @@ async function handleMissKon() {
     if (cached) {
         link.href = cached.U;
         if (cached.U === 'NotFound') {
-            link.remove();
+            link.remove();            
             return handleMissKon()
         } else {
+            AutoClickBC.postMessage({
+                type: 'taskComplete',
+                url: PageURL
+            });
             UIManager.addResetButton(link, oldLink, cached.T);
         }
     } else if (AutoClick === '1') {
         AutoClickBC.postMessage({
-            type: 'readyTask',
+            type: 'addTask',
             url: PageURL
-        });
+        });        
         AutoClickBC.onmessage = (e) => {
             // 메인 페이지로부터 'startTask' 메시지 수신
             if (e.data && e.data.type === 'startTask' && e.data.url === PageURL) {
                 console.log(`작업 지시 수신: ${PageURL}`);
-                childWindow = openPopup(link.href, title);
-                AutoClickBC.postMessage({
-                    type: 'taskComplete',
-                    url: PageURL
-                });                
+                childWindow = openPopup(link.href, title);                
             }
         };
     }
