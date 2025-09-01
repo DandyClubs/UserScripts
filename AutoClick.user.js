@@ -93,9 +93,7 @@ let childWindow = null;
 let parentWindow = null;
 let GetFileNameElement = null;
 let GetFileName = null;
-let isClicked = false
-
-const titleSelector = 'body.single.single-post div.page-title div.page-title-inner.container div .entry-title';
+let isClicked = false;
 
 /* ===============================
  * Utilities
@@ -178,6 +176,7 @@ const JobManager = {
         GM_deleteValue(url);
     }
 };
+
 
 /* ===============================
  * UI Manager
@@ -295,6 +294,7 @@ const globalObserver = new MutationObserver(async (mutations) => {
     }
     // allasiangirls.net — fix shrinkme & popup workflow & messaging
     if (/allasiangirls\.net\/.+/.test(href)) {
+        const titleSelector = 'body.single.single-post div.page-title div.page-title-inner.container div .entry-title';
         ClickBTN = document.querySelector('div.entry-content.single-page a.button.primary.is-primary');
         if (ClickBTN && ClickBTN.innerText === 'CLICK HERE') {
             let link = ClickBTN.getAttribute('href') || '';
@@ -381,6 +381,7 @@ const globalObserver = new MutationObserver(async (mutations) => {
  * Site Handlers (Start-time)
  * =============================== */
 async function handleAllAsianGirls() {
+    const titleSelector = 'body.single.single-post div.page-title div.page-title-inner.container div .entry-title';
     AutoClick = localStorage.getItem('AutoClick') || '0';
     UIManager.setResponsiveFont();
     UIManager.syncIcon();
@@ -468,7 +469,7 @@ async function handleMissKon() {
         if (cached && cached.U === 'NotFound') {
             link.remove();
             return handleMissKon('TeraBox')
-        }else{
+        } else {
             link.addEventListener('click', (e) => {
                 e.preventDefault();
                 childWindow = openPopup(oldLink, title.replace(/\s/g, ''));
@@ -477,15 +478,15 @@ async function handleMissKon() {
 
     } else {
         oldLink = teraLink[0].href;
-        link = teraLink[0];        
+        link = teraLink[0];
         cached = CacheManager.get(oldLink);
         link.addEventListener('click', (e) => {
-            e.preventDefault();           
+            e.preventDefault();
             childWindow = openPopup(oldLink, title.replace(/\s/g, ''));
         });
     }
 
-    parentWindow = PageURL;    
+    parentWindow = PageURL;
 
     const handleMessage = async (e) => {
         if (!/terabox\.com|1024tera\.com|terabox\.app|mediafire\.com/.test(e.origin)) return;
@@ -501,7 +502,7 @@ async function handleMissKon() {
             }
         } else {
             if (e.data.token) {
-                if (e.data.token === 'NotFound') {                    
+                if (e.data.token === 'NotFound') {
                     CacheManager.set(oldLink, { U: e.data.token, T: 'File Not Found' });
                     link.remove();
                     childWindow.postMessage({ action: 'closed' }, e.origin);
@@ -531,8 +532,7 @@ async function handleMissKon() {
             UIManager.addResetButton(link, oldLink, cached.T);
         }
     } else if (AutoClick === '1') {
-        await sleep(getRandomIntInclusive(0, 100) * 10);
-        childWindow = openPopup(link.href, title);
+        childWindow = openPopup(link.href, title);        
     }
 
     window.addEventListener('beforeunload', () => {
@@ -563,7 +563,7 @@ async function handleMrProBlogger() {
 }
 
 async function handleMediaFire() {
-await sleep(500);
+    await sleep(500);
     // relay for code -> opener
     if (window.opener) {
         if (PageURL.startsWith('https://www.mediafire.com/error.php')) {
@@ -642,6 +642,8 @@ async function Downloader(el) {
         self.close();
     }
 }
+
+
 
 /* ===============================
  * Boot
