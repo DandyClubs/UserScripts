@@ -131,7 +131,7 @@ const queue = new Queue();
 const AutoClickBC = new BroadcastChannel('AutoClickChannel')
 
 
-let queueIndex = 0;
+let queueIndex = 1;
 
 // 큐 관리 함수
 // 큐 관리 함수
