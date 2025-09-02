@@ -25,6 +25,7 @@
 // @include      https://www.mediafire.com/error.php*
 // @include      https://ouo.io/*
 // @include      https://ouo.press/*
+// @include      https://drive.google.com/*
 // @run-at       document-start
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
@@ -489,7 +490,7 @@ const globalObserver = new MutationObserver(async (mutations) => {
 
             // Single message event listener
             window.addEventListener('message', function (e) {
-                if (!/terabox\.com|1024tera\.com|terabox\.app|en\.mrproblogger\.com/.test(e.origin)) return;
+                if (!/terabox\.com|1024tera\.com|terabox\.app|en\.mrproblogger\.com|drive\.google\.com/.test(e.origin)) return;
 
                 if (e.data.code && link) {
                     const shortcode = new URL(link).pathname;
@@ -647,7 +648,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     * 공통 이벤트 핸들러 (중복 등록 방지)
     * =============================== */
     window.addEventListener('message', async (e) => {
-        if (!/terabox\.com|1024tera\.com|terabox\.app|mediafire\.com/.test(e.origin)) return;
+        if (!/terabox\.com|1024tera\.com|terabox\.app|en\.mrproblogger\.com|drive\.google\.com/.test(e.origin)) return;
 
         if (e.data.Q) {
             // 자식이 부모 정보 요청 → 응답
@@ -690,6 +691,9 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
 
                 childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
                 linkMap.clear(); // 더 이상 처리할 링크 없음
+            }
+            if (/drive\.google\.com/.test(e.origin)){
+                childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
             }
         }
     });
@@ -769,6 +773,26 @@ async function handleMediaFire() {
     }
 }
 
+async function handleGoogleDrive() {
+    await sleep(500);
+    // relay for code -> opener
+    if (window.opener) {
+        const GetFileName = document.querySelector('head title')?.innerText;
+        const allowed = ['https://allasiangirls.net', 'https://bestgirlsexy.com', 'https://misskon.com'];
+        if (allowed.includes(origin)) {
+            window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, origin);
+        }
+        
+        window.addEventListener('message', function (e) {
+            if (e.data.action === 'closed') {
+                //JobManager.remove(PageURL);
+                self.close();
+            }
+        });
+    }
+}
+
+
 const siteHandlers = {
     "thumbnails": () => {
         ['banner-top', 'img-thumbnails-info', 'show-thumbnails-info', 'btn-thumbnails', 'adblock-true', 'baner-bottom-section']
@@ -798,6 +822,7 @@ const siteHandlers = {
     "shrinkme.top": () => { reload(); },
     "ouo.io": () => { handleOUO(); reload(); },
     "ouo.press": () => { handleOUO(); reload(); },
+    "drive.google.com": () => { handleGoogleDrive(); },
 };
 
 /* ===============================
