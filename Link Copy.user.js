@@ -2299,7 +2299,7 @@ async function mainIcon(Run) {
     let lastExecutionTime = performance.now();
     window.visualViewport.addEventListener('resize', () => {
         const now = performance.now();
-        if (now - lastExecutionTime >= 2000) {
+        if (now - lastExecutionTime >= 500) {
             io.observe(LinkCopyCenterBox);
             RefreshIcon(performance.now());
         }

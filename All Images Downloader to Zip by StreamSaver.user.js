@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         All Images Downloader to Zip
 // @namespace    nature grew
-// @version      2025.08.29
+// @version      2025.09.03
 // @description  All Images Downloader to Zip
 // @author       DandyClubs
 // @include      /everia\.club\//
@@ -52,6 +52,7 @@ GM_addStyle(`
     padding: 0 .25em;
     margin: 0 .25em;
 	background-color: rgba(0,0,0,0.5) !important;
+    font-size: var(--FontSize) !important;
 }
 
 .DownButton {
@@ -69,6 +70,7 @@ GM_addStyle(`
     padding: 0 .5em 0 0 !important;
     font-family: 'Noto Sans', sans-serif !important;
     z-index: 999999;
+    font-size: var(--sFontSize) !important;
 }
 
 .ToTop, .AutoDownload {
@@ -737,7 +739,7 @@ function MakeIcon() {
     const StateLineHeight = (scaleFactor * baseRem).toFixed(2) + 'rem';
 
     // 폰트 사이즈 스타일 적용
-    centerBox.style.setProperty('font-size', CenterBoxFontSize, 'important');
+    centerBox.style.setProperty('--FontSize', `${CenterBoxFontSize}`);
 
     // AutoDownload 상태 토글 UI 설정
     const isAutoDownload = localStorage.getItem('AutoDownload') == 1;
@@ -748,35 +750,22 @@ function MakeIcon() {
     );
 
     // JobState indicator
-    const jobStateHTML = `&emsp;<i class="JobState" style="font-size: ${StateFontSize};"></i>`;
+    const jobStateHTML = `&emsp;<i class="JobState"></i>`;
     centerBox.insertAdjacentHTML('beforeend', jobStateHTML);
     const jobStateEl = document.querySelector('.JobState');
+    jobStateEl.style.setProperty('--sFontSize', `${StateFontSize}`);
 
     // JobList 초기화 및 텍스트 설정
     jobStateEl.textContent = JobList.length || 0;
 
-
-    if (centerBox.offsetLeft > 0) {
-        centerBox.style.cssText = `--SetLeft: ${Math.floor(centerBox.offsetLeft - centerBox.offsetHeight * 2.5)}px; font-size: ${CenterBoxFontSize};`;
-    }
-
-
     let lastExecutionTime = performance.now();
     window.visualViewport.addEventListener('resize', () => {
         const now = performance.now();
-        if (now - lastExecutionTime >= 500) {            
+        if (now - lastExecutionTime >= 250) {            
             RefreshIcon(performance.now());
         }
         lastExecutionTime = now;
     });
-
-    // ResizeObserver 설정
-    const myObserver = new ResizeObserver(() => {
-        if (centerBox.offsetLeft > 0) {
-            centerBox.style.cssText = `--SetLeft: ${Math.floor(centerBox.offsetLeft - centerBox.offsetHeight * 2.5)}px; font-size: ${CenterBoxFontSize};`;
-        }
-    });
-    myObserver.observe(centerBox);
 
     // AutoDownload 토글 클릭 이벤트
     centerBox.addEventListener('click', function (e) {
@@ -793,17 +782,19 @@ function RefreshIcon(Run) {
     const centerBox = document.querySelector(".CenterBox");
     if (!centerBox) return
     // 폰트 사이즈 계산
-
+    GetDPI = window.devicePixelRatio || 1;
+    DefaultFontSize = getDefaultFontSize() || 16; // fallback 16px
+    console.log('GetDPI:', GetDPI, 'DefaultFontSize:', DefaultFontSize);
     const baseRem = 16 / DefaultFontSize;
     const scaleFactor = 1 / (GetDPI / 1.5);
     const CenterBoxFontSize = (scaleFactor * baseRem).toFixed(2) + 'rem';
     const StateFontSize = (scaleFactor * 0.65 * baseRem).toFixed(2) + 'rem';
     const StateLineHeight = (scaleFactor * baseRem).toFixed(2) + 'rem';
+    const jobStateEl = document.querySelector('.JobState');
 
     // 폰트 사이즈 스타일 적용
-    centerBox.style.setProperty('font-size', CenterBoxFontSize, 'important');
-    centerBox.style.cssText = `--SetLeft: ${Math.floor(centerBox.offsetLeft - centerBox.offsetHeight * 2.5)}px; font-size: ${CenterBoxFontSize};`;
-
+    centerBox.style.setProperty('--FontSize', `${CenterBoxFontSize}`);
+    jobStateEl.style.setProperty('--sFontSize', `${StateFontSize}`);
 }
 function GetRequiredElement(selector, label = 'Element') {
     let el = document.querySelector(selector)

@@ -34,7 +34,7 @@
 // @grant        GM_getValue
 // @grant        GM_deleteValue
 // @grant        GM_listValues
-// @grant        GM_addValueChangeListener
+// @connect      *
 // @noframes
 // ==/UserScript==
 
@@ -107,8 +107,8 @@ class Queue {
 
         // 중복이 아닐 경우에만 큐에 추가합니다.
         this.items[this.rear] = item;
-        this._notify({ type: "add", item });
         this.rear++;
+        this._notify({ type: "add", item });
     }
 
     dequeue() {
@@ -117,8 +117,8 @@ class Queue {
         }
         const item = this.items[this.front];
         delete this.items[this.front];
-        this._notify({ type: "remove", item });
         this.front++;
+        this._notify({ type: "remove", item });
         return item;
     }
 
@@ -452,83 +452,6 @@ const globalObserver = new MutationObserver(async (mutations) => {
         }
         return;
     }
-    // allasiangirls.net — fix shrinkme & popup workflow & messaging
-    if (/allasiangirls\.net\/.+/.test(href)) {
-        const titleSelector = 'body.single.single-post div.page-title div.page-title-inner.container div .entry-title';
-        ClickBTN = document.querySelector('div.entry-content.single-page a.button.primary.is-primary');
-        if (ClickBTN && ClickBTN.innerText === 'CLICK HERE') {
-            let link = ClickBTN.getAttribute('href') || '';
-            if (/shrinkme\..*/.test(link)) {
-                link = link.replace(/shrinkme\.(org|dev|us)/, 'shrinkme.site');
-                ClickBTN.setAttribute('href', link);
-            }
-            globalObserver.disconnect();
-            await sleep(1000);
-
-            parentWindow = PageURL;
-            const cached = CacheManager.get(link);
-            if (cached) {
-                ClickBTN.setAttribute('href', cached.U);
-                UIManager.addResetButton(ClickBTN, link, cached.T);
-            } else {
-                PopUp = ClickBTN.href;
-                if (AutoClick === '1') {
-                    AutoClickBC.postMessage({
-                        type: 'addTask',
-                        url: PageURL
-                    });
-                    AutoClickBC.onmessage = (e) => {
-                        // 메인 페이지로부터 'startTask' 메시지 수신
-                        if (e.data && e.data.type === 'startTask' && e.data.url === PageURL) {
-                            console.log(`작업 지시 수신: ${PageURL}`);
-                            const popupName = document.querySelector(titleSelector)?.innerText.replace(/\s/g, '') || '';
-                            childWindow = openPopup(PopUp, popupName);
-                        }
-                    };
-                }
-            }
-
-            // Single message event listener
-            window.addEventListener('message', function (e) {
-                if (!/terabox\.com|1024tera\.com|terabox\.app|en\.mrproblogger\.com|drive\.google\.com/.test(e.origin)) return;
-
-                if (e.data.code && link) {
-                    const shortcode = new URL(link).pathname;
-                    if (shortcode !== e.data.code) {
-                        childWindow?.postMessage({ link: link }, e.origin);
-                    }
-                }
-
-                if (e.data.Q && childWindow) {
-                    childWindow.postMessage({ A: parentWindow }, e.origin);
-                } else if (e.data.token) {
-                    if (e.data.P === PageURL) {
-                        ClickBTN.setAttribute('href', e.data.token);
-                        CacheManager.set(PopUp || link, { U: e.data.token, T: e.data.FileName });
-                        AutoClickBC.postMessage({
-                            type: 'taskComplete',
-                            url: PageURL
-                        });
-                        UIManager.addResetButton(ClickBTN, link, e.data.FileName);
-                        if (childWindow) childWindow.postMessage({ S: parentWindow }, e.origin);
-                    } else {
-                        AutoClickBC.postMessage({
-                            type: 'taskComplete',
-                            url: PageURL
-                        });
-                        log("Mismatched P:", e.data);
-                    }
-                }
-            }, false);
-
-            window.addEventListener('beforeunload', () => {
-                if (childWindow && !childWindow.closed) {
-                    childWindow.postMessage({ action: 'closed' }, '*');
-                }
-            });
-        }
-        return;
-    }
 
     // themezon.net — next page auto nav
     if (/themezon\.net/.test(href)) {
@@ -648,19 +571,23 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     * 공통 이벤트 핸들러 (중복 등록 방지)
     * =============================== */
     window.addEventListener('message', async (e) => {
-        if (!/terabox\.com|1024tera\.com|terabox\.app|en\.mrproblogger\.com|drive\.google\.com/.test(e.origin)) return;
+        if (!/terabox\.com|1024tera\.com|terabox\.app|en\.mrproblogger\.com|drive\.google\.com|mediafire\.com/.test(e.origin)) return;
 
-        if (e.data.Q) {
+        // 토큰 응답 도착
+        const entries = [...linkMap.entries()];
+        if (!entries.length) return;
+
+        const [oldLink, entry] = entries[0];
+
+        if (e.data.code && oldLink) {
+            const shortcode = new URL(oldLink).pathname;
+            if (shortcode !== e.data.code) {
+                childWindow?.postMessage({ link: oldLink }, e.origin);
+            }
+        }else if (e.data.Q) {
             // 자식이 부모 정보 요청 → 응답
             childWindow?.postMessage({ A: parentWindow }, e.origin);
-
-        } else if (e.data.token) {
-            // 토큰 응답 도착
-            const entries = [...linkMap.entries()];
-            if (!entries.length) return;
-
-            const [oldLink, entry] = entries[0];
-
+        } else if (e.data.token) {           
             if (e.data.token === 'NotFound') {
                 // 현재 링크 실패 → 다음 링크 재시도
                 CacheManager.set(oldLink, { U: 'NotFound', T: 'File Not Found' });
@@ -691,9 +618,9 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
 
                 childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
                 linkMap.clear(); // 더 이상 처리할 링크 없음
-            }
-            if (/drive\.google\.com/.test(e.origin)){
-                childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
+                if (/drive\.google\.com/.test(e.origin)) {
+                    JDownloader(e.data.token, e.data.FileName, PageURL);                    
+                }
             }
         }
     });
@@ -774,15 +701,11 @@ async function handleMediaFire() {
 }
 
 async function handleGoogleDrive() {
-    await sleep(500);
+    await sleep(1000);
     // relay for code -> opener
     if (window.opener) {
-        const GetFileName = document.querySelector('head title')?.innerText;
-        const allowed = ['https://allasiangirls.net', 'https://bestgirlsexy.com', 'https://misskon.com'];
-        if (allowed.includes(origin)) {
-            window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, origin);
-        }
-        
+        const GetFileName = document.querySelector('head title')?.innerText.replace(' - Google Drive', '');
+        window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, '*');
         window.addEventListener('message', function (e) {
             if (e.data.action === 'closed') {
                 //JobManager.remove(PageURL);
@@ -881,3 +804,47 @@ window.addEventListener("DOMContentLoaded", () => {
         Promise.resolve(siteHandlers[key]()).catch(err => log("handler error", err));
     }
 }, { once: true });
+
+
+function JDownloader(JdownloaderData, PackageName, sourceURL) {
+    //console.log(PackageName + '\n' + JdownloaderData)
+    /*
+if(JdownloaderData){
+    $.post("http://127.0.0.1:9666/flash/add", {
+        urls: JdownloaderData,
+        referer: PageURL,
+        package: PackageName
+    })
+}
+*/
+    if (JdownloaderData) {
+
+        let data = new URLSearchParams();
+        data.append(`urls`, JdownloaderData);
+        data.append(`referer`, PageURL)
+        if (sourceURL) {
+            data.append(`source`, sourceURL)
+        }
+        if (PackageName) {
+            data.append(`package`, PackageName)
+        }
+        /*
+    if(Comment){
+        data.append(`comment`, Comment)
+    }
+    */
+        fetch('http://localhost:9666/flash/add', {
+            method: 'POST',
+            //mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'Access-Control-Allow-Origin': 'http://localhost:9666',
+            },
+            body: data
+        }).then((response) => {
+            //console.log(response.ok)
+        })
+        //console.log(data)
+    }
+
+}
