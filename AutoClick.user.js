@@ -426,7 +426,6 @@ const globalObserver = new MutationObserver(async (mutations) => {
                 link = link.replace(/shrinkme\.(org|dev|us)/, 'shrinkme.site');
                 ClickBTN.setAttribute('href', link);
             }
-
             globalObserver.disconnect();
             await sleep(1000);
 
@@ -518,6 +517,22 @@ const globalObserver = new MutationObserver(async (mutations) => {
     });
 });
 
+
+const beforeUnloadHandler = (event) => {
+    if (queue.size) {
+        event.preventDefault();
+        console.log('queue is not Empty!', queue.size)
+        // Included for legacy support, e.g. Chrome/Edge < 119
+        event.returnValue = true;
+    }
+    else {
+        window.removeEventListener("beforeunload", beforeUnloadHandler);
+    }
+};
+
+
+
+
 /* ===============================
  * Site Handlers (Start-time)
  * =============================== */
@@ -525,11 +540,7 @@ async function handleAllAsianGirls() {
 
     const checkSubPage = document.querySelector('body.single-post');
     if (!checkSubPage) {
-        window.addEventListener('beforeunload', (e) => {
-            if (queue.size) {
-                e.preventDefault();
-            }
-        });
+        window.addEventListener("beforeunload", beforeUnloadHandler);
         mainQueueManagemnt();
         return;
     }
@@ -556,11 +567,7 @@ async function handleBestGirlSexy() {
     UIManager.syncIcon();
     const checkSubPage = document.querySelector('body.single-post');
     if (!checkSubPage) {
-        window.addEventListener('beforeunload', (e) => {
-            if (queue.size) {
-                e.preventDefault();
-            }
-        });
+        window.addEventListener("beforeunload", beforeUnloadHandler);
         mainQueueManagemnt();
         return;
     }
@@ -604,7 +611,7 @@ async function handleBestGirlSexy() {
             UIManager.addResetButton(link, oldHref, cached.T);
             continue; // 이미 캐시된 경우 팝업 필요 없음
         }
-        
+
         if (AutoClick === '1') {
             AutoClickBC.postMessage({
                 type: 'addTask',
@@ -634,11 +641,7 @@ async function handleMissKon() {
     UIManager.syncIcon();
     const checkSubPage = document.querySelector('body.single-post');
     if (!checkSubPage) {
-        window.addEventListener('beforeunload', (e) => {
-            if (queue.size) {
-                e.preventDefault();
-            }
-        });
+        window.addEventListener("beforeunload", beforeUnloadHandler);
         mainQueueManagemnt();
         return;
     }
