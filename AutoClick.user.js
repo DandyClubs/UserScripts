@@ -104,9 +104,8 @@ class Queue {
             }
         }
 
-        // 중복이 아닐 경우에만 큐에 추가합니다.        
-        localStorage.setItem('queueState', queue.size);
-        this.items[this.rear] = item;        
+        // 중복이 아닐 경우에만 큐에 추가합니다.                
+        this.items[this.rear] = item;
         this.rear++;
     }
 
@@ -116,7 +115,6 @@ class Queue {
         }
         const item = this.items[this.front];
         delete this.items[this.front];
-        localStorage.setItem('queueState', queue.size);
         this.front++;
         return item;
     }
@@ -148,7 +146,8 @@ let queueState = null;
 // 큐 관리 함수
 async function Management() {
     if (queueState) {
-        queueState.innerText = localStorage.getItem('queueState');
+        queueState.innerText = queue.size;
+        localStorage.setItem('queueState', queue.size);
     }
     // Management() 함수가 이미 실행 중이거나 작업 슬롯이 꽉 찼거나 큐가 비어있으면 종료
     if (queueIndex >= 7 || queue.isEmpty()) {
@@ -156,7 +155,7 @@ async function Management() {
     }
     // 하나의 작업을 시작
     //const node = queue.peek();    
-    const node = queue.dequeue();    
+    const node = queue.dequeue();
 
     if (node) {
         console.log(`새 작업 시작: ${node} ${queueIndex}`);
@@ -318,7 +317,7 @@ const UIManager = {
                 <i class="AutoClick ${on ? 'On' : 'Off'} fa-solid fa-square-check"></i>
                 <span class="queueState">${queue.size}</span>
                 `);
-            queueState = document.querySelector('.queueState');                        
+            queueState = document.querySelector('.queueState');
             icon = document.querySelector('.AutoClick');
             icon.addEventListener('click', (e) => {
                 const isOn = e.currentTarget.classList.contains('On');
@@ -330,7 +329,7 @@ const UIManager = {
                     const ic = document.querySelector('.AutoClick');
                     if (!ic) return;
                     ic.classList.replace(ev.oldValue === '1' ? 'On' : 'Off', ev.newValue === '1' ? 'On' : 'Off');
-                }else if(ev.key === 'queueState'){
+                } else if (ev.key === 'queueState') {
                     queueState.innerText = ev.newValue;
                 }
             });
@@ -555,6 +554,129 @@ const beforeUnloadHandler = (event) => {
 /* ===============================
  * Site Handlers (Start-time)
  * =============================== */
+
+async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
+    const linkMap = new Map();
+    AutoClick = localStorage.getItem('AutoClick') || '0';
+    UIManager.setResponsiveFont();
+    UIManager.syncIcon();
+
+    const checkSubPage = document.querySelector('body.single-post');
+    if (!checkSubPage) {
+        window.addEventListener("beforeunload", beforeUnloadHandler);
+        mainQueueManagemnt();
+        return;
+    }
+
+    const copyTitle = document.querySelector(titleSelector)
+        ?.textContent.replace(/part\d+$/i, '').trim();
+    if (!copyTitle || /AI\sGenerated/i.test(copyTitle)) return;
+
+    const links = linkSelectors.flatMap(sel =>
+        querySelectorIncludesText(sel.selector, sel.text).map(el => ({ el, type: sel.type }))
+    );
+    if (!links.length) return;
+
+    parentWindow = PageURL;
+    const title = copyTitle.replace(/\s/g, '');
+
+    for (const { el: link, type } of links) {
+        const oldLink = link.href;
+        const cached = CacheManager.get(oldLink);
+        if (cached) {
+            link.href = cached.U;
+            if (cached.U === 'NotFound') {
+                link.remove();
+            } else {
+                UIManager.addResetButton(link, oldLink, cached.T);
+            }
+            continue; // 캐시된 경우 추가 처리 불필요
+        }
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            childWindow = openPopup(oldLink, title);
+        });        
+        
+        linkMap.set(oldLink, { linkEl: link, type, title });
+    }
+
+    const entries = [...linkMap.entries()];
+    if (!entries.length) return;
+
+    if (AutoClick === '1') {
+        AutoClickBC.postMessage({ type: 'addTask', url: PageURL });
+        AutoClickBC.onmessage = (e) => {
+            if (e.data?.type === 'startTask' && e.data.url === PageURL) {
+                const entry = [...linkMap.values()][0]; // 첫 링크 기준
+                if (entry) {
+                    console.log(`작업 지시 수신: ${PageURL}`);
+                    childWindow = openPopup(entry.linkEl.href, entry.title);
+                }
+            }
+        };
+    }
+
+    
+
+    /* ===============================
+    * 공통 이벤트 핸들러 (중복 등록 방지)
+    * =============================== */
+    window.addEventListener('message', async (e) => {
+        if (!/terabox\.com|1024tera\.com|terabox\.app|mediafire\.com/.test(e.origin)) return;
+
+        if (e.data.Q) {
+            // 자식이 부모 정보 요청 → 응답
+            childWindow?.postMessage({ A: parentWindow }, e.origin);
+
+        } else if (e.data.token) {
+            // 토큰 응답 도착
+            const entries = [...linkMap.entries()];
+            if (!entries.length) return;
+
+            const [oldLink, entry] = entries[0];
+
+            if (e.data.token === 'NotFound') {
+                // 현재 링크 실패 → 다음 링크 재시도
+                CacheManager.set(oldLink, { U: 'NotFound', T: 'File Not Found' });
+                entry.linkEl.remove();
+                //AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
+                childWindow.postMessage({ action: 'closed' }, e.origin);
+
+                linkMap.delete(oldLink);
+
+                const nextEntry = [...linkMap.values()][0];
+                if (nextEntry) {
+                    console.log(`다음 링크 시도: ${nextEntry.linkEl.href}`);
+                    childWindow = openPopup(nextEntry.linkEl.href, nextEntry.title);
+                }else{
+                    AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
+                }
+            } else {
+                // 성공 → 링크 갱신 & 캐시 저장
+                CacheManager.set(oldLink, { U: e.data.token, T: e.data.FileName || entry.title });
+                entry.linkEl.href = e.data.token;
+                AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
+                UIManager.addResetButton(entry.linkEl, oldLink, e.data.FileName || entry.title);
+
+                if (entry.type === 'terabox') {
+                    await sleep(5000);
+                    self.close();
+                }
+
+                childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
+                linkMap.clear(); // 더 이상 처리할 링크 없음
+            }
+        }
+    });
+
+    window.addEventListener('beforeunload', () => {
+        if (childWindow && !childWindow.closed) {
+            childWindow.postMessage({ action: 'closed' }, '*');
+        }
+    });
+}
+
+
 async function handleAllAsianGirls() {
 
     const checkSubPage = document.querySelector('body.single-post');
@@ -581,204 +703,21 @@ async function handleAllAsianGirls() {
 }
 
 async function handleBestGirlSexy() {
-    AutoClick = localStorage.getItem('AutoClick') || '0';
-    UIManager.setResponsiveFont();
-    UIManager.syncIcon();
-    const checkSubPage = document.querySelector('body.single-post');
-    if (!checkSubPage) {
-        window.addEventListener("beforeunload", beforeUnloadHandler);
-        mainQueueManagemnt();
-        return;
-    }
-    const copyTitle = document.querySelector('div#content.site-content div.elementor-widget-container .elementor-heading-title')
-        ?.textContent.replace(/part\d+$/i, '').trim();
-    if (!copyTitle) return;
-
-    const teraLinks = querySelectorIncludesText('A', 'TeraBox');
-    if (!teraLinks?.length) return;
-
-    for (const link of teraLinks) {
-        const oldHref = link.href;
-        parentWindow = PageURL;
-
-        const cached = CacheManager.get(oldHref);
-        const title = (copyTitle || '').replace(/\s/g, '');
-
-        const handleMessage = async (e) => {
-            if (!/terabox\.com|1024tera\.com|terabox\.app/.test(e.origin)) return;
-
-            if (e.data.Q) {
-                childWindow?.postMessage({ A: parentWindow }, e.origin);
-            } else if (e.data.token) {
-                link.setAttribute('href', e.data.token);
-                CacheManager.set(oldHref, { U: e.data.token, T: e.data.FileName });
-                AutoClickBC.postMessage({
-                    type: 'taskComplete',
-                    url: PageURL
-                });
-                UIManager.addResetButton(link, oldHref, e.data.FileName);
-                childWindow?.postMessage({ S: parentWindow }, e.origin);
-                await sleep(5000);
-                self.close();
-            }
-        };
-
-        window.addEventListener('message', handleMessage, { once: false });
-
-        if (cached) {
-            link.setAttribute('href', cached.U);
-            UIManager.addResetButton(link, oldHref, cached.T);
-            continue; // 이미 캐시된 경우 팝업 필요 없음
-        }
-
-        if (AutoClick === '1') {
-            AutoClickBC.postMessage({
-                type: 'addTask',
-                url: PageURL
-            });
-            AutoClickBC.onmessage = (e) => {
-                // 메인 페이지로부터 'startTask' 메시지 수신
-                if (e.data && e.data.type === 'startTask' && e.data.url === PageURL) {
-                    console.log(`작업 지시 수신: ${PageURL}`);
-                    childWindow = openPopup(link.href, title);
-                }
-            };
-
-            window.addEventListener('beforeunload', () => {
-                if (childWindow && !childWindow.closed) {
-                    childWindow.postMessage({ action: 'closed' }, '*');
-                }
-            });
-        }
-    }
+    return handleSite({
+        titleSelector: 'div#content.site-content div.elementor-widget-container .elementor-heading-title',
+        linkSelectors: [{ selector: 'A', text: 'TeraBox', type: 'terabox' }],
+        autoClose: true
+    });
 }
 
 async function handleMissKon() {
-
-    AutoClick = localStorage.getItem('AutoClick') || '0';
-    UIManager.setResponsiveFont();
-    UIManager.syncIcon();
-    const checkSubPage = document.querySelector('body.single-post');
-    if (!checkSubPage) {
-        window.addEventListener("beforeunload", beforeUnloadHandler);
-        mainQueueManagemnt();
-        return;
-    }
-    const copyTitle = document.querySelector('article#the-post .post-title.entry-title')
-        ?.textContent.replace(/part\d+$/i, '').trim();
-
-    if (!copyTitle || /AI\sGenerated/i.test(copyTitle)) {
-        return;
-    }
-
-    const mediaFireLink = querySelectorIncludesText('a.shortc-button', 'MediaFire');
-    const teraLink = querySelectorIncludesText('a.shortc-button', 'Terabox');
-    if (mediaFireLink.length === 0 && teraLink === 0) return;
-
-    const title = copyTitle.replace(/\s/g, '');
-
-    let oldLink, link, cached;
-    if (mediaFireLink.length > 0) {
-        oldLink = mediaFireLink[0].href;
-        link = mediaFireLink[0];
-        cached = CacheManager.get(oldLink);
-        if (cached && cached.U === 'NotFound') {
-            link.remove();
-            return handleMissKon('TeraBox')
-        } else {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                childWindow = openPopup(oldLink, title.replace(/\s/g, ''));
-            });
-        }
-
-    } else {
-        oldLink = teraLink[0].href;
-        link = teraLink[0];
-        cached = CacheManager.get(oldLink);
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            childWindow = openPopup(oldLink, title.replace(/\s/g, ''));
-        });
-    }
-
-    parentWindow = PageURL;
-
-    const handleMessage = async (e) => {
-        if (!/terabox\.com|1024tera\.com|terabox\.app|mediafire\.com/.test(e.origin)) return;
-
-        if (/terabox\.com|1024tera\.com|terabox\.app/.test(e.origin)) {
-            if (e.data.Q) {
-                childWindow?.postMessage({ A: parentWindow }, e.origin);
-            } else if (e.data.token) {
-                link.href = e.data.token;
-                CacheManager.set(oldLink, { U: e.data.token, T: e.data.FileName });
-                AutoClickBC.postMessage({
-                    type: 'taskComplete',
-                    url: PageURL
-                });
-                UIManager.addResetButton(link, oldLink, e.data.FileName);
-                childWindow?.postMessage({ S: parentWindow }, e.origin);
-            }
-        } else {
-            if (e.data.token) {
-                if (e.data.token === 'NotFound') {
-                    CacheManager.set(oldLink, { U: e.data.token, T: 'File Not Found' });
-                    link.remove();
-                    childWindow.postMessage({ action: 'closed' }, e.origin);
-                    if (teraLink[0]) {
-                        return handleMissKon()
-                    } else {
-                        AutoClickBC.postMessage({
-                            type: 'taskComplete',
-                            url: PageURL
-                        });
-                        UIManager.addResetButton(link, oldLink, 'File Not Found');
-                    }
-                } else {
-                    link.href = e.data.token;
-                    CacheManager.set(oldLink, { U: e.data.token, T: copyTitle });
-                    AutoClickBC.postMessage({
-                        type: 'taskComplete',
-                        url: PageURL
-                    });
-                    UIManager.addResetButton(link, oldLink, copyTitle);
-                    childWindow.postMessage({ action: 'closed' }, e.origin);
-                }
-            }
-        }
-    };
-
-    window.addEventListener('message', handleMessage, { once: false });
-
-    if (cached) {
-        link.href = cached.U;
-        if (cached.U === 'NotFound') {
-            link.remove();
-            return handleMissKon()
-        } else {
-            UIManager.addResetButton(link, oldLink, cached.T);
-        }
-    } else if (AutoClick === '1') {
-        AutoClickBC.postMessage({
-            type: 'addTask',
-            url: PageURL
-        });
-        AutoClickBC.onmessage = (e) => {
-            // 메인 페이지로부터 'startTask' 메시지 수신
-            if (e.data && e.data.type === 'startTask' && e.data.url === PageURL) {
-                console.log(`작업 지시 수신: ${PageURL}`);
-                childWindow = openPopup(link.href, title);
-            }
-        };
-    }
-
-    window.addEventListener('beforeunload', () => {
-        if (childWindow && !childWindow.closed) {
-            childWindow.postMessage({ action: 'closed' }, '*');
-        }
+    return handleSite({
+        titleSelector: 'article#the-post .post-title.entry-title',
+        linkSelectors: [
+            { selector: 'a.shortc-button', text: 'MediaFire', type: 'mediafire' },
+            { selector: 'a.shortc-button', text: 'Terabox', type: 'terabox' }
+        ]
     });
-
 }
 
 async function handleMrProBlogger() {
