@@ -64,6 +64,13 @@ GM_addStyle(`
   z-index: 999999;
 }
 
+.queueState {
+	font-size: .7rem;
+	padding: .25em;
+	margin: auto .5em;
+	color: white;
+}
+
 .AutoClick {
  margin: .2em;
  cursor: pointer;
@@ -98,7 +105,8 @@ class Queue {
         }
 
         // 중복이 아닐 경우에만 큐에 추가합니다.        
-        this.items[this.rear] = item;
+        localStorage.setItem('queueState', queue.size);
+        this.items[this.rear] = item;        
         this.rear++;
     }
 
@@ -108,6 +116,7 @@ class Queue {
         }
         const item = this.items[this.front];
         delete this.items[this.front];
+        localStorage.setItem('queueState', queue.size);
         this.front++;
         return item;
     }
@@ -134,17 +143,20 @@ const AutoClickBC = new BroadcastChannel('AutoClickChannel')
 
 
 let queueIndex = 0;
-
+let queueState = null;
 // 큐 관리 함수
 // 큐 관리 함수
 async function Management() {
+    if (queueState) {
+        queueState.innerText = localStorage.getItem('queueState');
+    }
     // Management() 함수가 이미 실행 중이거나 작업 슬롯이 꽉 찼거나 큐가 비어있으면 종료
     if (queueIndex >= 7 || queue.isEmpty()) {
         return;
     }
     // 하나의 작업을 시작
     //const node = queue.peek();    
-    const node = queue.dequeue();
+    const node = queue.dequeue();    
 
     if (node) {
         console.log(`새 작업 시작: ${node} ${queueIndex}`);
@@ -194,6 +206,7 @@ let GetFileNameElement = null;
 let GetFileName = null;
 let isClicked = false;
 let reloadTimer = null;
+
 
 /* ===============================
  * Utilities
@@ -301,7 +314,11 @@ const UIManager = {
         let icon = document.querySelector('.AutoClick');
         if (!icon) {
             const box = this.ensureBox();
-            box.insertAdjacentHTML('beforeend', `<i class="AutoClick ${on ? 'On' : 'Off'} fa-solid fa-square-check"></i>`);
+            box.insertAdjacentHTML('beforeend', `
+                <i class="AutoClick ${on ? 'On' : 'Off'} fa-solid fa-square-check"></i>
+                <span class="queueState">${queue.size}</span>
+                `);
+            queueState = document.querySelector('.queueState');                        
             icon = document.querySelector('.AutoClick');
             icon.addEventListener('click', (e) => {
                 const isOn = e.currentTarget.classList.contains('On');
@@ -313,6 +330,8 @@ const UIManager = {
                     const ic = document.querySelector('.AutoClick');
                     if (!ic) return;
                     ic.classList.replace(ev.oldValue === '1' ? 'On' : 'Off', ev.newValue === '1' ? 'On' : 'Off');
+                }else if(ev.key === 'queueState'){
+                    queueState.innerText = ev.newValue;
                 }
             });
         } else {
@@ -778,7 +797,7 @@ async function handleMrProBlogger() {
 async function handleOUO() {
     const notFound = document.querySelector('div.container .no-found');
     if (window.opener && notFound) {
-        window.opener.postMessage({ token: 'NotFound' }, '*');
+        window.opener.postMessage({ token: 'NotFound' }, 'https://misskon.com');
         self.close();
     }
 }
