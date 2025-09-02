@@ -395,7 +395,7 @@ const globalObserver = new MutationObserver(async (mutations) => {
     if (/(terabox|1024tera)\.(app|com)\/.+sharing/.test(href)) {
         ClickBTN = document.querySelector('div.action-bar div.action-bar-download.action-bar-btn');
         const isLogin = document.querySelector('div.header-main-box div.header-right-menus div.user-card-box')
-        if (ClickBTN && isLogin) {            
+        if (ClickBTN && isLogin) {
             globalObserver.disconnect();
             cancelReload();
             GetFileNameElement = document.querySelector('div.info div.file-name-info span.file-name');
@@ -412,7 +412,7 @@ const globalObserver = new MutationObserver(async (mutations) => {
             Downloader(ClickBTN);
         }
         else if (!ClickBTN && !isLogin) {
-            reload(120000);
+            reload(60000);
         }
         return;
     }
@@ -434,10 +434,6 @@ const globalObserver = new MutationObserver(async (mutations) => {
             const cached = CacheManager.get(link);
             if (cached) {
                 ClickBTN.setAttribute('href', cached.U);
-                AutoClickBC.postMessage({
-                    type: 'taskComplete',
-                    url: PageURL
-                });
                 UIManager.addResetButton(ClickBTN, link, cached.T);
             } else {
                 PopUp = ClickBTN.href;
@@ -481,6 +477,10 @@ const globalObserver = new MutationObserver(async (mutations) => {
                         UIManager.addResetButton(ClickBTN, link, e.data.FileName);
                         if (childWindow) childWindow.postMessage({ S: parentWindow }, e.origin);
                     } else {
+                        AutoClickBC.postMessage({
+                            type: 'taskComplete',
+                            url: PageURL
+                        });
                         log("Mismatched P:", e.data);
                     }
                 }
@@ -545,12 +545,15 @@ async function handleAllAsianGirls() {
         e.preventDefault();
         const title = document.querySelector(titleSelector)?.innerText || '';
         childWindow = openPopup(clickBtn.href, title.replace(/\s/g, ''));
-    });    
+    });
 
     globalObserver.observe(document, config);
 }
 
 async function handleBestGirlSexy() {
+    AutoClick = localStorage.getItem('AutoClick') || '0';
+    UIManager.setResponsiveFont();
+    UIManager.syncIcon();
     const checkSubPage = document.querySelector('body.single-post');
     if (!checkSubPage) {
         window.addEventListener('beforeunload', (e) => {
@@ -598,14 +601,10 @@ async function handleBestGirlSexy() {
 
         if (cached) {
             link.setAttribute('href', cached.U);
-            AutoClickBC.postMessage({
-                type: 'taskComplete',
-                url: PageURL
-            });
             UIManager.addResetButton(link, oldHref, cached.T);
             continue; // 이미 캐시된 경우 팝업 필요 없음
         }
-
+        
         if (AutoClick === '1') {
             AutoClickBC.postMessage({
                 type: 'addTask',
@@ -617,13 +616,14 @@ async function handleBestGirlSexy() {
                     console.log(`작업 지시 수신: ${PageURL}`);
                     childWindow = openPopup(link.href, title);
                 }
-            };        
+            };
 
-        window.addEventListener('beforeunload', () => {
-            if (childWindow && !childWindow.closed) {
-                childWindow.postMessage({ action: 'closed' }, '*');
-            }
-        });
+            window.addEventListener('beforeunload', () => {
+                if (childWindow && !childWindow.closed) {
+                    childWindow.postMessage({ action: 'closed' }, '*');
+                }
+            });
+        }
     }
 }
 
@@ -646,10 +646,6 @@ async function handleMissKon() {
         ?.textContent.replace(/part\d+$/i, '').trim();
 
     if (!copyTitle || /AI\sGenerated/i.test(copyTitle)) {
-        AutoClickBC.postMessage({
-            type: 'taskComplete',
-            url: PageURL
-        });
         return;
     }
 
@@ -739,10 +735,6 @@ async function handleMissKon() {
             link.remove();
             return handleMissKon()
         } else {
-            AutoClickBC.postMessage({
-                type: 'taskComplete',
-                url: PageURL
-            });
             UIManager.addResetButton(link, oldLink, cached.T);
         }
     } else if (AutoClick === '1') {
