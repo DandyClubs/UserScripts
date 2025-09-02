@@ -193,6 +193,7 @@ let parentWindow = null;
 let GetFileNameElement = null;
 let GetFileName = null;
 let isClicked = false;
+let reloadTimer = null;
 
 /* ===============================
  * Utilities
@@ -345,14 +346,26 @@ const UIManager = {
     }
 };
 
-function reload() {
-    const check = setTimeout(() => {
+
+function reload(delay = 30000) {
+    reloadTimer = setTimeout(() => {
         if (location.href === PageURL) {
-            clearTimeout(check);
+            clearTimeout(reloadTimer);
             location.href = PageURL;
         }
-    }, 30000);
+    }, delay);
 }
+
+// 다른 곳에서 취소 가능
+function cancelReload() {
+    if (reloadTimer) {
+        clearTimeout(reloadTimer);
+        reloadTimer = null;
+    }
+}
+
+window.addEventListener('popstate', cancelReload);   // history로 주소 변경될 때
+window.addEventListener('hashchange', cancelReload); // hash 변경될 때
 
 
 /* ===============================
@@ -369,12 +382,7 @@ async function autoClickBySelector(sel) {
 }
 
 function setupBeforeUnloadForJobs() {
-    window.addEventListener('beforeunload', (e) => {
-        if (queue.size) {
-            e.preventDefault();
-        }
-        JobManager.remove(PageURL)
-    });
+    window.addEventListener('beforeunload', () => { cancelReload(); JobManager.remove(PageURL); });
 }
 
 /* ===============================
@@ -387,8 +395,9 @@ const globalObserver = new MutationObserver(async (mutations) => {
     if (/(terabox|1024tera)\.(app|com)\/.+sharing/.test(href)) {
         ClickBTN = document.querySelector('div.action-bar div.action-bar-download.action-bar-btn');
         const isLogin = document.querySelector('div.header-main-box div.header-right-menus div.user-card-box')
-        if (ClickBTN && isLogin) {
+        if (ClickBTN && isLogin) {            
             globalObserver.disconnect();
+            cancelReload();
             GetFileNameElement = document.querySelector('div.info div.file-name-info span.file-name');
             GetFileName = (GetFileNameElement?.textContent || GetFileNameElement?.innerText || '').trim();
 
@@ -401,7 +410,9 @@ const globalObserver = new MutationObserver(async (mutations) => {
             const order = jobs.indexOf(PageURL)
             await sleep(getRandomIntInclusive(0, 10) * 100 + 5000 * order);
             Downloader(ClickBTN);
-
+        }
+        else if (!ClickBTN && !isLogin) {
+            reload(120000);
         }
         return;
     }
@@ -431,9 +442,18 @@ const globalObserver = new MutationObserver(async (mutations) => {
             } else {
                 PopUp = ClickBTN.href;
                 if (AutoClick === '1') {
-                    await sleep(getRandomIntInclusive(10, 100) * 10);
-                    const popupName = document.querySelector(titleSelector)?.innerText.replace(/\s/g, '') || '';
-                    childWindow = openPopup(PopUp, popupName);
+                    AutoClickBC.postMessage({
+                        type: 'addTask',
+                        url: PageURL
+                    });
+                    AutoClickBC.onmessage = (e) => {
+                        // 메인 페이지로부터 'startTask' 메시지 수신
+                        if (e.data && e.data.type === 'startTask' && e.data.url === PageURL) {
+                            console.log(`작업 지시 수신: ${PageURL}`);
+                            const popupName = document.querySelector(titleSelector)?.innerText.replace(/\s/g, '') || '';
+                            childWindow = openPopup(PopUp, popupName);
+                        }
+                    };
                 }
             }
 
@@ -505,6 +525,11 @@ async function handleAllAsianGirls() {
 
     const checkSubPage = document.querySelector('body.single-post');
     if (!checkSubPage) {
+        window.addEventListener('beforeunload', (e) => {
+            if (queue.size) {
+                e.preventDefault();
+            }
+        });
         mainQueueManagemnt();
         return;
     }
@@ -520,26 +545,22 @@ async function handleAllAsianGirls() {
         e.preventDefault();
         const title = document.querySelector(titleSelector)?.innerText || '';
         childWindow = openPopup(clickBtn.href, title.replace(/\s/g, ''));
-    });
-
-    if (AutoClick === '1') {
-        AutoClickBC.postMessage({
-            type: 'addTask',
-            url: PageURL
-        });
-        AutoClickBC.onmessage = (e) => {
-            // 메인 페이지로부터 'startTask' 메시지 수신
-            if (e.data && e.data.type === 'startTask' && e.data.url === PageURL) {
-                console.log(`작업 지시 수신: ${PageURL}`);
-                childWindow = openPopup(link.href, title);
-            }
-        };
-    }
+    });    
 
     globalObserver.observe(document, config);
 }
 
 async function handleBestGirlSexy() {
+    const checkSubPage = document.querySelector('body.single-post');
+    if (!checkSubPage) {
+        window.addEventListener('beforeunload', (e) => {
+            if (queue.size) {
+                e.preventDefault();
+            }
+        });
+        mainQueueManagemnt();
+        return;
+    }
     const copyTitle = document.querySelector('div#content.site-content div.elementor-widget-container .elementor-heading-title')
         ?.textContent.replace(/part\d+$/i, '').trim();
     if (!copyTitle) return;
@@ -562,6 +583,10 @@ async function handleBestGirlSexy() {
             } else if (e.data.token) {
                 link.setAttribute('href', e.data.token);
                 CacheManager.set(oldHref, { U: e.data.token, T: e.data.FileName });
+                AutoClickBC.postMessage({
+                    type: 'taskComplete',
+                    url: PageURL
+                });
                 UIManager.addResetButton(link, oldHref, e.data.FileName);
                 childWindow?.postMessage({ S: parentWindow }, e.origin);
                 await sleep(5000);
@@ -573,12 +598,26 @@ async function handleBestGirlSexy() {
 
         if (cached) {
             link.setAttribute('href', cached.U);
+            AutoClickBC.postMessage({
+                type: 'taskComplete',
+                url: PageURL
+            });
             UIManager.addResetButton(link, oldHref, cached.T);
             continue; // 이미 캐시된 경우 팝업 필요 없음
         }
 
-        await sleep(getRandomIntInclusive(0, 100) * 10);
-        childWindow = openPopup(link.href, title);
+        if (AutoClick === '1') {
+            AutoClickBC.postMessage({
+                type: 'addTask',
+                url: PageURL
+            });
+            AutoClickBC.onmessage = (e) => {
+                // 메인 페이지로부터 'startTask' 메시지 수신
+                if (e.data && e.data.type === 'startTask' && e.data.url === PageURL) {
+                    console.log(`작업 지시 수신: ${PageURL}`);
+                    childWindow = openPopup(link.href, title);
+                }
+            };        
 
         window.addEventListener('beforeunload', () => {
             if (childWindow && !childWindow.closed) {
@@ -595,6 +634,11 @@ async function handleMissKon() {
     UIManager.syncIcon();
     const checkSubPage = document.querySelector('body.single-post');
     if (!checkSubPage) {
+        window.addEventListener('beforeunload', (e) => {
+            if (queue.size) {
+                e.preventDefault();
+            }
+        });
         mainQueueManagemnt();
         return;
     }
@@ -774,9 +818,9 @@ const siteHandlers = {
     "misskon.com": handleMissKon,
     "mediafire.com": handleMediaFire,
     "imgmffmv.sbs": () => globalObserver.observe(document, config),
-    "terabox.com": () => { setupBeforeUnloadForJobs(); globalObserver.observe(document, config); reload(); },
-    "1024tera.com": () => { setupBeforeUnloadForJobs(); globalObserver.observe(document, config); reload(); },
-    "terabox.app": () => { setupBeforeUnloadForJobs(); globalObserver.observe(document, config); reload(); },
+    "terabox.com": () => { setupBeforeUnloadForJobs(); globalObserver.observe(document, config); },
+    "1024tera.com": () => { setupBeforeUnloadForJobs(); globalObserver.observe(document, config); },
+    "terabox.app": () => { setupBeforeUnloadForJobs(); globalObserver.observe(document, config); },
     "themezon.net": () => globalObserver.observe(document, config),
     "sehuatang.net": () => setTimeout(() => document.querySelector('body > a.enter-btn')?.click(), 1000),
     "shrinkme.site": () => { reload(); },
@@ -799,7 +843,7 @@ async function Downloader(el) {
             if (window.opener && parentWindow && !isClicked) {
                 el.click();
                 isClicked = true;
-                await sleep(5000)
+                await sleep(4000)
                 const allowed = ['https://allasiangirls.net', 'https://bestgirlsexy.com', 'https://misskon.com'];
                 if (allowed.includes(origin)) {
                     window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, origin);
