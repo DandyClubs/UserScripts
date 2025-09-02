@@ -347,7 +347,7 @@ const UIManager = {
 };
 
 
-function reload(delay = 30000) {
+function reload(delay = 60000) {
     reloadTimer = setTimeout(() => {
         if (location.href === PageURL) {
             clearTimeout(reloadTimer);
@@ -776,11 +776,12 @@ async function handleMrProBlogger() {
 }
 
 async function handleOUO() {
-    const notFound = document.querySelector('div.container .no-found');        
+    const notFound = document.querySelector('div.container .no-found');
     if (window.opener && notFound) {
         window.opener.postMessage({ token: 'NotFound' }, '*');
         self.close();
     }
+}
 
 
 
@@ -828,6 +829,7 @@ const siteHandlers = {
     "sehuatang.net": () => setTimeout(() => document.querySelector('body > a.enter-btn')?.click(), 1000),
     "shrinkme.site": () => { reload(); },
     "shrinkme.org": () => { reload(); },
+    "shrinkme.top": () => { reload(); },
     "ouo.io": () => { handleOUO(); reload(); },
     "ouo.press": () => { handleOUO(); reload(); },
 };
