@@ -104,8 +104,9 @@ class Queue {
             }
         }
 
-        // 중복이 아닐 경우에만 큐에 추가합니다.                
+        // 중복이 아닐 경우에만 큐에 추가합니다.
         this.items[this.rear] = item;
+        this._notify({ type: "add", item });
         this.rear++;
     }
 
@@ -115,6 +116,7 @@ class Queue {
         }
         const item = this.items[this.front];
         delete this.items[this.front];
+        this._notify({ type: "remove", item });
         this.front++;
         return item;
     }
@@ -133,6 +135,10 @@ class Queue {
     isEmpty() {
         return this.size === 0;
     }
+
+    _notify(event) {
+        if (this.onchange) this.onchange(event); // ★ 같은 탭 내부에서도 바로 콜백 실행
+    }
 }
 
 
@@ -142,19 +148,30 @@ const AutoClickBC = new BroadcastChannel('AutoClickChannel')
 
 let queueIndex = 0;
 let queueState = null;
-// 큐 관리 함수
+
+function updatequeueState(size) {
+    if (queueState) {
+        queueState.innerText = size;
+    }
+}
+
+queue.onchange = (event) => {
+    //console.log("로컬 DB 이벤트 발생:", event);
+    const size = queue.size;
+    updatequeueState(size);
+    AutoClickBC.postMessage({ type: 'updateState', size: size });
+};
+
+
 // 큐 관리 함수
 async function Management() {
-    if (queueState) {
-        queueState.innerText = queue.size;
-        localStorage.setItem('queueState', queue.size);
-    }
+
     // Management() 함수가 이미 실행 중이거나 작업 슬롯이 꽉 찼거나 큐가 비어있으면 종료
     if (queueIndex >= 7 || queue.isEmpty()) {
         return;
     }
     // 하나의 작업을 시작
-    //const node = queue.peek();    
+    //const node = queue.peek();
     const node = queue.dequeue();
 
     if (node) {
@@ -177,7 +194,7 @@ function mainQueueManagemnt() {
 
             // 작업 슬롯 하나 반환
             queueIndex--;
-            // 다음 작업 시작  
+            // 다음 작업 시작
             Management();
 
         } else if (e.data && e.data.type === 'addTask') {
@@ -217,7 +234,7 @@ function getRandomIntInclusive(min, max) {
     return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled);
 }
 function querySelectorIncludesText(selector, text) {
-    return Array.from(document.querySelectorAll(selector)).filter(el => el.textContent.includes(text));
+    return Array.from(document.querySelectorAll(selector)).filter(el => el.innerText.includes(text));
 }
 function domRemove(className) {
     document.querySelectorAll(`.${className}`).forEach(el => el.remove());
@@ -575,13 +592,19 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     const links = linkSelectors.flatMap(sel =>
         querySelectorIncludesText(sel.selector, sel.text).map(el => ({ el, type: sel.type }))
     );
+
+    console.log({ copyTitle, links })
     if (!links.length) return;
 
     parentWindow = PageURL;
     const title = copyTitle.replace(/\s/g, '');
 
     for (const { el: link, type } of links) {
-        const oldLink = link.href;
+        let oldLink = link.href;
+        if (/shrinkme\..*/.test(oldLink)) {
+            oldLink = oldLink.replace(/shrinkme\.(org|dev|us)/, 'shrinkme.site');
+            link.href = oldLink;
+        }
         const cached = CacheManager.get(oldLink);
         if (cached) {
             link.href = cached.U;
@@ -595,8 +618,8 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
         link.addEventListener('click', (e) => {
             e.preventDefault();
             childWindow = openPopup(oldLink, title);
-        });        
-        
+        });
+
         linkMap.set(oldLink, { linkEl: link, type, title });
     }
 
@@ -612,11 +635,13 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                     console.log(`작업 지시 수신: ${PageURL}`);
                     childWindow = openPopup(entry.linkEl.href, entry.title);
                 }
+            } else if (e.data?.type === 'updateState') {
+                updatequeueState(e.data.size);
             }
         };
     }
 
-    
+
 
     /* ===============================
     * 공통 이벤트 핸들러 (중복 등록 방지)
@@ -648,7 +673,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                 if (nextEntry) {
                     console.log(`다음 링크 시도: ${nextEntry.linkEl.href}`);
                     childWindow = openPopup(nextEntry.linkEl.href, nextEntry.title);
-                }else{
+                } else {
                     AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
                 }
             } else {
@@ -658,7 +683,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                 AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
                 UIManager.addResetButton(entry.linkEl, oldLink, e.data.FileName || entry.title);
 
-                if (entry.type === 'terabox') {
+                if (autoClose && entry.type === 'terabox') {
                     await sleep(5000);
                     self.close();
                 }
@@ -679,27 +704,10 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
 
 async function handleAllAsianGirls() {
 
-    const checkSubPage = document.querySelector('body.single-post');
-    if (!checkSubPage) {
-        window.addEventListener("beforeunload", beforeUnloadHandler);
-        mainQueueManagemnt();
-        return;
-    }
-    const titleSelector = 'body.single.single-post div.page-title div.page-title-inner.container div .entry-title';
-    AutoClick = localStorage.getItem('AutoClick') || '0';
-    UIManager.setResponsiveFont();
-    UIManager.syncIcon();
-
-    const clickBtn = document.querySelector('div.entry-content.single-page blockquote div a.button.primary.is-primary');
-    if (!clickBtn) return;
-
-    clickBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const title = document.querySelector(titleSelector)?.innerText || '';
-        childWindow = openPopup(clickBtn.href, title.replace(/\s/g, ''));
+    return handleSite({
+        titleSelector: 'body.single.single-post div.page-title div.page-title-inner div .entry-title',
+        linkSelectors: [{ selector: 'A', text: 'CLICK HERE', type: 'terabox' }],
     });
-
-    globalObserver.observe(document, config);
 }
 
 async function handleBestGirlSexy() {
@@ -828,10 +836,6 @@ async function Downloader(el) {
         self.close();
     }
 }
-
-
-
-
 
 /* ===============================
  * Boot
