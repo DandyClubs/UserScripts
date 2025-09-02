@@ -369,7 +369,12 @@ async function autoClickBySelector(sel) {
 }
 
 function setupBeforeUnloadForJobs() {
-    window.addEventListener('beforeunload', () => JobManager.remove(PageURL));
+    window.addEventListener('beforeunload', (e) => {
+        if (queue.size) {
+            e.preventDefault();
+        }
+        JobManager.remove(PageURL)
+    });
 }
 
 /* ===============================
