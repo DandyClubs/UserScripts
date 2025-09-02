@@ -775,6 +775,14 @@ async function handleMrProBlogger() {
     }
 }
 
+async function handleOUO() {
+    const notFound = document.querySelector('div.container .no-found');        
+    if (window.opener && notFound) {
+        window.opener.postMessage({ token: 'NotFound' }, '*');
+        self.close();
+    }
+
+
 
 async function handleMediaFire() {
     await sleep(500);
@@ -820,8 +828,8 @@ const siteHandlers = {
     "sehuatang.net": () => setTimeout(() => document.querySelector('body > a.enter-btn')?.click(), 1000),
     "shrinkme.site": () => { reload(); },
     "shrinkme.org": () => { reload(); },
-    "ouo.io": () => { reload(); },
-    "ouo.press": () => { reload(); },
+    "ouo.io": () => { handleOUO(); reload(); },
+    "ouo.press": () => { handleOUO(); reload(); },
 };
 
 /* ===============================
