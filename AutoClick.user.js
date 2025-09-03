@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         AutoClick (Refactored)
-// @version      2025.09.02
+// @version      2025.09.03
 // @description  Auto actions and cross-window messaging with maintainable structure
 // @author       DandyClubs
 // @include      /^https?:\/\/(cosplayjav|nylons)\.pl\/(download|thumbnails)\/\?forPost=.*$/
@@ -382,6 +382,16 @@ const UIManager = {
     }
 };
 
+function addReloadEvent(delay = 60000) {
+    reload(delay);
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') {
+            reload(delay);
+        } else {
+            cancelReload();
+        }
+    });
+}
 
 function reload(delay = 60000) {
     reloadTimer = setTimeout(() => {
@@ -585,10 +595,10 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
             if (shortcode !== e.data.code) {
                 childWindow?.postMessage({ link: oldLink }, e.origin);
             }
-        }else if (e.data.Q) {
+        } else if (e.data.Q) {
             // 자식이 부모 정보 요청 → 응답
             childWindow?.postMessage({ A: parentWindow }, e.origin);
-        } else if (e.data.token) {           
+        } else if (e.data.token) {
             if (e.data.token === 'NotFound') {
                 // 현재 링크 실패 → 다음 링크 재시도
                 CacheManager.set(oldLink, { U: 'NotFound', T: 'File Not Found' });
@@ -620,7 +630,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                 childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
                 linkMap.clear(); // 더 이상 처리할 링크 없음
                 if (/drive\.google\.com/.test(e.origin)) {
-                    JDownloader(e.data.token, e.data.FileName, PageURL);                    
+                    JDownloader(e.data.token, e.data.FileName, PageURL);
                 }
             }
         }
@@ -730,7 +740,7 @@ const siteHandlers = {
     "xc745.com": () => autoClickBySelector('#dlink'),
     "365shares.net": () => autoClickBySelector('#dlink'),
     "newsteez.com": () => setTimeout(() => document.querySelector('.btn.btn-primary')?.click(), 500),
-    "en.mrproblogger.com": () => { handleMrProBlogger(); reload(); },
+    "en.mrproblogger.com": () => { handleMrProBlogger(); addReloadEvent(); },
     "allasiangirls.net": handleAllAsianGirls,
     "bestgirlsexy.com": handleBestGirlSexy,
     "misskon.com": handleMissKon,
@@ -741,11 +751,11 @@ const siteHandlers = {
     "terabox.app": () => { setupBeforeUnloadForJobs(); globalObserver.observe(document, config); },
     "themezon.net": () => globalObserver.observe(document, config),
     "sehuatang.net": () => setTimeout(() => document.querySelector('body > a.enter-btn')?.click(), 1000),
-    "shrinkme.site": () => { reload(); },
-    "shrinkme.org": () => { reload(); },
-    "shrinkme.top": () => { reload(); },
-    "ouo.io": () => { handleOUO(); reload(); },
-    "ouo.press": () => { handleOUO(); reload(); },
+    "shrinkme.site": () => { addReloadEvent(); },
+    "shrinkme.org": () => { addReloadEvent(); },
+    "shrinkme.top": () => { addReloadEvent(); },
+    "ouo.io": () => { handleOUO(); addReloadEvent(); },
+    "ouo.press": () => { handleOUO(); addReloadEvent(); },
     "drive.google.com": () => { handleGoogleDrive(); },
 };
 
