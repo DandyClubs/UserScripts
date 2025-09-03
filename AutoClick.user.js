@@ -536,6 +536,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                 link.remove();
             } else {
                 UIManager.addResetButton(link, oldLink, cached.T);
+                break;
             }
             continue; // 캐시된 경우 추가 처리 불필요
         }
