@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy (indexedDB)
-// @version      2025.08.31
+// @version      2025.09.03
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.org/
@@ -388,7 +388,38 @@ let SkipTitle = []
 
 let GetDPI, DefaultFontSize
 let Target, DownloadArea, CopyTitle = '', copyOffsetArea, InfoArea, Resolution = '', TitleLast = '', Series = '', Title, ID = '', TitleID, CopyTitleTmp, InfoTitleTmp, CoverImage, MatchWebRegExp, Gallery, DownloadAreaSelector
-const SkipFilter = new RegExp('katfile\\.com\\/\\?op=registration|77file\\.com|xtvtv\\.com\\/explanation|niceff\\.com|fboom\\.me\/code|k2s\\.cc\/(pr|code)|facebook\\.com|magnet:|fireget\\.com\\/premium\\.html|tezfiles\\.com\\/.+\\/premium|nyaa\\.si|twitter\\.com|ouo\\.io|tma\\.cx|3xplanetpremium|clubwarp\\.com|clubwarp\\.top/|terabox\\.(app|com)|turb\\.cc|turbobit\\.net|teraboxapp\\.com|keep2share\\.cc\/pr\\/|javascript|pixhost\\.to\\/gallery\\/|imgchili\\.net\\/show|#$|^\\/|^(?=.*' + window.location.origin + ')(?!.*\\?site).*$', 'i')
+const skipFilterPatterns = [
+    /#$/i,
+    /3xplanetpremium/i,
+    /77file\.com/i,
+    new RegExp(`^(?=.*${window.location.origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(?!.*\\?site).*$`, 'i'),
+    /^\//i,
+    /clubwarp\.com/i,
+    /clubwarp\.top/i,
+    /facebook\.com/i,
+    /fboom\.me\/code/i,
+    /fireget\.com\/premium\.html/i,
+    /goaibox\.com/i,
+    /imgchili\.net\/show/i,
+    /javascript/i,
+    /k2s\.cc\/(pr|code)/i,
+    /keep2share\.cc\/pr\//i,
+    /magnet:/i,
+    /niceff\.com/i,
+    /nyaa\.si/i,
+    /ouo\.io/i,
+    /ouo\.press/i,
+    /pixhost\.to\/gallery\//i,
+    /terabox\.(app|com)/i,
+    /teraboxapp\.com/i,
+    /tezfiles\.com\/.+\/premium/i,
+    /tma\.cx/i,
+    /turb\.cc/i,
+    /turbobit\.net/i,
+    /twitter\.com/i,
+    /xtvtv\.com\/explanation/i,
+    /katfile\.com\/\?op=registration/i,
+]
 const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i')
 const WaitChangeLink = new RegExp('tma\\.cx\/', 'i')
 //const WaitChangeLink = new RegExp('TestTest\\.cx\/', 'i')
@@ -880,7 +911,7 @@ const siteConfigs = [
                                     // 해상도 패턴에 매칭되는 링크가 없을 경우
                                     finalLinks.push(...Array.from(area.querySelectorAll('a')));
                                 } 
-                                    */                               
+                                    */
                             }
                             return finalLinks;
                         };
@@ -896,7 +927,7 @@ const siteConfigs = [
                                 userCopy = false;
                                 userClose = false;
                             }
-                        }else {
+                        } else {
                             userCopy = false;
                             userClose = false;
                         }
@@ -918,13 +949,12 @@ const siteConfigs = [
 
                 if (!copyOffsetArea) return;
 
-                let Title = copyOffsetArea.textContent.trim() || '';
-                const SkipFilter = /SkipFilterPattern/; // 기존 코드에 정의된 SkipFilter 패턴을 사용해야 합니다.
+                let Title = copyOffsetArea.textContent.trim() || '';                
 
                 let LinkDBAll = [];
                 DownloadArea.forEach(section => {
-                    Array.from(section.querySelectorAll('a')).forEach(a => {
-                        if (!a.href.match(SkipFilter) && !/top-modelz\.org/.test(a.href)) {
+                    Array.from(section.querySelectorAll('a')).forEach(a => {                        
+                        if (!checkSkipFilter(a) && !/top-modelz\.org/.test(a.href)) {
                             LinkDBAll.push(a);
                         }
                     });
@@ -1868,7 +1898,7 @@ async function Start() {
     if (currentConfig) {
 
 
-        
+
 
         // Step 1: `copyOffsetArea`가 이미 설정되지 않았으면 기본 셀렉터로 찾기
 
@@ -2675,7 +2705,7 @@ async function CopyGo(SkipTitle) {
         console.log('No short links detected. Starting copy.');
 
     }
-    if(!userCopy) return
+    if (!userCopy) return
     Promise.resolve(CopyLink())
         .then(() => {
             // Update UI notification styles
@@ -2742,8 +2772,7 @@ async function CollectionCoverImage(CoverImage) {
 async function CollectionLinks(DownloadArea) {
     const CollectionATag = [];
     const shortLinkRegex = /(\/|=)(aHR0c[a-zA-Z0-9]+={0,2})(?=$|[\/?&;\-])/;
-    const siteParamRegex = /\?site.+$/;
-    const skipFilters = SkipFilter;        // your existing regex
+    const siteParamRegex = /\?site.+$/;    
     const skipFileNameRegex = SkipFileName;
 
     // 1) Gather all <a> elements and normalize their hrefs
@@ -2806,7 +2835,7 @@ async function CollectionLinks(DownloadArea) {
 
     // 2b) Otherwise apply the rest of your skip/quality filters:
     links = links
-        .filter(a => !skipFilters.test(a.href))
+        .filter(a => !checkSkipFilter(a))
         .filter(a => {
             const name = a.href.split('/').pop();
             return !(skipFileNameRegex.test(name) || skipFileNameRegex.test(a.textContent));
@@ -3130,7 +3159,9 @@ async function CopyLink() {
     return allLinks
 }
 
-
+function checkSkipFilter(el) {
+    return skipFilterPatterns.some(rx => el.href && rx.test(el.href))
+}
 
 function listToDo(areas, type = 'Default') {
     const seenAnchors = new Set();
@@ -3142,17 +3173,17 @@ function listToDo(areas, type = 'Default') {
     });
 
     // 2) Filter and normalize each link
-    for (const a of seenAnchors) {
-        const href = a.href.replace(/\?site.+/, '');
+    for (const el of seenAnchors) {
+        el.href.replace(/\?site.+/, '');
         // Skip filtering patterns
-        if (SkipFilter.test(href)) continue;
+        if (checkSkipFilter(el)) continue;
         // Skip links with image children for certain hosts
-        if (/(uploadgig\.com\/file\/download|alfafile\.net\/file)/.test(href)) {
+        if (/(uploadgig\.com\/file\/download|alfafile\.net\/file)/.test(el.href)) {
             const image = a.querySelector('img')
             if (image) {
                 image?.remove()
-                a.textContent = 'Download'
-                a.parentElement.style.cssText += `
+                el.textContent = 'Download'
+                el.parentElement.style.cssText += `
                                     white-space: nowrap;
                                     overflow: hidden;
                                     text-overflow: ellipsis;
@@ -3160,10 +3191,9 @@ function listToDo(areas, type = 'Default') {
             }
 
         }
-
         // Normalize K2S URLs
-        let target = href;
-        const k2s = href.match(K2SRegExp);
+        let target = el.href;
+        const k2s = el.href.match(K2SRegExp);
         if (k2s) {
             target = k2s[1] + k2s[2].slice(0, 18);
         }
@@ -3200,14 +3230,14 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
     let filteredLinks = []
     for (let el of DownloadArea) {
         for (let x of el.querySelectorAll('a')) {
-            if (!SkipFilter.test(x.href)) {
+            if (!checkSkipFilter(x)) {
                 filteredLinks.push(x);
             }
         }
     }
     if (filteredLinks.length === 0) {
         const downloadhiddenobserver = new MutationObserver((mutations, obs) => {
-            const newLinkItems = Array.from(WatchElementArea.querySelectorAll('a')).filter(l => !SkipFilter.test(l.href));
+            const newLinkItems = Array.from(WatchElementArea.querySelectorAll('a')).filter(l => !checkSkipFilter(l));
             if (newLinkItems.length > 0) {
                 obs.disconnect();
                 document.querySelector('.CopyState').remove()
@@ -3225,7 +3255,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
     // Collect all <a> elements inside DownloadArea
     for (let el of DownloadArea) {
         for (let x of el.querySelectorAll('a')) {
-            if (!SkipFilter.test(x.href)) {
+            if (!checkSkipFilter(x)) {
                 AllLinks.push(x);
             }
         }
