@@ -3174,7 +3174,8 @@ function listToDo(areas, type = 'Default') {
 
     // 2) Filter and normalize each link
     for (const el of seenAnchors) {
-        el.href = el.href.replace(/\?site.+/, '');
+        //el.href = el.href.replace(/\?site.+/, '');
+        el.setAttribute('href', el.getAttribute('href').replace(/\?site.+/, ''));
         // Skip filtering patterns
         if (checkSkipFilter(el)) continue;
         // Skip links with image children for certain hosts

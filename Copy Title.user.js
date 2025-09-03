@@ -474,15 +474,15 @@ function MakeIcon() {
     const closeIcon = document.querySelector('.closeIcon');
 
     if (document.visibilityState === 'hidden') {
-        closeIcon.style.display = 'none';
+        closeIcon.style.visibility = 'hidden';
     }
 
     document.addEventListener('visibilitychange', async () => {
         if (document.visibilityState === 'hidden') {
-            closeIcon.style.display = 'none';
+            closeIcon.style.visibility = 'hidden';
         } else {
             await sleep(500);
-            closeIcon.style.display = 'block';
+            closeIcon.style.visibility = 'visible';
         }
     });
     
