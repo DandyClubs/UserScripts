@@ -104,7 +104,7 @@ GM_addStyle(`
 `);
 
 
-let GetDPI, DefaultFontSize
+let getDPI, defaultFontSize
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RootDomain = extractRootDomain(PageURL)
@@ -1180,7 +1180,7 @@ function MakeDownloadIcon() {
     // CoverDownload의 폰트 크기 조정
     const coverDownload = document.querySelector('.CoverDownload');
     if (coverDownload) {
-        const scale = (1 / (GetDPI / 1.5)) * (16 / DefaultFontSize);
+        const scale = (1 / (getDPI / 1.5)) * (16 / defaultFontSize);
         const remSize = Number(scale.toFixed(2));
         coverDownload.style.setProperty('font-size', `${remSize}rem`, 'important');
     }
