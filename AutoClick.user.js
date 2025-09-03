@@ -200,7 +200,9 @@ function mainQueueManagemnt() {
 
         } else if (e.data && e.data.type === 'addTask') {
             queue.enqueue(e.data.url);
-            Management();
+            if (queueIndex < 7) {
+                Management();
+            }
         }
     };
 }
@@ -253,14 +255,7 @@ function insertFontAwesome() {
     css.type = 'text/css';
     document.head.appendChild(css);
 }
-function openPopup(url, title) {
-    try {
-        return window.open(url, title || '');
-    } catch (e) {
-        log("Popup blocked?", e);
-        return null;
-    }
-}
+
 function getDefaultFontSize() {
     const tmp = document.createElement('div');
     tmp.style.width = '1rem';
@@ -552,7 +547,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
         }
         link.addEventListener('click', (e) => {
             e.preventDefault();
-            childWindow = openPopup(oldLink, title);
+            childWindow = window.open(oldLink, title);
         });
 
         linkMap.set(oldLink, { linkEl: link, type, title });
@@ -568,7 +563,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                 const entry = [...linkMap.values()][0]; // 첫 링크 기준
                 if (entry) {
                     console.log(`작업 지시 수신: ${PageURL}`);
-                    childWindow = openPopup(entry.linkEl.href, entry.title);
+                    childWindow = window.open(entry.linkEl.href, entry.title);
                 }
             } else if (e.data?.type === 'updateState') {
                 updatequeueState(e.data.size);
@@ -605,13 +600,14 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                 entry.linkEl.remove();
                 //AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
                 childWindow.postMessage({ action: 'closed' }, e.origin);
-
+                await sleep(1000);
+                
                 linkMap.delete(oldLink);
 
                 const nextEntry = [...linkMap.values()][0];
                 if (nextEntry) {
-                    console.log(`다음 링크 시도: ${nextEntry.linkEl.href}`);
-                    childWindow = openPopup(nextEntry.linkEl.href, nextEntry.title);
+                    console.log(`다음 링크 시도: ${nextEntry.linkEl.href} ${nextEntry.title}`);
+                    childWindow = window.open(nextEntry.linkEl.href, nextEntry.title);
                 } else {
                     AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
                 }
