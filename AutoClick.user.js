@@ -343,7 +343,7 @@ const UIManager = {
                     const ic = document.querySelector('.AutoClick');
                     if (!ic) return;
                     ic.classList.replace(ev.oldValue === '1' ? 'On' : 'Off', ev.newValue === '1' ? 'On' : 'Off');
-                } 
+                }
             });
         } else {
             icon.classList.replace(on ? 'Off' : 'On', on ? 'On' : 'Off');
@@ -517,9 +517,13 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
         ?.textContent.replace(/part\d+$/i, '').trim();
     if (!copyTitle || /AI\sGenerated/i.test(copyTitle)) return;
 
-    const links = linkSelectors.flatMap(sel =>
-        querySelectorIncludesText(sel.selector, sel.text).map(el => ({ el, type: sel.type }))
-    );
+    const links = linkSelectors.flatMap(sel => {
+        if (sel.text) {
+           return Array.from(document.querySelectorAll(sel.selector)).map(el => ({ el, type: sel.type }));
+        } else {
+            return querySelectorIncludesText(sel.selector, sel.text).map(el => ({ el, type: sel.type }));
+        }
+    });
 
     console.log({ copyTitle, links })
     if (!links.length) return;
@@ -600,7 +604,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                 //AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
                 childWindow.postMessage({ action: 'closed' }, e.origin);
                 await sleep(1000);
-                
+
                 linkMap.delete(oldLink);
 
                 const nextEntry = [...linkMap.values()][0];
@@ -640,10 +644,9 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
 
 
 async function handleAllAsianGirls() {
-
     return handleSite({
         titleSelector: 'body.single.single-post div.page-title div.page-title-inner div .entry-title',
-        linkSelectors: [{ selector: 'A', text: 'CLICK HERE', type: 'terabox' }],
+        linkSelectors: [{ selector: 'A[href^="https://shrinkme"]', text: '', type: 'terabox' }],
     });
 }
 
