@@ -65,11 +65,11 @@ GM_addStyle(`
   z-index: 999999;
 }
 
-.queueState {
-	font-size: .7rem;
+.queueState {	
 	padding: .25em;
 	margin: auto .5em;
 	color: white;
+    transform: scale(0.65);
 }
 
 .AutoClick {
@@ -342,9 +342,7 @@ const UIManager = {
                     const ic = document.querySelector('.AutoClick');
                     if (!ic) return;
                     ic.classList.replace(ev.oldValue === '1' ? 'On' : 'Off', ev.newValue === '1' ? 'On' : 'Off');
-                } else if (ev.key === 'queueState') {
-                    queueState.innerText = ev.newValue;
-                }
+                } 
             });
         } else {
             icon.classList.replace(on ? 'Off' : 'On', on ? 'On' : 'Off');
