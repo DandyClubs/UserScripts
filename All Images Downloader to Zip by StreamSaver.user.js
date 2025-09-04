@@ -36,23 +36,28 @@ GM_addStyle(`
 
 
 .CenterBox {
-    right: 50%;
-    left: auto;
-    top: 5px;
-    max-width: max-content;
-    position: fixed !important;
-    word-spacing: .5em;
-    font-style: initial !important;
-    text-align: center;
-    color: dodgerblue !important;
-    border-radius: .25em !important;
-    -webkit-box-sizing: border-box !important;
-    box-sizing: border-box !important;
-    z-index: 999999;
-    padding: 0 .25em;
-    margin: 0 .25em;
+	right: 50%;
+	left: auto;
+	top: 5px;
+	max-width: max-content;
+	position: fixed !important;
+	word-spacing: .5em;
+	font-style: initial !important;
+	text-align: center;
+	color: dodgerblue !important;
+	border-radius: .25em !important;
+	-webkit-box-sizing: border-box !important;
+	box-sizing: border-box !important;
+	z-index: 999999;
+	padding: .25em;
+	margin: .25em;
 	background-color: rgba(0,0,0,0.5) !important;
-    font-size: var(--FontSize) !important;
+	font-size: var(--FontSize) !important;
+	display: flex;
+	flex-wrap: nowrap;
+	justify-content: center;
+	align-items: center;
+	gap: .5em;
 }
 
 .DownButton {
@@ -750,7 +755,7 @@ function MakeIcon() {
     );
 
     // JobState indicator
-    const jobStateHTML = `&emsp;<i class="JobState"></i>`;
+    const jobStateHTML = `<i class="JobState"></i>`;
     centerBox.insertAdjacentHTML('beforeend', jobStateHTML);
     const jobStateEl = document.querySelector('.JobState');
     jobStateEl.style.setProperty('--sFontSize', `${StateFontSize}`);
