@@ -66,16 +66,17 @@ GM_addStyle(`
 }
 
 .queueState {	
-	padding: .25em;
-	margin: auto .5em;
+	padding: 0 .25em;
+	margin: auto .25em;
 	color: white;
     transform: scale(0.65);
 }
 
 .AutoClick {
- margin: .2em;
+ padding: 0 .25em;
+ margin: auto .25em;
  cursor: pointer;
- font-size: .7em;
+ font-size: .75em;
 }
 .AutoClick, .Reset { cursor: pointer; }
 .AutoClick.On { color: Chartreuse !important; }
