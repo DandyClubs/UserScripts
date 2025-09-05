@@ -629,6 +629,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                 childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
                 linkMap.clear(); // 더 이상 처리할 링크 없음
                 if (/drive\.google\.com/.test(e.origin)) {
+                    console.log(e.origin, e.data.token, e.data.FileName)
                     JDownloader(e.data.token, e.data.FileName, PageURL);
                 }
             }
@@ -709,11 +710,9 @@ async function handleMediaFire() {
     }
 }
 
-async function handleGoogleDrive() {
-    await sleep(1000);
-    // relay for code -> opener
-    if (window.opener) {
-        const GetFileName = document.querySelector('head title')?.innerText.replace(' - Google Drive', '');
+async function handleGoogleDrive() {    
+    const GetFileName = document.querySelector('head title')?.innerText.replace(' - Google Drive', '');
+    if (window.opener) {        
         window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, '*');
         window.addEventListener('message', function (e) {
             if (e.data.action === 'closed') {
@@ -721,6 +720,8 @@ async function handleGoogleDrive() {
                 self.close();
             }
         });
+    }else{
+        JDownloader(PageURL, GetFileName, PageURL);
     }
 }
 
