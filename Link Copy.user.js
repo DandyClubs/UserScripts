@@ -410,6 +410,7 @@ const skipFilterPatterns = [
     /ouo\.io/i,
     /ouo\.press/i,
     /pixhost\.to\/gallery\//i,
+    /momerybox\.com\//,
     /terabox\.(app|com)/i,
     /teraboxapp\.com/i,
     /tezfiles\.com\/.+\/premium/i,
