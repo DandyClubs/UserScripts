@@ -349,14 +349,21 @@ const UIManager = {
             icon.classList.replace(on ? 'Off' : 'On', on ? 'On' : 'Off');
         }
     },
-    addResetButton(el, originalLink, fileName) {
-        let resetIcon = document.querySelector('.Reset');
-        if (!resetIcon) {
-            el.insertAdjacentHTML('afterend', '<i class="Reset fa-solid fa-eraser" style="display: flex;align-items: center; justify-content: center;"></i>');
-            resetIcon = document.querySelector('.Reset');
+    addResetButton(el, originalLink, fileName) {        
+        let resetIcon = el.nextElementSibling;        
+
+        // el의 다음 형제 요소가 존재하고, 그 요소에 'Reset' 클래스가 없는 경우
+        if (resetIcon && !resetIcon.classList.contains('Reset')) {
+            el.insertAdjacentHTML('afterend', '<i class="Reset fa-solid fa-eraser" style="display: flex; align-items: center; justify-content: center;"></i>');
+        }
+        // el의 다음 형제 요소가 아예 없는 경우
+        else if (!resetIcon) {
+            el.insertAdjacentHTML('afterend', '<i class="Reset fa-solid fa-eraser" style="display: flex; align-items: center; justify-content: center;"></i>');
         }
 
-        let fileNameEl = document.querySelector('.Reset .fileName');
+        resetIcon = el.nextElementSibling;
+
+        let fileNameEl = resetIcon.querySelector('.fileName');
         if (!fileNameEl) {
             resetIcon.insertAdjacentHTML('beforeend', `<span class="fileName">${fileName}</span>`);
         } else {
@@ -375,6 +382,7 @@ const UIManager = {
         });
     }
 };
+
 
 function addReloadEvent(delay = 60000) {
     reload(delay);
@@ -500,8 +508,58 @@ const beforeUnloadHandler = (event) => {
  * Site Handlers (Start-time)
  * =============================== */
 
+
+function sortLinksByType(links) {
+    return links.sort((a, b) => {
+        if (a.type < b.type) {
+            return -1;
+        }
+        if (a.type > b.type) {
+            return 1;
+        }
+        return 0; // type이 같은 경우 순서를 바꾸지 않음
+    });
+}
+
+/**
+* 정렬되지 않은 links 배열에서 첫 번째로 등장하는 type 그룹의 마지막 링크 href를 가져옵니다.
+* @param {Array<Object>} links - 링크 정보가 담긴 배열
+* @returns {string | null} - 마지막 링크의 href, 없으면 null
+*/
+function getFirstTypeGroupLastLink(links) {
+    if (!links || links.length === 0) {
+        return null;
+    }
+
+    const typeGroups = new Map();
+
+    for (const link of links) {
+        const type = link.type;
+        if (!typeGroups.has(type)) {
+            typeGroups.set(type, []);
+        }
+        typeGroups.get(type).push(link);
+    }
+
+    // Map의 첫 번째 키(type)를 가져옵니다.
+    const firstType = typeGroups.keys().next().value;
+
+    if (firstType) {
+        // 첫 번째 타입에 해당하는 링크 배열을 가져옵니다.
+        const firstGroup = typeGroups.get(firstType);
+
+        // 첫 번째 그룹의 마지막 링크를 반환합니다.
+        const lastLink = firstGroup[firstGroup.length - 1];
+        return lastLink.el.href;
+    }
+
+    return null;
+}
+
+
+
 async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
-    const linkMap = new Map();
+    const typeGroups = new Map();
     AutoClick = localStorage.getItem('AutoClick') || '0';
     UIManager.setResponsiveFont();
     UIManager.syncIcon();
@@ -517,10 +575,10 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
         ?.textContent.replace(/part\d+$/i, '').trim();
     if (!copyTitle || /AI\sGenerated/i.test(copyTitle)) return;
 
-    const links = linkSelectors.flatMap(sel => {
+    let links = linkSelectors.flatMap(sel => {
         if (sel.text) {
             return querySelectorIncludesText(sel.selector, sel.text).map(el => ({ el, type: sel.type }));
-        } else {            
+        } else {
             return Array.from(document.querySelectorAll(sel.selector)).map(el => ({ el, type: sel.type }));
         }
     });
@@ -528,14 +586,23 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     console.log({ copyTitle, links })
     if (!links.length) return;
 
-    parentWindow = PageURL;
-    const title = copyTitle.replace(/\s/g, '');
+    links = sortLinksByType(links);
 
-    for (const { el: link, type } of links) {
+    const typeLastHref = getFirstTypeGroupLastLink(links)
+
+    parentWindow = PageURL;
+    const title = copyTitle.replace(/\s/g, '');          
+    for (const { el: link, type } of links) { 
         let oldLink = link.href;
         if (/shrinkme\..*/.test(oldLink)) {
             oldLink = oldLink.replace(/shrinkme\.(org|dev|us)/, 'shrinkme.site');
             link.href = oldLink;
+        }
+        if (/mediafire\.com/.test(oldLink)){
+            if (typeLastHref === oldLink) {
+                break;
+            }
+            continue; // 캐시된 경우 추가 처리 불필요
         }
         const cached = CacheManager.get(oldLink);
         if (cached) {
@@ -543,8 +610,10 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
             if (cached.U === 'NotFound') {
                 link.remove();
             } else {
-                UIManager.addResetButton(link, oldLink, cached.T);
-                break;
+                UIManager.addResetButton(link, oldLink, cached.T);                   
+                if (typeLastHref === oldLink){
+                    break;
+                }
             }
             continue; // 캐시된 경우 추가 처리 불필요
         }
@@ -553,20 +622,25 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
             childWindow = window.open(oldLink, title);
         });
 
-        linkMap.set(oldLink, { linkEl: link, type, title });
+        // 그룹별 추가
+        if (!typeGroups.has(type)) typeGroups.set(type, []);
+        typeGroups.get(type).push({ linkEl: link, oldLink, title, type });
     }
 
-    const entries = [...linkMap.entries()];
-    if (!entries.length) return;
+    const types = [...typeGroups.keys()];
+    if (!types.length) return;
+
+    let currentTypeIndex = 0;
+    let currentLinks = typeGroups.get(types[currentTypeIndex]);
 
     if (AutoClick === '1') {
         AutoClickBC.postMessage({ type: 'addTask', url: PageURL });
         AutoClickBC.onmessage = (e) => {
             if (e.data?.type === 'startTask' && e.data.url === PageURL) {
-                const entry = [...linkMap.values()][0]; // 첫 링크 기준
-                if (entry) {
-                    console.log(`작업 지시 수신: ${PageURL}`);
-                    childWindow = window.open(entry.linkEl.href, entry.title);
+                if (currentLinks?.length) {
+                    const entry = currentLinks[0];
+                    console.log(`작업 지시 수신: ${PageURL} (${entry.type})`);
+                    childWindow = window.open(entry.oldLink, entry.title);
                 }
             } else if (e.data?.type === 'updateState') {
                 updatequeueState(e.data.size);
@@ -583,52 +657,67 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
         if (!/terabox\.com|1024tera\.com|terabox\.app|en\.mrproblogger\.com|drive\.google\.com|mediafire\.com/.test(e.origin)) return;
 
         // 토큰 응답 도착
-        const entries = [...linkMap.entries()];
-        if (!entries.length) return;
+        if (!currentLinks?.length) return;   
+        
+        let entry = currentLinks[0];
 
-        const [oldLink, entry] = entries[0];
-
-        if (e.data.code && oldLink) {
-            const shortcode = new URL(oldLink).pathname;
+        if (e.data.code && entry.oldLink) {
+            const shortcode = new URL(entry.oldLink).pathname;
             if (shortcode !== e.data.code) {
-                childWindow?.postMessage({ link: oldLink }, e.origin);
+                childWindow?.postMessage({ link: entry.oldLink }, e.origin);
             }
         } else if (e.data.Q) {
             // 자식이 부모 정보 요청 → 응답
             childWindow?.postMessage({ A: parentWindow }, e.origin);
         } else if (e.data.token) {
             if (e.data.token === 'NotFound') {
-                // 현재 링크 실패 → 다음 링크 재시도
-                CacheManager.set(oldLink, { U: 'NotFound', T: 'File Not Found' });
+                // 현재 type 실패 → 곧바로 다음 type으로 넘어감
+                CacheManager.set(entry.oldLink, { U: 'NotFound', T: 'File Not Found' });
                 entry.linkEl.remove();
-                //AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
                 childWindow.postMessage({ action: 'closed' }, e.origin);
+
                 await sleep(1000);
 
-                linkMap.delete(oldLink);
-
-                const nextEntry = [...linkMap.values()][0];
-                if (nextEntry) {
-                    console.log(`다음 링크 시도: ${nextEntry.linkEl.href} ${nextEntry.title}`);
-                    childWindow = window.open(nextEntry.linkEl.href, nextEntry.title);
+                currentTypeIndex++;
+                if (currentTypeIndex < types.length) {
+                    currentLinks = typeGroups.get(types[currentTypeIndex]);
+                    if (currentLinks?.length) {
+                        entry = currentLinks[0];
+                        console.log(`다음 type(${types[currentTypeIndex]}) 링크 시도: ${entry.oldLink}`);
+                        childWindow = window.open(entry.oldLink, entry.title);
+                    }
                 } else {
+                    // 모든 type 실패
                     AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
                 }
             } else {
                 // 성공 → 링크 갱신 & 캐시 저장
-                CacheManager.set(oldLink, { U: e.data.token, T: e.data.FileName || entry.title });
+                CacheManager.set(entry.oldLink, { U: e.data.token, T: e.data.FileName || entry.title });
                 entry.linkEl.href = e.data.token;
-                AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
-                UIManager.addResetButton(entry.linkEl, oldLink, e.data.FileName || entry.title);
 
-                console.log({ autoClose }, entry.type)
-                if (autoClose && entry.type === 'terabox') {                    
-                    await sleep(5000);
-                    self.close();
+                UIManager.addResetButton(entry.linkEl, entry.oldLink, e.data.FileName || entry.title);
+
+                currentLinks.shift();
+
+                await sleep(1000);
+
+                if (currentLinks?.length) {
+                    entry = currentLinks[0];
+                    console.log(`다음 type(${types[currentTypeIndex]}) 링크 시도: ${entry.oldLink}`);
+                    childWindow = window.open(entry.oldLink, entry.title);
+                } else {
+                    AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
+
+                    console.log({ autoClose }, entry.type)
+                    if (autoClose && entry.type === 'terabox') {
+                        await sleep(5000);
+                        self.close();
+                    }
+
+                    childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
+                    currentLinks = [];
+                    currentTypeIndex = types.length;
                 }
-
-                childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
-                linkMap.clear(); // 더 이상 처리할 링크 없음
                 if (/drive\.google\.com/.test(e.origin)) {
                     console.log(e.origin, e.data.token, e.data.FileName)
                     JDownloader(e.data.token, e.data.FileName, PageURL);
@@ -648,7 +737,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
 async function handleAllAsianGirls() {
     return handleSite({
         titleSelector: 'body.single.single-post div.page-title div.page-title-inner div .entry-title',
-        linkSelectors: [{ selector: 'A[href^="https://shrinkme"]', text: '', type: 'terabox' }],
+        linkSelectors: [{ selector: 'a[href^="https://shrinkme"]', text: '', type: 'terabox' }],
     });
 }
 
@@ -666,7 +755,7 @@ async function handleMissKon() {
         linkSelectors: [
             { selector: 'a.shortc-button', text: 'MediaFire', type: 'mediafire' },
             { selector: 'a.shortc-button', text: 'Terabox', type: 'terabox' }
-        ]
+        ]        
     });
 }
 
@@ -711,9 +800,9 @@ async function handleMediaFire() {
     }
 }
 
-async function handleGoogleDrive() {    
+async function handleGoogleDrive() {
     const GetFileName = document.querySelector('head title')?.innerText.replace(' - Google Drive', '');
-    if (window.opener) {        
+    if (window.opener) {
         window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, '*');
         window.addEventListener('message', function (e) {
             if (e.data.action === 'closed') {
@@ -721,7 +810,7 @@ async function handleGoogleDrive() {
                 self.close();
             }
         });
-    }else{
+    } else {
         JDownloader(PageURL, GetFileName, PageURL);
     }
 }

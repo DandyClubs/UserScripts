@@ -1766,17 +1766,13 @@ const siteRules = [
 const waitDownloadArea = [
     {
         regex: /misskon\.com\/.+/,
-        handler: async () => {
-            const checkRedirects = document.querySelector('a.shortc-button[href*="https://ouo.io/"]');
-            if (checkRedirects) {
-                try {
-                    const result = await waitForObserver(checkRedirects);
-                    console.log(`변경된 href 값: ${checkRedirects.href}`);
+        handler: async () => {           
+            
+            const checkRedirects = document.querySelectorAll('a.shortc-button[href*="https://ouo.io/"]');            
+            const uniqueLinks = [...new Set(checkRedirects)];
+            
+            await Promise.allSettled(uniqueLinks.map((x) => waitForObserver(x)));
 
-                } catch (error) {
-                    console.error("오류 발생:", error.message);
-                }
-            }
             DownloadArea = document.querySelectorAll('article#the-post div.entry p');
         },
     },
