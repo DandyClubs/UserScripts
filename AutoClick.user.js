@@ -169,7 +169,7 @@ queue.onchange = (event) => {
 async function Management() {
 
     // Management() 함수가 이미 실행 중이거나 작업 슬롯이 꽉 찼거나 큐가 비어있으면 종료
-    if (queueIndex >= 7 || queue.isEmpty()) {
+    if (queueIndex >= 5 || queue.isEmpty()) {
         return;
     }
     // 하나의 작업을 시작
