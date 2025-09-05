@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Remove Content
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.30
+// @version      2025.09.05
 // @description  try to take over the world!
 // @author       You
 // @match        https://blogjav.net/*
@@ -27,6 +27,7 @@
 // @match        https://xxxclub.to/torrents/*
 // @match        https://jappydolls.net/*
 // @match        https://x-idol.net/*
+// @match        https://allasiangirls.net/*
 // @exclude      https://0xxx.ws/articles/*
 // @exclude      /blogjav\.net\/\d+/
 // @exclude      /maxjav\.com/\d+/
@@ -156,7 +157,11 @@ const siteConfigs = {
     'misskon.com': {
         linkSelector: 'article.item-list .post-box-title a',        
         removeTagSelector: 'article.item-list',
-    }
+    },
+    'allasiangirls.net': {
+        linkSelector: 'div.box-text.text-center div.box-text-inner.blog-post-inner .post-title a',
+        removeTagSelector: 'div.post-item',
+    },
 };
 
 GM_addStyle(`
