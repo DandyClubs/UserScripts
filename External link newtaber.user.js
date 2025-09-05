@@ -87,6 +87,7 @@
         /\/torrent\/.+/,
         /cosplay\.jav\.pw\/\d{4,5}/,
         /pornofetishx\.com\/\d+.+\.html$/,
+        /clubwarp\.com\/threads/,
     ];
 
     const sameNewTabPatterns = [

@@ -23,7 +23,7 @@ const FontAwesomeCSS = function () {
     document.getElementsByTagName('head')[0].appendChild(css)
 }
 
-GM_addStyle (`
+GM_addStyle(`
 @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c&family=Nanum+Gothic&family=Nanum+Gothic+Coding&family=Noto+Sans&display=swap');
 
 :root {
@@ -193,13 +193,13 @@ async function Start() {
     console.log('GetDPI:', GetDPI, 'DefaultFontSize:', DefaultFontSize);
 
     const calcFont = (multiplier = 1) =>
-    `${((1 / (GetDPI / 1.5)) * multiplier * (16 / DefaultFontSize)).toFixed(2)}rem`;
+        `${((1 / (GetDPI / 1.5)) * multiplier * (16 / DefaultFontSize)).toFixed(2)}rem`;
 
     const CenterBoxFontSize = calcFont(1);
     const StateFontSize = calcFont(0.65);
     const StateLineHeight = CenterBoxFontSize;
 
-    
+
     document.body.insertAdjacentHTML('beforeend', `
         <div class="CenterBox" style="display: none;">
             <i class="ToTop fa-solid fa-circle-chevron-up"></i>
@@ -287,8 +287,8 @@ async function Start() {
             const postContent = document.querySelector('#post_content');
             if (!postContent) return;
             const allLinks = Array.from(postContent.querySelectorAll('a'))
-            .map(a => a.href)
-            .filter(href => href && !SkipFilter.test(href));
+                .map(a => a.href)
+                .filter(href => href && !SkipFilter.test(href));
             const uniqueLinks = [...new Set(allLinks)];
             uniqueLinks.forEach(link => localStorage.removeItem(link));
             UpdateDB();
@@ -309,7 +309,7 @@ async function Start() {
     });
 
     const CopyOffSetArea = $('#post_content');
-    
+
     UpdateDB();
     if (!CopyOffSetArea) return
 
@@ -395,7 +395,7 @@ async function GetOriginalURL(selector) {
 
 
 window.addEventListener('storage', (e) => {
-    if(localStorage.getItem('AutoClose') == 1){
+    if (localStorage.getItem('AutoClose') == 1) {
         CopyItems()
     }
     UpdateDB()
@@ -411,8 +411,8 @@ function UpdateDB() {
     const postLinks = document.querySelectorAll('#post_content');
 
     const entries = Object.entries(localStorage)
-    .filter(([key]) => /^http.+/.test(key))
-    .map(([key, value]) => ({ U: key, T: value }));
+        .filter(([key]) => /^http.+/.test(key))
+        .map(([key, value]) => ({ U: key, T: value }));
 
     RootDomainDB = entries;
     const packageList = PackageList(entries);
@@ -438,8 +438,8 @@ function UpdateDB() {
             if (count > 0) {
                 const currentPostLinks = listToDo(postLinks);
                 const showMinus = entries.some(item =>
-                                               currentPostLinks.includes(item.U) && item.U !== 'AutoClose'
-                                              );
+                    currentPostLinks.includes(item.U) && item.U !== 'AutoClose'
+                );
 
                 minusBtn.style.visibility = showMinus ? 'visible' : 'hidden';
 
@@ -477,7 +477,7 @@ function listToDo(Area) {
 
             const skipLink = SkipFilter.test(href);
             const hasImgChild = /(uploadgig\.com\/file\/download|alfafile\.net\/file)/.test(href)
-            && Array.from(aEntry.children).some(child => child.matches('img'));
+                && Array.from(aEntry.children).some(child => child.matches('img'));
 
             if (skipLink || hasImgChild) continue;
 
@@ -496,7 +496,7 @@ function listToDo(Area) {
 
 
 
-function removeHTML(str){
+function removeHTML(str) {
     var tmp = document.createElement("DIV");
     tmp.innerHTML = str;
     return tmp.textContent || tmp.innerText || "";
@@ -523,18 +523,21 @@ function CheckTitle(startIndex) {
 }
 
 
-const extractText = (DOMElement) =>
-[...DOMElement?.childNodes]
-.filter(child => child.textContent?.trim())
-.map(child => {
-    const text = child.textContent.trim();
-    const isTitle = /<h[12].+<\/h[12]>/s.test(child.outerHTML) || /<div class="title-04">\s*<div class="red"/s.test(child.outerHTML);
-    return text.replace('\n', ' ').replace('Download (ダウンロード):', '').trim();
-})
-.filter(text => text && text !== 'GetTitle :');
+const extractText = (DOMElement) => {
+    if (!DOMElement) return [];
 
-function createArea(A, B){    
-    if(B){
+    return Array.from(DOMElement.childNodes)
+        .filter(child => child.textContent?.trim())
+        .map(child => {
+            const text = child.textContent.trim();
+            const isTitle = /<h[12].+<\/h[12]>/s.test(child.outerHTML) || /<div class="title-04">\s*<div class="red"/s.test(child.outerHTML);
+            return text.replace('\n', ' ').replace('Download (ダウンロード):', '').trim();
+        })
+        .filter(text => text && text !== 'GetTitle :');
+    }
+
+function createArea(A, B) {
+    if (B) {
         A.appendChild(B)
     }
     return A
@@ -599,7 +602,7 @@ async function CopyItems() {
         const Last = TitleDBIndex[i + 1] ?? InfoArea.length;
         const rawTitle = InfoArea[First].match(TitleExr)?.[2] || InfoArea[First];
         const Title = NormalizeTitle(rawTitle);
-console.log(Title, First, Last)
+        console.log(Title, First, Last)
         for (let j = First + 1; j < Last; j++) {
             const line = InfoArea[j];
             if (/GetTitle/.test(line)) break;
@@ -639,13 +642,13 @@ console.log(Title, First, Last)
 
 
 
-function PackageList(LinksDB){
-    if(LinksDB?.length > 0){
-        let uniqueTitle = [...new Set(LinksDB.map( x => x.T ))]
+function PackageList(LinksDB) {
+    if (LinksDB?.length > 0) {
+        let uniqueTitle = [...new Set(LinksDB.map(x => x.T))]
         console.log(uniqueTitle)
         return uniqueTitle
     }
-    else{
+    else {
         return []
     }
 }
@@ -682,9 +685,9 @@ function FilenameConvert(str) {
 }
 
 
-function JDownloader(JdownloaderData, PackageName){
+function JDownloader(JdownloaderData, PackageName) {
     console.log(PackageName + '\n' + JdownloaderData)
-    if(JdownloaderData){
+    if (JdownloaderData) {
         /*
         $.post("http://127.0.0.1:9666/flash/add", {
             urls: JdownloaderData,
@@ -695,7 +698,7 @@ function JDownloader(JdownloaderData, PackageName){
         let data = new URLSearchParams();
         data.append(`urls`, JdownloaderData);
         data.append(`referer`, PageURL)
-        if(PackageName){
+        if (PackageName) {
             data.append(`package`, PackageName)
         }
         //console.log(data)
@@ -712,8 +715,8 @@ function JDownloader(JdownloaderData, PackageName){
 
 }
 
-function JDownloaderDB(LinksDB){
-    let uniqueTitle = [...new Set(LinksDB.map( x => x.T ))] || [...new Set(LinksDB.map( x => x.U ))]
+function JDownloaderDB(LinksDB) {
+    let uniqueTitle = [...new Set(LinksDB.map(x => x.T))] || [...new Set(LinksDB.map(x => x.U))]
     //console.log(uniqueTitle)
     uniqueTitle.forEach(x => JDownloader(GetMatchLinks(x, LinksDB), x))
 }

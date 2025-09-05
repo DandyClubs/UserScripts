@@ -3180,7 +3180,7 @@ function listToDo(areas, type = 'Default') {
         if (checkSkipFilter(el)) continue;
         // Skip links with image children for certain hosts
         if (/(uploadgig\.com\/file\/download|alfafile\.net\/file)/.test(el.href)) {
-            const image = a.querySelector('img')
+            const image = el.querySelector('img')
             if (image) {
                 image?.remove()
                 el.textContent = 'Download'

@@ -238,7 +238,7 @@ function getRandomIntInclusive(min, max) {
     return Math.floor(Math.random() * (maxFloored - minCeiled + 1) + minCeiled);
 }
 function querySelectorIncludesText(selector, text) {
-    return Array.from(document.querySelectorAll(selector)).filter(el => el.innerText.includes(text));
+    return Array.from(document.querySelectorAll(selector)).filter(el => el.textContent.toLowerCase().includes(text.toLowerCase()));
 }
 function domRemove(className) {
     document.querySelectorAll(`.${className}`).forEach(el => el.remove());
@@ -519,9 +519,9 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
 
     const links = linkSelectors.flatMap(sel => {
         if (sel.text) {
-           return Array.from(document.querySelectorAll(sel.selector)).map(el => ({ el, type: sel.type }));
-        } else {
             return querySelectorIncludesText(sel.selector, sel.text).map(el => ({ el, type: sel.type }));
+        } else {            
+            return Array.from(document.querySelectorAll(sel.selector)).map(el => ({ el, type: sel.type }));
         }
     });
 
@@ -621,7 +621,8 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                 AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
                 UIManager.addResetButton(entry.linkEl, oldLink, e.data.FileName || entry.title);
 
-                if (autoClose && entry.type === 'terabox') {
+                console.log({ autoClose }, entry.type)
+                if (autoClose && entry.type === 'terabox') {                    
                     await sleep(5000);
                     self.close();
                 }
@@ -654,7 +655,7 @@ async function handleAllAsianGirls() {
 async function handleBestGirlSexy() {
     return handleSite({
         titleSelector: 'div#content.site-content div.elementor-widget-container .elementor-heading-title',
-        linkSelectors: [{ selector: 'A', text: 'TeraBox', type: 'terabox' }],
+        linkSelectors: [{ selector: 'a.maxbutton', text: 'TeraBox', type: 'terabox' }],
         autoClose: true
     });
 }
