@@ -591,8 +591,13 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     const typeLastHref = getFirstTypeGroupLastLink(links)
 
     parentWindow = PageURL;
-    const title = copyTitle.replace(/\s/g, '');          
+    const title = copyTitle.replace(/\s/g, '');   
+    
+    let skipType = null;
     for (const { el: link, type } of links) { 
+        if (skipType && skipType === type){
+            continue; 
+        }
         let oldLink = link.href;
         if (/shrinkme\..*/.test(oldLink)) {
             oldLink = oldLink.replace(/shrinkme\.(org|dev|us)/, 'shrinkme.site');
@@ -602,13 +607,14 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
             if (typeLastHref === oldLink) {
                 break;
             }
-            continue; // 캐시된 경우 추가 처리 불필요
+            continue; 
         }
         const cached = CacheManager.get(oldLink);
         if (cached) {
             link.href = cached.U;
             if (cached.U === 'NotFound') {
                 link.remove();
+                skipType = type;
             } else {
                 UIManager.addResetButton(link, oldLink, cached.T);                   
                 if (typeLastHref === oldLink){
