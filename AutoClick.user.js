@@ -602,7 +602,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
 
         link.addEventListener('click', (e) => {
             e.preventDefault();
-            childWindow = window.open(oldLink, title);
+            childWindow = window.open(link.href, title);
         });
 
         if (cachedTypes.length > 0) {
