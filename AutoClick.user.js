@@ -746,8 +746,9 @@ async function handleBestGirlSexy() {
 async function handleMissKon() {
     return handleSite({
         titleSelector: 'article#the-post .post-title.entry-title',
-        linkSelectors: [
+        linkSelectors: [            
             { selector: 'a.shortc-button', text: 'MediaFire', type: 'mediafire' },
+            { selector: 'a.shortc-button', text: 'Google Drive', type: 'googleDrive' },
             { selector: 'a.shortc-button', text: 'Terabox', type: 'terabox' }
         ]
     });
