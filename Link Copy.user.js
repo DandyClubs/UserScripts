@@ -413,7 +413,7 @@ const skipFilterPatterns = [
     /ouo\.press/i,
     /pixhost\.to\/gallery\//i,
     /momerybox\.com\//i,
-    /nephobox\.com\//i,    
+    /nephobox\.com\//i,
     /terabox\.(app|com)/i,
     /teraboxapp\.com/i,
     /tezfiles\.com\/.+\/premium/i,
@@ -953,11 +953,11 @@ const siteConfigs = [
 
                 if (!copyOffsetArea) return;
 
-                let Title = copyOffsetArea.textContent.trim() || '';                
+                let Title = copyOffsetArea.textContent.trim() || '';
 
                 let LinkDBAll = [];
                 DownloadArea.forEach(section => {
-                    Array.from(section.querySelectorAll('a')).forEach(a => {                        
+                    Array.from(section.querySelectorAll('a')).forEach(a => {
                         if (!checkSkipFilter(a) && !/top-modelz\.org/.test(a.href)) {
                             LinkDBAll.push(a);
                         }
@@ -1770,13 +1770,15 @@ const siteRules = [
 const waitDownloadArea = [
     {
         regex: /misskon\.com\/.+/,
-        handler: async () => {           
-            
-            const checkRedirects = document.querySelectorAll('a.shortc-button[href*="https://ouo.io/"]');            
-            const uniqueLinks = [...new Set(checkRedirects)];
-            
-            await Promise.allSettled(uniqueLinks.map((x) => waitForObserver(x)));
+        handler: async () => {
 
+            const checkRedirects = document.querySelectorAll('a.shortc-button[href*="ouo.io/"]');
+            const mediafire = 'MediaFire';
+            const filteredLinks = Array.from(checkRedirects).filter(el => el.textContent.toLowerCase().includes(mediafire.toLowerCase()));
+            const uniqueLinks = [...new Set(filteredLinks)];
+            if (uniqueLinks.length) {
+                await Promise.allSettled(uniqueLinks.map((x) => waitForObserver(x)));
+            }
             DownloadArea = document.querySelectorAll('article#the-post div.entry p');
         },
     },
@@ -2772,7 +2774,7 @@ async function CollectionCoverImage(CoverImage) {
 async function CollectionLinks(DownloadArea) {
     const CollectionATag = [];
     const shortLinkRegex = /(\/|=)(aHR0c[a-zA-Z0-9]+={0,2})(?=$|[\/?&;\-])/;
-    const siteParamRegex = /\?site.+$/;    
+    const siteParamRegex = /\?site.+$/;
     const skipFileNameRegex = SkipFileName;
 
     // 1) Gather all <a> elements and normalize their hrefs
@@ -3579,7 +3581,7 @@ function onElementLoaded(elementToObserve, parentStaticElement) {
 
 function querySelectorIncludesText(selector, text) {
     return Array.from(document.querySelectorAll(selector))
-        .filter(el => el.textContent.includes(text));
+        .filter(el => el.textContent.toLowerCase().includes(text.toLowerCase()));
 }
 
 
