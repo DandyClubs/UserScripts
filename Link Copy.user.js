@@ -401,6 +401,7 @@ const skipFilterPatterns = [
     /fboom\.me\/code/i,
     /fireget\.com\/premium\.html/i,
     /goaibox\.com/i,
+    /gofile\.io/i,
     /imgchili\.net\/show/i,
     /javascript/i,
     /k2s\.cc\/(pr|code)/i,
