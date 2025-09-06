@@ -184,6 +184,7 @@
             /thumbnail/,
             /topic-title/,    
             /topictitle/,        
+            /post-box-title/,
         ]
     };
 

@@ -275,11 +275,11 @@ const everia = {
 const misskon = {
     MatchUrl: 'misskon.com',
     root: document.querySelector('div#main-content'),
-    exlink: 'article.item-list div.post-thumbnail a',
+    exlink: 'article.item-list .post-box-title a',
     Class: null,
     RegexElement: null,
     OpenTab: true,
-    Get: 'GetTitle',
+    Get: 'textContent',
     SaveMode: 'sessionStorage',
     OpenTabCount: 20,
 }
@@ -375,8 +375,7 @@ const observer = new MutationObserver(mutations => {
 
 async function OpenTab(A) {
     //GM_openInTab(A.href, { active: false, insert: false })
-    A.click();
-    await sleep(250);
+    A.click();    
 
     if (A.classList.contains('RecordHistory')) {
         SaveVisited(A)
@@ -418,12 +417,12 @@ function MakeIcon() {
         document.querySelector(".OpenTab").addEventListener('click', async function (e) {
             e.preventDefault()
             document.querySelector('.OpenTab').style.visibility = "hidden"
-            let OpenCount = AddNodes?.length <= 40 ? AddNodes : AddNodes.slice(0, Active.OpenTabCount)
+            let OpenCount = AddNodes?.length <= Active.OpenTabCount + 5 ? AddNodes : AddNodes.slice(0, Active.OpenTabCount)
             let Index = 1
             while (OpenCount.length >= Index) {
                 await OpenTab(OpenCount[Index - 1])
                 VisitedState.innerText = OpenCount.length - Index
-                await sleep(250);
+                await sleep(500);
                 Index++
             }
             await sleep(1000)
@@ -518,6 +517,8 @@ const initVisitedListeners = async (node) => {
         el.classList.add('RecordHistory');
         if (Active.Get === 'GetID') {
             linkInfo = GetID(el);
+        } else if (Active.Get === 'textContent') {
+            linkInfo = el.textContent.trim();
         } else {
             linkInfo = GetTitle(el);
         }
@@ -682,7 +683,7 @@ function SaveVisited(el) {
     if (typeof linkInfo === 'string' && linkInfo.trim() !== '') {
         if (Active.SaveMode === 'localStorage') {
             localStorage.setItem(linkInfo, AddDate);
-        } else if (Active.SaveMode === 'sessionStorage') {
+        } else if (Active.SaveMode === 'sessionStorage') {            
             sessionStorage.setItem(linkInfo, AddDate);
         } else if (Active.SaveMode === 'ScriptStorage') {
             GM_setValue(linkInfo, AddDate);
