@@ -508,7 +508,7 @@ const beforeUnloadHandler = (event) => {
  * Site Handlers (Start-time)
  * =============================== */
 
-async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {    
+async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     AutoClick = localStorage.getItem('AutoClick') || '0';
     UIManager.setResponsiveFont();
     UIManager.syncIcon();
@@ -535,67 +535,70 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
 
     console.log({ copyTitle, links })
     if (!links.length) return;
-    
+
     parentWindow = PageURL;
     const title = copyTitle.replace(/\s/g, '');
 
-    // 1. 그룹별로 링크들을 분류하고, CacheManager를 확인하여 'NotFound' 그룹을 미리 제거합니다.
-    const typeGroupsByLinks = new Map();
-    links.forEach(({ el: link, type }) => {
-        let oldLink = link.href;
+    let errorTypes = new Set();
+    let cachedCheck = {};
 
-        if (!typeGroupsByLinks.has(type)) {
-            typeGroupsByLinks.set(type, []);
-        }
-        if (/shrinkme\..*/.test(oldLink)) {
-            oldLink = oldLink.replace(/shrinkme\.(org|dev|us)/, 'shrinkme.site');
-            link.href = oldLink;
-        }
-        typeGroupsByLinks.get(type).push({ el: link, type, href: link.href });
-    });
+    // 1. type별 그룹화
+    const grouped = links.reduce((acc, { el, type }) => {
+        if (!acc[type]) acc[type] = [];
+        acc[type].push(el);
+        return acc;
+    }, {});
 
-    const typesByLinks = [...typeGroupsByLinks.keys()];
-    for (const type of typesByLinks) {
-        const checkError = typeGroupsByLinks.get(type).some(l => {
-            const cached = CacheManager.get(l.href);
-            return cached && cached.U === 'NotFound';
-        });
+    // 2. 그룹 순회
+    for (const [type, elements] of Object.entries(grouped)) {
+        let cachedCount = 0;
 
-        if (checkError) {
-            // 'NotFound'가 발견된 경우, 해당 타입의 모든 링크를 links 배열에서 제거합니다.
-            links = links.filter(l => l.type !== type);
+        for (const link of elements) {            
+            let oldLink = link.href;
+            if (/shrinkme\..*/.test(oldLink)) {
+                oldLink = oldLink.replace(/shrinkme\.(org|dev|us)/, 'shrinkme.site');
+                link.href = oldLink;
+            }
+            const cached = CacheManager.get(oldLink); // 예시: 캐시에서 가져오기
+
+            if (cached) {
+                link.href = cached.U;
+                if (cached.U === 'NotFound') {
+                    link.remove();
+                    errorTypes.add(type); // NotFound가 하나라도 있으면 type 기록
+                } else {
+                    UIManager.addResetButton(link, oldLink, cached.T);
+                    cachedCount++;
+                }
+            }
         }
+
+        // 3. 링크 수와 resetButton 추가 수 체크
+        cachedCheck[type] = {
+            totalLinks: elements.length,
+            cachedLinks: cachedCount,
+            allMatched: elements.length === cachedCount
+        };
+    }
+    
+    if (errorTypes.size > 0) {
+        links = links.filter(({ type }) => !errorTypes.has(type));
     }
 
+    // (2) type별로 allMatched === true 가 하나라도 있으면 links 전체 제거
+    const hasAllMatched = Object.values(cachedCheck).some(v => v.allMatched);
+    if (hasAllMatched) {
+        links = [];        
+    }
 
     const typeGroups = new Map();
-    const removedTypes = new Set();    
-    const cachedTypes = new Set();    
 
     for (const { el: link, type } of links) {
-        // 이미 'NotFound'로 확인된 타입은 건너뜁니다.
-        if (removedTypes.has(type)) {
-            continue;
-        }
-
         let oldLink = link.href;
-        
-        if (/mediafire\.com/.test(oldLink)) {            
+
+        if (/mediafire\.com/.test(oldLink)) {
             continue;
         }
-
-        const cached = CacheManager.get(oldLink);
-        if (cached) {
-            link.href = cached.U;
-            if (cached.U === 'NotFound') {
-                link.remove();
-                removedTypes.add(type); // 해당 타입 전체를 제거하기 위해 Set에 추가                
-            } else {
-                UIManager.addResetButton(link, oldLink, cached.T);                
-                cachedTypes.add(type);
-            }
-            continue; // 캐시된 경우 추가 처리 불필요
-        }       
 
         link.addEventListener('click', (e) => {
             e.preventDefault();
