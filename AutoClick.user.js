@@ -607,7 +607,8 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     for (const { el: link, type } of links) {
         let oldLink = link.href;
 
-        if (/shink\.me/.test(oldLink)) {            
+        if (/shink\.me/.test(oldLink)) {  
+            link.remove();          
             continue;
         }
         

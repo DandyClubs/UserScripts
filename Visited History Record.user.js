@@ -765,7 +765,7 @@ function Start() {
             break;
         case 'misskon.com': {
             const T = getElementMetrics(document.querySelector('.post-thumbnail'), { mode: 'relative' });
-            const off = T.bottom + 26;
+            const off = T.height + 48;
             document.documentElement.style.setProperty('--top', `${off}px`);
             break;
         }
