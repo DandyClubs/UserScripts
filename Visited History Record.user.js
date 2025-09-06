@@ -275,6 +275,9 @@ const misskon = {
     MatchUrl: 'misskon.com',
     root: document.querySelector('body:not(.single-post) div#main-content'),
     exlink: 'article.item-list .post-box-title a',
+    extraLink: 'article.item-list div.post-thumbnail a img',   
+    closestTag: 'article.item-list',
+    SearchATag: '.post-box-title a', 
     Class: null,
     RegexElement: null,
     OpenTab: true,
@@ -713,39 +716,43 @@ function Start() {
         if (!e.target) return;
 
         let target = e.target;
-
+        
         if (!target.classList.contains('RecordHistory')) {
-            switch (Active.MatchUrl) {
-                case 'k2sporn.com': {
-                    const closestShortStoryImg = e.target.closest('.shortstory-img');
-                    if (closestShortStoryImg) {
-                        target = closestShortStoryImg.closest('.shortstory').querySelector(Active.exlink);
+            if (Active.extraLink && target.nodeName === 'IMG') {
+                target = e.target.closest(Active.closestTag).querySelector(Active.SearchATag);
+            } else {
+                switch (Active.MatchUrl) {
+                    case 'k2sporn.com': {
+                        const closestShortStoryImg = e.target.closest('.shortstory-img');
+                        if (closestShortStoryImg) {
+                            target = closestShortStoryImg.closest('.shortstory').querySelector(Active.exlink);
+                        }
+                        break;
                     }
-                    break;
-                }
-                case 'wetholefans.com': {
-                    if (e.target.matches('h2') || e.target.matches('div.short-story center a img')) {
-                        const closestShortStory = e.target.closest('.short-story');
-                        target = closestShortStory.querySelector(Active.exlink);
+                    case 'wetholefans.com': {
+                        if (e.target.matches('h2') || e.target.matches('div.short-story center a img')) {
+                            const closestShortStory = e.target.closest('.short-story');
+                            target = closestShortStory.querySelector(Active.exlink);
+                        }
+                        break;
                     }
-                    break;
-                }
-                case 'foamgirl.net': {
-                    if (e.target.matches('a img.waitpic')) {
-                        const closestListItem = e.target.closest('li.i_list');
-                        target = closestListItem.querySelector(Active.exlink);
+                    case 'foamgirl.net': {
+                        if (e.target.matches('a img.waitpic')) {
+                            const closestListItem = e.target.closest('li.i_list');
+                            target = closestListItem.querySelector(Active.exlink);
+                        }
+                        break;
                     }
-                    break;
-                }
-                case 'everia.club': {
-                    if (e.target.matches('span.overlay')) {
-                        const closestEntryInner = e.target.closest('div.blog-entry-inner');
-                        target = closestEntryInner.querySelector(Active.exlink);
+                    case 'everia.club': {
+                        if (e.target.matches('span.overlay')) {
+                            const closestEntryInner = e.target.closest('div.blog-entry-inner');
+                            target = closestEntryInner.querySelector(Active.exlink);
+                        }
+                        break;
                     }
-                    break;
+                    default:
+                        target = e.target.closest('a');
                 }
-                default:
-                    target = e.target.closest('a');
             }
         }
 

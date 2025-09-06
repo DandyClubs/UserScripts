@@ -424,6 +424,7 @@ const skipFilterPatterns = [
     /shink\.me/i,
     /xtvtv\.com\/explanation/i,
     /katfile\.com\/\?op=registration/i,
+    /zippyshare\.com/i,
 ]
 const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i')
 const WaitChangeLink = new RegExp('tma\\.cx\/', 'i')

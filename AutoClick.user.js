@@ -607,7 +607,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     for (const { el: link, type } of links) {
         let oldLink = link.href;
 
-        if (/shink\.me/.test(oldLink)) {  
+        if (/shink\.me|zippyshare\.com/.test(oldLink)) {  
             link.remove();          
             continue;
         }
@@ -749,6 +749,7 @@ async function handleMissKon() {
         titleSelector: 'article#the-post .post-title.entry-title',
         linkSelectors: [            
             { selector: 'a.shortc-button', text: 'MediaFire', type: 'mediafire' },
+            { selector: 'a.shortc-button', text: 'Google Drive', type: 'googleDrive' },
             { selector: 'a.shortc-button', text: 'Google Drive', type: 'googleDrive' },
             { selector: 'a.shortc-button', text: 'Terabox', type: 'terabox' }
         ]
