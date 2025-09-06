@@ -43,7 +43,7 @@ GM_addStyle(`
 @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@600&family=Noto+Sans+KR:wght@600&family=Noto+Sans:wght@600&display=swap');
 
 :root {
-  --bottom: -.75rem;
+  --top: 0;  
 }
 
 a.visited {
@@ -102,7 +102,7 @@ a.visited {
     position: absolute;
 	font-size: .75rem;
 	font-weight: 600;
-    bottom: var(--bottom);
+    top: var(--top);    
     right: .75rem;    
 }
 
@@ -374,7 +374,7 @@ const observer = new MutationObserver(mutations => {
 
 async function OpenTab(A) {
     //GM_openInTab(A.href, { active: false, insert: false })
-    A.click();    
+    A.click();
 
     if (A.classList.contains('RecordHistory')) {
         SaveVisited(A)
@@ -566,9 +566,6 @@ function VisitedCSS(el, X) {
             const article = el.closest('article.item-list');
             if (article) {
                 article.style.setProperty('position', 'relative');
-                const root = document.documentElement;
-                const offH = article.querySelector('.post-thumbnail').offsetHeight - article.offsetHeight;
-                root.style.setProperty('--bottom', offH + 'rem');
             }
             break;
         }
@@ -669,6 +666,8 @@ function SaveVisited(el) {
 
     if (Active.Get === 'GetID') {
         linkInfo = GetID(el);
+    } else if (Active.Get === 'textContent') {
+        linkInfo = el.textContent.trim();
     } else {
         linkInfo = GetTitle(el)
     }
@@ -762,10 +761,16 @@ function Start() {
         case 't66y.com':
         case 'everia.club':
         case 'foamgirl.net':
-            document.documentElement.style.setProperty('--bottom', '.25rem');
+            document.documentElement.style.setProperty('--top', '-.25rem');
             break;
+        case 'misskon.com': {
+            const T = getElementMetrics(document.querySelector('.post-thumbnail'), { mode: 'relative' });
+            const off = T.bottom + 26;
+            document.documentElement.style.setProperty('--top', `${off}px`);
+            break;
+        }
         default:
-            document.documentElement.style.setProperty('--bottom', '-.75rem');
+            document.documentElement.style.setProperty('--top', '.75rem');
     }
 }
 
