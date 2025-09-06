@@ -349,8 +349,8 @@ const UIManager = {
             icon.classList.replace(on ? 'Off' : 'On', on ? 'On' : 'Off');
         }
     },
-    addResetButton(el, originalLink, fileName) {        
-        let resetIcon = el.nextElementSibling;        
+    addResetButton(el, originalLink, fileName) {
+        let resetIcon = el.nextElementSibling;
 
         // el의 다음 형제 요소가 존재하고, 그 요소에 'Reset' 클래스가 없는 경우
         if (resetIcon && !resetIcon.classList.contains('Reset')) {
@@ -508,58 +508,7 @@ const beforeUnloadHandler = (event) => {
  * Site Handlers (Start-time)
  * =============================== */
 
-
-function sortLinksByType(links) {
-    return links.sort((a, b) => {
-        if (a.type < b.type) {
-            return -1;
-        }
-        if (a.type > b.type) {
-            return 1;
-        }
-        return 0; // type이 같은 경우 순서를 바꾸지 않음
-    });
-}
-
-/**
-* 정렬되지 않은 links 배열에서 첫 번째로 등장하는 type 그룹의 마지막 링크 href를 가져옵니다.
-* @param {Array<Object>} links - 링크 정보가 담긴 배열
-* @returns {string | null} - 마지막 링크의 href, 없으면 null
-*/
-function getFirstTypeGroupLastLink(links) {
-    if (!links || links.length === 0) {
-        return null;
-    }
-
-    const typeGroups = new Map();
-
-    for (const link of links) {
-        const type = link.type;
-        if (!typeGroups.has(type)) {
-            typeGroups.set(type, []);
-        }
-        typeGroups.get(type).push(link);
-    }
-
-    // Map의 첫 번째 키(type)를 가져옵니다.
-    const firstType = typeGroups.keys().next().value;
-
-    if (firstType) {
-        // 첫 번째 타입에 해당하는 링크 배열을 가져옵니다.
-        const firstGroup = typeGroups.get(firstType);
-
-        // 첫 번째 그룹의 마지막 링크를 반환합니다.
-        const lastLink = firstGroup[firstGroup.length - 1];
-        return lastLink.el.href;
-    }
-
-    return null;
-}
-
-
-
-async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
-    const typeGroups = new Map();
+async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {    
     AutoClick = localStorage.getItem('AutoClick') || '0';
     UIManager.setResponsiveFont();
     UIManager.syncIcon();
@@ -583,51 +532,79 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
         }
     });
 
+
     console.log({ copyTitle, links })
     if (!links.length) return;
-
-    links = sortLinksByType(links);
-
-    const typeLastHref = getFirstTypeGroupLastLink(links)
-
-    parentWindow = PageURL;
-    const title = copyTitle.replace(/\s/g, '');   
     
-    let skipType = null;
-    for (const { el: link, type } of links) { 
-        if (skipType && skipType === type){
-            continue; 
-        }
+    parentWindow = PageURL;
+    const title = copyTitle.replace(/\s/g, '');
+
+    // 1. 그룹별로 링크들을 분류하고, CacheManager를 확인하여 'NotFound' 그룹을 미리 제거합니다.
+    const typeGroupsByLinks = new Map();
+    links.forEach(({ el: link, type }) => {
         let oldLink = link.href;
+
+        if (!typeGroupsByLinks.has(type)) {
+            typeGroupsByLinks.set(type, []);
+        }
         if (/shrinkme\..*/.test(oldLink)) {
             oldLink = oldLink.replace(/shrinkme\.(org|dev|us)/, 'shrinkme.site');
             link.href = oldLink;
         }
-        if (/mediafire\.com/.test(oldLink)){
-            if (typeLastHref === oldLink) {
-                break;
-            }
-            continue; 
+        typeGroupsByLinks.get(type).push({ el: link, type, href: link.href });
+    });
+
+    const typesByLinks = [...typeGroupsByLinks.keys()];
+    for (const type of typesByLinks) {
+        const checkError = typeGroupsByLinks.get(type).some(l => {
+            const cached = CacheManager.get(l.href);
+            return cached && cached.U === 'NotFound';
+        });
+
+        if (checkError) {
+            // 'NotFound'가 발견된 경우, 해당 타입의 모든 링크를 links 배열에서 제거합니다.
+            links = links.filter(l => l.type !== type);
         }
+    }
+
+
+    const typeGroups = new Map();
+    const removedTypes = new Set();    
+    const cachedTypes = new Set();    
+
+    for (const { el: link, type } of links) {
+        // 이미 'NotFound'로 확인된 타입은 건너뜁니다.
+        if (removedTypes.has(type)) {
+            continue;
+        }
+
+        let oldLink = link.href;
+        
+        if (/mediafire\.com/.test(oldLink)) {            
+            continue;
+        }
+
         const cached = CacheManager.get(oldLink);
         if (cached) {
             link.href = cached.U;
             if (cached.U === 'NotFound') {
                 link.remove();
-                skipType = type;
+                removedTypes.add(type); // 해당 타입 전체를 제거하기 위해 Set에 추가                
             } else {
-                UIManager.addResetButton(link, oldLink, cached.T);                   
-                if (typeLastHref === oldLink){
-                    break;
-                }
+                UIManager.addResetButton(link, oldLink, cached.T);                
+                cachedTypes.add(type);
             }
             continue; // 캐시된 경우 추가 처리 불필요
-        }
+        }       
+
         link.addEventListener('click', (e) => {
             e.preventDefault();
             childWindow = window.open(oldLink, title);
         });
 
+        if (cachedTypes.has(type)) {
+            continue;
+        }
         // 그룹별 추가
         if (!typeGroups.has(type)) typeGroups.set(type, []);
         typeGroups.get(type).push({ linkEl: link, oldLink, title, type });
@@ -663,8 +640,8 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
         if (!/terabox\.com|1024tera\.com|terabox\.app|en\.mrproblogger\.com|drive\.google\.com|mediafire\.com/.test(e.origin)) return;
 
         // 토큰 응답 도착
-        if (!currentLinks?.length) return;   
-        
+        if (!currentLinks?.length) return;
+
         let entry = currentLinks[0];
 
         if (e.data.code && entry.oldLink) {
@@ -761,7 +738,7 @@ async function handleMissKon() {
         linkSelectors: [
             { selector: 'a.shortc-button', text: 'MediaFire', type: 'mediafire' },
             { selector: 'a.shortc-button', text: 'Terabox', type: 'terabox' }
-        ]        
+        ]
     });
 }
 
