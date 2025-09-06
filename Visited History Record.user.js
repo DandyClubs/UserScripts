@@ -273,7 +273,7 @@ const everia = {
 
 const misskon = {
     MatchUrl: 'misskon.com',
-    root: document.querySelector('div#main-content'),
+    root: document.querySelector('.blog div#main-content'),
     exlink: 'article.item-list .post-box-title a',
     Class: null,
     RegexElement: null,
