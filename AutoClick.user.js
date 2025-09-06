@@ -164,12 +164,13 @@ queue.onchange = (event) => {
     AutoClickBC.postMessage({ type: 'updateState', size: size });
 };
 
+let processCount = 5;
 
 // 큐 관리 함수
 async function Management() {
 
     // Management() 함수가 이미 실행 중이거나 작업 슬롯이 꽉 찼거나 큐가 비어있으면 종료
-    if (queueIndex >= 5 || queue.isEmpty()) {
+    if (queueIndex >= processCount || queue.isEmpty()) {
         return;
     }
     // 하나의 작업을 시작
@@ -534,7 +535,14 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
 
 
     console.log({ copyTitle, links })
-    if (!links.length) return;
+    
+    if (!links.length) {
+        if (AutoClick === '1') {
+            await sleep(15000);
+            self.close();
+        }
+        return;
+    }
 
     parentWindow = PageURL;
     const title = copyTitle.replace(/\s/g, '');
@@ -623,7 +631,13 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     }
 
     const types = [...typeGroups.keys()];
-    if (!types.length) return;
+    if (!types.length) {
+        if (AutoClick === '1') {
+            await sleep(10000);
+            self.close();
+        }
+        return;
+    }
 
     let currentTypeIndex = 0;
     let currentLinks = typeGroups.get(types[currentTypeIndex]);
@@ -745,6 +759,7 @@ async function handleBestGirlSexy() {
 }
 
 async function handleMissKon() {
+    processCount = 7;
     return handleSite({
         titleSelector: 'article#the-post .post-title.entry-title',
         linkSelectors: [            

@@ -378,27 +378,44 @@ const observer = new MutationObserver(mutations => {
 async function OpenTab(A) {
     //GM_openInTab(A.href, { active: false, insert: false })
     A.click();
-
+/*
     if (A.classList.contains('RecordHistory')) {
         SaveVisited(A)
     }
+        */
 }
 
 
-let AddNodes = [], VisitedState;
+const addNodesSet = new Set();
+let VisitedState;
+const processedLinks = new Set();
 
 
-function RefreshItems() {
-    return new Promise((resolve) => {
-        const nodes = [...new Set(Active.root.querySelectorAll(Active.exlink))];
-        AddNodes = nodes.filter(a =>
-            !SkipWorld.test(a.textContent) &&
-            !a.classList?.contains('visited') &&
-            MatchRegexElement(a, Active.RegexElement, 'href', Active.Class)
-        );
-        resolve(AddNodes);
-    });
+const mutCallback = (mutationsList, observer) => {
+    for (const { addedNodes } of mutationsList) {
+        for (const node of addedNodes) {
+            if (!(node instanceof HTMLElement)) continue;
+
+            if (node.nodeType == Node.ELEMENT_NODE && node.childNodes.length > 0 && node.querySelector(Active.exlink)) {                
+                const nodes = node.querySelectorAll(Active.exlink);    
+                [...nodes].forEach(a => {
+                    const href = a.href;
+                    if (
+                        !SkipWorld.test(a.textContent) &&
+                        !a.classList?.contains('visited') &&
+                        MatchRegexElement(a, Active.RegexElement, 'href', Active.Class) &&
+                        !processedLinks.has(href) // <--- 중복 방지 로직 추가
+                    ) {
+                        addNodesSet.add(a);                        
+                    }                    
+                });
+            }
+        }
+    }
 }
+
+const linksObserver = new MutationObserver(mutCallback)
+
 
 function MakeIcon() {
     let GetDPI = window.devicePixelRatio
@@ -419,18 +436,20 @@ function MakeIcon() {
         document.querySelector(".OpenTab").addEventListener('click', async function (e) {
             e.preventDefault()
             document.querySelector('.OpenTab').style.visibility = "hidden"
+            const AddNodes = Array.from(addNodesSet);
             let OpenCount = AddNodes?.length <= Active.OpenTabCount + 5 ? AddNodes : AddNodes.slice(0, Active.OpenTabCount)
             let Index = 1
             while (OpenCount.length >= Index) {
+                const a = OpenCount[Index - 1]
                 await OpenTab(OpenCount[Index - 1])
                 VisitedState.innerText = OpenCount.length - Index
-                await sleep(250);
+                addNodesSet.delete(a)
+                processedLinks.add(a.href);
+                await sleep(500);
                 Index++
             }
-            await sleep(1000)
-            RefreshItems().then(() => {
-                VisitedState.innerText = AddNodes.length
-            })
+            await sleep(1000)            
+            VisitedState.innerText = addNodesSet.size;        
             document.querySelector('.OpenTab').style.visibility = "visible"
             VisitedCenterBox.style.cssText = `font-size: ${CenterBoxFontSize}; z-index: ${CenterBoxZIndex}; display: block;`
             VisitedState.style.cssText = `font-size: ${Number(((1 / (GetDPI / 1.5)) * 0.75 * (16 / DefaultFontSize)).toFixed(2))}rem;`
@@ -538,10 +557,21 @@ const initVisitedListeners = async (node) => {
         }
     }
 
-    if (VisitedState) {
-        RefreshItems().then(() => {
-            VisitedState.innerText = AddNodes.length;
-        });
+    const nodes = node.querySelectorAll(Active.exlink);
+    [...nodes].forEach(a => {
+        const href = a.href;
+        if (
+            !SkipWorld.test(a.textContent) &&
+            !a.classList?.contains('visited') &&
+            MatchRegexElement(a, Active.RegexElement, 'href', Active.Class) &&
+            !processedLinks.has(href) // <--- 중복 방지 로직 추가
+        ) {
+            addNodesSet.add(a);
+        }
+    });
+
+    if (VisitedState) {        
+        VisitedState.innerText = addNodesSet.size;        
     }
 };
 
@@ -712,6 +742,8 @@ function Start() {
 
     observer.observe(document.body, { childList: true, subtree: true });
 
+    linksObserver.observe(document.body, { subtree: true, childList: true });
+
     Active.root.addEventListener('click', function (e) {
         if (!e.target) return;
 
@@ -757,7 +789,11 @@ function Start() {
         }
 
         if (target && target.classList.contains('RecordHistory')) {
+            addNodesSet.delete(target)
             SaveVisited(target);
+            if (VisitedState) {
+                VisitedState.innerText = addNodesSet.size;
+            }
         }
     });
 

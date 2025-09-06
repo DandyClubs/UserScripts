@@ -409,6 +409,7 @@ const skipFilterPatterns = [
     /magnet:/i,
     /niceff\.com/i,
     /nyaa\.si/i,
+    /openload\.co/i,
     /ouo\.io/i,
     /ouo\.press/i,
     /pixhost\.to\/gallery\//i,
@@ -2928,20 +2929,25 @@ async function UpdateDB(Target, UrlTitle) {
         Target = Target.match(K2SRegExp)[1] + Target.match(K2SRegExp)[2].slice(0, 18)
     }
     console.log({ Target, UrlTitle })
-    if (navigator.locks) {
-        // HTTPS 환경일 때만 락 요청 로직 실행
-        try {
-            await navigator.locks.request('LinkCopyLock', { mode: 'exclusive' }, async () => {
-                await linkDB.add({ U: Target, T: UrlTitle, S: PageURL });
-            });
-        } catch (err) {
-            console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
+    /*
+        if (navigator.locks) {
+            // HTTPS 환경일 때만 락 요청 로직 실행
+            try {
+                await navigator.locks.request('LinkCopyLock', { mode: 'exclusive' }, async () => {
+                    await linkDB.add({ U: Target, T: UrlTitle, S: PageURL });
+                });
+            } catch (err) {
+                console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
+            }
+        } else {
+            // HTTP 환경이거나 API를 지원하지 않을 때의 대체 로직
+            console.log('경고: navigator.locks API는 현재 환경에서 지원되지 않습니다.');
+            await linkDB.add({ U: Target, T: UrlTitle, S: PageURL });
         }
-    } else {
-        // HTTP 환경이거나 API를 지원하지 않을 때의 대체 로직
-        console.log('경고: navigator.locks API는 현재 환경에서 지원되지 않습니다.');
-        await linkDB.add({ U: Target, T: UrlTitle, S: PageURL });
-    }
+            */
+
+    await linkDB.add({ U: Target, T: UrlTitle, S: PageURL });
+
 
     if (!JSON.parse(localStorage.getItem('NewAdded'))) {
         localStorage.setItem('NewAdded', JSON.stringify(true))
@@ -2952,6 +2958,7 @@ async function UpdateDB(Target, UrlTitle) {
 async function RemoveDB(listToDelete) {
     //console.log(`RemoveDB ${listToDelete}`)    
     for (const list of listToDelete) {
+        /*
         if (navigator.locks) {
             // HTTPS 환경일 때만 락 요청 로직 실행
             try {
@@ -2966,6 +2973,9 @@ async function RemoveDB(listToDelete) {
             console.log('경고: navigator.locks API는 현재 환경에서 지원되지 않습니다.');
             await linkDB.remove(list);
         }
+            */
+        await linkDB.remove(list);
+
     }
     document.querySelector('.State').textContent = GetState + ' | ' + PackageCount
     if (GetState == 0) {
@@ -3009,6 +3019,7 @@ async function CheckDB(listTo, fromStep) {
                 isMatchFound.push(link)
                 if (PackageName && searchDB.T !== PackageName) {
                     searchDB.T = PackageName
+                    /*
                     if (navigator.locks) {
                         // HTTPS 환경일 때만 락 요청 로직 실행
                         try {
@@ -3023,6 +3034,8 @@ async function CheckDB(listTo, fromStep) {
                         console.log('경고: navigator.locks API는 현재 환경에서 지원되지 않습니다.');
                         await linkDB.add({ U: Target, T: UrlTitle, S: PageURL });
                     }
+                        */
+                    await linkDB.add({ U: Target, T: UrlTitle, S: PageURL });
                 }
             }
         }
@@ -3424,6 +3437,7 @@ async function ClearUrls() {
     document.querySelector('.ClearButton').style = "color: White !important;";
     //document.querySelector('.ClearButton').style.setProperty('font-size', Number(((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2)) + 'rem', 'important');
     //GM_deleteValue(RootDomain)
+    /*
     if (navigator.locks) {
         // HTTPS 환경일 때만 락 요청 로직 실행
         try {
@@ -3438,6 +3452,8 @@ async function ClearUrls() {
         console.log('경고: navigator.locks API는 현재 환경에서 지원되지 않습니다.');
         await linkDB.clearAll()
     }
+*/
+    await linkDB.clearAll()
 
     if (document.querySelector('.Minus')) {
         document.querySelector('.Minus').style.visibility = "hidden"
