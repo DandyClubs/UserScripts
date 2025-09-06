@@ -541,6 +541,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
 
     let errorTypes = new Set();
     let cachedCheck = {};
+    let rawLinks = {};
 
     // 1. type별 그룹화
     const grouped = links.reduce((acc, { el, type }) => {
@@ -552,11 +553,15 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     // 2. 그룹 순회
     for (const [type, elements] of Object.entries(grouped)) {
         let cachedCount = 0;
+        let rawLinkCount = 0;
         for (const link of elements) {            
-            let oldLink = link.href;
+            let oldLink = link.href;   
+
             if (/mediafire\.com/.test(oldLink)) {
+                rawLinkCount++;
                 continue;
             }
+
             if (/shrinkme\..*/.test(oldLink)) {
                 oldLink = oldLink.replace(/shrinkme\.(org|dev|us)/, 'shrinkme.site');
                 link.href = oldLink;
@@ -581,15 +586,19 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
             cachedLinks: cachedCount,
             allMatched: elements.length === cachedCount
         };
+        rawLinks[type] = {
+            totalLinks: elements.length,
+            cachedLinks: rawLinkCount,
+            allMatched: elements.length === rawLinkCount
+        };
     }
     
     if (errorTypes.size > 0) {
         links = links.filter(({ type }) => !errorTypes.has(type));
     }
-
-    // (2) type별로 allMatched === true 가 하나라도 있으면 links 전체 제거
+    const hasRawLinksMatched = Object.values(rawLinks).some(v => v.allMatched);    
     const hasAllMatched = Object.values(cachedCheck).some(v => v.allMatched);
-    if (hasAllMatched) {
+    if (hasAllMatched || hasRawLinksMatched) {
         links = [];        
     }
 
@@ -597,7 +606,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
 
     for (const { el: link, type } of links) {
         let oldLink = link.href;
-
+        
         link.addEventListener('click', (e) => {
             e.preventDefault();
             childWindow = window.open(link.href, title);

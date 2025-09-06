@@ -273,13 +273,13 @@ const everia = {
 
 const misskon = {
     MatchUrl: 'misskon.com',
-    root: document.querySelector('.blog div#main-content'),
+    root: document.querySelector('body:not(.single-post) div#main-content'),
     exlink: 'article.item-list .post-box-title a',
     Class: null,
     RegexElement: null,
     OpenTab: true,
     Get: 'textContent',
-    SaveMode: 'sessionStorage',
+    SaveMode: 'localStorage',
     OpenTabCount: 20,
 }
 
@@ -491,10 +491,6 @@ const initVisitedListeners = async (node) => {
         visited = Object.entries(localStorage)
             .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
             .map(([key]) => key);
-    } else if (Active.SaveMode === 'sessionStorage') {
-        visited = Object.entries(sessionStorage)
-            .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
-            .map(([key]) => key);
     } else if (Active.SaveMode === 'ScriptStorage') {
         visited = await GM_listValues();
         if (!visited.length) {
@@ -529,8 +525,6 @@ const initVisitedListeners = async (node) => {
             //console.log('Visited: ', linkInfo, T)
             if (Active.SaveMode === 'localStorage') {
                 X = localStorage.getItem(T);
-            } else if (Active.SaveMode === 'sessionStorage') {
-                X = sessionStorage.getItem(T);
             } else if (Active.SaveMode === 'ScriptStorage') {
                 X = GM_getValue(T);
             }
@@ -568,6 +562,16 @@ function VisitedCSS(el, X) {
             }
             break;
         }
+        case 'misskon.com': {
+            const article = el.closest('article.item-list');
+            if (article) {
+                article.style.setProperty('position', 'relative');
+                const root = document.documentElement;
+                const offH = article.querySelector('.post-thumbnail').offsetHeight - article.offsetHeight;
+                root.style.setProperty('--bottom', offH + 'rem');
+            }
+            break;
+        }
         default:
             if (el.parentElement) {
                 el.parentElement.style.setProperty('position', 'relative');
@@ -593,10 +597,6 @@ async function ClearVisited() {
         visitedKeys = Object.entries(localStorage)
             .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
             .map(([key, _]) => key);
-    } else if (Active.SaveMode === 'sessionStorage') {
-        visitedKeys = Object.entries(sessionStorage)
-            .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
-            .map(([key, _]) => key);
     } else if (Active.SaveMode === 'ScriptStorage') {
         const allKeys = await GM_listValues();
         visitedKeys = allKeys.filter(key => {
@@ -612,8 +612,6 @@ async function ClearVisited() {
         let storedDateStr;
         if (Active.SaveMode === 'localStorage') {
             storedDateStr = localStorage.getItem(key);
-        } else if (Active.SaveMode === 'sessionStorage') {
-            storedDateStr = sessionStorage.getItem(key);
         } else if (Active.SaveMode === 'ScriptStorage') {
             storedDateStr = GM_getValue(key);
         }
@@ -625,8 +623,6 @@ async function ClearVisited() {
             if (diffDays > 60) {
                 if (Active.SaveMode === 'localStorage') {
                     localStorage.removeItem(key);
-                } else if (Active.SaveMode === 'sessionStorage') {
-                    sessionStorage.removeItem(key);
                 } else if (Active.SaveMode === 'ScriptStorage') {
                     await GM_deleteValue(key);
                 }
@@ -682,8 +678,6 @@ function SaveVisited(el) {
     if (typeof linkInfo === 'string' && linkInfo.trim() !== '') {
         if (Active.SaveMode === 'localStorage') {
             localStorage.setItem(linkInfo, AddDate);
-        } else if (Active.SaveMode === 'sessionStorage') {            
-            sessionStorage.setItem(linkInfo, AddDate);
         } else if (Active.SaveMode === 'ScriptStorage') {
             GM_setValue(linkInfo, AddDate);
             // 불필요한 중복 설정 방지 (옵션)
