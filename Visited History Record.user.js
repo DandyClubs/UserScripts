@@ -83,8 +83,7 @@ a.visited {
     margin: .5rem;
     border-radius: .25rem !important;
     -webkit-box-sizing: border-box !important;
-    box-sizing: border-box !important;
-    background-color: rgba(0,0,0,0.5) !important;
+    box-sizing: border-box !important;    
     cursor: pointer;
     text-shadow: 1px 1px 1px red, 0 0 2px blue, 0 0 1px black;
 }
