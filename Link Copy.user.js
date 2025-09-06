@@ -412,6 +412,7 @@ const skipFilterPatterns = [
     /pixhost\.to\/gallery\//i,
     /momerybox\.com\//i,
     /nephobox\.com\//i,
+    /anonfiles\.com/i,
     /terabox\.(app|com)/i,
     /teraboxapp\.com/i,
     /tezfiles\.com\/.+\/premium/i,
