@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Visited History Record
 // @namespace   DandyClubs
-// @version     2025.08.21
+// @version     2025.09.06
 // @include     https://sis001.com/forum/forum*.html
 // @match       https://sis001.com/forum/forumdisplay.php*
 // @match       https://ultoporn.com/*
@@ -12,6 +12,7 @@
 // @include     https://hidefporn.ws/*
 // @include     https://everia.club/*
 // @include     https://foamgirl.net/*
+// @include     https://misskon.com/*
 // @exclude     https://ultoporn.com/*.html
 // @run-at      document-end
 // @grant		GM_addStyle
@@ -171,6 +172,7 @@ const sis001 = {
     OpenTab: true,
     Get: 'GetTitle',
     SaveMode: 'localStorage',
+    OpenTabCount: 30,
 }
 
 const sehuatang = {
@@ -182,6 +184,7 @@ const sehuatang = {
     OpenTab: true,
     Get: 'GetTitle',
     SaveMode: 'localStorage',
+    OpenTabCount: 30,
 }
 
 const t66y = {
@@ -193,6 +196,7 @@ const t66y = {
     OpenTab: true,
     Get: 'GetID',
     SaveMode: 'localStorage',
+    OpenTabCount: 30,
 }
 
 
@@ -205,6 +209,7 @@ const k2sporn = {
     OpenTab: false,
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
+    OpenTabCount: 30,
 }
 
 const ultoporn = {
@@ -216,6 +221,7 @@ const ultoporn = {
     OpenTab: false,
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
+    OpenTabCount: 30,
 }
 
 const hidefporn = {
@@ -227,6 +233,7 @@ const hidefporn = {
     OpenTab: false,
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
+    OpenTabCount: 30,
 }
 
 const wetholefans = {
@@ -238,6 +245,7 @@ const wetholefans = {
     OpenTab: false,
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
+    OpenTabCount: 30,
 }
 
 const foamgirl = {
@@ -249,6 +257,7 @@ const foamgirl = {
     OpenTab: false,
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
+    OpenTabCount: 30,
 }
 
 const everia = {
@@ -260,6 +269,19 @@ const everia = {
     OpenTab: false,
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
+    OpenTabCount: 30,
+}
+
+const misskon = {
+    MatchUrl: 'misskon.com',
+    root: document.querySelector('div#main-content'),
+    exlink: 'article.item-list div.post-thumbnail a',
+    Class: null,
+    RegexElement: null,
+    OpenTab: true,
+    Get: 'GetTitle',
+    SaveMode: 'sessionStorage',
+    OpenTabCount: 20,
 }
 
 
@@ -275,6 +297,7 @@ const hostExtractors = /* #__PURE__ */ Object.freeze({
     wetholefans,
     foamgirl,
     everia,
+    misskon,
 })
 
 
@@ -351,7 +374,9 @@ const observer = new MutationObserver(mutations => {
 
 
 async function OpenTab(A) {
-    GM_openInTab(A.href, { active: false, insert: false })
+    //GM_openInTab(A.href, { active: false, insert: false })
+    A.click();
+    await sleep(250);
 
     if (A.classList.contains('RecordHistory')) {
         SaveVisited(A)
@@ -359,7 +384,8 @@ async function OpenTab(A) {
 }
 
 
-let AddNodes = [], VisitedState
+let AddNodes = [], VisitedState;
+
 
 function RefreshItems() {
     return new Promise((resolve) => {
@@ -392,12 +418,12 @@ function MakeIcon() {
         document.querySelector(".OpenTab").addEventListener('click', async function (e) {
             e.preventDefault()
             document.querySelector('.OpenTab').style.visibility = "hidden"
-            let OpenCount = AddNodes?.length <= 40 ? AddNodes : AddNodes.slice(0, 30)
+            let OpenCount = AddNodes?.length <= 40 ? AddNodes : AddNodes.slice(0, Active.OpenTabCount)
             let Index = 1
             while (OpenCount.length >= Index) {
                 await OpenTab(OpenCount[Index - 1])
-                VisitedState.innerText = OpenCount.length - Index                
-                    await sleep(250);                
+                VisitedState.innerText = OpenCount.length - Index
+                await sleep(250);
                 Index++
             }
             await sleep(1000)
@@ -413,11 +439,13 @@ function MakeIcon() {
 
 
 function MatchRegexElement(Taget, regex, attributeToSearch, ClassName) {
-    if (ClassName) {
-        return regex.test(Taget.getAttribute(attributeToSearch)) && Taget.classList.contains(ClassName)
+    if (regex && ClassName) {
+        return regex.test(Taget.getAttribute(attributeToSearch)) && Taget.classList.contains(ClassName);
     }
-    else {
-        return regex.test(Taget.getAttribute(attributeToSearch))
+    else if (regex) {
+        return regex.test(Taget.getAttribute(attributeToSearch));
+    } else {
+        return Taget;
     }
 }
 
@@ -465,7 +493,11 @@ const initVisitedListeners = async (node) => {
         visited = Object.entries(localStorage)
             .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
             .map(([key]) => key);
-    } else {
+    } else if (Active.SaveMode === 'sessionStorage') {
+        visited = Object.entries(sessionStorage)
+            .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
+            .map(([key]) => key);
+    } else if (Active.SaveMode === 'ScriptStorage') {
         visited = await GM_listValues();
         if (!visited.length) {
             Object.entries(localStorage).forEach(([key, date]) => {
@@ -497,7 +529,9 @@ const initVisitedListeners = async (node) => {
             //console.log('Visited: ', linkInfo, T)
             if (Active.SaveMode === 'localStorage') {
                 X = localStorage.getItem(T);
-            } else {
+            } else if (Active.SaveMode === 'sessionStorage') {
+                X = sessionStorage.getItem(T);
+            } else if (Active.SaveMode === 'ScriptStorage') {
                 X = GM_getValue(T);
             }
 
@@ -559,7 +593,11 @@ async function ClearVisited() {
         visitedKeys = Object.entries(localStorage)
             .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
             .map(([key, _]) => key);
-    } else {
+    } else if (Active.SaveMode === 'sessionStorage') {
+        visitedKeys = Object.entries(sessionStorage)
+            .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
+            .map(([key, _]) => key);
+    } else if (Active.SaveMode === 'ScriptStorage') {
         const allKeys = await GM_listValues();
         visitedKeys = allKeys.filter(key => {
             const val = GM_getValue(key);
@@ -574,7 +612,9 @@ async function ClearVisited() {
         let storedDateStr;
         if (Active.SaveMode === 'localStorage') {
             storedDateStr = localStorage.getItem(key);
-        } else {
+        } else if (Active.SaveMode === 'sessionStorage') {
+            storedDateStr = sessionStorage.getItem(key);
+        } else if (Active.SaveMode === 'ScriptStorage') {
             storedDateStr = GM_getValue(key);
         }
 
@@ -582,10 +622,12 @@ async function ClearVisited() {
             const storedDate = new Date(storedDateStr);
             const diffDays = (now - storedDate) / oneDayMs;
 
-            if (diffDays > 30) {
+            if (diffDays > 60) {
                 if (Active.SaveMode === 'localStorage') {
                     localStorage.removeItem(key);
-                } else {
+                } else if (Active.SaveMode === 'sessionStorage') {
+                    sessionStorage.removeItem(key);
+                } else if (Active.SaveMode === 'ScriptStorage') {
                     await GM_deleteValue(key);
                 }
                 console.log('Deleted item:', key, storedDateStr);
@@ -640,7 +682,9 @@ function SaveVisited(el) {
     if (typeof linkInfo === 'string' && linkInfo.trim() !== '') {
         if (Active.SaveMode === 'localStorage') {
             localStorage.setItem(linkInfo, AddDate);
-        } else {
+        } else if (Active.SaveMode === 'sessionStorage') {
+            sessionStorage.setItem(linkInfo, AddDate);
+        } else if (Active.SaveMode === 'ScriptStorage') {
             GM_setValue(linkInfo, AddDate);
             // 불필요한 중복 설정 방지 (옵션)
             const currentNewItem = GM_getValue('NewItem');
