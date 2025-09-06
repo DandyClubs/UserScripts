@@ -397,9 +397,7 @@ function MakeIcon() {
             while (OpenCount.length >= Index) {
                 await OpenTab(OpenCount[Index - 1])
                 VisitedState.innerText = OpenCount.length - Index
-                if (Index > 20) {
-                    await sleep(2000);
-                } else if (Index > 10) {
+                if (Index > 10) {
                     await sleep(1500);
                 } else if (Index > 5) {
                     await sleep(1000);
