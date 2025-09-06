@@ -421,6 +421,7 @@ const skipFilterPatterns = [
     /turb\.cc/i,
     /turbobit\.net/i,
     /twitter\.com/i,
+    /shink\.me/i,
     /xtvtv\.com\/explanation/i,
     /katfile\.com\/\?op=registration/i,
 ]
@@ -1772,7 +1773,7 @@ const waitDownloadArea = [
         regex: /misskon\.com\/.+/,
         handler: async () => {
 
-            const checkRedirects = document.querySelectorAll('a.shortc-button[href*="ouo.io/"]');
+            const checkRedirects = document.querySelectorAll('a.shortc-button[href*="ouo.io/"], a.shortc-button[href*="shink.me/"]');
             const mediafire = 'MediaFire';
             const filteredLinks = Array.from(checkRedirects).filter(el => el.textContent.toLowerCase().includes(mediafire.toLowerCase()));
             const uniqueLinks = [...new Set(filteredLinks)];
