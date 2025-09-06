@@ -602,7 +602,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
             childWindow = window.open(oldLink, title);
         });
 
-        if (cachedTypes.has(type)) {
+        if (cachedTypes.length > 0) {
             continue;
         }
         // 그룹별 추가
