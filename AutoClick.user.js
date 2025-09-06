@@ -552,9 +552,11 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     // 2. 그룹 순회
     for (const [type, elements] of Object.entries(grouped)) {
         let cachedCount = 0;
-
         for (const link of elements) {            
             let oldLink = link.href;
+            if (/mediafire\.com/.test(oldLink)) {
+                continue;
+            }
             if (/shrinkme\..*/.test(oldLink)) {
                 oldLink = oldLink.replace(/shrinkme\.(org|dev|us)/, 'shrinkme.site');
                 link.href = oldLink;
@@ -596,18 +598,11 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     for (const { el: link, type } of links) {
         let oldLink = link.href;
 
-        if (/mediafire\.com/.test(oldLink)) {
-            continue;
-        }
-
         link.addEventListener('click', (e) => {
             e.preventDefault();
             childWindow = window.open(link.href, title);
         });
 
-        if (cachedTypes.length > 0) {
-            continue;
-        }
         // 그룹별 추가
         if (!typeGroups.has(type)) typeGroups.set(type, []);
         typeGroups.get(type).push({ linkEl: link, oldLink, title, type });
