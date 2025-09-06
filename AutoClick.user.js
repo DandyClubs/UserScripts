@@ -538,7 +538,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     
     if (!links.length) {
         if (AutoClick === '1') {
-            await sleep(15000);
+            await sleep(20000);
             self.close();
         }
         return;
@@ -590,11 +590,13 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
 
         // 3. 링크 수와 resetButton 추가 수 체크
         cachedCheck[type] = {
+            type,
             totalLinks: elements.length,
             cachedLinks: cachedCount,
             allMatched: elements.length === cachedCount
         };
         rawLinks[type] = {
+            type,
             totalLinks: elements.length,
             cachedLinks: rawLinkCount,
             allMatched: elements.length === rawLinkCount
@@ -608,7 +610,9 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     const hasAllMatched = Object.values(cachedCheck).some(v => v.allMatched);
     if (hasAllMatched || hasRawLinksMatched) {
         links = [];        
-    }
+    }    
+    const cachedTeraBoxType = Object.values(cachedCheck).some(v => v.type === 'terabox' && v.allMatched)
+    if (cachedTeraBoxType) return;
 
     const typeGroups = new Map();
 
@@ -631,13 +635,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     }
 
     const types = [...typeGroups.keys()];
-    if (!types.length) {
-        if (AutoClick === '1') {
-            await sleep(10000);
-            self.close();
-        }
-        return;
-    }
+    if (!types.length) return;
 
     let currentTypeIndex = 0;
     let currentLinks = typeGroups.get(types[currentTypeIndex]);
@@ -683,6 +681,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                 // 현재 type 실패 → 곧바로 다음 type으로 넘어감
                 CacheManager.set(entry.oldLink, { U: 'NotFound', T: 'File Not Found' });
                 entry.linkEl.remove();
+                await sleep(1000);
                 childWindow.postMessage({ action: 'closed' }, e.origin);
 
                 await sleep(1000);
