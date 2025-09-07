@@ -60,6 +60,7 @@ const RegexFrom = (strings, flags) =>
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()<>|[\]\\]/gi, "\\$&")
 
 const RemoveContentEX = RegexFrom(RemoveContentText.split(/\r?\n/), 'i')
+const MREX = /\\bMR\\b/;
 const SkipModelEX = RegexFrom(SkipModel.split(/\r?\n/), 'gi')
 const WarningEX = RegexFrom(WarningText.split(/\r?\n/), 'gi')
 const AddDate = new Date().toISOString().slice(0, 10);
@@ -295,8 +296,8 @@ function processContent(node, selector, isExtra = false) {
         }
         // 추가 선택자의 경우 특정 단어로 제거
         if (isExtra) {
-            if (RemoveContentEX.test(textContent) || /femdom/i.test(textContent)) {
-                console.log('Extra content removed:', textContent.match(RemoveContentEX) || textContent.match(/femdom/i), textContent);
+            if (RemoveContentEX.test(textContent) || /femdom/i.test(textContent) || MREX.test(textContent)) {
+                console.log('Extra content removed:', textContent.match(RemoveContentEX) || textContent.match(/femdom/i) || MREX.test(textContent), textContent);
                 item.closest(Active.removeTagSelector)?.remove();
                 continue;
             }
@@ -309,8 +310,8 @@ function processContent(node, selector, isExtra = false) {
                 continue;
             }            
 
-            if (RemoveContentEX.test(textContent)) {
-                console.log('Keyword content removed:', textContent.match(RemoveContentEX), textContent);                
+        if (RemoveContentEX.test(textContent) || MREX.test(textContent)) {
+            console.log('Keyword content removed:', textContent.match(RemoveContentEX) || MREX.test(textContent), textContent);                
                 item.closest(Active.removeTagSelector)?.remove();
                 continue;
             }

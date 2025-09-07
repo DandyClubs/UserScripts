@@ -275,9 +275,9 @@ const misskon = {
     MatchUrl: 'misskon.com',
     root: document.querySelector('body:not(.single-post) div#main-content'),
     exlink: 'article.item-list .post-box-title a',
-    extraLink: 'article.item-list div.post-thumbnail a img',   
+    extraLink: 'article.item-list div.post-thumbnail a img',
     closestTag: 'article.item-list',
-    SearchATag: '.post-box-title a', 
+    SearchATag: '.post-box-title a',
     Class: null,
     RegexElement: null,
     OpenTab: true,
@@ -378,11 +378,11 @@ const observer = new MutationObserver(mutations => {
 async function OpenTab(A) {
     //GM_openInTab(A.href, { active: false, insert: false })
     A.click();
-/*
-    if (A.classList.contains('RecordHistory')) {
-        SaveVisited(A)
-    }
-        */
+    /*
+        if (A.classList.contains('RecordHistory')) {
+            SaveVisited(A)
+        }
+            */
 }
 
 
@@ -396,19 +396,20 @@ const mutCallback = (mutationsList, observer) => {
         for (const node of addedNodes) {
             if (!(node instanceof HTMLElement)) continue;
 
-            if (node.nodeType == Node.ELEMENT_NODE && node.childNodes.length > 0 && node.querySelector(Active.exlink)) {                
-                const nodes = node.querySelectorAll(Active.exlink);    
-                [...nodes].forEach(a => {
-                    const href = a.href;
-                    if (
-                        !SkipWorld.test(a.textContent) &&
-                        !a.classList?.contains('visited') &&
-                        MatchRegexElement(a, Active.RegexElement, 'href', Active.Class) &&
-                        !processedLinks.has(href) // <--- 중복 방지 로직 추가
-                    ) {
-                        addNodesSet.add(a);                        
-                    }                    
-                });
+            if (node.nodeType == Node.ELEMENT_NODE && node.childNodes.length > 0 && node.querySelector(Active.exlink)) {
+                checkVisited(node).then((Lists) => {
+                    Lists.forEach(a => {
+                        const href = a.href;
+                        if (
+                            !SkipWorld.test(a.textContent) &&
+                            !a.classList?.contains('visited') &&
+                            MatchRegexElement(a, Active.RegexElement, 'href', Active.Class) &&
+                            !processedLinks.has(href) // <--- 중복 방지 로직 추가
+                        ) {
+                            addNodesSet.add(a);
+                        }
+                    });
+                })
             }
         }
     }
@@ -448,8 +449,8 @@ function MakeIcon() {
                 await sleep(500);
                 Index++
             }
-            await sleep(1000)            
-            VisitedState.innerText = addNodesSet.size;        
+            await sleep(1000)
+            VisitedState.innerText = addNodesSet.size;
             document.querySelector('.OpenTab').style.visibility = "visible"
             VisitedCenterBox.style.cssText = `font-size: ${CenterBoxFontSize}; z-index: ${CenterBoxZIndex}; display: block;`
             VisitedState.style.cssText = `font-size: ${Number(((1 / (GetDPI / 1.5)) * 0.75 * (16 / DefaultFontSize)).toFixed(2))}rem;`
@@ -505,74 +506,85 @@ function querySelectorIncludesText(selector, text) {
         .find(el => el.textContent.includes(text));
 }
 
-const initVisitedListeners = async (node) => {
-    //console.log('Start check Visited!')
-    //console.log(node)
 
-    if (Active.SaveMode === 'localStorage') {
-        visited = Object.entries(localStorage)
-            .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
-            .map(([key]) => key);
-    } else if (Active.SaveMode === 'ScriptStorage') {
-        visited = await GM_listValues();
-        if (!visited.length) {
-            Object.entries(localStorage).forEach(([key, date]) => {
-                if (/\d{4}-\d{2}-\d{2}/.test(date)) {
-                    GM_setValue(key, date);
-                }
-            });
+function checkVisited(node = Active.root) {
+    const newItems = new Set();
+
+    return new Promise(async (resolve) => {
+        //console.log('Start check Visited!')
+        if (Active.SaveMode === 'localStorage') {
+            visited = Object.entries(localStorage)
+                .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
+                .map(([key]) => key);
+        } else if (Active.SaveMode === 'ScriptStorage') {
             visited = await GM_listValues();
-        }
-    }
-
-    let HistoryFilter = [...node.querySelectorAll(Active.exlink)].filter(a =>
-        MatchRegexElement(a, Active.RegexElement, "href", Active.Class) && !a.classList?.contains('visited')
-    );
-
-    for (let el of HistoryFilter) {
-        let linkInfo;
-        el.classList.add('RecordHistory');
-        if (Active.Get === 'GetID') {
-            linkInfo = GetID(el);
-        } else if (Active.Get === 'textContent') {
-            linkInfo = el.textContent.trim();
-        } else {
-            linkInfo = GetTitle(el);
-        }
-        const linkInfoLower = linkInfo.toLowerCase();
-        let T = visited.find(e => e.toLowerCase().includes(linkInfoLower));
-
-        if (T) {
-            let X;
-            //console.log('Visited: ', linkInfo, T)
-            if (Active.SaveMode === 'localStorage') {
-                X = localStorage.getItem(T);
-            } else if (Active.SaveMode === 'ScriptStorage') {
-                X = GM_getValue(T);
-            }
-
-            if (X) {
-                VisitedCSS(el, X);
+            if (!visited.length) {
+                Object.entries(localStorage).forEach(([key, date]) => {
+                    if (/\d{4}-\d{2}-\d{2}/.test(date)) {
+                        GM_setValue(key, date);
+                    }
+                });
+                visited = await GM_listValues();
             }
         }
-    }
 
-    const nodes = node.querySelectorAll(Active.exlink);
-    [...nodes].forEach(a => {
-        const href = a.href;
-        if (
-            !SkipWorld.test(a.textContent) &&
-            !a.classList?.contains('visited') &&
-            MatchRegexElement(a, Active.RegexElement, 'href', Active.Class) &&
-            !processedLinks.has(href) // <--- 중복 방지 로직 추가
-        ) {
-            addNodesSet.add(a);
+        let checkLists = [...node.querySelectorAll(Active.exlink)].filter(a =>
+            MatchRegexElement(a, Active.RegexElement, "href", Active.Class) && !a.classList?.contains('visited')
+        );
+
+        for (let el of checkLists) {
+            let linkInfo;
+            el.classList.add('RecordHistory');
+            if (Active.Get === 'GetID') {
+                linkInfo = GetID(el);
+            } else if (Active.Get === 'textContent') {
+                linkInfo = el.textContent.trim();
+            } else {
+                linkInfo = GetTitle(el);
+            }
+            const linkInfoLower = linkInfo.toLowerCase();
+            let T = visited.find(e => e.toLowerCase().includes(linkInfoLower));
+
+            if (T) {
+                let X;
+                //console.log('Visited: ', linkInfo, T)
+                if (Active.SaveMode === 'localStorage') {
+                    X = localStorage.getItem(T);
+                } else if (Active.SaveMode === 'ScriptStorage') {
+                    X = GM_getValue(T);
+                }
+
+                if (X) {
+                    VisitedCSS(el, X);
+                }
+            } else {
+                newItems.add(el);
+            }
+
         }
-    });
+        resolve(Array.from(newItems));
+    })
+}
 
-    if (VisitedState) {        
-        VisitedState.innerText = addNodesSet.size;        
-    }
+const initVisitedListeners = async (node) => {
+
+    checkVisited(node).then((Lists) => {
+        Lists.forEach(a => {
+            const href = a.href;
+            if (
+                !SkipWorld.test(a.textContent) &&
+                !a.classList?.contains('visited') &&
+                MatchRegexElement(a, Active.RegexElement, 'href', Active.Class) &&
+                !processedLinks.has(href) // <--- 중복 방지 로직 추가
+            ) {
+                addNodesSet.add(a);
+            }
+        });
+
+        if (VisitedState) {
+            VisitedState.innerText = addNodesSet.size;
+        }
+    })
 };
 
 
@@ -748,7 +760,7 @@ function Start() {
         if (!e.target) return;
 
         let target = e.target;
-        
+
         if (!target.classList.contains('RecordHistory')) {
             if (Active.extraLink && target.nodeName === 'IMG') {
                 target = e.target.closest(Active.closestTag).querySelector(Active.SearchATag);
