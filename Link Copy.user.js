@@ -3253,17 +3253,17 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
             }
         }
     }
-    if (filteredLinks.length === 0) {
-        const downloadhiddenobserver = new MutationObserver((mutations, obs) => {
-            const newLinkItems = Array.from(WatchElementArea.querySelectorAll('a')).filter(l => !checkSkipFilter(l));
-            if (newLinkItems.length > 0) {
-                obs.disconnect();
-                document.querySelector('.CopyState').remove()
-                DownloadArea = document.querySelectorAll('div#download, div#downloadhidden')
-            }
-        });
-        downloadhiddenobserver.observe(WatchElementArea, { childList: true, subtree: true });
-    }
+
+    const downloadhiddenobserver = new MutationObserver((mutations, obs) => {
+        const newLinkItems = Array.from(WatchElementArea.querySelectorAll('a')).filter(l => !checkSkipFilter(l));
+        if (newLinkItems.length > 0) {
+            obs.disconnect();
+            document.querySelector('.CopyState').remove()
+            DownloadArea = document.querySelectorAll('div#download, div#downloadhidden')
+        }
+    });
+    downloadhiddenobserver.observe(WatchElementArea, { childList: true, subtree: true });
+
 
 
     if (DownloadArea.length === 0) {
