@@ -296,7 +296,7 @@ function processContent(node, selector, isExtra = false) {
         // 추가 선택자의 경우 특정 단어로 제거
         if (isExtra) {
             if (RemoveContentEX.test(textContent) || /femdom/i.test(textContent)) {
-                console.log('Extra content removed:', textContent.match(RemoveContentEX) || textContent.match(/femdom/i));
+                console.log('Extra content removed:', textContent.match(RemoveContentEX) || textContent.match(/femdom/i), textContent);
                 item.closest(Active.removeTagSelector)?.remove();
                 continue;
             }
@@ -310,7 +310,7 @@ function processContent(node, selector, isExtra = false) {
             }            
 
             if (RemoveContentEX.test(textContent)) {
-                console.log('Keyword content removed:', textContent.match(RemoveContentEX));                
+                console.log('Keyword content removed:', textContent.match(RemoveContentEX), textContent);                
                 item.closest(Active.removeTagSelector)?.remove();
                 continue;
             }
