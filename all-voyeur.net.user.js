@@ -12,6 +12,8 @@
 // @grant		 GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @run-at       document-end
+// @connect      *
+// @noframes
 // ==/UserScript==
 
 

@@ -531,13 +531,24 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
         } else {
             return Array.from(document.querySelectorAll(sel.selector)).map(el => ({ el, type: sel.type }));
         }
+    }).filter( e => {
+        if (/shink\.me|zippyshare\.com/.test(e.href)) {
+            console.log(`${e} ${e.href} is remove`)
+            e.remove(); 
+            return false;        
+        }else{
+            return true;
+        }
     });
+
+
 
 
     console.log({ copyTitle, links })
     
     if (!links.length) {
         if (AutoClick === '1') {
+            console.log(`${links} is Empty! Close`);
             await sleep(20000);
             self.close();
         }
@@ -609,18 +620,13 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     const hasRawLinksMatched = Object.values(rawLinks).some(v => v.allMatched);    
     const hasAllMatched = Object.values(cachedCheck).some(v => v.allMatched);
     const cachedTeraBoxType = Object.values(cachedCheck).some(v => v.type === 'terabox' && v.allMatched)
-    
+
     if (hasAllMatched || hasRawLinksMatched || cachedTeraBoxType) return;
 
     const typeGroups = new Map();
 
     for (const { el: link, type } of links) {
-        let oldLink = link.href;
-
-        if (/shink\.me|zippyshare\.com/.test(oldLink)) {  
-            link.remove();          
-            continue;
-        }
+        let oldLink = link.href;        
         
         link.addEventListener('click', (e) => {
             e.preventDefault();
