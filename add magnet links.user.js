@@ -199,6 +199,10 @@ if (!cookieCheck || cookieCheck !== "Y") {
         if (((new Date(Now) - new Date(AddedDay)) / oneDay) > 180) {
             localStorage.removeItem(Key)
         }
+        let data = JSON.parse(localStorage.getItem(Key));
+        if (data?.M && typeof data.M === "object" && Object.keys(data.M).length === 0) {
+            localStorage.removeItem(Key);
+        }
     }
     setClearList("ClearList", "Y");
 }
@@ -222,7 +226,7 @@ function appendColumn() {
             } else {
                 let url = config.getHref(headersCellsInitial[index])
                 let Key = config.getKey(headersCellsInitial[index], url, RootDomain)
-                let MagnetLink = JSON.parse(localStorage.getItem(Key))?.M || ''                
+                let MagnetLink = JSON.parse(localStorage.getItem(Key))?.M || ''                            
 
                 cell.classList.add('dl-buttons')
                 cell.innerHTML = `
@@ -281,11 +285,16 @@ async function processJob(el) {
 
     let container = document.implementation.createHTMLDocument().documentElement
     container.innerHTML = responseText
-    let retrievedLink = config.extractMagnet(container)
+    let retrievedLink = config.extractMagnet(container)?.href;
 
     if (retrievedLink) {
-        let Key = el.getAttribute('data-key')        
-        localStorage.setItem(Key, JSON.stringify({ M: retrievedLink, D: new Date().toISOString().slice(0, 10) }))
+        let Key = el.getAttribute('data-key')    
+        if (retrievedLink && typeof retrievedLink === "string" && retrievedLink.trim()) {
+            localStorage.setItem(Key, JSON.stringify({
+                M: retrievedLink,
+                D: new Date().toISOString().slice(0, 10)
+            }));
+        }         
         el.setAttribute('href', retrievedLink)
         el.classList.add('visited')
         el.classList.remove('not-processed')        
