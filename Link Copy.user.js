@@ -695,7 +695,7 @@ function makeSearch() {
                 class: 'PornBB',
                 domain: 'pornbb.org',
                 onClick: () => {
-                    const strong = document.querySelector('div.post-content-single p strong');
+                    const strong = document.querySelector('div.post-content-single.clearfix p strong span');
                     const term = strong ? strong.innerText.replace(/^EARLY\sLEAK/, '').trim() : '';
                     openInNewTab(`https://www.pornbb.org/newsearch.php?search_keywords=${term}`);
                 }
@@ -704,14 +704,9 @@ function makeSearch() {
                 class: 'BT4G',
                 domain: 'bt4g.org',
                 onClick: () => {
-                    const strongEls = [...document.querySelectorAll('div.post-content-single p strong')];
-                    let FindMatchWeb = strongEls.find(e => e.innerText.includes(MatchWeb));
-                    if (FindMatchWeb) {
-                        let parts = FindMatchWeb.innerText.split('.');
-                        let cutIndex = parts.findIndex(e => /^(and|XXX|\d+p|mp4|mkv)$/i.test(e));
-                        let sliced = parts.slice(0, cutIndex > 0 ? cutIndex : parts.length).join(' ');
-                        openInNewTab(`https://bt4g.org/search/${sliced}`);
-                    }
+                    const strong = document.querySelector('div.post-content-single.clearfix p strong span');
+                    const term = strong ? strong.innerText.replace(/^EARLY\sLEAK/, '').replace(/\s-\s/, ' ').trim() : '';
+                    openInNewTab(`https://bt4g.org/search/${term}`);
                 }
             }
         ];
@@ -840,6 +835,7 @@ const siteConfigs = [
                 }
                 // 그 외의 경우, 특정 키워드(Updates, SITERIP, Collection)가 포함되어 있고 InfoAreaCast의 길이가 1보다 클 때
                 else if (/Updates|SITERIP|Collection/i.test(CopyTitleRaw)) {
+                    userClose = false;
                     console.log('Special case found:', CopyTitleRaw);
                     CoverImage = '';
                     pageLinksDB = await MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast);
@@ -3017,8 +3013,13 @@ async function CheckDB(listTo, fromStep) {
             const searchDB = await indexedDBCache.find(({ U }) => U === link)
             if (searchDB) {
                 isMatchFound.push(link)
-                if (PackageName && searchDB.T !== PackageName) {
-                    searchDB.T = PackageName
+                if (pageLinksDB.length > 0) {
+                    const entry = pageLinksDB.find(item => item.U === link)
+                    if (entry && entry.T !== searchDB.T) {
+                        await linkDB.add({ U: link, T: entry.T, S: PageURL });
+                    }
+                }
+                else if (PackageName && searchDB.T !== PackageName) {
                     /*
                     if (navigator.locks) {
                         // HTTPS 환경일 때만 락 요청 로직 실행
@@ -3035,7 +3036,7 @@ async function CheckDB(listTo, fromStep) {
                         await linkDB.add({ U: Target, T: UrlTitle, S: PageURL });
                     }
                         */
-                    await linkDB.add({ U: Target, T: UrlTitle, S: PageURL });
+                    await linkDB.add({ U: link, T: PackageName, S: PageURL });
                 }
             }
         }
@@ -3258,7 +3259,10 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
         const newLinkItems = Array.from(WatchElementArea.querySelectorAll('a')).filter(l => !checkSkipFilter(l));
         if (newLinkItems.length > 0) {
             obs.disconnect();
-            document.querySelector('.CopyState').remove()
+            const cs = document.querySelector('.CopyState')
+            if (cs) {
+                cs.remove()
+            }
             DownloadArea = document.querySelectorAll('div#download, div#downloadhidden')
         }
     });
@@ -3268,6 +3272,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
 
     if (DownloadArea.length === 0) {
         console.log('DownloadArea is empty')
+        return;
     }
     // Collect all <a> elements inside DownloadArea
     // Collect all <a> elements inside DownloadArea
@@ -3361,7 +3366,6 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
             if (compareT === LinkText) {
                 Title = LinkText
             } else {
-
                 // Extract release date or matching pattern based on MatchWeb
                 let Released = '';
                 if (LinkText.match(/(\.\d+\.\d+.\d+)/)) {
@@ -3378,17 +3382,19 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
 
 
                 // Build cast title string with episode info removed
-                let CastTitle = IAC && Episode
-                    ? '- ' + IAC.replace(/-\sE\d{2,5}/i, '').trim()
-                    : IAC && !Episode
-                        ? '- ' + IAC
-                        : '';
+                let CastTitle = IAC && Released
+                    ? IAC.replace(/-\sE\d{2,5}/i, '').trim()
+                    : IAC && Episode
+                        ? '- ' + IAC.replace(/-\sE\d{2,5}/i, '').trim()
+                        : IAC && !Episode
+                            ? '- ' + IAC
+                            : '';
                 console.log('CastTitle: ', CastTitle);
 
                 // Compose full title string                
 
                 console.log(MatchWeb, Episode, Released, IAC)
-                Title = MatchWeb + Episode + Released + IAC.replace(Released, '').trim()
+                Title = `${MatchWeb}${Episode}${Released ? '.' + Released + '.' : ''}${CastTitle}${IAC.replace(Released, '').trim()}`
 
                 Title = Title.replace(/(S\d+):(E\d+)/i, '$1$2')
                 console.log({ Title })
@@ -3602,8 +3608,47 @@ function querySelectorIncludesText(selector, text) {
         .filter(el => el.textContent.toLowerCase().includes(text.toLowerCase()));
 }
 
+function getTextLines(selector) {
+    const exceptLine = `
+    Preview
+    Size
+    Duration
+    Video
+    Audio
+    Download
+    Watch online
+    Spare links    
+    `.split('\n')
+        .map(line => line.replace(/\.XXX\.\d+p.+/i, '').trim())
+        .filter(Boolean)
+        .join('|');
+
+    const exceptLineRegEx = new RegExp(`^(${exceptLine})`, 'i')
+
+    let currentLineBuffer = [];
+    const container = document.querySelectorAll(selector);
+    Array.from(container).slice(1).forEach(area => {
+        area.childNodes.forEach(node => {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const trimmedText = node.textContent.replace(/\.XXX\.\d+p.+/i, '').trim();
+                if (trimmedText && !exceptLineRegEx.test(trimmedText)) {
+                    currentLineBuffer.push(trimmedText);
+                }
+            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                const elementText = node.textContent.replace(/\.XXX\.\d+p.+/i, '').trim();
+                if (elementText && !exceptLineRegEx.test(elementText)) {
+                    currentLineBuffer.push(elementText);
+                }
+            }
+        });
+    })
+    console.log({ currentLineBuffer })
+    return currentLineBuffer;
+}
+
 
 function getTextLinesWithIconTag(selector, splitTag) {
+    const fileNames = getTextLines(selector)
     const container = document.querySelector(selector);
     if (!container) {
         console.warn(`Container with ID "${selector}" not found.`);
@@ -3658,11 +3703,17 @@ function getTextLinesWithIconTag(selector, splitTag) {
 
         // Add the click event listener to the icon
         iconElement.addEventListener('click', (event) => {
+            const firstLineWord = lineText.split(' ')[0];
+            const findIndex = fileNames[index].indexOf(firstLineWord);
+            let prefix = '';
+            if (findIndex !== -1) {
+                prefix = fileNames[index].substring(0, findIndex);            
+            }
             console.log(`Icon clicked for line ${index + 1}: "${lineText}"`);
             // You can add more functionality here, e.g.:
             // alert(`You clicked the icon for: ${lineText}`);
             event.target.style.setProperty('color', 'Orange', 'important')
-            updateClipboard(lineText)
+            updateClipboard(`${prefix}${lineText}`)
         });
 
         // Append the line text and the icon to the container
