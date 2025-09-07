@@ -196,13 +196,15 @@ function mainQueueManagemnt() {
             console.log(`작업 완료 알림 수신: ${completedUrl}`);
 
             // 작업 슬롯 하나 반환
-            queueIndex--;
+            if (queueIndex > 0) {
+                queueIndex--;
+            }
             // 다음 작업 시작
             Management();
 
         } else if (e.data && e.data.type === 'addTask') {
             queue.enqueue(e.data.url);
-            if (queueIndex < 7) {
+            if (queueIndex < processCount) {
                 Management();
             }
         }
@@ -531,12 +533,12 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
         } else {
             return Array.from(document.querySelectorAll(sel.selector)).map(el => ({ el, type: sel.type }));
         }
-    }).filter( e => {
+    }).filter(e => {
         if (/shink\.me|zippyshare\.com/.test(e.href)) {
             console.log(`${e} ${e.href} is remove`)
-            e.remove(); 
-            return false;        
-        }else{
+            e.remove();
+            return false;
+        } else {
             return true;
         }
     });
@@ -545,7 +547,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
 
 
     console.log({ copyTitle, links })
-    
+
     if (!links.length) {
         if (AutoClick === '1') {
             console.log(`${links} is Empty! Close`);
@@ -573,8 +575,8 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     for (const [type, elements] of Object.entries(grouped)) {
         let cachedCount = 0;
         let rawLinkCount = 0;
-        for (const link of elements) {            
-            let oldLink = link.href;   
+        for (const link of elements) {
+            let oldLink = link.href;
 
             if (/mediafire\.com/.test(oldLink)) {
                 rawLinkCount++;
@@ -613,11 +615,11 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
             allMatched: elements.length === rawLinkCount
         };
     }
-    
+
     if (errorTypes.size > 0) {
         links = links.filter(({ type }) => !errorTypes.has(type));
     }
-    const hasRawLinksMatched = Object.values(rawLinks).some(v => v.allMatched);    
+    const hasRawLinksMatched = Object.values(rawLinks).some(v => v.allMatched);
     const hasAllMatched = Object.values(cachedCheck).some(v => v.allMatched);
     const cachedTeraBoxType = Object.values(cachedCheck).some(v => v.type === 'terabox' && v.allMatched)
 
@@ -626,8 +628,8 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     const typeGroups = new Map();
 
     for (const { el: link, type } of links) {
-        let oldLink = link.href;        
-        
+        let oldLink = link.href;
+
         link.addEventListener('click', (e) => {
             e.preventDefault();
             childWindow = window.open(link.href, title);
@@ -765,7 +767,7 @@ async function handleMissKon() {
     processCount = 7;
     return handleSite({
         titleSelector: 'article#the-post .post-title.entry-title',
-        linkSelectors: [            
+        linkSelectors: [
             { selector: 'a.shortc-button', text: 'MediaFire', type: 'mediafire' },
             { selector: 'a.shortc-button', text: 'Google Drive', type: 'googleDrive' },
             { selector: 'a.shortc-button', text: 'Google Drive', type: 'googleDrive' },
