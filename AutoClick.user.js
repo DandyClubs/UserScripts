@@ -608,11 +608,9 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     }
     const hasRawLinksMatched = Object.values(rawLinks).some(v => v.allMatched);    
     const hasAllMatched = Object.values(cachedCheck).some(v => v.allMatched);
-    if (hasAllMatched || hasRawLinksMatched) {
-        links = [];        
-    }    
     const cachedTeraBoxType = Object.values(cachedCheck).some(v => v.type === 'terabox' && v.allMatched)
-    if (cachedTeraBoxType) return;
+    
+    if (hasAllMatched || hasRawLinksMatched || cachedTeraBoxType) return;
 
     const typeGroups = new Map();
 
