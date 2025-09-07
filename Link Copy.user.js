@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Link Copy (indexedDB)
-// @version      2025.09.03
+// @version      2025.09.07
 // @description  링크 복사
 // @author       DandyClubs
-// @include      /naughtyblog\.org/
+// @include      /naughtyblog\.(org|my)/
 // @include      /(epicomg\.com|fapfiles\.org|teenbox\.org)/
 // @include      /maxjav\.(com|xyz)/
 // @include      /(8kcosplay\.com|blogjav\.net|thotsgirls\.com)/
@@ -750,7 +750,7 @@ function makeSearch() {
 
 const siteConfigs = [
     {
-        regex: /naughtyblog\.org\//,
+        regex: /naughtyblog\.(org|my)\//,
         config: {
             copyOffsetAreaSelector: '.post-title.entry-title',
             downloadAreaSelector: 'div#download, div#downloadhidden',
@@ -1971,7 +1971,7 @@ async function processCopyTitle(currentConfig) {
     console.log(`Start processCopyTitle`, currentConfig)
 
     CopyTitle = CopyTitle || copyOffsetArea?.textContent.trim() || '';
-    if (/naughtyblog\.org/.test(PageURL) && /SITERIP|OnlyFans|Collection|Updates/i.test(CopyTitle)) {
+    if (/naughtyblog\.(org|my)/.test(PageURL) && /SITERIP|OnlyFans|Collection|Updates/i.test(CopyTitle)) {
         CopyTitle = getDirectInnerText(copyOffsetArea)?.trim()
     }
 
@@ -3166,7 +3166,7 @@ async function CopyLink() {
 
     // 5) Decide whether to auto-close
     if (allLinks.length && JSON.parse(localStorage.getItem('AutoClose'))) {
-        if (/naughtyblog\.org/.test(RootDomain) &&
+        if (/naughtyblog\.(org|my)/.test(RootDomain) &&
             CopyTitle.match(/SITERIP|OnlyFans|Collection|Updates/i)) {
             userClose = false;
         } else {
