@@ -804,7 +804,7 @@ function Start() {
         case 't66y.com':
         case 'everia.club':
         case 'foamgirl.net':
-            document.documentElement.style.setProperty('--top', '-.25rem');
+            document.documentElement.style.setProperty('--top', '.5rem');
             break;
         case 'misskon.com': {
             const T = getElementMetrics(document.querySelector('.post-thumbnail'), { mode: 'relative' });
