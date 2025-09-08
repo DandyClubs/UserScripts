@@ -533,18 +533,15 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
         } else {
             return Array.from(document.querySelectorAll(sel.selector)).map(el => ({ el, type: sel.type }));
         }
-    }).filter(e => {
-        if (/shink\.me|zippyshare\.com/.test(e.href)) {
-            console.log(`${e} ${e.href} is remove`)
-            e.remove();
+    }).filter(({el}) => {
+        if (/shink\.me|zippyshare\.com/.test(el.href)) {
+            console.log(`${el} ${el.href} is remove`)
+            el.remove();
             return false;
         } else {
             return true;
         }
     });
-
-
-
 
     console.log({ copyTitle, links })
 
