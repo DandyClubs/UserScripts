@@ -876,7 +876,6 @@ async function Downloader(el) {
 
         if (e.data.A) {
             parentWindow = e.data.A;
-
             if (window.opener && parentWindow && !isClicked) {
                 el.click();
                 isClicked = true;                
@@ -884,10 +883,10 @@ async function Downloader(el) {
                 if (allowed.includes(origin)) {
                     window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, origin);
                 }
-                await sleep(4000)
             }
         } else if (e.data.S || e.data.action === 'closed') {
             JobManager.remove(PageURL);
+            await sleep(5000);
             self.close();
         }
     };
