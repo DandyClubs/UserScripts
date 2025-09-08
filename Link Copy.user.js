@@ -3529,7 +3529,7 @@ if(JdownloaderData){
 }
 
 async function JDownloaderDB(LinksDB) {
-    console.log(LinksDB)
+    console.log({LinksDB})
     let uniqueTitle = [...new Set(LinksDB.map(x => x.T))]
     console.log('uniqueTitle: ', uniqueTitle)
     uniqueTitle.forEach(x => {

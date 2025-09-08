@@ -515,7 +515,10 @@ const beforeUnloadHandler = (event) => {
  * Site Handlers (Start-time)
  * =============================== */
 
-async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
+async function handleSite({ titleSelector, linkSelectors, autoClose = false, enableJdownloaer = false }) {
+
+    const JdownloaderData = [];
+    const allowHost = /mega\.nz|drive\.google\.com|mediafire\.com/;
     AutoClick = localStorage.getItem('AutoClick') || '0';
     UIManager.setResponsiveFont();
     UIManager.syncIcon();
@@ -537,7 +540,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
         } else {
             return Array.from(document.querySelectorAll(sel.selector)).map(el => ({ el, type: sel.type }));
         }
-    }).filter(({el}) => {
+    }).filter(({ el }) => {
         if (/shink\.me|zippyshare\.com|adf\.ly/.test(el.href)) {
             console.log(`Skip ${el} ${el.href}`)
             UIManager.addResetButton(el, el.href, 'Skipped');
@@ -590,7 +593,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
             }
             const cached = CacheManager.get(oldLink); // 예시: 캐시에서 가져오기
 
-            if (cached) {                
+            if (cached) {
                 if (cached.U === 'NotFound') {
                     UIManager.addResetButton(link, oldLink, 'File Not Found');
                     //link.remove();
@@ -649,7 +652,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     let currentLinks = typeGroups.get(types[currentTypeIndex]);
 
     if (AutoClick === '1') {
-        AutoClickBC.postMessage({ type: 'addTask', url: PageURL });        
+        AutoClickBC.postMessage({ type: 'addTask', url: PageURL });
         AutoClickBC.onmessage = (e) => {
             if (e.data?.type === 'startTask' && e.data.url === PageURL) {
                 window.addEventListener('beforeunload', taskState);
@@ -686,7 +689,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
             // 자식이 부모 정보 요청 → 응답
             childWindow?.postMessage({ A: parentWindow }, e.origin);
         } else if (e.data.token) {
-            if (e.data.token === 'reTryAgain'){
+            if (e.data.token === 'reTryAgain') {
                 childWindow.postMessage({ action: 'closed' }, e.origin);
                 entry = currentLinks[0];
                 console.log(`다시 시도 type(${types[currentTypeIndex]}) 링크 시도: ${entry.oldLink}`);
@@ -698,7 +701,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                 CacheManager.set(entry.oldLink, { U: 'NotFound', T: 'File Not Found' });
                 UIManager.addResetButton(entry.linkEl, entry.oldLink, 'File Not Found');
                 //entry.linkEl.remove();
-                await sleep(500);                
+                await sleep(500);
                 currentTypeIndex++;
                 if (currentTypeIndex < types.length) {
                     currentLinks = typeGroups.get(types[currentTypeIndex]);
@@ -716,6 +719,9 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                 // 성공 → 링크 갱신 & 캐시 저장
                 CacheManager.set(entry.oldLink, { U: e.data.token, T: e.data.FileName || entry.title });
                 entry.linkEl.href = e.data.token;
+                if (allowHost.test(e.data.token)) {
+                    JdownloaderData.push(e.data.token);
+                }
 
                 UIManager.addResetButton(entry.linkEl, entry.oldLink, e.data.FileName || entry.title);
 
@@ -740,10 +746,9 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                     childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
                     currentLinks = [];
                     currentTypeIndex = types.length;
-                }
-                if (/drive\.google\.com/.test(e.origin)) {
-                    console.log(e.origin, e.data.token, e.data.FileName)
-                    JDownloader(e.data.token, e.data.FileName, PageURL);
+                    if (enableJdownloaer && JdownloaderData.length > 0) {
+                        JDownloader(JdownloaderData.join('\n'), e.data.FileName, PageURL);
+                    }
                 }
             }
         }
@@ -769,7 +774,8 @@ async function handleBestGirlSexy() {
     return handleSite({
         titleSelector: 'div#content.site-content div.elementor-widget-container .elementor-heading-title',
         linkSelectors: [{ selector: 'a.maxbutton', text: 'TeraBox', type: 'terabox' }],
-        autoClose: true
+        autoClose: true,
+        enableJdownloaer: true,
     });
 }
 
@@ -806,12 +812,12 @@ async function handleOUO() {
             self.close();
         }
     });
-    if (PageURL === 'https://ouo.io/'){
-        window.opener.postMessage({ token: 'reTryAgain' }, 'https://misskon.com');                
+    if (PageURL === 'https://ouo.io/') {
+        window.opener.postMessage({ token: 'reTryAgain' }, 'https://misskon.com');
     }
     const notFound = document.querySelector('div.container .no-found');
     if (window.opener && notFound) {
-        window.opener.postMessage({ token: 'NotFound' }, 'https://misskon.com');        
+        window.opener.postMessage({ token: 'NotFound' }, 'https://misskon.com');
     }
 }
 
@@ -820,12 +826,12 @@ async function handleOUO() {
 async function handleMediaFire() {
     await sleep(500);
     // relay for code -> opener
-    if (window.opener) {        
-            if (PageURL.startsWith('https://www.mediafire.com/error.php')) {
-                window.opener.postMessage({ token: 'NotFound' }, '*');
-            } else {
-                window.opener.postMessage({ token: PageURL }, '*');
-            }
+    if (window.opener) {
+        if (PageURL.startsWith('https://www.mediafire.com/error.php')) {
+            window.opener.postMessage({ token: 'NotFound' }, '*');
+        } else {
+            window.opener.postMessage({ token: PageURL }, '*');
+        }
         window.addEventListener('message', function (e) {
             if (e.data.action === 'closed') {
                 //JobManager.remove(PageURL);
@@ -895,7 +901,7 @@ async function Downloader(el) {
             parentWindow = e.data.A;
             if (window.opener && parentWindow && !isClicked) {
                 el.click();
-                isClicked = true;                
+                isClicked = true;
                 const allowed = ['https://allasiangirls.net', 'https://bestgirlsexy.com', 'https://misskon.com'];
                 if (allowed.includes(origin)) {
                     window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, origin);
