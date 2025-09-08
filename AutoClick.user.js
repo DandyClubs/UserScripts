@@ -680,7 +680,12 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
             // 자식이 부모 정보 요청 → 응답
             childWindow?.postMessage({ A: parentWindow }, e.origin);
         } else if (e.data.token) {
-            if (e.data.token === 'NotFound') {
+            if (e.data.token === 'reTryAgain'){
+                entry = currentLinks[0];
+                console.log(`다시 시도 type(${types[currentTypeIndex]}) 링크 시도: ${entry.oldLink}`);
+                childWindow = window.open(entry.oldLink, entry.title);
+            }
+            else if (e.data.token === 'NotFound') {
                 // 현재 type 실패 → 곧바로 다음 type으로 넘어감
                 CacheManager.set(entry.oldLink, { U: 'NotFound', T: 'File Not Found' });
                 entry.linkEl.remove();
@@ -788,6 +793,11 @@ async function handleMrProBlogger() {
 }
 
 async function handleOUO() {
+    if (PageURL === 'https://ouo.io/'){
+        window.opener.postMessage({ token: 'reTryAgain' }, 'https://misskon.com');
+        self.close();
+        return;
+    }
     const notFound = document.querySelector('div.container .no-found');
     if (window.opener && notFound) {
         window.opener.postMessage({ token: 'NotFound' }, 'https://misskon.com');
