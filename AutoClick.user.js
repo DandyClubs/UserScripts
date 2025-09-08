@@ -800,8 +800,7 @@ async function handleOUO() {
         }
     });
     if (PageURL === 'https://ouo.io/'){
-        window.opener.postMessage({ token: 'reTryAgain' }, 'https://misskon.com');        
-        return;
+        window.opener.postMessage({ token: 'reTryAgain' }, 'https://misskon.com');                
     }
     const notFound = document.querySelector('div.container .no-found');
     if (window.opener && notFound) {
