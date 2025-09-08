@@ -721,7 +721,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
 
                 currentLinks.shift();
 
-                await sleep(500);
+                await sleep(1000);
 
                 if (currentLinks?.length) {
                     entry = currentLinks[0];
