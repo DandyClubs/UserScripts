@@ -534,9 +534,9 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
             return Array.from(document.querySelectorAll(sel.selector)).map(el => ({ el, type: sel.type }));
         }
     }).filter(({el}) => {
-        if (/shink\.me|zippyshare\.com/.test(el.href)) {
-            console.log(`${el} ${el.href} is remove`)
-            el.remove();
+        if (/shink\.me|zippyshare\.com|adf\.ly/.test(el.href)) {
+            console.log(`Skip ${el} ${el.href}`)
+            UIManager.addResetButton(el, el.href, 'Skipped');
             return false;
         } else {
             return true;
@@ -586,12 +586,13 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
             }
             const cached = CacheManager.get(oldLink); // 예시: 캐시에서 가져오기
 
-            if (cached) {
-                link.href = cached.U;
+            if (cached) {                
                 if (cached.U === 'NotFound') {
-                    link.remove();
+                    UIManager.addResetButton(link, oldLink, 'File Not Found');
+                    //link.remove();
                     errorTypes.add(type); // NotFound가 하나라도 있으면 type 기록
                 } else {
+                    link.href = cached.U;
                     UIManager.addResetButton(link, oldLink, cached.T);
                     cachedCount++;
                 }
@@ -681,19 +682,18 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
             childWindow?.postMessage({ A: parentWindow }, e.origin);
         } else if (e.data.token) {
             if (e.data.token === 'reTryAgain'){
+                childWindow.postMessage({ action: 'closed' }, e.origin);
                 entry = currentLinks[0];
                 console.log(`다시 시도 type(${types[currentTypeIndex]}) 링크 시도: ${entry.oldLink}`);
                 childWindow = window.open(entry.oldLink, entry.title);
             }
             else if (e.data.token === 'NotFound') {
+                childWindow.postMessage({ action: 'closed' }, e.origin);
                 // 현재 type 실패 → 곧바로 다음 type으로 넘어감
                 CacheManager.set(entry.oldLink, { U: 'NotFound', T: 'File Not Found' });
-                entry.linkEl.remove();
-                await sleep(500);
-                childWindow.postMessage({ action: 'closed' }, e.origin);
-
-                await sleep(500);
-
+                UIManager.addResetButton(entry.linkEl, entry.oldLink, 'File Not Found');
+                //entry.linkEl.remove();
+                await sleep(500);                
                 currentTypeIndex++;
                 if (currentTypeIndex < types.length) {
                     currentLinks = typeGroups.get(types[currentTypeIndex]);
@@ -793,15 +793,19 @@ async function handleMrProBlogger() {
 }
 
 async function handleOUO() {
+    window.addEventListener('message', function (e) {
+        if (e.data.action === 'closed') {
+            //JobManager.remove(PageURL);
+            self.close();
+        }
+    });
     if (PageURL === 'https://ouo.io/'){
-        window.opener.postMessage({ token: 'reTryAgain' }, 'https://misskon.com');
-        self.close();
+        window.opener.postMessage({ token: 'reTryAgain' }, 'https://misskon.com');        
         return;
     }
     const notFound = document.querySelector('div.container .no-found');
     if (window.opener && notFound) {
-        window.opener.postMessage({ token: 'NotFound' }, 'https://misskon.com');
-        self.close();
+        window.opener.postMessage({ token: 'NotFound' }, 'https://misskon.com');        
     }
 }
 

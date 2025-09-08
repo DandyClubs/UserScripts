@@ -392,6 +392,7 @@ const skipFilterPatterns = [
     /#$/i,
     /3xplanetpremium/i,
     /77file\.com/i,
+    /adf\.ly/i,
     /anonfiles\.com/i,
     new RegExp(`^(?=.*${window.location.origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(?!.*\\?site).*$`, 'i'),
     /^\//i,
