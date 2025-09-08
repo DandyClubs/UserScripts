@@ -749,6 +749,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
 
 
 async function handleAllAsianGirls() {
+    processCount = 3;
     return handleSite({
         titleSelector: 'body.single.single-post div.page-title div.page-title-inner div .entry-title',
         linkSelectors: [{ selector: 'a[href^="https://shrinkme"]', text: '', type: 'terabox' }],
@@ -802,12 +803,12 @@ async function handleOUO() {
 async function handleMediaFire() {
     await sleep(500);
     // relay for code -> opener
-    if (window.opener) {
-        if (PageURL.startsWith('https://www.mediafire.com/error.php')) {
-            window.opener.postMessage({ token: 'NotFound' }, 'https://misskon.com');
-        } else {
-            window.opener.postMessage({ token: PageURL }, 'https://misskon.com');
-        }
+    if (window.opener) {        
+            if (PageURL.startsWith('https://www.mediafire.com/error.php')) {
+                window.opener.postMessage({ token: 'NotFound' }, '*');
+            } else {
+                window.opener.postMessage({ token: PageURL }, '*');
+            }
         window.addEventListener('message', function (e) {
             if (e.data.action === 'closed') {
                 //JobManager.remove(PageURL);
