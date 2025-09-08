@@ -687,10 +687,10 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                 // 현재 type 실패 → 곧바로 다음 type으로 넘어감
                 CacheManager.set(entry.oldLink, { U: 'NotFound', T: 'File Not Found' });
                 entry.linkEl.remove();
-                await sleep(1000);
+                await sleep(500);
                 childWindow.postMessage({ action: 'closed' }, e.origin);
 
-                await sleep(1000);
+                await sleep(500);
 
                 currentTypeIndex++;
                 if (currentTypeIndex < types.length) {
@@ -713,7 +713,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
 
                 currentLinks.shift();
 
-                await sleep(1000);
+                await sleep(500);
 
                 if (currentLinks?.length) {
                     entry = currentLinks[0];
@@ -879,12 +879,12 @@ async function Downloader(el) {
 
             if (window.opener && parentWindow && !isClicked) {
                 el.click();
-                isClicked = true;
-                await sleep(4000)
+                isClicked = true;                
                 const allowed = ['https://allasiangirls.net', 'https://bestgirlsexy.com', 'https://misskon.com'];
                 if (allowed.includes(origin)) {
                     window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, origin);
                 }
+                await sleep(4000)
             }
         } else if (e.data.S || e.data.action === 'closed') {
             JobManager.remove(PageURL);
