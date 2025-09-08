@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         AutoClick (Refactored)
-// @version      2025.09.03
+// @version      2025.09.08
 // @description  Auto actions and cross-window messaging with maintainable structure
 // @author       DandyClubs
 // @include      /^https?:\/\/(cosplayjav|nylons)\.pl\/(download|thumbnails)\/\?forPost=.*$/
@@ -436,6 +436,10 @@ function setupBeforeUnloadForJobs() {
     window.addEventListener('beforeunload', () => { cancelReload(); JobManager.remove(PageURL); });
 }
 
+function taskState() {
+    AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
+}
+
 /* ===============================
  * Site-specific Observers
  * =============================== */
@@ -645,9 +649,10 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
     let currentLinks = typeGroups.get(types[currentTypeIndex]);
 
     if (AutoClick === '1') {
-        AutoClickBC.postMessage({ type: 'addTask', url: PageURL });
+        AutoClickBC.postMessage({ type: 'addTask', url: PageURL });        
         AutoClickBC.onmessage = (e) => {
             if (e.data?.type === 'startTask' && e.data.url === PageURL) {
+                window.addEventListener('beforeunload', taskState);
                 if (currentLinks?.length) {
                     const entry = currentLinks[0];
                     console.log(`작업 지시 수신: ${PageURL} (${entry.type})`);
@@ -705,6 +710,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                 } else {
                     // 모든 type 실패
                     AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
+                    window.removeEventListener('beforeunload', taskState);
                 }
             } else {
                 // 성공 → 링크 갱신 & 캐시 저장
@@ -723,6 +729,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false }) {
                     childWindow = window.open(entry.oldLink, entry.title);
                 } else {
                     AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
+                    window.removeEventListener('beforeunload', taskState);
 
                     console.log({ autoClose }, entry.type)
                     if (autoClose && entry.type === 'terabox') {
