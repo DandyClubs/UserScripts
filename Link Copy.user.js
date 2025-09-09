@@ -350,7 +350,7 @@ class LinkCopyDB {
 
 
 const linkDB = new LinkCopyDB();
-let indexedDBCache = []
+let indexedDBCache = [];
 
 await linkDB.init()
 

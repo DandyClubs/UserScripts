@@ -88,54 +88,55 @@ GM_addStyle(`
 }
 `);
 
-
-
-class Queue {
+class JobQueueDB {
     constructor() {
-        this.items = {};
-        this.front = 0;
-        this.rear = 0;
+        this.dbName = 'AutoClickJobQueueDB';
+        this.storeName = 'AutoClickJobQueue';
+        this.db = null;        
     }
 
-    enqueue(item) {
-        // 큐의 모든 요소를 순회하며 현재 추가하려는 item이 이미 존재하는지 확인합니다.
-        for (let i = this.front; i < this.rear; i++) {
-            if (this.items[i] === item) {
-                console.log(`'${item}'은(는) 이미 큐에 존재합니다. 추가되지 않습니다.`);
-                return; // 중복 값이므로 함수를 종료합니다.
-            }
-        }
+    async init() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, 1);
 
-        // 중복이 아닐 경우에만 큐에 추가합니다.
-        this.items[this.rear] = item;
-        this.rear++;
-        this._notify({ type: "add", item });
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(this.storeName)) {
+                    db.createObjectStore(this.storeName, { keyPath: 'url' });
+                }
+            };
+
+            request.onsuccess = (e) => {
+                this.db = e.target.result;
+                resolve();
+            };
+
+            request.onerror = (e) => reject(e.target.error);
+        });
     }
 
-    dequeue() {
-        if (this.isEmpty()) {
-            return undefined; // or throw error
-        }
-        const item = this.items[this.front];
-        delete this.items[this.front];
-        this.front++;
-        this._notify({ type: "remove", item });
-        return item;
+    async addJob(url) {
+        this._notify({ type: "add", url });
+        return this._tx('readwrite', store => store.put({ url }));
     }
 
-    peek() {
-        if (this.isEmpty()) {
-            return undefined;
-        }
-        return this.items[this.front];
+    async removeJob(url) {
+        this._notify({ type: "remove", url });
+        return this._tx('readwrite', store => store.delete(url));
     }
 
-    get size() {
-        return this.rear - this.front;
+    async getAllJobs() {
+        return this._tx('readonly', store => store.getAll());
     }
 
-    isEmpty() {
-        return this.size === 0;
+    async _tx(mode, action) {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction([this.storeName], mode);
+            const store = tx.objectStore(this.storeName);
+            const request = action(store);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
     }
 
     _notify(event) {
@@ -143,8 +144,18 @@ class Queue {
     }
 }
 
+let size = 0;
+let indexJobs = [];
+const AutoClickJob = new JobQueueDB();
+AutoClickJob.init().then(() => {
+    AutoClickJob.getAllJobs().then((result) => {    
+        indexJobs = result;    
+        size = result.length        
+    }).catch(error => {
+        console.error("Failed get data:", error);
+    });
+})
 
-const queue = new Queue();
 const AutoClickBC = new BroadcastChannel('AutoClickChannel')
 
 
@@ -157,9 +168,14 @@ function updatequeueState(size) {
     }
 }
 
-queue.onchange = (event) => {
+AutoClickJob.onchange = async (event) => {
     //console.log("로컬 DB 이벤트 발생:", event);
-    const size = queue.size;
+    await AutoClickJob.getAllJobs().then((result) => {
+        indexJobs = result;    
+        size = result.length
+    }).catch(error => {
+        console.error("Failed get data:", error);
+    });
     updatequeueState(size);
     AutoClickBC.postMessage({ type: 'updateState', size: size });
 };
@@ -170,12 +186,12 @@ let processCount = 5;
 async function Management() {
 
     // Management() 함수가 이미 실행 중이거나 작업 슬롯이 꽉 찼거나 큐가 비어있으면 종료
-    if (queueIndex >= processCount || queue.isEmpty()) {
+    if (queueIndex >= processCount || size === 0) {
         return;
     }
-    // 하나의 작업을 시작
-    //const node = queue.peek();
-    const node = queue.dequeue();
+    // 하나의 작업을 시작    
+    const node = indexJobs[0];
+    AutoClickJob.removeJob(indexJobs[0]);
 
     if (node) {
         console.log(`새 작업 시작: ${node} ${queueIndex}`);
@@ -203,7 +219,7 @@ function mainQueueManagemnt() {
             Management();
 
         } else if (e.data && e.data.type === 'addTask') {
-            queue.enqueue(e.data.url);
+            AutoClickJob.addJob(e.data.url);
             if (queueIndex < processCount) {
                 Management();
             }
@@ -852,7 +868,7 @@ async function handleMediaFire() {
         if (PageURL.startsWith('https://www.mediafire.com/error.php')) {
             window.opener.postMessage({ token: 'NotFound' }, '*');
         } else {
-            const GetFileName = document.querySelector('div.dl-info div.intro div.filename')?.innerText.trim() || null;                    
+            const GetFileName = document.querySelector('div.dl-btn-label')?.getAttribute('title')?.trim() || null;                    
             window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, '*');
         }
         window.addEventListener('message', function (e) {
