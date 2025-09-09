@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         AutoClick (Refactored)
-// @version      2025.09.08
+// @version      2025.09.10
 // @description  Auto actions and cross-window messaging with maintainable structure
 // @author       DandyClubs
 // @include      /^https?:\/\/(cosplayjav|nylons)\.pl\/(download|thumbnails)\/\?forPost=.*$/
@@ -147,19 +147,37 @@ class JobQueueDB {
 let size = 0;
 let indexJobs = [];
 const AutoClickJob = new JobQueueDB();
-AutoClickJob.init().then(() => {
-    AutoClickJob.getAllJobs().then((result) => {    
-        indexJobs = result;    
-        size = result.length        
-    }).catch(error => {
-        console.error("Failed get data:", error);
-    });
-})
+await AutoClickJob.init()
 
 const AutoClickBC = new BroadcastChannel('AutoClickChannel')
 
 
-let queueIndex = 0;
+/* ===============================
+ * Managers
+ * =============================== */
+const CacheManager = {
+    get(key) {
+        try {
+            const raw = localStorage.getItem(key);
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) { log("Cache get error", e); return null; }
+    },
+    set(key, value) {
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) { log("Cache set error", e); }
+    },
+    del(key) { localStorage.removeItem(key); }
+};
+
+const JobManager = {
+    keys() { return GM_listValues() },
+    add(url) { GM_setValue(url, true) },
+    remove(url) {
+        GM_deleteValue(url);
+    }
+};
+
 let queueState = null;
 
 function updatequeueState(size) {
@@ -171,7 +189,7 @@ function updatequeueState(size) {
 AutoClickJob.onchange = async (event) => {
     //console.log("로컬 DB 이벤트 발생:", event);
     await AutoClickJob.getAllJobs().then((result) => {
-        indexJobs = result;    
+        indexJobs = result.map(j => j.url);    
         size = result.length
     }).catch(error => {
         console.error("Failed get data:", error);
@@ -183,22 +201,22 @@ AutoClickJob.onchange = async (event) => {
 let processCount = 5;
 
 // 큐 관리 함수
-async function Management() {
+async function Management(url) {
+
+    const indexJob = indexJobs.indexOf(url) + 1
 
     // Management() 함수가 이미 실행 중이거나 작업 슬롯이 꽉 찼거나 큐가 비어있으면 종료
-    if (queueIndex >= processCount || size === 0) {
+    if (indexJob >= processCount || size === 0) {
         return;
     }
     // 하나의 작업을 시작    
-    const node = indexJobs[0];
-    AutoClickJob.removeJob(indexJobs[0]);
+    const node = indexJobs[indexJob];    
 
     if (node) {
-        console.log(`새 작업 시작: ${node} ${queueIndex}`);
+        console.log(`새 작업 시작: ${node} ${indexJob}/${processCount}`);
 
         // 작업 페이지로 메시지 전송
-        AutoClickBC.postMessage({ type: 'startTask', url: node });
-        queueIndex++;
+        AutoClickBC.postMessage({ type: 'startTask', url: node });        
     }
 }
 
@@ -210,18 +228,16 @@ function mainQueueManagemnt() {
         if (e.data && e.data.type === 'taskComplete') {
             const completedUrl = e.data.url;
             console.log(`작업 완료 알림 수신: ${completedUrl}`);
+            
+            AutoClickJob.removeJob(completedUrl);
 
-            // 작업 슬롯 하나 반환
-            if (queueIndex > 0) {
-                queueIndex--;
-            }
             // 다음 작업 시작
-            Management();
+            Management(completedUrl);
 
         } else if (e.data && e.data.type === 'addTask') {
             AutoClickJob.addJob(e.data.url);
-            if (queueIndex < processCount) {
-                Management();
+            if (indexJobs.indexOf(e.data.url) + 1 < processCount) {
+                Management(e.data.url);
             }
         }
     };
@@ -295,32 +311,6 @@ function normalizeUrlKey() {
     return host;
 }
 
-/* ===============================
- * Managers
- * =============================== */
-const CacheManager = {
-    get(key) {
-        try {
-            const raw = localStorage.getItem(key);
-            return raw ? JSON.parse(raw) : null;
-        } catch (e) { log("Cache get error", e); return null; }
-    },
-    set(key, value) {
-        try {
-            localStorage.setItem(key, JSON.stringify(value));
-        } catch (e) { log("Cache set error", e); }
-    },
-    del(key) { localStorage.removeItem(key); }
-};
-
-const JobManager = {
-    keys() { return GM_listValues() },
-    add(url) { GM_setValue(url, true) },
-    remove(url) {
-        GM_deleteValue(url);
-    }
-};
-
 
 /* ===============================
  * UI Manager
@@ -348,7 +338,7 @@ const UIManager = {
             const box = this.ensureBox();
             box.insertAdjacentHTML('beforeend', `
                 <i class="AutoClick ${on ? 'On' : 'Off'} fa-solid fa-square-check"></i>
-                <span class="queueState">${queue.size}</span>
+                <span class="queueState">${size}</span>
                 `);
             queueState = document.querySelector('.queueState');
             icon = document.querySelector('.AutoClick');
@@ -512,20 +502,6 @@ const globalObserver = new MutationObserver(async (mutations) => {
 });
 
 
-const beforeUnloadHandler = (event) => {
-    if (queue.size) {
-        event.preventDefault();
-        console.log('queue is not Empty!', queue.size)
-        // Included for legacy support, e.g. Chrome/Edge < 119
-        event.returnValue = true;
-    }
-    else {
-        window.removeEventListener("beforeunload", beforeUnloadHandler);
-    }
-};
-
-
-
 
 /* ===============================
  * Site Handlers (Start-time)
@@ -540,8 +516,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
     UIManager.syncIcon();
 
     const checkSubPage = document.querySelector('body.single-post');
-    if (!checkSubPage) {
-        window.addEventListener("beforeunload", beforeUnloadHandler);
+    if (!checkSubPage) {               
         mainQueueManagemnt();
         return;
     }
@@ -970,6 +945,14 @@ async function Downloader(el) {
  * =============================== */
 window.addEventListener("DOMContentLoaded", () => {
     log('AutoClick init');
+
+    AutoClickJob.getAllJobs().then((result) => {
+        indexJobs = result.map(j => j.url);;
+        size = result.length;
+    }).catch(error => {
+        console.error("Failed get data:", error);
+    });
+
 
     window.addEventListener("pageshow", (event) => {
         if (event.persisted) {
