@@ -554,7 +554,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
     if (!links.length) {
         if (AutoClick === '1') {
             console.log(`${links} is Empty! Close`);
-            await sleep(20000);
+            await sleep(10000);
             self.close();
         }
         return;
