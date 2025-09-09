@@ -802,8 +802,7 @@ async function handleMissKon() {
     return handleSite({
         copyTitle: Title,
         linkSelectors: [
-            { selector: 'a.shortc-button', text: 'MediaFire', type: 'mediafire' },
-            { selector: 'a.shortc-button', text: 'Google Drive', type: 'googleDrive' },
+            { selector: 'a.shortc-button', text: 'MediaFire', type: 'mediafire' },            
             { selector: 'a.shortc-button', text: 'Google Drive', type: 'googleDrive' },
             { selector: 'a.shortc-button', text: 'Terabox', type: 'terabox' }
         ],
