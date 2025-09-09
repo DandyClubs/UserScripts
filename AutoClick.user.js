@@ -831,12 +831,16 @@ async function handleOUO() {
             self.close();
         }
     });
-    if (PageURL === 'https://ouo.io/') {
-        window.opener.postMessage({ token: 'reTryAgain' }, 'https://misskon.com');
-    }
-    const notFound = document.querySelector('div.container .no-found');
-    if (window.opener && notFound) {
-        window.opener.postMessage({ token: 'NotFound' }, 'https://misskon.com');
+
+    console.log(PageURL, window.opener)
+    if (window.opener) {
+        if (PageURL === 'https://ouo.io/' || PageURL === 'https://ouo.press/') {
+            window.opener.postMessage({ token: 'reTryAgain' }, 'https://misskon.com');
+        }
+        const notFound = document.querySelector('div.container .no-found');
+        if (notFound) {
+            window.opener.postMessage({ token: 'NotFound' }, 'https://misskon.com');
+        }
     }
 }
 
