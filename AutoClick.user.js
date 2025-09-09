@@ -135,8 +135,8 @@ class JobQueueDB {
             const store = tx.objectStore(this.storeName);
             const request = action(store);
 
-            request.onsuccess = () => {                
-                if (mode === 'readwrite') {                    
+            request.onsuccess = () => {
+                if (mode === 'readwrite') {
                     this._notify({ type: "update", url });
                 }
                 resolve(request.result);
@@ -218,8 +218,16 @@ function updatequeueState() {
             console.error("Failed get data:", error);
         });
     })
-
 }
+
+
+AutoClickJob.onchange = () => {
+    updatequeueState().then(() => {
+        AutoClickBC.postMessage({ type: 'updateState' });
+    });
+};
+
+
 
 /* ===============================
  * Globals & Config
@@ -682,23 +690,11 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
             }
         }
 
-        AutoClickJob.onchange = () => {
-            updatequeueState().then(() => {
-                AutoClickBC.postMessage({ type: 'updateState' });
-                checkAndStartJob(currentLinks);
-            });
-        };
-
         window.addEventListener('beforeunload', taskState);
         await AutoClickJob.addJob(PageURL)
         console.log(`${PageURL} 작업 추가!`);
-        /*
-        updatequeueState().then(() => {
-            if (!areadyStart && size < processCount) {
-                checkAndStartJob(currentLinks);
-            }
-        });        
-        */
+        await sleep(1000);
+        checkAndStartJob(currentLinks);
     }
 
 
