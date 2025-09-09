@@ -638,7 +638,15 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                 checkAndStartJob(currentLinks);
             }
         }
-        AutoClickJob.addJob(PageURL)
+        try {
+            await navigator.locks.request('AutoClickJobLock', { mode: 'exclusive' }, async () => {
+                AutoClickJob.addJob(PageURL)
+                console.log(`${PageURL} 작업 추가!`);
+            });
+        } catch (e) {
+            console.log("다른 탭이 다운로드 중이거나 Lock 실패");
+        }
+        
         checkAndStartJob(currentLinks);        
     }
 
@@ -688,7 +696,14 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                 } else {
                     // 모든 type 실패                    
                     window.removeEventListener('beforeunload', taskState);
-                    AutoClickJob.removeJob(PageURL);
+                    try {
+                        await navigator.locks.request('AutoClickJobLock', { mode: 'exclusive' }, async () => {
+                            AutoClickJob.removeJob(PageURL);
+                            console.log(`${PageURL} 작업 완료!`);
+                        });
+                    } catch (e) {
+                        console.log("다른 탭이 다운로드 중이거나 Lock 실패");
+                    }
                 }
             } else {
                 // 성공 → 링크 갱신 & 캐시 저장
@@ -722,9 +737,15 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                     currentTypeIndex = types.length;
                     if (enableJdownloaer && JdownloaderData.length > 0) {
                         JDownloader(JdownloaderData.join('\n'), copyTitle, PageURL);
-                    }
-                    console.log(`${PageURL} 작업 완료!`);
-                    AutoClickJob.removeJob(PageURL);
+                    }                    
+                    try {
+                        await navigator.locks.request('AutoClickJobLock', { mode: 'exclusive' }, async () => {
+                            AutoClickJob.removeJob(PageURL);
+                            console.log(`${PageURL} 작업 완료!`);
+                        });
+                    } catch (e) {
+                        console.log("다른 탭이 다운로드 중이거나 Lock 실패");
+                    }                    
                 }
             }
         }
