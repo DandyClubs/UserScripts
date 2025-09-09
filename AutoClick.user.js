@@ -852,7 +852,8 @@ async function handleMediaFire() {
         if (PageURL.startsWith('https://www.mediafire.com/error.php')) {
             window.opener.postMessage({ token: 'NotFound' }, '*');
         } else {
-            window.opener.postMessage({ token: PageURL }, '*');
+            const GetFileName = document.querySelector('div.dl-info div.intro div.filename')?.innerText.trim() || null;                    
+            window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, '*');
         }
         window.addEventListener('message', function (e) {
             if (e.data.action === 'closed') {
@@ -930,8 +931,9 @@ async function Downloader(el) {
                 }
             }
         } else if (e.data.S || e.data.action === 'closed') {
+            await sleep(2500);
             JobManager.remove(PageURL);
-            await sleep(5000);
+            await sleep(2500);
             self.close();
         }
     };
