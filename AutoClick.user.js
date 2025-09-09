@@ -747,7 +747,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false, ena
                     currentLinks = [];
                     currentTypeIndex = types.length;
                     if (enableJdownloaer && JdownloaderData.length > 0) {
-                        JDownloader(JdownloaderData.join('\n'), e.data.FileName, PageURL);
+                        JDownloader(JdownloaderData.join('\n'), entry.title, PageURL);
                     }
                 }
             }
@@ -767,6 +767,7 @@ async function handleAllAsianGirls() {
     return handleSite({
         titleSelector: 'body.single.single-post div.page-title div.page-title-inner div .entry-title',
         linkSelectors: [{ selector: 'a[href^="https://shrinkme"]', text: '', type: 'terabox' }],
+        enableJdownloaer: true,
     });
 }
 
@@ -788,7 +789,8 @@ async function handleMissKon() {
             { selector: 'a.shortc-button', text: 'Google Drive', type: 'googleDrive' },
             { selector: 'a.shortc-button', text: 'Google Drive', type: 'googleDrive' },
             { selector: 'a.shortc-button', text: 'Terabox', type: 'terabox' }
-        ]
+        ],
+        enableJdownloaer: true,
     });
 }
 
