@@ -672,7 +672,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
     * 공통 이벤트 핸들러 (중복 등록 방지)
     * =============================== */
     window.addEventListener('message', async (e) => {
-        if (!/terabox\.com|1024tera\.com|terabox\.app|en\.mrproblogger\.com|drive\.google\.com|mediafire\.com/.test(e.origin)) return;
+        if (!/terabox\.com|1024tera\.com|terabox\.app|en\.mrproblogger\.com|drive\.google\.com|mediafire\.com|ouo\.io|ouo\.press/.test(e.origin)) return;
 
         // 토큰 응답 도착
         if (!currentLinks?.length) return;
@@ -687,14 +687,14 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
         } else if (e.data.Q) {
             // 자식이 부모 정보 요청 → 응답
             childWindow?.postMessage({ A: parentWindow }, e.origin);
-        } else if (e.data.token) {
-            if (e.data.token === 'reTryAgain') {
+        } else if (e.data.retry) {            
                 childWindow.postMessage({ action: 'closed' }, e.origin);
+                await sleep(250);
                 entry = currentLinks[0];
                 console.log(`다시 시도 type(${types[currentTypeIndex]}) 링크 시도: ${entry.oldLink}`);
-                childWindow = window.open(entry.oldLink, entry.title);
-            }
-            else if (e.data.token === 'NotFound') {
+                childWindow = window.open(entry.oldLink, entry.title);            
+        }else if (e.data.token) {            
+            if (e.data.token === 'NotFound') {
                 childWindow.postMessage({ action: 'closed' }, e.origin);
                 // 현재 type 실패 → 곧바로 다음 type으로 넘어감
                 CacheManager.set(entry.oldLink, { U: 'NotFound', T: 'File Not Found' });
@@ -834,7 +834,7 @@ async function handleOUO() {
     console.log(PageURL, window.opener)
     if (window.opener) {
         if (PageURL === 'https://ouo.io/' || PageURL === 'https://ouo.press/') {
-            window.opener.postMessage({ token: 'reTryAgain' }, 'https://misskon.com');
+            window.opener.postMessage({ retry: 'reTryAgain' }, 'https://misskon.com');
         }
         const notFound = document.querySelector('div.container .no-found');
         if (notFound) {
