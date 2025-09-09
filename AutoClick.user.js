@@ -515,7 +515,7 @@ const beforeUnloadHandler = (event) => {
  * Site Handlers (Start-time)
  * =============================== */
 
-async function handleSite({ titleSelector, linkSelectors, autoClose = false, enableJdownloaer = false }) {
+async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJdownloaer = false }) {
 
     const JdownloaderData = [];
     const allowHost = /mega\.nz|drive\.google\.com|mediafire\.com/;
@@ -528,10 +528,9 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false, ena
         window.addEventListener("beforeunload", beforeUnloadHandler);
         mainQueueManagemnt();
         return;
-    }
+    }   
 
-    const copyTitle = document.querySelector(titleSelector)
-        ?.textContent.replace(/part\d+$/i, '').trim();
+
     if (!copyTitle || /AI\sGenerated/i.test(copyTitle)) return;
 
     let links = linkSelectors.flatMap(sel => {
@@ -747,7 +746,7 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false, ena
                     currentLinks = [];
                     currentTypeIndex = types.length;
                     if (enableJdownloaer && JdownloaderData.length > 0) {
-                        JDownloader(JdownloaderData.join('\n'), entry.title, PageURL);
+                        JDownloader(JdownloaderData.join('\n'), copyTitle, PageURL);
                     }
                 }
             }
@@ -764,16 +763,22 @@ async function handleSite({ titleSelector, linkSelectors, autoClose = false, ena
 
 async function handleAllAsianGirls() {
     processCount = 3;
-    return handleSite({
-        titleSelector: 'body.single.single-post div.page-title div.page-title-inner div .entry-title',
+    const titleSelector = 'body.single.single-post div.page-title div.page-title-inner div .entry-title';
+    let Title = document.querySelector(titleSelector)
+        ?.textContent.replace(/part\d+$/i, '');
+    return handleSite({        
+        copyTitle: Title,
         linkSelectors: [{ selector: 'a[href^="https://shrinkme"]', text: '', type: 'terabox' }],
         enableJdownloaer: true,
     });
 }
 
-async function handleBestGirlSexy() {
-    return handleSite({
-        titleSelector: 'div#content.site-content div.elementor-widget-container .elementor-heading-title',
+async function handleBestGirlSexy() {    
+    const titleSelector = 'div#content.site-content div.elementor-widget-container .elementor-heading-title';
+    let Title = document.querySelector(titleSelector)
+        ?.textContent.replace(/part\d+$/i, '');
+    return handleSite({        
+        copyTitle: Title,
         linkSelectors: [{ selector: 'a.maxbutton', text: 'TeraBox', type: 'terabox' }],
         autoClose: true,
         enableJdownloaer: true,
@@ -782,14 +787,25 @@ async function handleBestGirlSexy() {
 
 async function handleMissKon() {
     processCount = 7;
-    return handleSite({
-        titleSelector: 'article#the-post .post-title.entry-title',
+    const titleSelector = 'article#the-post .post-title.entry-title';
+    let Title = document.querySelector(titleSelector)
+        ?.textContent.replace(/part\d+$/i, '')
+        .replace(/(\d+)\sphotos/i, `$1P`)
+        .replace(/(\d+)\svideos?/i, `$1V`)
+        .replace(/P(\s\+\s)/, 'P')
+        .trim();
+
+    Title = Title.replace(/(\d+)\sphotos/i, `$1P`).replace(/(\d+)\svideos?/i, `$1V`).replace(/P(\s\+\s)/, 'P');
+    Title = mbConvertKana(copyTitle, 'rans');
+    Title = byteLengthOf(Title, 241).trim()
+    return handleSite({        
+        copyTitle: Title,
         linkSelectors: [
             { selector: 'a.shortc-button', text: 'MediaFire', type: 'mediafire' },
             { selector: 'a.shortc-button', text: 'Google Drive', type: 'googleDrive' },
             { selector: 'a.shortc-button', text: 'Google Drive', type: 'googleDrive' },
             { selector: 'a.shortc-button', text: 'Terabox', type: 'terabox' }
-        ],
+        ],                
         enableJdownloaer: true,
     });
 }
