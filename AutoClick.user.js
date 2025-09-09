@@ -528,7 +528,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
         window.addEventListener("beforeunload", beforeUnloadHandler);
         mainQueueManagemnt();
         return;
-    }   
+    }
 
 
     if (!copyTitle || /AI\sGenerated/i.test(copyTitle)) return;
@@ -764,20 +764,21 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
 async function handleAllAsianGirls() {
     processCount = 3;
     const titleSelector = 'body.single.single-post div.page-title div.page-title-inner div .entry-title';
+
     let Title = document.querySelector(titleSelector)
-        ?.textContent.replace(/part\d+$/i, '');
-    return handleSite({        
+        ?.textContent.replace(/part\d+$/i, '') || null;
+    return handleSite({
         copyTitle: Title,
         linkSelectors: [{ selector: 'a[href^="https://shrinkme"]', text: '', type: 'terabox' }],
         enableJdownloaer: true,
     });
 }
 
-async function handleBestGirlSexy() {    
+async function handleBestGirlSexy() {
     const titleSelector = 'div#content.site-content div.elementor-widget-container .elementor-heading-title';
     let Title = document.querySelector(titleSelector)
-        ?.textContent.replace(/part\d+$/i, '');
-    return handleSite({        
+        ?.textContent.replace(/part\d+$/i, '') || null;
+    return handleSite({
         copyTitle: Title,
         linkSelectors: [{ selector: 'a.maxbutton', text: 'TeraBox', type: 'terabox' }],
         autoClose: true,
@@ -793,19 +794,19 @@ async function handleMissKon() {
         .replace(/(\d+)\sphotos/i, `$1P`)
         .replace(/(\d+)\svideos?/i, `$1V`)
         .replace(/P(\s\+\s)/, 'P')
-        .trim();
-
-    Title = Title.replace(/(\d+)\sphotos/i, `$1P`).replace(/(\d+)\svideos?/i, `$1V`).replace(/P(\s\+\s)/, 'P');
-    Title = mbConvertKana(copyTitle, 'rans');
-    Title = byteLengthOf(Title, 241).trim()
-    return handleSite({        
+        .trim() || null;;
+    if (Title) {
+        Title = mbConvertKana(Title, 'rans');
+        Title = byteLengthOf(Title, 241).trim();
+    }
+    return handleSite({
         copyTitle: Title,
         linkSelectors: [
             { selector: 'a.shortc-button', text: 'MediaFire', type: 'mediafire' },
             { selector: 'a.shortc-button', text: 'Google Drive', type: 'googleDrive' },
             { selector: 'a.shortc-button', text: 'Google Drive', type: 'googleDrive' },
             { selector: 'a.shortc-button', text: 'Terabox', type: 'terabox' }
-        ],                
+        ],
         enableJdownloaer: true,
     });
 }
