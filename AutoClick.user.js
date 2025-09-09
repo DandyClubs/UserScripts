@@ -182,22 +182,26 @@ let queueState = null;
 let processCount = 5;
 let areadyStart = false;
 
-function updatequeueState(size) {
-    if (queueState) {
-        queueState.innerText = size;
-    }
+function updatequeueState() {
+    return new Promise((resolve, reject) => {
+        AutoClickJob.getAllJobs().then((result) => {
+            indexJobs = result.map(j => j.url);
+            size = result.length;
+            if (queueState) {
+                queueState.innerText = size;
+            }
+            resolve(indexJobs);
+        }).catch(error => {
+            console.error("Failed get data:", error);
+        });
+    })
+
 }
 
 AutoClickJob.onchange = (event) => {
     //console.log("로컬 DB 이벤트 발생:", event);
-    AutoClickJob.getAllJobs().then((result) => {
-        indexJobs = result.map(j => j.url);
-        size = result.length
-        updatequeueState(size);
-        AutoClickBC.postMessage({ type: 'updateState', size: size });
-    }).catch(error => {
-        console.error("Failed get data:", error);
-    });
+    updatequeueState();
+    AutoClickBC.postMessage({ type: 'updateState' });
 };
 
 /* ===============================
@@ -459,26 +463,19 @@ const globalObserver = new MutationObserver(async (mutations) => {
 });
 
 
-function checkAndStartJob(currentLinks) {
-    AutoClickJob.getAllJobs().then((result) => {
-        indexJobs = result.map(j => j.url);        
-        size = result.length;
-        updatequeueState(size);
-        const indexJob = indexJobs.indexOf(PageURL);
-        if (indexJob === -1 || areadyStart || indexJob + 1 >= processCount || size === 0) {
-            return;
-        } else {
-            areadyStart = true;
-            if (currentLinks?.length) {
-                const entry = currentLinks[0];
-                console.log(`작업 시작: ${PageURL} (${entry.type}) ${indexJob + 1}/${processCount}`);
-                childWindow = window.open(entry.oldLink, entry.title);
-            }
+function checkAndStartJob(currentLinks, indexJobs) {
+    const indexJob = indexJobs.indexOf(PageURL);
+    console.log(indexJobs, indexJob + 1, size)
+    if (indexJob === -1 || areadyStart || indexJob + 1 >= processCount || size === 0) {
+        return;
+    } else {
+        areadyStart = true;
+        if (currentLinks?.length) {
+            const entry = currentLinks[0];
+            console.log(`작업 시작: ${PageURL} (${entry.type}) ${indexJob + 1}/${processCount}`);
+            childWindow = window.open(entry.oldLink, entry.title);
         }
-    }).catch(error => {
-        console.error("Failed get data:", error);
-    });
-
+    }
 }
 
 
@@ -498,14 +495,14 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
     if (!checkSubPage) {
         AutoClickJob.getAllJobs().then((result) => {
             indexJobs = result.map(j => j.url);
-            size = result.length
-            updatequeueState(size);            
+            size = result.length;
+            updatequeueState(size);
         }).catch(error => {
             console.error("Failed get data:", error);
         });
         AutoClickBC.onmessage = (e) => {
             if (e.data?.type === 'updateState') {
-                updatequeueState(e.data.size);         
+                updatequeueState();
             }
         }
         return;
@@ -634,8 +631,9 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
         window.addEventListener('beforeunload', taskState);
         AutoClickBC.onmessage = (e) => {
             if (e.data?.type === 'updateState') {
-                updatequeueState(e.data.size);
-                checkAndStartJob(currentLinks);
+                updatequeueState().then((indexJobs) => {
+                    checkAndStartJob(currentLinks, indexJobs);
+                });
             }
         }
         try {
@@ -646,8 +644,9 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
         } catch (e) {
             console.log("다른 탭이 다운로드 중이거나 Lock 실패");
         }
-        
-        checkAndStartJob(currentLinks);        
+        updatequeueState().then((indexJobs) => {
+            checkAndStartJob(currentLinks, indexJobs);
+        });
     }
 
 
@@ -737,7 +736,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                     currentTypeIndex = types.length;
                     if (enableJdownloaer && JdownloaderData.length > 0) {
                         JDownloader(JdownloaderData.join('\n'), copyTitle, PageURL);
-                    }                    
+                    }
                     try {
                         await navigator.locks.request('AutoClickJobLock', { mode: 'exclusive' }, async () => {
                             AutoClickJob.removeJob(PageURL);
@@ -745,7 +744,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                         });
                     } catch (e) {
                         console.log("다른 탭이 다운로드 중이거나 Lock 실패");
-                    }                    
+                    }
                 }
             }
         }
