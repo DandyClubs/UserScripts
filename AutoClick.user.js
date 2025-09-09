@@ -92,7 +92,7 @@ class JobQueueDB {
     constructor() {
         this.dbName = 'AutoClickJobQueueDB';
         this.storeName = 'AutoClickJobQueue';
-        this.db = null;        
+        this.db = null;
     }
 
     async init() {
@@ -179,6 +179,8 @@ const JobManager = {
 };
 
 let queueState = null;
+let processCount = 5;
+let areadyStart = false;
 
 function updatequeueState(size) {
     if (queueState) {
@@ -186,62 +188,17 @@ function updatequeueState(size) {
     }
 }
 
-AutoClickJob.onchange = async (event) => {
+AutoClickJob.onchange = (event) => {
     //console.log("로컬 DB 이벤트 발생:", event);
-    await AutoClickJob.getAllJobs().then((result) => {
-        indexJobs = result.map(j => j.url);    
+    AutoClickJob.getAllJobs().then((result) => {
+        indexJobs = result.map(j => j.url);
         size = result.length
+        updatequeueState(size);
+        AutoClickBC.postMessage({ type: 'updateState', size: size });
     }).catch(error => {
         console.error("Failed get data:", error);
     });
-    updatequeueState(size);
-    AutoClickBC.postMessage({ type: 'updateState', size: size });
 };
-
-let processCount = 5;
-
-// 큐 관리 함수
-async function Management(url) {
-
-    const indexJob = indexJobs.indexOf(url) + 1
-
-    // Management() 함수가 이미 실행 중이거나 작업 슬롯이 꽉 찼거나 큐가 비어있으면 종료
-    if (indexJob >= processCount || size === 0) {
-        return;
-    }
-    // 하나의 작업을 시작    
-    const node = indexJobs[indexJob];    
-
-    if (node) {
-        console.log(`새 작업 시작: ${node} ${indexJob}/${processCount}`);
-
-        // 작업 페이지로 메시지 전송
-        AutoClickBC.postMessage({ type: 'startTask', url: node });        
-    }
-}
-
-
-function mainQueueManagemnt() {
-    // 메시지 수신 핸들러 (한 번만 등록)
-    AutoClickBC.onmessage = async (e) => {
-        // 'taskComplete' 메시지 수신 시 처리
-        if (e.data && e.data.type === 'taskComplete') {
-            const completedUrl = e.data.url;
-            console.log(`작업 완료 알림 수신: ${completedUrl}`);
-            
-            AutoClickJob.removeJob(completedUrl);
-
-            // 다음 작업 시작
-            Management(completedUrl);
-
-        } else if (e.data && e.data.type === 'addTask') {
-            AutoClickJob.addJob(e.data.url);
-            if (indexJobs.indexOf(e.data.url) + 1 < processCount) {
-                Management(e.data.url);
-            }
-        }
-    };
-}
 
 /* ===============================
  * Globals & Config
@@ -332,7 +289,7 @@ const UIManager = {
         box.style.setProperty('font-size', fontSize, 'important');
     },
     syncIcon() {
-        const on = localStorage.getItem('AutoClick') === '1';
+        const on = CacheManager.get('AutoClick') === '1';
         let icon = document.querySelector('.AutoClick');
         if (!icon) {
             const box = this.ensureBox();
@@ -345,7 +302,7 @@ const UIManager = {
             icon.addEventListener('click', (e) => {
                 const isOn = e.currentTarget.classList.contains('On');
                 e.currentTarget.classList.replace(isOn ? 'On' : 'Off', isOn ? 'Off' : 'On');
-                localStorage.setItem('AutoClick', isOn ? '0' : '1');
+                CacheManager.set('AutoClick', isOn ? '0' : '1');
             });
             window.addEventListener('storage', (ev) => {
                 if (ev.key === 'AutoClick') {
@@ -443,7 +400,7 @@ function setupBeforeUnloadForJobs() {
 }
 
 function taskState() {
-    AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
+    AutoClickJob.removeJob(PageURL);
 }
 
 /* ===============================
@@ -502,6 +459,28 @@ const globalObserver = new MutationObserver(async (mutations) => {
 });
 
 
+function checkAndStartJob(currentLinks) {
+    AutoClickJob.getAllJobs().then((result) => {
+        indexJobs = result.map(j => j.url);        
+        size = result.length;
+        updatequeueState(size);
+        const indexJob = indexJobs.indexOf(PageURL);
+        if (indexJob === -1 || areadyStart || indexJob + 1 >= processCount || size === 0) {
+            return;
+        } else {
+            areadyStart = true;
+            if (currentLinks?.length) {
+                const entry = currentLinks[0];
+                console.log(`작업 시작: ${PageURL} (${entry.type}) ${indexJob + 1}/${processCount}`);
+                childWindow = window.open(entry.oldLink, entry.title);
+            }
+        }
+    }).catch(error => {
+        console.error("Failed get data:", error);
+    });
+
+}
+
 
 /* ===============================
  * Site Handlers (Start-time)
@@ -511,16 +490,26 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
 
     const JdownloaderData = [];
     const allowHost = /mega\.nz|drive\.google\.com|mediafire\.com/;
-    AutoClick = localStorage.getItem('AutoClick') || '0';
+    AutoClick = CacheManager.get('AutoClick') || '0';
     UIManager.setResponsiveFont();
     UIManager.syncIcon();
 
     const checkSubPage = document.querySelector('body.single-post');
-    if (!checkSubPage) {               
-        mainQueueManagemnt();
+    if (!checkSubPage) {
+        AutoClickJob.getAllJobs().then((result) => {
+            indexJobs = result.map(j => j.url);
+            size = result.length
+            updatequeueState(size);            
+        }).catch(error => {
+            console.error("Failed get data:", error);
+        });
+        AutoClickBC.onmessage = (e) => {
+            if (e.data?.type === 'updateState') {
+                updatequeueState(e.data.size);         
+            }
+        }
         return;
     }
-
 
     if (!copyTitle || /AI\sGenerated/i.test(copyTitle)) return;
 
@@ -642,19 +631,15 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
     let currentLinks = typeGroups.get(types[currentTypeIndex]);
 
     if (AutoClick === '1') {
-        AutoClickBC.postMessage({ type: 'addTask', url: PageURL });
+        window.addEventListener('beforeunload', taskState);
         AutoClickBC.onmessage = (e) => {
-            if (e.data?.type === 'startTask' && e.data.url === PageURL) {
-                window.addEventListener('beforeunload', taskState);
-                if (currentLinks?.length) {
-                    const entry = currentLinks[0];
-                    console.log(`작업 지시 수신: ${PageURL} (${entry.type})`);
-                    childWindow = window.open(entry.oldLink, entry.title);
-                }
-            } else if (e.data?.type === 'updateState') {
+            if (e.data?.type === 'updateState') {
                 updatequeueState(e.data.size);
+                checkAndStartJob(currentLinks);
             }
-        };
+        }
+        AutoClickJob.addJob(PageURL)
+        checkAndStartJob(currentLinks);        
     }
 
 
@@ -678,13 +663,13 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
         } else if (e.data.Q) {
             // 자식이 부모 정보 요청 → 응답
             childWindow?.postMessage({ A: parentWindow }, e.origin);
-        } else if (e.data.retry) {            
-                childWindow.postMessage({ action: 'closed' }, e.origin);
-                await sleep(250);
-                entry = currentLinks[0];
-                console.log(`다시 시도 type(${types[currentTypeIndex]}) 링크 시도: ${entry.oldLink}`);
-                childWindow = window.open(entry.oldLink, entry.title);            
-        }else if (e.data.token) {            
+        } else if (e.data.retry) {
+            childWindow.postMessage({ action: 'closed' }, e.origin);
+            await sleep(250);
+            entry = currentLinks[0];
+            console.log(`다시 시도 type(${types[currentTypeIndex]}) 링크 시도: ${entry.oldLink}`);
+            childWindow = window.open(entry.oldLink, entry.title);
+        } else if (e.data.token) {
             if (e.data.token === 'NotFound') {
                 childWindow.postMessage({ action: 'closed' }, e.origin);
                 // 현재 type 실패 → 곧바로 다음 type으로 넘어감
@@ -701,9 +686,9 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                         childWindow = window.open(entry.oldLink, entry.title);
                     }
                 } else {
-                    // 모든 type 실패
-                    AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
+                    // 모든 type 실패                    
                     window.removeEventListener('beforeunload', taskState);
+                    AutoClickJob.removeJob(PageURL);
                 }
             } else {
                 // 성공 → 링크 갱신 & 캐시 저장
@@ -724,7 +709,6 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                     console.log(`다음 type(${types[currentTypeIndex]}) 링크 시도: ${entry.oldLink}`);
                     childWindow = window.open(entry.oldLink, entry.title);
                 } else {
-                    AutoClickBC.postMessage({ type: 'taskComplete', url: PageURL });
                     window.removeEventListener('beforeunload', taskState);
 
                     console.log({ autoClose }, entry.type)
@@ -739,6 +723,8 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                     if (enableJdownloaer && JdownloaderData.length > 0) {
                         JDownloader(JdownloaderData.join('\n'), copyTitle, PageURL);
                     }
+                    console.log(`${PageURL} 작업 완료!`);
+                    AutoClickJob.removeJob(PageURL);
                 }
             }
         }
@@ -793,7 +779,7 @@ async function handleMissKon() {
     return handleSite({
         copyTitle: Title,
         linkSelectors: [
-            { selector: 'a.shortc-button', text: 'MediaFire', type: 'mediafire' },            
+            { selector: 'a.shortc-button', text: 'MediaFire', type: 'mediafire' },
             { selector: 'a.shortc-button', text: 'Google Drive', type: 'googleDrive' },
             { selector: 'a.shortc-button', text: 'Terabox', type: 'terabox' }
         ],
@@ -843,7 +829,7 @@ async function handleMediaFire() {
         if (PageURL.startsWith('https://www.mediafire.com/error.php')) {
             window.opener.postMessage({ token: 'NotFound' }, '*');
         } else {
-            const GetFileName = document.querySelector('div.dl-btn-label')?.getAttribute('title')?.trim() || null;                    
+            const GetFileName = document.querySelector('div.dl-btn-label')?.getAttribute('title')?.trim() || null;
             window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, '*');
         }
         window.addEventListener('message', function (e) {
@@ -956,7 +942,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
     window.addEventListener("pageshow", (event) => {
         if (event.persisted) {
-            localStorage.setItem('AutoClick', '0');
+            CacheManager.set('AutoClick', '0');
         }
     });
 
