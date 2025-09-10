@@ -93,7 +93,7 @@
         imgElement.dataset.retryCount = imgElement.dataset.retryCount ? parseInt(imgElement.dataset.retryCount) : 0;
 
         retryQueue.push({ imgElement });
-        console.log(`[ImageRetry] 큐에 이미지 추가됨: `, imgElement);
+        //console.log(`[ImageRetry] 큐에 이미지 추가됨: `, imgElement);
 
         if (!isProcessing) {
             processQueue();

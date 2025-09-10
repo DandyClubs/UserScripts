@@ -118,30 +118,26 @@ class IndexedDBQueue {
     }
 
     async enqueue(url) {
-        const jobs = await this.list();
-        const existing = jobs.find(j => j.value === url);
-        if (existing) {
-            console.log(`[Queue] '${url}' 은(는) 이미 큐에 존재합니다. (id=${existing.id})`);
-            return existing.id; // 기존 ID 반환
-        }
-
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction(this.storeName, 'readwrite');
             const store = tx.objectStore(this.storeName);
-            const req = store.add({ value: url, timestamp: Date.now() });
+
+            const entry = { url, timestamp: Date.now() };
+            const req = store.put(entry); // 같은 url → 갱신됨 (중복 방지)
+
             req.onsuccess = () => {
-                console.log(`[Queue] '${url}' 새로 추가됨`);
-                resolve(req.result);
+                console.log(`[Queue] '${url}' 추가됨`);
+                resolve(url);
             };
             req.onerror = (e) => reject(e.target.error);
         });
     }
 
-    async dequeue(id) {
+    async dequeue(url) {
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction(this.storeName, 'readwrite');
             const store = tx.objectStore(this.storeName);
-            const req = store.delete(id);
+            const req = store.delete(url);
             req.onsuccess = () => resolve(true);
             req.onerror = (e) => reject(e.target.error);
         });
@@ -152,24 +148,11 @@ class IndexedDBQueue {
             const tx = this.db.transaction(this.storeName, 'readonly');
             const store = tx.objectStore(this.storeName);
             const req = store.getAll();
-            req.onsuccess = () => resolve(req.result.sort((a, b) => a.timestamp - b.timestamp));
-            req.onerror = (e) => reject(e.target.error);
-        });
-    }
 
-    async peek() {
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction(this.storeName, 'readonly');
-            const store = tx.objectStore(this.storeName);
-
-            const cursorReq = store.openCursor();
-
-            cursorReq.onsuccess = (event) => {
-                const cursor = event.target.result;
-                resolve(cursor ? cursor.value.value : null);
+            req.onsuccess = () => {
+                resolve(req.result.sort((a, b) => a.timestamp - b.timestamp));
             };
-
-            cursorReq.onerror = (e) => reject(e.target.error);
+            req.onerror = (e) => reject(e.target.error);
         });
     }
 
@@ -194,12 +177,9 @@ class IndexedDBQueue {
  * Queue 동작 관리
  * =============================== */
 const queue = new IndexedDBQueue();
-(async () => {
-    await queue.init();
-})();
+
 
 const AutoClickBC = new BroadcastChannel("AutoClickChannel");
-let myJobId = null;
 let queueState = null;
 let processCount = 5;
 let size = 0;
@@ -437,11 +417,8 @@ function setupBeforeUnloadForJobs() {
 }
 
 async function taskState() {
-    if (myJobId) {
-        await queue.dequeue(myJobId);
-        myJobId = null;
-        AutoClickBC.postMessage({ type: "updateState" });
-    }
+    await queue.dequeue(PageURL);
+    AutoClickBC.postMessage({ type: "updateState" });
 }
 
 /* ===============================
@@ -519,20 +496,19 @@ function DBResetButton() {
 
 // 작업 시작
 async function startWork(currentLinks) {
-    if (window._isWorking) return;    
+    if (window._isWorking) return;
     const jobs = await queue.list();
-    const myIndex = jobs.findIndex(j => j.id === myJobId);
+    const myIndex = jobs.findIndex(j => j.url === PageURL);
 
     if (myIndex === -1) return; // 이미 제거됨
 
     if (myIndex < processCount && currentLinks?.length) {
         window._isWorking = true;
         const entry = currentLinks[0];
-        console.log(`작업 지시 수신: ${PageURL} (${entry.type})`);
-        childWindow = window.open(entry.oldLink, entry.title);
-        window._isWorking = false;
+        console.log(`작업 지시 수신: ${PageURL} (${entry.type}) ${myIndex + 1}/${processCount}`);
+        childWindow = window.open(entry.oldLink, entry.title);        
     } else {
-        console.log("대기중:", PageURL, "순번:", myIndex + 1);
+        console.log(`대기중: ${PageURL} 순번: ${myIndex + 1} / ${processCount}`);
     }
 }
 
@@ -547,7 +523,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
     UIManager.syncIcon();
     DBResetButton();
     const checkSubPage = document.querySelector('body.single-post');
-    if (!checkSubPage) {        
+    if (!checkSubPage) {
         AutoClickBC.onmessage = async (e) => {
             if (e.data?.type === 'updateState') {
                 updatequeueState();
@@ -678,7 +654,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
 
     if (AutoClick === '1') {
         window.addEventListener('beforeunload', taskState);
-        myJobId = await queue.enqueue(PageURL);
+        await queue.enqueue(PageURL);
         updatequeueState();
         startWork(currentLinks);
         AutoClickBC.postMessage({ type: "updateState" });
@@ -733,14 +709,12 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                         childWindow = window.open(entry.oldLink, entry.title);
                     }
                 } else {
-                    // 모든 type 실패                    
-                    if (myJobId) {
-                        await queue.dequeue(myJobId);
-                        updatequeueState();
-                        AutoClickBC.postMessage({ type: 'updateState', url: PageURL });
-                        myJobId = null;
-                        window.removeEventListener('beforeunload', taskState);
-                    }
+                    // 모든 type 실패           
+                    await queue.dequeue(PageURL);
+                    updatequeueState();
+                    AutoClickBC.postMessage({ type: 'updateState', url: PageURL });
+                    window.removeEventListener('beforeunload', taskState);
+
                 }
             } else {
                 // 성공 → 링크 갱신 & 캐시 저장
@@ -761,25 +735,22 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                     console.log(`다음 type(${types[currentTypeIndex]}) 링크 시도: ${entry.oldLink}`);
                     childWindow = window.open(entry.oldLink, entry.title);
                 } else {
-                    if (myJobId) {
-                        await queue.dequeue(myJobId);
-                        updatequeueState();
-                        AutoClickBC.postMessage({ type: 'updateState', url: PageURL });
-                        myJobId = null;
-                        window.removeEventListener('beforeunload', taskState);
+                    await queue.dequeue(PageURL);
+                    updatequeueState();
+                    AutoClickBC.postMessage({ type: 'updateState', url: PageURL });
+                    window.removeEventListener('beforeunload', taskState);
 
-                        console.log({ autoClose }, entry.type)
-                        if (autoClose && entry.type === 'terabox') {
-                            await sleep(5000);
-                            self.close();
-                        }
+                    console.log({ autoClose }, entry.type)
+                    if (autoClose && entry.type === 'terabox') {
+                        await sleep(5000);
+                        self.close();
+                    }
 
-                        childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
-                        currentLinks = [];
-                        currentTypeIndex = types.length;
-                        if (enableJdownloaer && JdownloaderData.length > 0) {
-                            JDownloader(JdownloaderData.join('\n'), copyTitle, PageURL);
-                        }
+                    childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
+                    currentLinks = [];
+                    currentTypeIndex = types.length;
+                    if (enableJdownloaer && JdownloaderData.length > 0) {
+                        JDownloader(JdownloaderData.join('\n'), copyTitle, PageURL);
                     }
                 }
             }
@@ -985,15 +956,14 @@ async function Downloader(el) {
 /* ===============================
  * Boot
  * =============================== */
-window.addEventListener("DOMContentLoaded", () => {
-    log('AutoClick init');
-
-    window.addEventListener("pageshow", (event) => {
-        if (event.persisted) {
-            localStorage.setItem('AutoClick', '0');
-        }
-    });
-
+window.addEventListener("DOMContentLoaded", async () => {
+    
+    
+    if (/allasiangirls\.net|bestgirlsexy\.com|misskon\.com/.includes(PageURL)) {
+        log('AutoClick init');
+        await queue.init();    
+    }    
+    
     insertFontAwesome();
 
     const key = normalizeUrlKey();
