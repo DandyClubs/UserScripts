@@ -959,7 +959,7 @@ async function Downloader(el) {
 window.addEventListener("DOMContentLoaded", async () => {
     
     
-    if (/allasiangirls\.net|bestgirlsexy\.com|misskon\.com/.includes(PageURL)) {
+    if (/allasiangirls\.net|bestgirlsexy\.com|misskon\.com/.test(PageURL)) {
         log('AutoClick init');
         await queue.init();    
     }    
