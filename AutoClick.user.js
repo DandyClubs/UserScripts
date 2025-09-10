@@ -712,7 +712,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                     // 모든 type 실패           
                     await queue.dequeue(PageURL);
                     updatequeueState();
-                    AutoClickBC.postMessage({ type: 'updateState', url: PageURL });
+                    AutoClickBC.postMessage({ type: 'updateState' });
                     window.removeEventListener('beforeunload', taskState);
 
                 }
@@ -737,7 +737,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                 } else {
                     await queue.dequeue(PageURL);
                     updatequeueState();
-                    AutoClickBC.postMessage({ type: 'updateState', url: PageURL });
+                    AutoClickBC.postMessage({ type: 'updateState' });
                     window.removeEventListener('beforeunload', taskState);
 
                     console.log({ autoClose }, entry.type)
