@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         AutoClick (Refactored)
-// @version      2025.09.10
+// @version      2025.09.08
 // @description  Auto actions and cross-window messaging with maintainable structure
 // @author       DandyClubs
 // @include      /^https?:\/\/(cosplayjav|nylons)\.pl\/(download|thumbnails)\/\?forPost=.*$/
@@ -88,140 +88,128 @@ GM_addStyle(`
 }
 `);
 
-class JobQueueDB {
-    constructor() {
-        this.dbName = 'AutoClickJobQueueDB';
-        this.storeName = 'AutoClickJobQueue';
+
+
+/* ===============================
+ * IndexedDB 기반 Queue + BroadcastChannel 관리
+ * =============================== */
+class IndexedDBQueue {
+    constructor(dbName = 'AutoClickJobQueueDB', storeName = 'queue') {
+        this.dbName = dbName;
+        this.storeName = storeName;
         this.db = null;
-        this.maxRetries = 3;
-        this.initialRetryDelay = 100; // 100ms
-        this.bc = new BroadcastChannel('AutoClickChannel');
     }
 
     async init() {
         return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.dbName, 1);
-
-            request.onupgradeneeded = (e) => {
-                const db = e.target.result;
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
                 if (!db.objectStoreNames.contains(this.storeName)) {
                     db.createObjectStore(this.storeName, { keyPath: 'url' });
                 }
             };
-
-            request.onsuccess = (e) => {
-                this.db = e.target.result;
+            request.onsuccess = (event) => {
+                this.db = event.target.result;
                 resolve();
             };
-
-            request.onerror = (e) => reject(e.target.error);
+            request.onerror = (event) => reject(event.target.error);
         });
     }
 
-    async addJob(url) {
-        return this._tx('readwrite', store => store.put({ url }));
-    }
+    async enqueue(url) {
+        const jobs = await this.list();
+        const existing = jobs.find(j => j.value === url);
+        if (existing) {
+            console.log(`[Queue] '${url}' 은(는) 이미 큐에 존재합니다. (id=${existing.id})`);
+            return existing.id; // 기존 ID 반환
+        }
 
-    async removeJob(url) {
-        return this._tx('readwrite', store => store.delete(url));
-    }
-
-    async getAllJobs() {
-        return this._tx('readonly', store => store.getAll());
-    }
-
-    async _tx(mode, action, retryAttempt = 0) {
         return new Promise((resolve, reject) => {
-            const tx = this.db.transaction([this.storeName], mode);
+            const tx = this.db.transaction(this.storeName, 'readwrite');
             const store = tx.objectStore(this.storeName);
-            const request = action(store);
-
-            request.onsuccess = () => {
-                if (mode === 'readwrite') {
-                    this._notify({ type: "update", url });
-                    this.bc.postMessage({ type: 'updateState' });
-                }
-                resolve(request.result);
+            const req = store.add({ value: url, timestamp: Date.now() });
+            req.onsuccess = () => {
+                console.log(`[Queue] '${url}' 새로 추가됨`);
+                resolve(req.result);
             };
-
-            request.onerror = (e) => {
-                const error = e.target.error;
-                console.warn(` IndexedDB 트랜잭션 실패: ${error.name}`, ` 재시도 횟수: ${retryAttempt}/${this.maxRetries}`);
-
-                if (retryAttempt < this.maxRetries) {
-                    const delay = this.initialRetryDelay * Math.pow(2, retryAttempt);
-                    console.log(` 다음 재시도까지 ${delay}ms 대기...`);
-
-                    setTimeout(() => {
-                        this._tx(mode, action, retryAttempt + 1)
-                            .then(resolve)
-                            .catch(reject);
-                    }, delay);
-                } else {
-                    console.error('⚠️ 최대 재시도 횟수를 초과했습니다. 작업 실패.');
-                    reject(error);
-                }
-            };
+            req.onerror = (e) => reject(e.target.error);
         });
     }
 
-    _notify(event) {
-        if (this.onchange) this.onchange(event); // ★ 같은 탭 내부에서도 바로 콜백 실행
+    async dequeue(id) {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(this.storeName, 'readwrite');
+            const store = tx.objectStore(this.storeName);
+            const req = store.delete(id);
+            req.onsuccess = () => resolve(true);
+            req.onerror = (e) => reject(e.target.error);
+        });
+    }
+
+    async list() {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(this.storeName, 'readonly');
+            const store = tx.objectStore(this.storeName);
+            const req = store.getAll();
+            req.onsuccess = () => resolve(req.result.sort((a, b) => a.timestamp - b.timestamp));
+            req.onerror = (e) => reject(e.target.error);
+        });
+    }
+
+    async peek() {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(this.storeName, 'readonly');
+            const store = tx.objectStore(this.storeName);
+
+            const cursorReq = store.openCursor();
+
+            cursorReq.onsuccess = (event) => {
+                const cursor = event.target.result;
+                resolve(cursor ? cursor.value.value : null);
+            };
+
+            cursorReq.onerror = (e) => reject(e.target.error);
+        });
+    }
+
+    async size() {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(this.storeName, 'readonly');
+            const store = tx.objectStore(this.storeName);
+            const countReq = store.count();
+
+            countReq.onsuccess = () => resolve(countReq.result);
+            countReq.onerror = (e) => reject(e.target.error);
+        });
+    }
+
+    async isEmpty() {
+        const count = await this.size();
+        return count === 0;
     }
 }
-
-let size = 0;
-let indexJob = -1;
-let indexJobs = [];
-const AutoClickJob = new JobQueueDB();
-await AutoClickJob.init()
-
 
 /* ===============================
- * Managers
+ * Queue 동작 관리
  * =============================== */
-const CacheManager = {
-    get(key) {
-        try {
-            const raw = localStorage.getItem(key);
-            return raw ? JSON.parse(raw) : null;
-        } catch (e) { log("Cache get error", e); return null; }
-    },
-    set(key, value) {
-        try {
-            localStorage.setItem(key, JSON.stringify(value));
-        } catch (e) { log("Cache set error", e); }
-    },
-    del(key) { localStorage.removeItem(key); }
-};
+const queue = new IndexedDBQueue();
+(async () => {
+    await queue.init();
+})();
 
-const JobManager = {
-    keys() { return GM_listValues() },
-    add(url) { GM_setValue(url, true) },
-    remove(url) {
-        GM_deleteValue(url);
-    }
-};
-
+const AutoClickBC = new BroadcastChannel("AutoClickChannel");
+let myJobId = null;
 let queueState = null;
 let processCount = 5;
-let areadyStart = false;
+let size = 0;
 
-function updatequeueState() {
-    return new Promise((resolve, reject) => {
-        AutoClickJob.getAllJobs().then((result) => {
-            indexJobs = result.map(j => j.url);
-            size = result.length;
-            if (queueState) {
-                queueState.innerText = size;
-            }
-            resolve(indexJobs);
-        }).catch(error => {
-            console.error("Failed get data:", error);
-        });
-    })
+async function updatequeueState() {
+    size = await queue.size();
+    if (queueState) {
+        queueState.innerText = size;
+    }
 }
-
 
 /* ===============================
  * Globals & Config
@@ -291,6 +279,32 @@ function normalizeUrlKey() {
     return host;
 }
 
+/* ===============================
+ * Managers
+ * =============================== */
+const CacheManager = {
+    get(key) {
+        try {
+            const raw = localStorage.getItem(key);
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) { log("Cache get error", e); return null; }
+    },
+    set(key, value) {
+        try {
+            localStorage.setItem(key, JSON.stringify(value));
+        } catch (e) { log("Cache set error", e); }
+    },
+    del(key) { localStorage.removeItem(key); }
+};
+
+const JobManager = {
+    keys() { return GM_listValues() },
+    add(url) { GM_setValue(url, true) },
+    remove(url) {
+        GM_deleteValue(url);
+    }
+};
+
 
 /* ===============================
  * UI Manager
@@ -312,7 +326,7 @@ const UIManager = {
         box.style.setProperty('font-size', fontSize, 'important');
     },
     syncIcon() {
-        const on = CacheManager.get('AutoClick') === '1';
+        const on = localStorage.getItem('AutoClick') === '1';
         let icon = document.querySelector('.AutoClick');
         if (!icon) {
             const box = this.ensureBox();
@@ -325,7 +339,7 @@ const UIManager = {
             icon.addEventListener('click', (e) => {
                 const isOn = e.currentTarget.classList.contains('On');
                 e.currentTarget.classList.replace(isOn ? 'On' : 'Off', isOn ? 'Off' : 'On');
-                CacheManager.set('AutoClick', isOn ? '0' : '1');
+                localStorage.setItem('AutoClick', isOn ? '0' : '1');
             });
             window.addEventListener('storage', (ev) => {
                 if (ev.key === 'AutoClick') {
@@ -403,14 +417,7 @@ function cancelReload() {
 
 window.addEventListener('popstate', cancelReload);   // history로 주소 변경될 때
 window.addEventListener('hashchange', cancelReload); // hash 변경될 때
-// Storage 이벤트 리스너
-window.addEventListener('storage', async (e) => {
-    // 토글 관련 이벤트 처리
-    if (e.key === 'AutoClick') {
-        AutoClick = CacheManager.get('AutoClick') || '0';
-        UIManager.syncIcon();
-    }
-});
+
 
 /* ===============================
  * Shared / Reusable helpers
@@ -430,8 +437,11 @@ function setupBeforeUnloadForJobs() {
 }
 
 async function taskState() {
-    await AutoClickJob.removeJob(PageURL);
-    console.log(`${PageURL} 작업 제거!`);
+    if (myJobId) {
+        await queue.dequeue(myJobId);
+        myJobId = null;
+        AutoClickBC.postMessage({ type: "updateState" });
+    }
 }
 
 /* ===============================
@@ -490,100 +500,62 @@ const globalObserver = new MutationObserver(async (mutations) => {
 });
 
 
-async function checkAndStartJob(currentLinks) {
-    const DB = await AutoClickJob.getAllJobs()
-    indexJobs = DB.map(j => j.url);
-    size = indexJobs.length;
-    if (queueState) {
-        queueState.innerText = size;
-    }
-
-    indexJob = indexJobs.indexOf(PageURL);
-    console.log("큐 상태:", indexJobs, "내 위치:", indexJob, "총 슬롯:", processCount);
-
-    // 실행 조건
-    if (
-        indexJob === -1 ||     // 큐에 없음
-        areadyStart ||         // 이미 시작함
-        size === 0             // 큐가 비었음
-    ) {
-        return;
-    }
-
-    // 슬롯 안에 들어갔는지 확인 (0 ~ processCount-1)
-    if (indexJob < processCount) {
-        areadyStart = true;
-        if (currentLinks?.length) {
-            const entry = currentLinks[0];
-            console.log(
-                `작업 시작: ${PageURL} (${entry.type}) 슬롯 ${indexJob + 1}/${processCount}`
-            );
-            childWindow = window.open(entry.oldLink, entry.title);
-        }
-    } else {
-        console.log(`대기 중: ${PageURL} (슬롯 밖, ${indexJob})`);
-    }
-}
-
-
-const lockTimeout = 2000;
-
-async function acquireLockWithTimeout(lockName, callback, timeout) {
-    // 1. 잠금 요청 프로미스
-    const lockPromise = new Promise((resolve, reject) => {
-        navigator.locks.request(lockName, async (lock) => {
-            if (!lock) {
-                reject(new Error("Lock acquisition failed."));
-                return;
-            }
-            try {
-                const result = await callback(lock);
-                resolve(result);
-            } catch (err) {
-                reject(err);
-            }
-        });
-    });
-
-    // 2. 타임아웃 프로미스
-    const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => {
-            reject(new Error(`Lock timeout after ${timeout}ms`));
-        }, timeout);
-    });
-
-    // 3. 두 프로미스를 경쟁시킴
-    return Promise.race([lockPromise, timeoutPromise]);
-}
 
 /* ===============================
  * Site Handlers (Start-time)
- * =============================== */
+ * ===============================   
+*/
+
+function DBResetButton() {
+    const btn = document.createElement('button');
+    btn.textContent = '🧹 Reset Job DB';
+    btn.style = 'position:fixed;bottom:5px;right:35px;z-index:9999;height: 16px;font-size: 10px;border-radius: 5px;border: 1px; ';
+    btn.onclick = () => {
+        indexedDB.deleteDatabase('AutoClickJobQueueDB');
+        alert('JobQueue DB가 삭제되었습니다. 페이지를 새로고침하세요.');
+    };
+    document.body.appendChild(btn);
+}
+
+// 작업 시작
+async function startWork(currentLinks) {
+    if (window._isWorking) return;    
+    const jobs = await queue.list();
+    const myIndex = jobs.findIndex(j => j.id === myJobId);
+
+    if (myIndex === -1) return; // 이미 제거됨
+
+    if (myIndex < processCount && currentLinks?.length) {
+        window._isWorking = true;
+        const entry = currentLinks[0];
+        console.log(`작업 지시 수신: ${PageURL} (${entry.type})`);
+        childWindow = window.open(entry.oldLink, entry.title);
+        window._isWorking = false;
+    } else {
+        console.log("대기중:", PageURL, "순번:", myIndex + 1);
+    }
+}
+
 
 async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJdownloaer = false }) {
 
     const JdownloaderData = [];
     const allowHost = /mega\.nz|drive\.google\.com|mediafire\.com/;
-    AutoClick = CacheManager.get('AutoClick') || '0';
+    AutoClick = localStorage.getItem('AutoClick') || '0';
     UIManager.setResponsiveFont();
+    updatequeueState();
     UIManager.syncIcon();
-
+    DBResetButton();
     const checkSubPage = document.querySelector('body.single-post');
-    if (!checkSubPage) {
-        AutoClickJob.getAllJobs().then((result) => {
-            indexJobs = result.map(j => j.url);
-            size = result.length;
-            updatequeueState();
-        }).catch(error => {
-            console.error("Failed get data:", error);
-        });
-        AutoClickJob.bc.onmessage = (e) => {
+    if (!checkSubPage) {        
+        AutoClickBC.onmessage = async (e) => {
             if (e.data?.type === 'updateState') {
                 updatequeueState();
             }
-        }
+        };
         return;
     }
+
 
     if (!copyTitle || /AI\sGenerated/i.test(copyTitle)) return;
 
@@ -705,101 +677,16 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
     let currentLinks = typeGroups.get(types[currentTypeIndex]);
 
     if (AutoClick === '1') {
-        AutoClickJob.bc.onmessage = async (e) => {
+        window.addEventListener('beforeunload', taskState);
+        myJobId = await queue.enqueue(PageURL);
+        updatequeueState();
+        startWork(currentLinks);
+        AutoClickBC.postMessage({ type: "updateState" });
+        AutoClickBC.onmessage = async (e) => {
             if (e.data?.type === 'updateState') {
-                if (navigator.locks) {
-                    // HTTPS 환경일 때만 락 요청 로직 실행
-                    try {
-                        await acquireLockWithTimeout('AutoClickLock', async (lock) => {
-                            if (!lock) {
-                                console.warn('🔒 Lock 획득 실패. 다른 탭이 잠금을 사용 중이거나 오류 발생.');
-                                return;
-                            }
-                            updatequeueState().then(() => {
-                                if (!areadyStart && indexJob < processCount) {
-                                    checkAndStartJob(currentLinks);
-                                    console.log(`${PageURL} 작업 시작!`);
-                                }
-                            });
-
-                        }, lockTimeout);
-                    } catch (err) {
-                        console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
-                        updatequeueState().then(() => {
-                            if (!areadyStart && indexJob < processCount) {
-                                checkAndStartJob(currentLinks);
-                                console.log(`${PageURL} 작업 시작!`);
-                            }
-                        });
-                    }
-                } else {
-                    // HTTP 환경이거나 API를 지원하지 않을 때의 대체 로직
-                    if (!areadyStart && indexJob < processCount) {
-                        checkAndStartJob(currentLinks);
-                        console.log(`${PageURL} 작업 시작!`);
-                    }
-
-                }
-            }
-        }
-        AutoClickJob.onchange = async () => {
-            if (navigator.locks) {
-                // HTTPS 환경일 때만 락 요청 로직 실행
-                try {
-                    await acquireLockWithTimeout('AutoClickLock', async (lock) => {
-                        if (!lock) {
-                            console.warn('🔒 Lock 획득 실패. 다른 탭이 잠금을 사용 중이거나 오류 발생.');
-                            return;
-                        }
-                        updatequeueState().then(() => {
-                            if (!areadyStart && indexJob < processCount) {
-                                checkAndStartJob(currentLinks);
-                                console.log(`${PageURL} 작업 시작!`);
-                            }
-                        });
-
-                    }, lockTimeout);
-                } catch (err) {
-                    console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
-                    updatequeueState().then(() => {
-                        if (!areadyStart && indexJob < processCount) {
-                            checkAndStartJob(currentLinks);
-                            console.log(`${PageURL} 작업 시작!`);
-                        }
-                    });
-                }
-            } else {
-                // HTTP 환경이거나 API를 지원하지 않을 때의 대체 로직
-                if (!areadyStart && indexJob < processCount) {
-                    checkAndStartJob(currentLinks);
-                    console.log(`${PageURL} 작업 시작!`);
-                }
-
+                startWork(currentLinks)
             }
         };
-
-        window.addEventListener('beforeunload', taskState);
-        if (navigator.locks) {
-            // HTTPS 환경일 때만 락 요청 로직 실행
-            try {
-                await acquireLockWithTimeout('AutoClickLock', async (lock) => {
-                    if (!lock) {
-                        console.warn('🔒 Lock 획득 실패. 다른 탭이 잠금을 사용 중이거나 오류 발생.');
-                        return;
-                    }
-                    await AutoClickJob.addJob(PageURL)
-                    console.log(`${PageURL} 작업 추가!`);
-                }, lockTimeout);
-            } catch (err) {
-                console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
-                await AutoClickJob.addJob(PageURL)
-                console.log(`${PageURL} 작업 추가!`);
-            }
-        } else {
-            // HTTP 환경이거나 API를 지원하지 않을 때의 대체 로직
-            await AutoClickJob.addJob(PageURL)
-            console.log(`${PageURL} 작업 추가!`);
-        }
     }
 
 
@@ -847,26 +734,13 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                     }
                 } else {
                     // 모든 type 실패                    
-                    window.removeEventListener('beforeunload', taskState);
-                    if (navigator.locks) {
-                        // HTTPS 환경일 때만 락 요청 로직 실행
-                        try {
-                            await acquireLockWithTimeout('AutoClickLock', async (lock) => {
-                                await AutoClickJob.removeJob(PageURL);
-                                console.log(`${PageURL} 작업 제거!`);
-                            }, lockTimeout);
-                        } catch (err) {
-                            console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
-                            await AutoClickJob.removeJob(PageURL);
-                            console.log(`${PageURL} 작업 제거!`);
-                        }
-                    } else {
-                        // HTTP 환경이거나 API를 지원하지 않을 때의 대체 로직
-                        await AutoClickJob.removeJob(PageURL);
-                        console.log(`${PageURL} 작업 제거!`);
+                    if (myJobId) {
+                        await queue.dequeue(myJobId);
+                        updatequeueState();
+                        AutoClickBC.postMessage({ type: 'updateState', url: PageURL });
+                        myJobId = null;
+                        window.removeEventListener('beforeunload', taskState);
                     }
-
-                    console.log(`${PageURL} 작업 완료!`);
                 }
             } else {
                 // 성공 → 링크 갱신 & 캐시 저장
@@ -887,38 +761,26 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                     console.log(`다음 type(${types[currentTypeIndex]}) 링크 시도: ${entry.oldLink}`);
                     childWindow = window.open(entry.oldLink, entry.title);
                 } else {
-                    window.removeEventListener('beforeunload', taskState);
+                    if (myJobId) {
+                        await queue.dequeue(myJobId);
+                        updatequeueState();
+                        AutoClickBC.postMessage({ type: 'updateState', url: PageURL });
+                        myJobId = null;
+                        window.removeEventListener('beforeunload', taskState);
 
-                    console.log({ autoClose }, entry.type)
-                    if (autoClose && entry.type === 'terabox') {
-                        await sleep(5000);
-                        self.close();
-                    }
-
-                    childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
-                    currentLinks = [];
-                    currentTypeIndex = types.length;
-                    if (enableJdownloaer && JdownloaderData.length > 0) {
-                        JDownloader(JdownloaderData.join('\n'), copyTitle, PageURL);
-                    }
-                    if (navigator.locks) {
-                        // HTTPS 환경일 때만 락 요청 로직 실행
-                        try {
-                            await acquireLockWithTimeout('AutoClickLock', async (lock) => {
-                                await AutoClickJob.removeJob(PageURL);
-                                console.log(`${PageURL} 작업 제거!`);
-                            }, lockTimeout);
-                        } catch (err) {
-                            console.warn('🔒 Lock 실패 또는 이미 다른 탭에서 실행 중');
-                            await AutoClickJob.removeJob(PageURL);
-                            console.log(`${PageURL} 작업 제거!`);
+                        console.log({ autoClose }, entry.type)
+                        if (autoClose && entry.type === 'terabox') {
+                            await sleep(5000);
+                            self.close();
                         }
-                    } else {
-                        // HTTP 환경이거나 API를 지원하지 않을 때의 대체 로직
-                        await AutoClickJob.removeJob(PageURL);
-                        console.log(`${PageURL} 작업 제거!`);
+
+                        childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
+                        currentLinks = [];
+                        currentTypeIndex = types.length;
+                        if (enableJdownloaer && JdownloaderData.length > 0) {
+                            JDownloader(JdownloaderData.join('\n'), copyTitle, PageURL);
+                        }
                     }
-                    console.log(`${PageURL} 작업 완료!`);
                 }
             }
         }
@@ -1126,17 +988,9 @@ async function Downloader(el) {
 window.addEventListener("DOMContentLoaded", () => {
     log('AutoClick init');
 
-    AutoClickJob.getAllJobs().then((result) => {
-        indexJobs = result.map(j => j.url);;
-        size = result.length;
-    }).catch(error => {
-        console.error("Failed get data:", error);
-    });
-
-
     window.addEventListener("pageshow", (event) => {
         if (event.persisted) {
-            CacheManager.set('AutoClick', '0');
+            localStorage.setItem('AutoClick', '0');
         }
     });
 
