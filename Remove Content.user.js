@@ -60,7 +60,7 @@ const RegexFrom = (strings, flags) =>
 const escapeRegExp = (value) => value.replace(/[.*+?^${}()<>|[\]\\]/gi, "\\$&")
 
 const RemoveContentEX = RegexFrom(RemoveContentText.split(/\r?\n/), 'i')
-const MREX = /\\bMR\\b/;
+const MREX = /\bMR\b/;
 const SkipModelEX = RegexFrom(SkipModel.split(/\r?\n/), 'gi')
 const WarningEX = RegexFrom(WarningText.split(/\r?\n/), 'gi')
 const AddDate = new Date().toISOString().slice(0, 10);
