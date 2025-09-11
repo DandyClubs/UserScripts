@@ -290,7 +290,7 @@ async function migrateFromLocalStorage() {
     console.log("All corresponding localStorage data cleared.");
 }
 
-migrateFromLocalStorage();
+//migrateFromLocalStorage();
 
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href
