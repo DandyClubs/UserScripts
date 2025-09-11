@@ -137,13 +137,21 @@ class VisitedManagerDB {
 
     async init() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.dbName, 2);
+            const request = indexedDB.open(this.dbName, 3);
 
             request.onupgradeneeded = (e) => {
                 const db = e.target.result;
+                // 스토어가 없다면 새로 만들고 인덱스를 생성합니다.
                 if (!db.objectStoreNames.contains(this.storeName)) {
-                    db.createObjectStore(this.storeName, { keyPath: 'K' });
+                    const store = db.createObjectStore(this.storeName, { keyPath: 'K' });
                     store.createIndex('dateIndex', 'D', { unique: false });
+                }
+                // 스토어는 있지만 인덱스가 없는 경우, 즉 기존에 있던 DB에 인덱스를 추가해야 하는 경우
+                else {
+                    const store = request.transaction.objectStore(this.storeName);
+                    if (!store.indexNames.contains('dateIndex')) {
+                        store.createIndex('dateIndex', 'D', { unique: false });
+                    }
                 }
             };
 
