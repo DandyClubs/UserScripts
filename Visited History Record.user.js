@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Visited History Record
 // @namespace   DandyClubs
-// @version     2025.09.06
+// @version     2025.09.11
 // @include     https://sis001.com/forum/forum*.html
 // @match       https://sis001.com/forum/forumdisplay.php*
 // @match       https://ultoporn.com/*
@@ -218,7 +218,7 @@ async function migrateFromLocalStorage() {
     }
 
     const migrationTasks = [];
-    visitedKeys = Object.entries(localStorage)
+    const visitedKeys = Object.entries(localStorage)
         .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
         .map(([key, _]) => key);
 
@@ -227,7 +227,7 @@ async function migrateFromLocalStorage() {
                 const rawValue = localStorage.getItem(key);
                 if (!rawValue) continue;
 
-                const data = JSON.parse(rawValue);
+                const data = rawValue;
 
                 if (data) {
                     console.log(`Preparing to migrate: ${key}`);
@@ -673,7 +673,10 @@ function checkVisited(node = Active.root) {
                 let X;
                 //console.log('Visited: ', linkInfo, T)
                 if (Active.SaveMode === 'indexedDB') {
-                    X = VisitedManager.get(T);
+                    const stored = await VisitedManager.get(T);                    
+                    if (stored) {
+                        X = stored.D;
+                    }
                 } else if (Active.SaveMode === 'ScriptStorage') {
                     X = GM_getValue(T);
                 }
@@ -789,7 +792,7 @@ async function ClearVisited() {
 
             if (diffDays > 180) {
                 if (Active.SaveMode === 'indexedDB') {
-                    VisitedManager.remove(key);
+                    await VisitedManager.remove(key);
                 } else if (Active.SaveMode === 'ScriptStorage') {
                     await GM_deleteValue(key);
                 }

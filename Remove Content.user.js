@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Remove Content
 // @namespace    http://tampermonkey.net/
-// @version      2025.09.05
+// @version      2025.09.11
 // @description  try to take over the world!
 // @author       You
 // @match        https://blogjav.net/*
@@ -42,6 +42,80 @@
 // @grant		 GM_addStyle
 // @noframes
 // ==/UserScript==
+
+
+
+
+class ContentDB {
+    constructor() {
+        this.dbName = 'ContentManager';
+        this.storeName = 'ContentStore';
+        this.db = null;
+    }
+
+    async init() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, 1);
+
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(this.storeName)) {
+                    db.createObjectStore(this.storeName, { keyPath: 'K' });
+                }
+            };
+
+            request.onsuccess = (e) => {
+                this.db = e.target.result;
+                resolve();
+            };
+
+            request.onerror = (e) => reject(e.target.error);
+        });
+    }
+
+    async add(K, D) {
+        return this._tx('readwrite', store => store.put({ K: K, D: D }));
+    }
+
+    async remove(K) {
+        // 짧은 URL을 키로 사용하여 삭제합니다.
+        return this._tx('readwrite', store => store.delete(K));
+    }
+
+    async get(K) {
+        // 짧은 URL을 키로 사용하여 특정 데이터를 가져옵니다.
+        return this._tx('readonly', store => store.get(K));
+    }
+
+    async getAll() {
+        // 모든 저장된 데이터를 배열로 가져옵니다.
+        return this._tx('readonly', store => store.getAll());
+    }
+
+    async getAllKeys() {
+        return this._tx('readonly', store => store.getAllKeys());
+    }
+
+    async clear() {
+        return this._tx('readwrite', store => store.clear());
+    }
+
+    async _tx(mode, action) {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction([this.storeName], mode);
+            const store = tx.objectStore(this.storeName);
+            const request = action(store);
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+}
+
+
+
+const contentManager = new ContentDB();
+
 
 // 페이지 URL을 가져오는 부분은 동일합니다.
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
@@ -156,7 +230,7 @@ const siteConfigs = {
         removeTagSelector: 'tr',
     },
     'misskon.com': {
-        linkSelector: 'article.item-list .post-box-title a',        
+        linkSelector: 'article.item-list .post-box-title a',
         removeTagSelector: 'article.item-list',
     },
     'allasiangirls.net': {
@@ -224,26 +298,28 @@ const queue = new Queue();
 let managementWorking = false;
 
 
-function ClearTitle() {
+async function ClearTitle() {
     console.log('Start Delete Title!');
 
-    const sameTitle = Object.entries(localStorage)
-        .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
-        .map(([key, _]) => key);
+    const sameTitle = await contentManager.getAllKeys();
 
     const now = new Date();
     const oneDayMs = 1000 * 60 * 60 * 24;
 
     for (let key of sameTitle) {
-        const storedDateStr = localStorage.getItem(key);
+        const stored = await VisitedManager.get(key);
+        let storedDateValue;
+        if (stored) {
+            storedDateValue = stored.D;
+        }
 
-        if (storedDateStr && !isNaN(Date.parse(storedDateStr))) {
-            const storedDate = new Date(storedDateStr);
+        if (storedDateValue && !isNaN(Date.parse(storedDateValue))) {
+            const storedDate = new Date(storedDateValue);
             const diffDays = (now - storedDate) / oneDayMs;
 
-            if (diffDays === 0) {
-                localStorage.removeItem(key);
-                console.log('Deleted item:', key, storedDateStr);
+            if (diffDays > 5) {
+                await VisitedManager.remove(key);
+                console.log('Deleted item:', key, storedDateValue);
             }
         }
     }
@@ -273,7 +349,7 @@ function getCookie(name) {
  * @param {string} selector - 요소를 찾는 CSS 선택자
  * @param {boolean} isExtra - 추가 선택자인지 여부
  */
-function processContent(node, selector, isExtra = false) {
+async function processContent(node, selector, isExtra = false) {
     const items = [...node.querySelectorAll(selector)];
     for (const item of items) {
         let textContent = item.textContent;
@@ -285,12 +361,15 @@ function processContent(node, selector, isExtra = false) {
                 const Title = textContent.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(resolutionMatch[0], '').replace(/^(.*?)(?<=:)/gi, '').trim().toLowerCase();
                 if (resolution >= 1080) {
                     console.log('Title:', Title, '\nResolution:', resolution)
-                    localStorage.setItem(Title, AddDate)
+                    await contentManager.add(Title, AddDate)
                 }
-                else if (resolution <= 720 && localStorage.getItem(Title.toLowerCase())) {
-                    console.log('Low resolution content removed:', resolution, Title);
-                    item.closest(Active.removeTagSelector)?.remove();
-                    continue;
+                else if (resolution <= 720) {
+                    const rawValue = await contentManager.get(Title.toLowerCase());
+                    if (rawValue) {
+                        console.log('Low resolution content removed:', resolution, Title);
+                        item.closest(Active.removeTagSelector)?.remove();
+                        continue;
+                    }
                 }
             }
         }
@@ -303,18 +382,18 @@ function processContent(node, selector, isExtra = false) {
             }
         }
         // 일반 링크의 경우 URL 또는 텍스트로 제거
-        
-            if (/\/(femdom|transsexuals)\//i.test(item.href)) {
-                console.log('Link content removed:', item.href.match(/\/(femdom|transsexuals)\//i));
-                item.closest(Active.removeTagSelector)?.remove();
-                continue;
-            }            
+
+        if (/\/(femdom|transsexuals)\//i.test(item.href)) {
+            console.log('Link content removed:', item.href.match(/\/(femdom|transsexuals)\//i));
+            item.closest(Active.removeTagSelector)?.remove();
+            continue;
+        }
 
         if (RemoveContentEX.test(textContent) || MREX.test(textContent)) {
-            console.log('Keyword content removed:', textContent.match(RemoveContentEX) || MREX.test(textContent), textContent);                
-                item.closest(Active.removeTagSelector)?.remove();
-                continue;
-            }
+            console.log('Keyword content removed:', textContent.match(RemoveContentEX) || MREX.test(textContent), textContent);
+            item.closest(Active.removeTagSelector)?.remove();
+            continue;
+        }
 
 
         // 제거되지 않은 경우 텍스트 대체
@@ -397,7 +476,7 @@ function setClearTitle(name, value) {
 window.addEventListener("DOMContentLoaded", () => {
     console.log('Start Remove Content!');
     const rootElement = Active.rootSelector ? document.querySelector(Active.rootSelector) : document.body;
-    
+
     const cookieCheck = getCookie("ClearTitle");
     if (!cookieCheck || cookieCheck !== "Y") {
         console.log('ClearTitle');
