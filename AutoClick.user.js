@@ -90,6 +90,70 @@ GM_addStyle(`
 
 
 
+
+class linkManagerDB {
+    constructor() {
+        this.dbName = 'linkManager';
+        this.storeName = 'linkStore';
+        this.db = null;        
+    }
+
+    async init() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, 1);
+
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(this.storeName)) {                    
+                    db.createObjectStore(this.storeName, { keyPath: 'S' });
+                }
+            };
+
+            request.onsuccess = (e) => {
+                this.db = e.target.result;
+                resolve();
+            };
+
+            request.onerror = (e) => reject(e.target.error);
+        });
+    }
+
+    async add(S, U, F) {        
+        return this._tx('readwrite', store => store.put({ S: S, U: U , F: F }));
+    }
+
+    async remove(S) {
+        // 짧은 URL을 키로 사용하여 삭제합니다.
+        return this._tx('readwrite', store => store.delete(S));
+    }
+
+    async get(S) {
+        // 짧은 URL을 키로 사용하여 특정 데이터를 가져옵니다.
+        return this._tx('readonly', store => store.get(S));
+    }
+
+    async getAll() {
+        // 모든 저장된 데이터를 배열로 가져옵니다.
+        return this._tx('readonly', store => store.getAll());
+    }
+
+    async _tx(mode, action) {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction([this.storeName], mode);
+            const store = tx.objectStore(this.storeName);
+            const request = action(store);
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+}
+
+
+
+const linkManager = new linkManagerDB();
+
+
 /* ===============================
  * IndexedDB 기반 Queue + BroadcastChannel 관리
  * =============================== */
@@ -178,7 +242,6 @@ class IndexedDBQueue {
  * =============================== */
 const queue = new IndexedDBQueue();
 
-
 const AutoClickBC = new BroadcastChannel("AutoClickChannel");
 let queueState = null;
 let processCount = 5;
@@ -259,24 +322,6 @@ function normalizeUrlKey() {
     return host;
 }
 
-/* ===============================
- * Managers
- * =============================== */
-const CacheManager = {
-    get(key) {
-        try {
-            const raw = localStorage.getItem(key);
-            return raw ? JSON.parse(raw) : null;
-        } catch (e) { log("Cache get error", e); return null; }
-    },
-    set(key, value) {
-        try {
-            localStorage.setItem(key, JSON.stringify(value));
-        } catch (e) { log("Cache set error", e); }
-    },
-    del(key) { localStorage.removeItem(key); }
-};
-
 const JobManager = {
     keys() { return GM_listValues() },
     add(url) { GM_setValue(url, true) },
@@ -285,6 +330,66 @@ const JobManager = {
     }
 };
 
+
+
+/**
+ * 로컬 스토리지의 모든 데이터를 IndexedDB로 마이그레이션합니다.
+ * shortUrl이 'http'로 시작하는 항목만 마이그레이션합니다.
+ * 마이그레이션이 성공한 항목은 로컬 스토리지에서 삭제합니다.
+ * @returns {Promise<void>}
+ */
+async function migrateFromLocalStorage() {
+    console.log("Starting data migration from localStorage to IndexedDB...");
+
+    try {
+        await linkManager.init();
+        console.log("IndexedDB initialized.");
+    } catch (e) {
+        console.error("Failed to initialize IndexedDB:", e);
+        return;
+    }
+
+    const migrationTasks = [];
+
+    for (let i = 0; i < localStorage.length; i++) {
+        const shortUrl = localStorage.key(i);
+
+        if (shortUrl && shortUrl.startsWith('http')) {
+            try {
+                const rawValue = localStorage.getItem(shortUrl);
+                const data = JSON.parse(rawValue);
+
+                if (data && data.U && data.T) {
+                    console.log(`Preparing to migrate: ${shortUrl}`);
+
+                    // Promise와 shortUrl을 함께 객체로 저장합니다.
+                    const promise = linkManager.add(shortUrl, data.U, data.T);
+                    migrationTasks.push({ promise, shortUrl });
+                } else {
+                    console.warn(`Skipping invalid data for key: ${shortUrl}`);
+                }
+            } catch (e) {
+                console.error(`Error parsing data for key ${shortUrl}:`, e);
+            }
+        }
+    }
+
+    // 모든 Promise를 추출하여 Promise.all()로 기다립니다.
+    const promises = migrationTasks.map(task => task.promise);
+    await Promise.all(promises);
+
+    console.log("All data successfully migrated to IndexedDB.");
+
+    // 마이그레이션이 성공한 항목만 로컬 스토리지에서 삭제합니다.
+    migrationTasks.forEach(task => {
+        localStorage.removeItem(task.shortUrl);
+        console.log(`Removed from localStorage: ${task.shortUrl}`);
+    });
+
+    console.log("All corresponding localStorage data cleared.");
+}
+
+//migrateFromLocalStorage();
 
 /* ===============================
  * UI Manager
@@ -359,7 +464,7 @@ const UIManager = {
         newResetIcon.addEventListener('click', (e) => {
             e.preventDefault();
             e.currentTarget.style.color = 'purple';
-            CacheManager.del(originalLink);
+            linkManager.remove(originalLink);
             el.setAttribute('href', originalLink);
             newResetIcon.remove();
         });
@@ -592,7 +697,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                 oldLink = oldLink.replace(/shrinkme\.(org|dev|us)/, 'shrinkme.site');
                 link.href = oldLink;
             }
-            const cached = CacheManager.get(oldLink); // 예시: 캐시에서 가져오기
+            const cached = linkManager.get(oldLink); // 예시: 캐시에서 가져오기
 
             if (cached) {
                 if (cached.U === 'NotFound') {
@@ -601,7 +706,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                     errorTypes.add(type); // NotFound가 하나라도 있으면 type 기록
                 } else {
                     link.href = cached.U;
-                    UIManager.addResetButton(link, oldLink, cached.T);
+                    UIManager.addResetButton(link, oldLink, cached.F);
                     cachedCount++;
                 }
             }
@@ -696,7 +801,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
             if (e.data.token === 'NotFound') {
                 childWindow.postMessage({ action: 'closed' }, e.origin);
                 // 현재 type 실패 → 곧바로 다음 type으로 넘어감
-                CacheManager.set(entry.oldLink, { U: 'NotFound', T: 'File Not Found' });
+                linkManager.add(entry.oldLink, 'NotFound', 'File Not Found');                
                 UIManager.addResetButton(entry.linkEl, entry.oldLink, 'File Not Found');
                 //entry.linkEl.remove();
                 await sleep(500);
@@ -718,7 +823,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                 }
             } else {
                 // 성공 → 링크 갱신 & 캐시 저장
-                CacheManager.set(entry.oldLink, { U: e.data.token, T: e.data.FileName || entry.title });
+                linkManager.add(entry.oldLink, e.data.token, e.data.FileName || entry.title);                
                 entry.linkEl.href = e.data.token;
                 if (allowHost.test(e.data.token)) {
                     JdownloaderData.push(e.data.token);
@@ -959,9 +1064,10 @@ async function Downloader(el) {
 window.addEventListener("DOMContentLoaded", async () => {
     
     
-    if (/allasiangirls\.net|bestgirlsexy\.com|misskon\.com/.test(PageURL)) {
+    if (/allasiangirls\.net|bestgirlsexy\.com|misskon\.com/.test(PageURL)) {        
+        await linkManager.init();
         log('AutoClick init');
-        await queue.init();    
+        await queue.init();            
     }    
     
     insertFontAwesome();
