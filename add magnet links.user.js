@@ -379,6 +379,7 @@ if (!config) return  // not supported site
 
 let JobList = []
 let isProcessing = false;
+let stateCounter;
 
 
 function setClearList(name, value) {
@@ -448,6 +449,7 @@ async function appendColumn() {
                 if (stored) {
                     if (stored?.M && typeof stored.M === "object" && Object.keys(stored.M).length === 0) {
                         await magnetManager.remove(Key);
+                        magnetManager.getAllKeys().then(keys => stateCounter.textContent = keys.length);
                         continue;
                     }
                     MagnetLink = stored.M;
@@ -519,6 +521,7 @@ async function processJob(el) {
         let Key = el.getAttribute('data-key');
         if (retrievedLink && typeof retrievedLink === "string" && retrievedLink.trim()) {
             await magnetManager.add(Key, retrievedLink, new Date().toISOString().slice(0, 10));
+            magnetManager.getAllKeys().then(keys => stateCounter.textContent = keys.length);
         }
         el.setAttribute('href', retrievedLink);
         el.classList.add('visited');
@@ -676,8 +679,8 @@ async function MakeIcon() {
         centerBox.style.visibility = "visible";
 
         // Set counter value
-        const stateCounter = centerBox.querySelector('.State');
-        stateCounter.textContent = await magnetManager.getAllKeys().then(keys => keys.length || 0);
+        stateCounter = centerBox.querySelector('.State');
+        magnetManager.getAllKeys().then(keys => stateCounter.textContent = keys.length);
 
         // Handle download
         centerBox.querySelector(".DownButton").addEventListener('click', async () => {
@@ -698,7 +701,7 @@ async function MakeIcon() {
                     alert('백업 파일 로드에 실패했습니다: ' + e.message);
                 }
                 input.remove();
-                stateCounter.textContent = await magnetManager.getAllKeys().then(keys => keys.length || 0);
+                magnetManager.getAllKeys().then(keys => stateCounter.textContent = keys.length);
             });
             input.click();
         });

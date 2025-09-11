@@ -697,7 +697,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                 oldLink = oldLink.replace(/shrinkme\.(org|dev|us)/, 'shrinkme.site');
                 link.href = oldLink;
             }
-            const cached = linkManager.get(oldLink); // 예시: 캐시에서 가져오기
+            const cached = await linkManager.get(oldLink); // 예시: 캐시에서 가져오기
 
             if (cached) {
                 if (cached.U === 'NotFound') {
