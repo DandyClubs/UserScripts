@@ -972,8 +972,11 @@ async function Start() {
             document.documentElement.style.setProperty('--top', `${off}px`);
             break;
         }
+        case 'k2sporn.com':
+            document.documentElement.style.setProperty('--top', '-1rem');
+            break;        
         default:
-            document.documentElement.style.setProperty('--top', '.75rem');
+            document.documentElement.style.setProperty('--top', '1.5rem');
     }
 }
 

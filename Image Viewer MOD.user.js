@@ -829,7 +829,7 @@ function bindKeyboardNavigation(viewer) {
             case 'ArrowLeft': viewer.prev(); break;
             case 'ArrowRight': viewer.next(); break;
         }
-    });
+    }, { once: true });
 }
 
 
