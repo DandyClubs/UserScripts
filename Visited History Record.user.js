@@ -143,6 +143,7 @@ class VisitedManagerDB {
                 const db = e.target.result;
                 if (!db.objectStoreNames.contains(this.storeName)) {
                     db.createObjectStore(this.storeName, { keyPath: 'K' });
+                    store.createIndex('dateIndex', 'D', { unique: false });
                 }
             };
 
@@ -156,7 +157,7 @@ class VisitedManagerDB {
     }
 
     async add(K, D) {
-        return this._tx('readwrite', store => store.put({ K: K, D: D}));
+        return this._tx('readwrite', store => store.put({ K: K, D: D }));
     }
 
     async remove(K) {
@@ -180,6 +181,29 @@ class VisitedManagerDB {
 
     async clear() {
         return this._tx('readwrite', store => store.clear());
+    }
+
+    async getOldData(days) {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction([this.storeName], 'readonly');
+            const store = tx.objectStore(this.storeName);
+
+            // 'dateIndex' 인덱스를 사용합니다.
+            const index = store.index('dateIndex');
+
+            const oneDay = 1000 * 60 * 60 * 24;
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - days);
+
+            // IndexedDB 키 범위(IDBKeyRange)를 사용하여 특정 날짜 이전의 데이터만 가져옵니다.
+            // `upperBound`는 지정된 값보다 작은 모든 키를 포함합니다.
+            const range = IDBKeyRange.upperBound(cutoffDate.toISOString().slice(0, 10));
+
+            const request = index.getAll(range);
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
     }
 
     async _tx(mode, action) {
@@ -222,25 +246,25 @@ async function migrateFromLocalStorage() {
         .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
         .map(([key, _]) => key);
 
-    for (const key of visitedKeys) {        
-            try {
-                const rawValue = localStorage.getItem(key);
-                if (!rawValue) continue;
+    for (const key of visitedKeys) {
+        try {
+            const rawValue = localStorage.getItem(key);
+            if (!rawValue) continue;
 
-                const data = rawValue;
+            const data = rawValue;
 
-                if (data) {
-                    console.log(`Preparing to migrate: ${key}`);
+            if (data) {
+                console.log(`Preparing to migrate: ${key}`);
 
-                    // Promise와 shortUrl을 함께 객체로 저장합니다.
-                    const promise = VisitedManager.add(key, data);
-                    migrationTasks.push({ promise, key });
-                } else {
-                    console.warn(`Skipping invalid data for key: ${key}`);
-                }
-            } catch (e) {
-                console.error(`Error parsing data for key ${key}:`, e);
+                // Promise와 shortUrl을 함께 객체로 저장합니다.
+                const promise = VisitedManager.add(key, data);
+                migrationTasks.push({ promise, key });
+            } else {
+                console.warn(`Skipping invalid data for key: ${key}`);
             }
+        } catch (e) {
+            console.error(`Error parsing data for key ${key}:`, e);
+        }
     }
 
     // 모든 Promise를 추출하여 Promise.all()로 기다립니다.
@@ -649,7 +673,7 @@ function checkVisited(node = Active.root) {
         if (Active.SaveMode === 'indexedDB') {
             visited = await VisitedManager.getAllKeys();
         } else if (Active.SaveMode === 'ScriptStorage') {
-            visited = await GM_listValues();            
+            visited = await GM_listValues();
         }
 
         let checkLists = [...node.querySelectorAll(Active.exlink)].filter(a =>
@@ -673,7 +697,7 @@ function checkVisited(node = Active.root) {
                 let X;
                 //console.log('Visited: ', linkInfo, T)
                 if (Active.SaveMode === 'indexedDB') {
-                    const stored = await VisitedManager.get(T);                    
+                    const stored = await VisitedManager.get(T);
                     if (stored) {
                         X = stored.D;
                     }
@@ -760,45 +784,29 @@ function VisitedCSS(el, X) {
 
 async function ClearVisited() {
     console.log('Start Delete Visited!');
-
-    let visitedKeys;
-    if (Active.SaveMode === 'indexedDB') {
-        visitedKeys = await VisitedManager.getAllKeys();        
-    } else if (Active.SaveMode === 'ScriptStorage') {
-        const allKeys = await GM_listValues();
-        visitedKeys = allKeys.filter(key => {
-            const val = GM_getValue(key);
-            return /\d{4}-\d{2}-\d{2}/.test(val);
-        });
-    }
-
     const now = new Date();
     const oneDayMs = 1000 * 60 * 60 * 24;
+    const oldDay = 180;
 
-    for (let key of visitedKeys) {
-        let storedDateValue;
-        if (Active.SaveMode === 'indexedDB') {
-            const stored = await VisitedManager.get(key);
-            if(stored){
-                storedDateValue = stored.D;
-            }
-        } else if (Active.SaveMode === 'ScriptStorage') {
-            storedDateValue = GM_getValue(key);
+    if (Active.SaveMode === 'indexedDB') {
+        const oldData = await VisitedManager.getOldData(oldDay);
+
+        for (const data of oldData) {
+            VisitedManager.remove(data.S);
         }
-
-        if (storedDateValue && !isNaN(Date.parse(storedDateValue))) {
-            const storedDate = new Date(storedDateValue);
-            const diffDays = (now - storedDate) / oneDayMs;
-
-            if (diffDays > 180) {
-                if (Active.SaveMode === 'indexedDB') {
-                    await VisitedManager.remove(key);
-                } else if (Active.SaveMode === 'ScriptStorage') {
-                    await GM_deleteValue(key);
+    } else if (Active.SaveMode === 'ScriptStorage') {
+        const allKeys = await GM_listValues();
+        allKeys.filter(key => {
+            const storedDateValue = GM_getValue(key);
+            if (storedDateValue && /\d{4}-\d{2}-\d{2}/.test(storedDateValue) && !isNaN(Date.parse(storedDateValue))) {
+                const storedDate = new Date(storedDateValue);
+                const diffDays = (now - storedDate) / oneDayMs;
+                if (diffDays > oldDay) {
+                    GM_deleteValue(key);
+                    console.log('Deleted item:', key, storedDateValue);
                 }
-                console.log('Deleted item:', key, storedDateValue);
             }
-        }
+        })
     }
 }
 
@@ -849,7 +857,7 @@ async function SaveVisited(el) {
 
     if (typeof linkInfo === 'string' && linkInfo.trim() !== '') {
         if (Active.SaveMode === 'indexedDB') {
-            await VisitedManager.add(linkInfo, AddDate);        
+            await VisitedManager.add(linkInfo, AddDate);
         } else if (Active.SaveMode === 'ScriptStorage') {
             GM_setValue(linkInfo, AddDate);
             // 불필요한 중복 설정 방지 (옵션)
@@ -869,7 +877,7 @@ async function SaveVisited(el) {
 async function Start() {
     if (!Active.root) return;
 
-    if (Active.SaveMode === 'indexedDB'){
+    if (Active.SaveMode === 'indexedDB') {
         await VisitedManager.init();
     };
 

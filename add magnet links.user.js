@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Torrent Sites - add magnet links
 // @namespace   DandyClubs
-// @version     2025.08.21
+// @version     2025.09.11
 // @description Adds a column with magnet links in lists (multi-site support)
 // @author      DandyClubs
 // @license     MIT
@@ -85,6 +85,100 @@ const xxxclubStyle = `
 `;
 
 
+class MagnetManagerDB {
+    constructor() {
+        this.dbName = 'MagnetManager';
+        this.storeName = 'MagnetStore';
+        this.db = null;
+    }
+
+    async init() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, 1);
+
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(this.storeName)) {
+                    db.createObjectStore(this.storeName, { keyPath: 'S' });
+                    store.createIndex('dateIndex', 'D', { unique: false });
+                }
+            };
+
+            request.onsuccess = (e) => {
+                this.db = e.target.result;
+                resolve();
+            };
+
+            request.onerror = (e) => reject(e.target.error);
+        });
+    }
+
+    async add(S, M, D) {
+        return this._tx('readwrite', store => store.put({ S: S, M: M, D: D }));
+    }
+
+    async remove(S) {
+        // 짧은 URL을 키로 사용하여 삭제합니다.
+        return this._tx('readwrite', store => store.delete(S));
+    }
+
+    async get(S) {
+        // 짧은 URL을 키로 사용하여 특정 데이터를 가져옵니다.
+        return this._tx('readonly', store => store.get(S));
+    }
+
+    async getAll() {
+        // 모든 저장된 데이터를 배열로 가져옵니다.
+        return this._tx('readonly', store => store.getAll());
+    }
+
+    async getAllKeys() {
+        return this._tx('readonly', store => store.getAllKeys());
+    }
+
+    async getOldData(days) {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction([this.storeName], 'readonly');
+            const store = tx.objectStore(this.storeName);
+
+            // 'dateIndex' 인덱스를 사용합니다.
+            const index = store.index('dateIndex');
+
+            const oneDay = 1000 * 60 * 60 * 24;
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - days);
+
+            // IndexedDB 키 범위(IDBKeyRange)를 사용하여 특정 날짜 이전의 데이터만 가져옵니다.
+            // `upperBound`는 지정된 값보다 작은 모든 키를 포함합니다.
+            const range = IDBKeyRange.upperBound(cutoffDate.toISOString().slice(0, 10));
+
+            const request = index.getAll(range);
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    async _tx(mode, action) {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction([this.storeName], mode);
+            const store = tx.objectStore(this.storeName);
+            const request = action(store);
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+}
+
+
+
+const magnetManager = new MagnetManagerDB();
+
+(async () => {
+    await magnetManager.init();
+})();
+
 
 /* ----------------------------
    Site Configurations
@@ -107,7 +201,7 @@ const siteConfigs = {
                           table > tbody > tr:not(.blank) > td:nth-child(2)`,
         cellSelectorNew: `table > thead > tr:not(.blank) > th:nth-child(3),
                       table > tbody > tr:not(.blank) > td:nth-child(3)`,
-        insertHeadersCellsInitial : (cell, index, title) => cell.insertAdjacentHTML('afterend', (index === 0 ? `<th>${title}</th>` : `<td>${title}</td>`)),
+        insertHeadersCellsInitial: (cell, index, title) => cell.insertAdjacentHTML('afterend', (index === 0 ? `<th>${title}</th>` : `<td>${title}</td>`)),
         getKey: (cell, href, RootDomain) => href.match(new RegExp(RootDomain + '(.*)')).pop(),
         getHref: (cell) => cell.querySelector('a').href,
         extractMagnet: (doc) => doc.querySelector('div.table-responsive a[href^="magnet:"]'),
@@ -190,20 +284,15 @@ function getCookie(name) {
 
 
 const cookieCheck = getCookie("ClearList");
-if (!cookieCheck || cookieCheck !== "Y") {    
+
+if (!cookieCheck || cookieCheck !== "Y") {
     // cleanup old keys
-    const oneDay = 1000 * 60 * 60 * 24
-    const Now = new Date().toISOString().slice(0, 10)
-    for (const [Key] of Object.entries(localStorage)) {        
-        const AddedDay = JSON.parse(localStorage.getItem(Key)).D
-        if (((new Date(Now) - new Date(AddedDay)) / oneDay) > 180) {
-            localStorage.removeItem(Key)
-        }
-        let data = JSON.parse(localStorage.getItem(Key));
-        if (data?.M && typeof data.M === "object" && Object.keys(data.M).length === 0) {
-            localStorage.removeItem(Key);
-        }
-    }
+    // 180일이 지난 데이터를 가져옵니다.
+    const oldData = await magnetManager.getOldData(180);
+
+    for (const data of oldData) {
+        magnetManager.remove(data.S);
+    }    
     setClearList("ClearList", "Y");
 }
 
@@ -219,21 +308,29 @@ function appendColumn() {
         })
 
         const headersCellsNew = table.querySelectorAll(config.cellSelectorNew)
-        headersCellsNew.forEach((cell, index) => {
+        headersCellsNew.forEach(async (cell, index) => {
             cell.classList.add('hideCell');
+            let MagnetLink = '';
             if (index === 0) {
                 cell.innerHTML = title
             } else {
                 let url = config.getHref(headersCellsInitial[index])
                 let Key = config.getKey(headersCellsInitial[index], url, RootDomain)
-                let MagnetLink = JSON.parse(localStorage.getItem(Key))?.M || ''                            
+                const stored = await magnetManager.get(Key);
+                if (stored?.M && typeof stored.M === "object" && Object.keys(stored.M).length === 0) {
+                    await magnetManager.remove(Key);
+                    return;
+                }
+                if (stored) {
+                    MagnetLink = stored.M;
+                }
 
                 cell.classList.add('dl-buttons')
                 cell.innerHTML = `
           ${config.hasTitleCopy ? `<span><i class="GetTitle fa-solid fa-paste" data-key="${Key}"></i></span>` : ""}
           <span><a class="GetMagnet fa-solid fa-magnet ${MagnetLink ? 'visited' : 'not-processed'}" data-key="${Key}" data-url="${url}" href="${MagnetLink ? MagnetLink : '#unprocessed'}" title="ML"></a></span>`
 
-                if (MagnetLink) {                    
+                if (MagnetLink) {
                     cell.querySelector('.GetMagnet').style.setProperty('color', 'Orange', 'important')
                 }
 
@@ -288,16 +385,13 @@ async function processJob(el) {
     let retrievedLink = config.extractMagnet(container)?.href;
 
     if (retrievedLink) {
-        let Key = el.getAttribute('data-key')    
+        let Key = el.getAttribute('data-key')
         if (retrievedLink && typeof retrievedLink === "string" && retrievedLink.trim()) {
-            localStorage.setItem(Key, JSON.stringify({
-                M: retrievedLink,
-                D: new Date().toISOString().slice(0, 10)
-            }));
-        }         
+            await magnetManager.add(Key, retrievedLink, new Date().toISOString().slice(0, 10))
+        }
         el.setAttribute('href', retrievedLink)
         el.classList.add('visited')
-        el.classList.remove('not-processed')        
+        el.classList.remove('not-processed')
         el.style.setProperty('color', 'Orange', 'important')
         el.removeEventListener('click', GetMagnet, false);
         el.click()
@@ -375,7 +469,7 @@ function GetMagnet(event) {
 
 function addClickListeners(links) {
     links.forEach((link) => {
-        link.addEventListener('click', GetMagnet, false)     
+        link.addEventListener('click', GetMagnet, false)
     });
 }
 
