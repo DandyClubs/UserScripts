@@ -10,13 +10,54 @@
 // @grant       GM_addStyle
 // @grant       GM_setClipboard
 // @grant       GM_xmlhttpRequest
-// @run-at      document-body
+// @run-at      document-end
 // @require     https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // ==/UserScript==
 
 
-const therarbgStyle = `
 
+
+const commonStyle = `
+.DBCenterBox {
+    top: 5px;     
+    position: absolute;
+    max-width: max-content;    
+    font-style: initial !important;
+    text-align: center;    
+    border-radius: .25em !important;
+    -webkit-box-sizing: border-box !important;
+    box-sizing: border-box !important;
+    background-color: rgba(0,0,0,0.5) !important;
+    display: flex;
+	flex-wrap: nowrap;
+	justify-content: center;
+	align-items: center;
+    z-index: 9999;
+}
+
+.DBCenterBox .DownButton, .DBCenterBox .UpButton {
+    text-align: center;
+    cursor: pointer;
+    color: LimeGreen !important;
+    padding: .25em !important;
+    background-color:transparent !important;
+}
+
+.DBCenterBox .State {
+    display: inline-block;    
+    transform: scale(0.5);
+    font-weight: bold;
+    text-align: right;
+    vertical-align: middle;
+    font-family: 'Noto Sans', sans-serif !important;
+    font-style: italic !important;
+    max-width: 12ch;
+    color: WhiteSmoke !important;
+    background-color:transparent !important;
+}
+`
+
+const therarbgStyle = `
 	main.container, div.container {
 		max-width: 1600px;		
 	}
@@ -93,14 +134,22 @@ class MagnetManagerDB {
     }
 
     async init() {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.dbName, 1);
+        return new Promise((resolve, reject) => {            
+            const request = indexedDB.open(this.dbName, 3);
 
             request.onupgradeneeded = (e) => {
                 const db = e.target.result;
+                // 스토어가 없다면 새로 만들고 인덱스를 생성합니다.
                 if (!db.objectStoreNames.contains(this.storeName)) {
-                    db.createObjectStore(this.storeName, { keyPath: 'S' });
+                    const store = db.createObjectStore(this.storeName, { keyPath: 'S' });
                     store.createIndex('dateIndex', 'D', { unique: false });
+                }
+                // 스토어는 있지만 인덱스가 없는 경우, 즉 기존에 있던 DB에 인덱스를 추가해야 하는 경우
+                else {
+                    const store = request.transaction.objectStore(this.storeName);
+                    if (!store.indexNames.contains('dateIndex')) {
+                        store.createIndex('dateIndex', 'D', { unique: false });
+                    }
                 }
             };
 
@@ -159,6 +208,81 @@ class MagnetManagerDB {
         });
     }
 
+    async downloadDB() {
+        // 모든 데이터를 가져옵니다.
+        const allData = await this.getAll();
+
+        // 데이터를 JSON 문자열로 변환합니다.
+        const jsonString = JSON.stringify(allData, null, 2);
+
+        // JSON 문자열을 Blob 객체로 만듭니다.
+        const blob = new Blob([jsonString], { type: 'application/json' });
+
+        // Blob 객체를 위한 URL을 생성합니다.
+        const url = URL.createObjectURL(blob);
+
+        // 다운로드를 위한 <a> 태그를 생성합니다.
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${this.dbName}_backup.json`; // 파일 이름 설정
+        document.body.appendChild(a);
+
+        // 클릭 이벤트를 트리거하여 파일을 다운로드합니다.
+        a.click();
+
+        // 불필요한 DOM 요소를 정리하고 URL을 해제합니다.
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        return true;
+    }
+
+    async uploadDB(file) {
+        if (!file) {
+            throw new Error("파일이 선택되지 않았습니다.");
+        }
+
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onload = async (event) => {
+                try {
+                    // 파일 내용을 JSON으로 파싱합니다.
+                    const data = JSON.parse(event.target.result);
+
+                    if (!Array.isArray(data)) {
+                        throw new Error("파일 형식이 올바르지 않습니다. 배열이 아닙니다.");
+                    }
+
+                    // 트랜잭션을 시작합니다.
+                    const tx = this.db.transaction([this.storeName], 'readwrite');
+                    const store = tx.objectStore(this.storeName);
+
+                    // 데이터를 순회하며 DB에 저장합니다.
+                    for (const item of data) {
+                        // put을 사용하여 기존 데이터가 있다면 덮어씁니다.
+                        store.put(item);
+                    }
+
+                    tx.oncomplete = () => {
+                        console.log('데이터가 성공적으로 업로드되었습니다.');
+                        resolve(true);
+                    };
+
+                    tx.onerror = (e) => reject(e.target.error);
+
+                } catch (e) {
+                    reject(e);
+                }
+            };
+
+            reader.onerror = (e) => reject(e.target.error);
+
+            // 파일을 텍스트로 읽습니다.
+            reader.readAsText(file);
+        });
+    }
+
     async _tx(mode, action) {
         return new Promise((resolve, reject) => {
             const tx = this.db.transaction([this.storeName], mode);
@@ -175,11 +299,6 @@ class MagnetManagerDB {
 
 const magnetManager = new MagnetManagerDB();
 
-(async () => {
-    await magnetManager.init();
-})();
-
-
 /* ----------------------------
    Site Configurations
 ----------------------------- */
@@ -193,7 +312,8 @@ const siteConfigs = {
         getHref: (cell) => cell.querySelector('a[href*="/torrents/details/"]').href,
         extractMagnet: (doc) => doc.querySelector('div.detailsdescr ul li.downloadboxlist span a.mg-link[href^="magnet:"]'),
         hasTitleCopy: true,
-        style: xxxclubStyle,
+        style: xxxclubStyle,        
+        makeIconSelector: "div.page-header",
     },
     "therarbg.com": {
         tableSelector: "div.row.p-1",
@@ -207,6 +327,8 @@ const siteConfigs = {
         extractMagnet: (doc) => doc.querySelector('div.table-responsive a[href^="magnet:"]'),
         hasTitleCopy: false,
         style: therarbgStyle,
+        makeIconSelector: "body.postBody",
+        
     }
 }
 
@@ -283,17 +405,19 @@ function getCookie(name) {
 }
 
 
-const cookieCheck = getCookie("ClearList");
+async function checkClear() {
+    const cookieCheck = getCookie("ClearList");
 
-if (!cookieCheck || cookieCheck !== "Y") {
-    // cleanup old keys
-    // 180일이 지난 데이터를 가져옵니다.
-    const oldData = await magnetManager.getOldData(180);
+    if (!cookieCheck || cookieCheck !== "Y") {
+        // cleanup old keys
+        // 180일이 지난 데이터를 가져옵니다.
+        const oldData = await magnetManager.getOldData(180);
 
-    for (const data of oldData) {
-        magnetManager.remove(data.S);
-    }    
-    setClearList("ClearList", "Y");
+        for (const data of oldData) {
+            magnetManager.remove(data.S);
+        }
+        setClearList("ClearList", "Y");
+    }
 }
 
 
@@ -478,10 +602,123 @@ async function createColumn() {
     addClickListeners(document.querySelectorAll('a.GetMagnet.not-processed'))
 }
 
+function getDefaultFontSize() {
+    const element = document.createElement('div');
+    element.style.width = '1rem';
+    element.style.position = 'absolute'; // ensure no layout impact
+    element.style.visibility = 'hidden'; // keep invisible but measurable
+    element.style.height = '0';          // no height needed
+    document.body.appendChild(element);
+
+    const widthStr = window.getComputedStyle(element).width;
+    const widthMatch = widthStr.match(/[\d.]+/); // allow decimals
+
+    element.remove();
+
+    if (!widthMatch) return null;
+
+    const result = parseFloat(widthMatch[0]);
+    return isNaN(result) ? null : result;
+}
+
+
+function getFixedElementPosition(element) {
+    const rect = element.getBoundingClientRect();
+
+    return {
+        top: rect.top,    // Already relative to viewport
+        left: rect.left,  // No scroll position needed
+        bottom: rect.bottom,
+        right: rect.right,
+        // Include useful additional information
+        viewportHeight: window.innerHeight,
+        viewportWidth: window.innerWidth,
+        isFullyVisible: (
+            rect.top >= 0 &&
+            rect.left >= 0 &&
+            rect.bottom <= window.innerHeight &&
+            rect.right <= window.innerWidth
+        )
+    };
+}
+
+async function MakeIcon() {
+    let GetDPI = window.devicePixelRatio;
+    let DefaultFontSize = getDefaultFontSize();
+    console.log('GetDPI:', GetDPI, 'DefaultFontSize:', DefaultFontSize);
+    if (!document.querySelector("div.DBCenterBox")) {
+        // Create wrapper
+        const boxHTML = `
+            <div class="DBCenterBox" style="max-width: max-content; visibility:hidden;">
+                <i class="DownButton fa-solid fa-file-arrow-down"></i>                
+                <i class="UpButton fa-solid fa-file-arrow-up"></i>
+                <i class="State"></i>
+            </div>`;
+        document.body.insertAdjacentHTML('afterbegin', boxHTML);
+
+        const centerBox = document.querySelector('.DBCenterBox');
+        centerBox.style.setProperty('font-size', ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)) + 'rem', 'important');
+
+        // Position it relative to header
+        const adjustPosition = () => {
+            GetDPI = window.devicePixelRatio;
+            DefaultFontSize = getDefaultFontSize();
+            const header = document.querySelector(config.makeIconSelector);
+            const position = getFixedElementPosition(header);            
+            const xOffset = position.left + header.offsetWidth - centerBox.offsetWidth * 2 - 16;
+            centerBox.style.left = `${xOffset}px`;
+            centerBox.style.setProperty('font-size', ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)) + 'rem', 'important');
+        };
+
+        adjustPosition();
+        window.addEventListener("resize", adjustPosition);
+
+        centerBox.style.visibility = "visible";
+
+        // Set counter value
+        const stateCounter = centerBox.querySelector('.State');
+        stateCounter.textContent = await magnetManager.getAllKeys().then(keys => keys.length || 0);
+
+        // Handle download
+        centerBox.querySelector(".DownButton").addEventListener('click', async () => {
+            await magnetManager.downloadDB();
+        });
+
+        // Handle upload
+        centerBox.querySelector(".UpButton").addEventListener('click', () => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = "application/json";
+
+            input.addEventListener('change', async (e) => {
+                try {
+                    await magnetManager.uploadDB(e.target.files[0]);
+                    alert('백업 파일이 성공적으로 로드되었습니다!');
+                } catch (e) {
+                    alert('백업 파일 로드에 실패했습니다: ' + e.message);
+                }                
+                input.remove();
+                stateCounter.textContent = await magnetManager.getAllKeys().then(keys => keys.length || 0);
+            });
+            input.click();
+        });
+    }
+}
+
+
+
 /* ----------------------------
    Run
 ----------------------------- */
-FontAwesomeCSS()
-AddStyles(config.style, config.style)
-createColumn()
+
+(async () => {
+    // init() 메서드를 먼저 실행해야 합니다.
+    await magnetManager.init();
+    checkClear();
+    FontAwesomeCSS();
+    AddStyles(commonStyle, commonStyle);
+    AddStyles(config.style, config.style);    
+    MakeIcon();
+    createColumn();
+})();
 

@@ -137,7 +137,7 @@ class VisitedManagerDB {
 
     async init() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.dbName, 1);
+            const request = indexedDB.open(this.dbName, 2);
 
             request.onupgradeneeded = (e) => {
                 const db = e.target.result;
