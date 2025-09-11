@@ -55,12 +55,21 @@ class ContentDB {
 
     async init() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.dbName, 1);
+            const request = indexedDB.open(this.dbName, 3);
 
             request.onupgradeneeded = (e) => {
                 const db = e.target.result;
+                // 스토어가 없다면 새로 만들고 인덱스를 생성합니다.
                 if (!db.objectStoreNames.contains(this.storeName)) {
-                    db.createObjectStore(this.storeName, { keyPath: 'K' });
+                    const store = db.createObjectStore(this.storeName, { keyPath: 'K' });
+                    store.createIndex('dateIndex', 'D', { unique: false });
+                }
+                // 스토어는 있지만 인덱스가 없는 경우, 즉 기존에 있던 DB에 인덱스를 추가해야 하는 경우
+                else {
+                    const store = request.transaction.objectStore(this.storeName);
+                    if (!store.indexNames.contains('dateIndex')) {
+                        store.createIndex('dateIndex', 'D', { unique: false });
+                    }
                 }
             };
 
@@ -72,6 +81,7 @@ class ContentDB {
             request.onerror = (e) => reject(e.target.error);
         });
     }
+
 
     async add(K, D) {
         return this._tx('readwrite', store => store.put({ K: K, D: D }));
@@ -98,6 +108,29 @@ class ContentDB {
 
     async clear() {
         return this._tx('readwrite', store => store.clear());
+    }
+
+    async getOldData(days) {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction([this.storeName], 'readonly');
+            const store = tx.objectStore(this.storeName);
+
+            // 'dateIndex' 인덱스를 사용합니다.
+            const index = store.index('dateIndex');
+
+            const oneDay = 1000 * 60 * 60 * 24;
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - days);
+
+            // IndexedDB 키 범위(IDBKeyRange)를 사용하여 특정 날짜 이전의 데이터만 가져옵니다.
+            // `upperBound`는 지정된 값보다 작은 모든 키를 포함합니다.
+            const range = IDBKeyRange.upperBound(cutoffDate.toISOString().slice(0, 10));
+
+            const request = index.getAll(range);
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
     }
 
     async _tx(mode, action) {
@@ -300,28 +333,11 @@ let managementWorking = false;
 
 async function ClearTitle() {
     console.log('Start Delete Title!');
+    const oldDay = 5;
+    const oldData = await contentManager.getOldData(oldDay);
 
-    const sameTitle = await contentManager.getAllKeys();
-
-    const now = new Date();
-    const oneDayMs = 1000 * 60 * 60 * 24;
-
-    for (let key of sameTitle) {
-        const stored = await VisitedManager.get(key);
-        let storedDateValue;
-        if (stored) {
-            storedDateValue = stored.D;
-        }
-
-        if (storedDateValue && !isNaN(Date.parse(storedDateValue))) {
-            const storedDate = new Date(storedDateValue);
-            const diffDays = (now - storedDate) / oneDayMs;
-
-            if (diffDays > 5) {
-                await VisitedManager.remove(key);
-                console.log('Deleted item:', key, storedDateValue);
-            }
-        }
+    for (const data of oldData) {
+        contentManager.remove(data.S);
     }
 }
 
@@ -473,7 +489,8 @@ function setClearTitle(name, value) {
 }
 
 
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
+    await contentManager.init();
     console.log('Start Remove Content!');
     const rootElement = Active.rootSelector ? document.querySelector(Active.rootSelector) : document.body;
 

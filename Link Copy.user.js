@@ -3183,7 +3183,7 @@ function checkSkipFilter(el) {
 }
 
 function listToDo(areas, type = 'Default') {
-    if(!areas) return;
+    if(!areas) return [];
     const seenAnchors = new Set();
     const todo = [];
 
