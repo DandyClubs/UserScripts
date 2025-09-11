@@ -127,6 +127,140 @@ a.visited {
 `);
 
 
+
+class VisitedManagerDB {
+    constructor() {
+        this.dbName = 'VisitedManager';
+        this.storeName = 'VisitedStore';
+        this.db = null;
+    }
+
+    async init() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.dbName, 1);
+
+            request.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(this.storeName)) {
+                    db.createObjectStore(this.storeName, { keyPath: 'K' });
+                }
+            };
+
+            request.onsuccess = (e) => {
+                this.db = e.target.result;
+                resolve();
+            };
+
+            request.onerror = (e) => reject(e.target.error);
+        });
+    }
+
+    async add(K, D) {
+        return this._tx('readwrite', store => store.put({ K: K, D: D}));
+    }
+
+    async remove(K) {
+        // 짧은 URL을 키로 사용하여 삭제합니다.
+        return this._tx('readwrite', store => store.delete(K));
+    }
+
+    async get(K) {
+        // 짧은 URL을 키로 사용하여 특정 데이터를 가져옵니다.
+        return this._tx('readonly', store => store.get(K));
+    }
+
+    async getAll() {
+        // 모든 저장된 데이터를 배열로 가져옵니다.
+        return this._tx('readonly', store => store.getAll());
+    }
+
+    async getAllKeys() {
+        return this._tx('readonly', store => store.getAllKeys());
+    }
+
+    async clear() {
+        return this._tx('readwrite', store => store.clear());
+    }
+
+    async _tx(mode, action) {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction([this.storeName], mode);
+            const store = tx.objectStore(this.storeName);
+            const request = action(store);
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+}
+
+
+
+const VisitedManager = new VisitedManagerDB();
+
+
+
+/**
+ * 로컬 스토리지의 모든 데이터를 IndexedDB로 마이그레이션합니다.
+ * shortUrl이 'http'로 시작하는 항목만 마이그레이션합니다.
+ * 마이그레이션이 성공한 항목은 로컬 스토리지에서 삭제합니다.
+ * @returns {Promise<void>}
+ */
+async function migrateFromLocalStorage() {
+    console.log("Starting data migration from localStorage to IndexedDB...");
+
+    try {
+        await VisitedManager.init();
+        console.log("IndexedDB initialized.");
+    } catch (e) {
+        console.error("Failed to initialize IndexedDB:", e);
+        return;
+    }
+
+    const migrationTasks = [];
+    visitedKeys = Object.entries(localStorage)
+        .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
+        .map(([key, _]) => key);
+
+    for (const key of visitedKeys) {        
+            try {
+                const rawValue = localStorage.getItem(key);
+                if (!rawValue) continue;
+
+                const data = JSON.parse(rawValue);
+
+                if (data) {
+                    console.log(`Preparing to migrate: ${key}`);
+
+                    // Promise와 shortUrl을 함께 객체로 저장합니다.
+                    const promise = VisitedManager.add(key, data);
+                    migrationTasks.push({ promise, key });
+                } else {
+                    console.warn(`Skipping invalid data for key: ${key}`);
+                }
+            } catch (e) {
+                console.error(`Error parsing data for key ${key}:`, e);
+            }
+    }
+
+    // 모든 Promise를 추출하여 Promise.all()로 기다립니다.
+    const promises = migrationTasks.map(task => task.promise);
+    await Promise.all(promises);
+
+    console.log("All data successfully migrated to IndexedDB.");
+
+    // 마이그레이션이 성공한 항목만 로컬 스토리지에서 삭제합니다.
+    migrationTasks.forEach(task => {
+        localStorage.removeItem(task.key);
+        console.log(`Removed from localStorage: ${task.key}`);
+    });
+
+    console.log("All corresponding localStorage data cleared.");
+}
+
+migrateFromLocalStorage();
+
+
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href
 const RootDomain = extractRootDomain(PageURL)
 
@@ -170,7 +304,7 @@ const sis001 = {
     RegexElement: /thread.+\.html|viewthread\.php/i,
     OpenTab: true,
     Get: 'GetTitle',
-    SaveMode: 'localStorage',
+    SaveMode: 'indexedDB',
     OpenTabCount: 30,
 }
 
@@ -182,7 +316,7 @@ const sehuatang = {
     RegexElement: /thread.+\.html/,
     OpenTab: true,
     Get: 'GetTitle',
-    SaveMode: 'localStorage',
+    SaveMode: 'indexedDB',
     OpenTabCount: 30,
 }
 
@@ -194,7 +328,7 @@ const t66y = {
     RegexElement: /htm_data.+\.html/,
     OpenTab: true,
     Get: 'GetID',
-    SaveMode: 'localStorage',
+    SaveMode: 'indexedDB',
     OpenTabCount: 30,
 }
 
@@ -282,7 +416,7 @@ const misskon = {
     RegexElement: null,
     OpenTab: true,
     Get: 'textContent',
-    SaveMode: 'localStorage',
+    SaveMode: 'indexedDB',
     OpenTabCount: 20,
 }
 
@@ -512,20 +646,10 @@ function checkVisited(node = Active.root) {
 
     return new Promise(async (resolve) => {
         //console.log('Start check Visited!')
-        if (Active.SaveMode === 'localStorage') {
-            visited = Object.entries(localStorage)
-                .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
-                .map(([key]) => key);
+        if (Active.SaveMode === 'indexedDB') {
+            visited = await VisitedManager.getAllKeys();
         } else if (Active.SaveMode === 'ScriptStorage') {
-            visited = await GM_listValues();
-            if (!visited.length) {
-                Object.entries(localStorage).forEach(([key, date]) => {
-                    if (/\d{4}-\d{2}-\d{2}/.test(date)) {
-                        GM_setValue(key, date);
-                    }
-                });
-                visited = await GM_listValues();
-            }
+            visited = await GM_listValues();            
         }
 
         let checkLists = [...node.querySelectorAll(Active.exlink)].filter(a =>
@@ -548,8 +672,8 @@ function checkVisited(node = Active.root) {
             if (T) {
                 let X;
                 //console.log('Visited: ', linkInfo, T)
-                if (Active.SaveMode === 'localStorage') {
-                    X = localStorage.getItem(T);
+                if (Active.SaveMode === 'indexedDB') {
+                    X = VisitedManager.get(T);
                 } else if (Active.SaveMode === 'ScriptStorage') {
                     X = GM_getValue(T);
                 }
@@ -635,10 +759,8 @@ async function ClearVisited() {
     console.log('Start Delete Visited!');
 
     let visitedKeys;
-    if (Active.SaveMode === 'localStorage') {
-        visitedKeys = Object.entries(localStorage)
-            .filter(([key, date]) => /\d{4}-\d{2}-\d{2}/.test(date))
-            .map(([key, _]) => key);
+    if (Active.SaveMode === 'indexedDB') {
+        visitedKeys = await VisitedManager.getAllKeys();        
     } else if (Active.SaveMode === 'ScriptStorage') {
         const allKeys = await GM_listValues();
         visitedKeys = allKeys.filter(key => {
@@ -651,24 +773,27 @@ async function ClearVisited() {
     const oneDayMs = 1000 * 60 * 60 * 24;
 
     for (let key of visitedKeys) {
-        let storedDateStr;
-        if (Active.SaveMode === 'localStorage') {
-            storedDateStr = localStorage.getItem(key);
+        let storedDateValue;
+        if (Active.SaveMode === 'indexedDB') {
+            const stored = await VisitedManager.get(key);
+            if(stored){
+                storedDateValue = stored.D;
+            }
         } else if (Active.SaveMode === 'ScriptStorage') {
-            storedDateStr = GM_getValue(key);
+            storedDateValue = GM_getValue(key);
         }
 
-        if (storedDateStr && !isNaN(Date.parse(storedDateStr))) {
-            const storedDate = new Date(storedDateStr);
+        if (storedDateValue && !isNaN(Date.parse(storedDateValue))) {
+            const storedDate = new Date(storedDateValue);
             const diffDays = (now - storedDate) / oneDayMs;
 
-            if (diffDays > 60) {
-                if (Active.SaveMode === 'localStorage') {
-                    localStorage.removeItem(key);
+            if (diffDays > 180) {
+                if (Active.SaveMode === 'indexedDB') {
+                    VisitedManager.remove(key);
                 } else if (Active.SaveMode === 'ScriptStorage') {
                     await GM_deleteValue(key);
                 }
-                console.log('Deleted item:', key, storedDateStr);
+                console.log('Deleted item:', key, storedDateValue);
             }
         }
     }
@@ -705,7 +830,7 @@ function getCookie(name) {
     return null;
 }
 
-function SaveVisited(el) {
+async function SaveVisited(el) {
     const AddDate = new Date().toISOString().slice(0, 10);
     let linkInfo;
 
@@ -720,8 +845,8 @@ function SaveVisited(el) {
     el.classList.add('visited');
 
     if (typeof linkInfo === 'string' && linkInfo.trim() !== '') {
-        if (Active.SaveMode === 'localStorage') {
-            localStorage.setItem(linkInfo, AddDate);
+        if (Active.SaveMode === 'indexedDB') {
+            await VisitedManager.add(linkInfo, AddDate);        
         } else if (Active.SaveMode === 'ScriptStorage') {
             GM_setValue(linkInfo, AddDate);
             // 불필요한 중복 설정 방지 (옵션)
@@ -738,8 +863,12 @@ function SaveVisited(el) {
 }
 
 
-function Start() {
+async function Start() {
     if (!Active.root) return;
+
+    if (Active.SaveMode === 'indexedDB'){
+        await VisitedManager.init();
+    };
 
     MakeIcon();
 
