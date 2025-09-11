@@ -192,6 +192,7 @@
         /btn-success/,
         /down_now/,
         /page/,
+        /lslink/,
     ];
 
     const downloadLinkPatterns = [
