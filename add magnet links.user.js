@@ -41,6 +41,8 @@ const commonStyle = `
     color: LimeGreen !important;
     padding: .25em !important;
     background-color:transparent !important;
+    text-shadow: 2px 4px 4px rgba(0,0,0,0.2),
+                 0px -5px 10px rgba(255,255,255,0.15);
 }
 
 .DBCenterBox .State {
@@ -54,6 +56,8 @@ const commonStyle = `
     max-width: 12ch;
     color: WhiteSmoke !important;
     background-color:transparent !important;
+    text-shadow: 2px 4px 4px rgba(0,0,0,0.2),
+                 0px -5px 10px rgba(255,255,255,0.15);
 }
 `
 
@@ -134,7 +138,7 @@ class MagnetManagerDB {
     }
 
     async init() {
-        return new Promise((resolve, reject) => {            
+        return new Promise((resolve, reject) => {
             const request = indexedDB.open(this.dbName, 3);
 
             request.onupgradeneeded = (e) => {
@@ -312,7 +316,7 @@ const siteConfigs = {
         getHref: (cell) => cell.querySelector('a[href*="/torrents/details/"]').href,
         extractMagnet: (doc) => doc.querySelector('div.detailsdescr ul li.downloadboxlist span a.mg-link[href^="magnet:"]'),
         hasTitleCopy: true,
-        style: xxxclubStyle,        
+        style: xxxclubStyle,
         makeIconSelector: "div.page-header",
     },
     "therarbg.com": {
@@ -328,7 +332,7 @@ const siteConfigs = {
         hasTitleCopy: false,
         style: therarbgStyle,
         makeIconSelector: "body.postBody",
-        
+
     }
 }
 
@@ -421,52 +425,55 @@ async function checkClear() {
 }
 
 
-function appendColumn() {
-    const tables = document.querySelectorAll(config.tableSelector)
-    const title = 'ML'
+async function appendColumn() {
+    const tables = document.querySelectorAll(config.tableSelector);
+    const title = 'ML';
 
-    tables.forEach((table) => {
+    for (const table of tables) {
         const headersCellsInitial = table.querySelectorAll(config.cellSelectorInitial)
-        headersCellsInitial.forEach((cell, index) => {
-            config.insertHeadersCellsInitial(cell, index, title)
-        })
+        for (const [index, cell] of headersCellsInitial.entries()) {
+            config.insertHeadersCellsInitial(cell, index, title);
+        };
 
         const headersCellsNew = table.querySelectorAll(config.cellSelectorNew)
-        headersCellsNew.forEach(async (cell, index) => {
+        for (const [index, cell] of headersCellsNew.entries()) {
             cell.classList.add('hideCell');
             let MagnetLink = '';
             if (index === 0) {
-                cell.innerHTML = title
+                cell.innerHTML = title;
             } else {
-                let url = config.getHref(headersCellsInitial[index])
-                let Key = config.getKey(headersCellsInitial[index], url, RootDomain)
+                let url = config.getHref(headersCellsInitial[index]);
+                let Key = config.getKey(headersCellsInitial[index], url, RootDomain);
                 const stored = await magnetManager.get(Key);
-                if (stored?.M && typeof stored.M === "object" && Object.keys(stored.M).length === 0) {
-                    await magnetManager.remove(Key);
-                    return;
-                }
                 if (stored) {
+                    if (stored?.M && typeof stored.M === "object" && Object.keys(stored.M).length === 0) {
+                        await magnetManager.remove(Key);
+                        continue;
+                    }
                     MagnetLink = stored.M;
                 }
 
-                cell.classList.add('dl-buttons')
+                cell.classList.add('dl-buttons');
                 cell.innerHTML = `
           ${config.hasTitleCopy ? `<span><i class="GetTitle fa-solid fa-paste" data-key="${Key}"></i></span>` : ""}
-          <span><a class="GetMagnet fa-solid fa-magnet ${MagnetLink ? 'visited' : 'not-processed'}" data-key="${Key}" data-url="${url}" href="${MagnetLink ? MagnetLink : '#unprocessed'}" title="ML"></a></span>`
+          <span><a class="GetMagnet fa-solid fa-magnet ${MagnetLink ? 'visited' : 'not-processed'}" data-key="${Key}" data-url="${url}" href="${MagnetLink ? MagnetLink : '#unprocessed'}" title="ML"></a></span>`;
 
+                const link = cell.querySelector('.GetMagnet');
                 if (MagnetLink) {
-                    cell.querySelector('.GetMagnet').style.setProperty('color', 'Orange', 'important')
+                    link.style.setProperty('color', 'Orange', 'important');
+                }else{
+                    addClickListeners(link);
                 }
 
                 if (config.hasTitleCopy) {
                     cell.querySelector('.GetTitle').addEventListener('click', (event) => {
-                        updateClipboard(Key.replace(/(\[|\(|\d+p).*/i, '').trim())
-                        event.target.style.setProperty('color', 'Orange', 'important')
+                        updateClipboard(Key.replace(/(\[|\(|\d+p).*/i, '').trim());
+                        event.target.style.setProperty('color', 'Orange', 'important');
                     })
                 }
             }
-        })
-    })
+        };
+    }
 }
 
 /* ----------------------------
@@ -492,34 +499,34 @@ async function requestPage(tLink) {
 }
 
 async function processJob(el) {
-    let check = el.classList.contains('not-processed')
-    if (!check) return
+    let check = el.classList.contains('not-processed');
+    if (!check) return;
 
-    let tLink = el.getAttribute('data-url')
-    let responseText
+    let tLink = el.getAttribute('data-url');
+    let responseText;
     try {
-        responseText = await requestPage(tLink)
+        responseText = await requestPage(tLink);
     } catch (e) {
-        console.log("request failed, retry later", e)
-        return
+        console.log("request failed, retry later", e);
+        return;
     }
 
-    let container = document.implementation.createHTMLDocument().documentElement
-    container.innerHTML = responseText
+    let container = document.implementation.createHTMLDocument().documentElement;
+    container.innerHTML = responseText;
     let retrievedLink = config.extractMagnet(container)?.href;
 
     if (retrievedLink) {
-        let Key = el.getAttribute('data-key')
+        let Key = el.getAttribute('data-key');
         if (retrievedLink && typeof retrievedLink === "string" && retrievedLink.trim()) {
-            await magnetManager.add(Key, retrievedLink, new Date().toISOString().slice(0, 10))
+            await magnetManager.add(Key, retrievedLink, new Date().toISOString().slice(0, 10));
         }
-        el.setAttribute('href', retrievedLink)
-        el.classList.add('visited')
-        el.classList.remove('not-processed')
-        el.style.setProperty('color', 'Orange', 'important')
+        el.setAttribute('href', retrievedLink);
+        el.classList.add('visited');
+        el.classList.remove('not-processed');
+        el.style.setProperty('color', 'Orange', 'important');
         el.removeEventListener('click', GetMagnet, false);
         el.click()
-        JobList = JobList.filter(job => job.el !== el)   // ✅ 정상 응답일 때만 제거
+        JobList = JobList.filter(job => job.el !== el);   // ✅ 정상 응답일 때만 제거
     }
 }
 
@@ -527,7 +534,7 @@ async function processJob(el) {
 const beforeUnloadHandler = (event) => {
     if (JobList.length) {
         event.preventDefault();
-        console.log('JobList is not Empty!', JobList.length)
+        console.log('JobList is not Empty!', JobList.length);
         // Included for legacy support, e.g. Chrome/Edge < 119
         event.returnValue = true;
     }
@@ -591,15 +598,8 @@ function GetMagnet(event) {
 }
 
 
-function addClickListeners(links) {
-    links.forEach((link) => {
-        link.addEventListener('click', GetMagnet, false)
-    });
-}
-
-async function createColumn() {
-    appendColumn()
-    addClickListeners(document.querySelectorAll('a.GetMagnet.not-processed'))
+function addClickListeners(link) {    
+        link.addEventListener('click', GetMagnet, false)    
 }
 
 function getDefaultFontSize() {
@@ -664,7 +664,7 @@ async function MakeIcon() {
             GetDPI = window.devicePixelRatio;
             DefaultFontSize = getDefaultFontSize();
             const header = document.querySelector(config.makeIconSelector);
-            const position = getFixedElementPosition(header);            
+            const position = getFixedElementPosition(header);
             const xOffset = position.left + header.offsetWidth - centerBox.offsetWidth * 2 - 16;
             centerBox.style.left = `${xOffset}px`;
             centerBox.style.setProperty('font-size', ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)) + 'rem', 'important');
@@ -696,7 +696,7 @@ async function MakeIcon() {
                     alert('백업 파일이 성공적으로 로드되었습니다!');
                 } catch (e) {
                     alert('백업 파일 로드에 실패했습니다: ' + e.message);
-                }                
+                }
                 input.remove();
                 stateCounter.textContent = await magnetManager.getAllKeys().then(keys => keys.length || 0);
             });
@@ -717,8 +717,8 @@ async function MakeIcon() {
     checkClear();
     FontAwesomeCSS();
     AddStyles(commonStyle, commonStyle);
-    AddStyles(config.style, config.style);    
+    AddStyles(config.style, config.style);
     MakeIcon();
-    createColumn();
+    appendColumn();
 })();
 
