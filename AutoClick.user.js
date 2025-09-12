@@ -100,7 +100,7 @@ class linkManagerDB {
 
     async init() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.dbName, 1);
+            const request = indexedDB.open(this.dbName, 3);
 
             request.onupgradeneeded = (e) => {
                 const db = e.target.result;
@@ -166,7 +166,7 @@ class IndexedDBQueue {
 
     async init() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.dbName, 1);
+            const request = indexedDB.open(this.dbName, 2);
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
                 if (!db.objectStoreNames.contains(this.storeName)) {
