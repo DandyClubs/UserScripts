@@ -166,7 +166,7 @@ class IndexedDBQueue {
 
     async init() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.dbName, 2);
+            const request = indexedDB.open(this.dbName, 3);
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
                 if (!db.objectStoreNames.contains(this.storeName)) {
@@ -549,8 +549,8 @@ const globalObserver = new MutationObserver(async (mutations) => {
             }
 
             const jobs = JobManager.keys();
-            const order = jobs.indexOf(PageURL)
-            await sleep(getRandomIntInclusive(0, 10) * 100 + 5000 * order);
+            const order = jobs.findIndex(j => j === PageURL);            
+            await sleep(getRandomIntInclusive(0, 10) * 10 * order + 3000 * order);
             Downloader(ClickBTN);
         }
         else if (!ClickBTN && !isLogin) {
@@ -852,12 +852,14 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                     window.removeEventListener('beforeunload', taskState);
 
                     console.log({ autoClose }, entry.type)
-                    if (autoClose && entry.type === 'terabox') {
-                        await sleep(5000);
+                    if (/terabox\.com|1024tera\.com|terabox\.app/.test(e.origin)){
+                        childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
+                    }
+                    if (autoClose) {                        
+                        await sleep(7500);
                         self.close();
                     }
-
-                    childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
+                    
                     currentLinks = [];
                     currentTypeIndex = types.length;
                     if (enableJdownloaer && JdownloaderData.length > 0) {
