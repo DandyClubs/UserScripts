@@ -628,6 +628,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
     updatequeueState();
     UIManager.syncIcon();
     DBResetButton();
+    let pendingState = false;
     const checkSubPage = document.querySelector('body.single-post');
     if (!checkSubPage) {
         AutoClickBC.onmessage = (e) => {
@@ -636,8 +637,16 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
             }
         };
         return;
+    } else {
+        AutoClickBC.onmessage = (e) => {
+            if (e.data?.type === 'updateState') {
+                updatequeueState();
+                if (!window._isWorking && pendingState) {
+                    startWork(currentLinks);
+                }
+            }
+        };
     }
-
 
     if (!copyTitle || /AI\sGenerated/i.test(copyTitle)) return;
 
@@ -755,6 +764,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
     const types = [...typeGroups.keys()];
     if (!types.length) return;
 
+    pendingState = true;
     let currentTypeIndex = 0;
     let currentLinks = typeGroups.get(types[currentTypeIndex]);
 
@@ -763,15 +773,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
         await queue.enqueue(PageURL);
         updatequeueState();
         startWork(currentLinks);
-        AutoClickBC.postMessage({ type: "updateState" });
-        AutoClickBC.onmessage = (e) => {
-            if (e.data?.type === 'updateState') {
-                updatequeueState();
-                if (!window._isWorking) {
-                    startWork(currentLinks);
-                }
-            }
-        };
+        AutoClickBC.postMessage({ type: "updateState" });                
     }
 
 
