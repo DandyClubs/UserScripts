@@ -1679,7 +1679,7 @@ const siteRules = [
         // cosplay.jav.pw 규칙 추가
         regex: /cosplay\.jav\.pw\/\d+/,
         handler: async (title, copyOffsetArea, DownloadArea) => {
-            let rebuildedText
+            let rebuildedText;
             const h3 = document.querySelector('div.post_singular.hentry .entry h3')
             const rawTitle = h3 ? h3.textContent.trim() : title;
 
@@ -1695,8 +1695,8 @@ const siteRules = [
             CoverImage = document.querySelector('div.entry p a img')?.src || '';
 
 
-            console.log('파일명 찾기"', { DownloadArea })
-            console.log(DownloadArea[0].querySelector('a[href*="https://katfile.com/"]'))
+            console.log('파일명 찾기"', { DownloadArea });
+            console.log(DownloadArea[0].querySelector('a[href*="https://katfile.com/"]'));
             const GetFileNameLink =
                 DownloadArea[0].querySelector('a[href*="https://katfile.com/"]')?.href ||
                 DownloadArea[0].querySelector('a[href*="https://ddownload.com/"]')?.href || '';
@@ -1705,9 +1705,9 @@ const siteRules = [
                 (!SearchIDRegExp.test(rawTitle) && !/^\[.*?\]/.test(rawTitle) && GetFileNameLink) ||
                 (!SearchIDRegExp.test(rawTitle) && !JapaneseChar.test(rawTitle) && GetFileNameLink);
 
-            console.log({ needsFilenameFetch })
+            console.log({ needsFilenameFetch });
 
-            const rawIDMatch = SearchIDRegExp.exec(rawTitle) || ''
+            const rawIDMatch = SearchIDRegExp.exec(rawTitle) || '';
             const rawID = rawIDMatch ? (rawIDMatch.groups ? rawIDMatch.groups[1] : rawIDMatch[1]) : '';
             if (needsFilenameFetch) {
                 try {
@@ -1719,26 +1719,26 @@ const siteRules = [
                     if (service) {
                         const newTitle = await GetFileName(GetFileNameLink, service);
                         console.log('GetFileName :', newTitle);
-                        const newIDMatch = SearchIDRegExp.exec(newTitle) || ''
+                        const newIDMatch = SearchIDRegExp.exec(newTitle) || '';
                         const newID = newIDMatch
                             ? (newIDMatch.groups ? newIDMatch.groups[1] : newIDMatch.filter(Boolean)[1])
                             : '';
 
-                        const cleandedRawTitle = rawTitle.replace(rawID, '').trim()
-                        const cleandedNewTitle = newTitle.replace(newID, '').trim()
+                        const cleandedRawTitle = rawTitle.replace(rawID, '').trim();
+                        const cleandedNewTitle = newTitle.replace(newID, '').trim();
                         rebuildedText = `${rawID || newID} ${compareJapaneseCharacters(cleandedRawTitle, cleandedNewTitle)}`;
                         const Maker = /^\[.*?\]\s/.exec(rebuildedText) || /^\[.*?\]\s/.exec(newTitle)
                         if (Maker?.length) {
                             rebuildedText = Maker + rebuildedText.replace(Maker[0], '')
                         }
-                        copyOffsetArea.textContent = rebuildedText.trim()
-                        console.log('Rebuilded Text:', rebuildedText)
+                        copyOffsetArea.textContent = rebuildedText.trim();
+                        console.log('Rebuilded Text:', rebuildedText);
                     }
                 } catch (e) {
                     console.error('Request failed', e);
                 }
             } else {
-                return rawTitle
+                return rawTitle;
             }
 
             return rebuildedText;
@@ -1823,7 +1823,7 @@ const waitDownloadArea = [
         handler: async () => {
             copyOffsetArea = document.querySelector('div#dle-content article.full div.m-title h1');
             let DownloadAreaSelector;
-            const waiting = await waitElement('div.title_spoiler', document.querySelector('div#dle-content'), { timeout: 500 })
+            const waiting = await waitElement('div.title_spoiler', document.querySelector('div#dle-content'), { timeout: 500 });
             if (waiting) {
                 DownloadAreaSelector = 'div#dle-content article.full .text_spoiler';
             } else {
@@ -1895,7 +1895,7 @@ const waitDownloadArea = [
 
 
 async function Start() {
-    console.log('Link Copy Start!')
+    console.log('Link Copy Start!');
 
     if (currentConfig) {
 
@@ -1913,7 +1913,7 @@ async function Start() {
 
         // Step 2: `postProcess`에서 동적 셀렉터를 설정할 경우를 대비해 먼저 실행
         if (currentConfig.postProcess) {
-            currentConfig.postProcess(currentConfig)
+            currentConfig.postProcess(currentConfig);
         }
 
 
@@ -1954,33 +1954,33 @@ async function Start() {
 
     }
     if (!copyOffsetArea) {
-        throw new Error('No CopyTitle')
+        throw new Error('No CopyTitle');
     }
 
     console.log('Start:', { copyOffsetArea, DownloadArea, CoverImage });
-    return { copyOffsetArea, DownloadArea, CoverImage }
+    return { copyOffsetArea, DownloadArea, CoverImage };
 }
 
 
 
 
 async function processCopyTitle(currentConfig) {
-    console.log(`Start processCopyTitle`, currentConfig)
+    console.log(`Start processCopyTitle`, currentConfig);
 
     CopyTitle = CopyTitle || copyOffsetArea?.textContent.trim() || '';
     if (/naughtyblog\.(org|my)/.test(PageURL) && /SITERIP|OnlyFans|Collection|Updates/i.test(CopyTitle)) {
-        CopyTitle = getDirectInnerText(copyOffsetArea)?.trim()
+        CopyTitle = getDirectInnerText(copyOffsetArea)?.trim();
     }
 
     // 사이트별 특별 규칙 적용
     const rule = siteRules.find((r) => r.regex.test(PageURL));
     if (rule) {
-        console.log(rule)
+        console.log(rule);
         CopyTitle = await rule.handler(CopyTitle, copyOffsetArea, DownloadArea);
     }
 
 
-    console.log({ CopyTitle })
+    console.log({ CopyTitle });
 
 
     // 공통 제목 정리 로직
@@ -2012,9 +2012,9 @@ async function processCopyTitle(currentConfig) {
     // 길이 제한 및 ID 처리
     if (byteLengthOfCheck(CopyTitle) > 241) {
         const titleLast = getLastText(CopyTitle);
-        console.log({ titleLast })
+        console.log({ titleLast });
         let finalTitle;
-        const limitText = 240
+        const limitText = 240;
         if (!titleLast || !/[^\s]/.test(titleLast)) {
             finalTitle = byteLengthOf(CopyTitle, limitText).trim();
         } else {
@@ -2039,7 +2039,7 @@ async function processCopyTitle(currentConfig) {
     if (CopyTitle) {
         SkipTitle = CheckSkipTitle();
     }
-    return CopyTitle
+    return CopyTitle;
 }
 
 function createDownloadArea(DB) {
@@ -2144,16 +2144,16 @@ async function GetFileName(targetLink, host) {
 
 
 function AddSpaceUpperCaseText(pre, s) {
-    let t
+    let t;
     while (/(?=(.*?)([a-z])([A-Z])(.+))(?!.*?(OnlyFans|DxD)).*$/.test(s)) {
-        s = s.replace(/^(?=(.*?)([a-z])([A-Z])(.+))(?!.*?(OnlyFans|DxD)).*$/g, "$1$2 $3$4")
+        s = s.replace(/^(?=(.*?)([a-z])([A-Z])(.+))(?!.*?(OnlyFans|DxD)).*$/g, "$1$2 $3$4");
     }
 
     while (/([a-z])-([A-Z0-9])/.test(s)) {
-        s = s.replace(/([a-z])-([A-Z0-9])/g, "$1 - $2")
+        s = s.replace(/([a-z])-([A-Z0-9])/g, "$1 - $2");
     }
     t = pre + ' ' + s
-    return t.replace(/\s{2,}/g, ' ')
+    return t.replace(/\s{2,}/g, ' ');
 }
 
 // 외부 모듈에서 필요한 함수와 변수를 가져온다고 가정합니다.
@@ -2209,16 +2209,16 @@ async function handleToggle(key, className) {
     ev.classList.toggle('Off', !isEnabled);
 
     if (key === 'AutoCopy') {
-        const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle')
+        const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle');
         if (hasCopied.length === 0) {
-            CopyGo(SkipTitle)
+            CopyGo(SkipTitle);
         }
 
     } else if (key === 'AutoClose') {
         if (isEnabled) {
-            const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle')
+            const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle');
             if (hasCopied.length === 0) {
-                CopyGo(SkipTitle)
+                CopyGo(SkipTitle);
             }
         }
     }
@@ -2229,8 +2229,8 @@ async function handleToggle(key, className) {
 async function FirstStep() {
 
     if (!LinkCopyCenterBox) {
-        await mainIcon('First Run')
-        await indexedDBUpdate()
+        await mainIcon('First Run');
+        await indexedDBUpdate();
     }
     for (const site of siteConfigs) {
         if (site.regex.test(PageURL) && (!site.condition || site.condition())) {
@@ -2241,10 +2241,10 @@ async function FirstStep() {
     if (!currentConfig) return console.log(`currentConfig not found`)
     Array.from(document.querySelectorAll('a')).forEach((aEntry) => {
         if (/(\/|=)(aHR0c[a-zA-z0-9]+={0,2})($|\/|\?|&|-?-?;?)/.test(aEntry.href)) {
-            aEntry.setAttribute('href', atob(aEntry.href.match(/(\/|=)(aHR0c[a-zA-z0-9]+={0,2})($|\/|\?|&|-?-?;?)/)[2]).replace(/\?site=.+/, ''))
+            aEntry.setAttribute('href', atob(aEntry.href.match(/(\/|=)(aHR0c[a-zA-z0-9]+={0,2})($|\/|\?|&|-?-?;?)/)[2]).replace(/\?site=.+/, ''));
         }
         else if (/\?site.+$/.test(aEntry.href)) {
-            aEntry.setAttribute('href', aEntry.href.replace(/\?site.+$/, ''))
+            aEntry.setAttribute('href', aEntry.href.replace(/\?site.+$/, ''));
         }
     })
 
@@ -2255,7 +2255,7 @@ async function FirstStep() {
             return SecondProcess();
         })
         .then((result) => {
-            console.log('Second Process OK', result)
+            console.log('Second Process OK', result);
         })
         .catch((err) => {
             console.error(err.message);
