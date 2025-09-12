@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Remove Content
 // @namespace    http://tampermonkey.net/
-// @version      2025.09.11
+// @version      2025.09.12
 // @description  try to take over the world!
 // @author       You
 // @match        https://blogjav.net/*
@@ -392,7 +392,7 @@ async function processContent(node, selector, isExtra = false) {
         // 추가 선택자의 경우 특정 단어로 제거
         if (isExtra) {
             if (RemoveContentEX.test(textContent) || /femdom/i.test(textContent) || MREX.test(textContent)) {
-                console.log('Extra content removed:', textContent.match(RemoveContentEX) || textContent.match(/femdom/i) || MREX.test(textContent), textContent);
+                console.log('Extra content removed:', textContent.match(RemoveContentEX) || textContent.match(/femdom/i) || textContent.match(MREX), textContent);
                 item.closest(Active.removeTagSelector)?.remove();
                 continue;
             }
@@ -406,7 +406,7 @@ async function processContent(node, selector, isExtra = false) {
         }
 
         if (RemoveContentEX.test(textContent) || MREX.test(textContent)) {
-            console.log('Keyword content removed:', textContent.match(RemoveContentEX) || MREX.test(textContent), textContent);
+            console.log('Keyword content removed:', textContent.match(RemoveContentEX) || textContent.match(MREX), textContent);
             item.closest(Active.removeTagSelector)?.remove();
             continue;
         }
