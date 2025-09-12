@@ -2972,8 +2972,10 @@ async function RemoveDB(listToDelete) {
         }
             */
         await linkDB.remove(list);
-
     }
+
+    await indexedDBUpdate();
+
     document.querySelector('.State').textContent = GetState + ' | ' + PackageCount
     if (GetState == 0) {
         document.querySelector('.ClearButton').style = "opacity: 0.25;";
@@ -3481,7 +3483,7 @@ async function ClipPaste() {
     document.querySelector('.CopyButton').style = "color: White !important;";
     //document.querySelector('.CopyButton').style.setProperty('font-size', Number(((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2)) + 'rem', 'important');
     //let ClipPasteData = JSON.parse(await GM_getValue(RootDomain, '[]'))
-    indexedDBCache = await linkDB.getAll()
+    indexedDBCache = await linkDB.getAll();
     return JDownloaderDB(indexedDBCache).then(e => e)
     //updateClipboard(ClipPasteData)
 }
