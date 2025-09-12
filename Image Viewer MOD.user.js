@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Image Viewer MOD (Refactored) 
-// @version      2025.08.24
+// @version      2025.09.12
 // @description  View full image without leaving the page or on a new tab without ads
 // @namespace    https://github.com/nikolay-borzov
 // @author       nikolay-borzov
@@ -1089,20 +1089,13 @@ const IO = new IntersectionObserver((entries, self) => {
     for (const entry of entries) {
         const imgEl = entry.target;
         const link = imgEl.closest && imgEl.closest('a.ivChecked');
-
-        if (entry.isIntersecting) {
-            if (!imgEl.matches('.ClickAbleItem')) {
-                image.getSize(imgEl).then(async () => {
-                    if (ImageExists(imgEl) && !ImageBigSize(imgEl)) {
-                        addToFullSizeQueue(imgEl, { autoStart: true });
-                        self.unobserve(imgEl);
-                    }
-                }).catch(e => console.error(e));
-            }
-        } else {
-            // 페이지 상에 보이지 않는 이미지는 큐로 대기(자동 시작 원하면 {autoStart:true})
-            addToFullSizeQueue(imgEl, { autoStart: true });
-            self.unobserve(imgEl);
+        if (!imgEl.matches('.ClickAbleItem')) {
+            image.getSize(imgEl).then(async () => {
+                if (ImageExists(imgEl) && !ImageBigSize(imgEl)) {
+                    addToFullSizeQueue(imgEl, { autoStart: true });
+                    self.unobserve(imgEl);
+                }
+            }).catch(e => console.error(e));
         }
     }
 }, { root: null, rootMargin: "0px 0px", threshold: 0 });
@@ -1526,7 +1519,7 @@ function sleep(ms) {
 window.addEventListener("DOMContentLoaded", () => {
     viewerCSS()
     Start()
-}, {once:true});
+}, { once: true });
 
 async function Start() {
     startTime = performance.now()

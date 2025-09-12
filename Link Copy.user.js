@@ -2171,6 +2171,7 @@ function updateUI(GetState, PackageCount) {
         const stateEl = document.querySelector('.State');
         const clearBtn = document.querySelector('.ClearButton');
         const copyBtn = document.querySelector('.CopyButton');
+        const minusElement = document.querySelector('.Minus');
 
         if (stateEl) {
             stateEl.textContent = `${GetState} | ${PackageCount}`;
@@ -2181,6 +2182,9 @@ function updateUI(GetState, PackageCount) {
         if (GetState === 0) {
             clearBtn.style.opacity = '0.25';
             copyBtn.style.opacity = '0.25';
+            if (minusElement) {
+                minusElement.style.visibility = 'hidden';
+            }
         } else {
             clearBtn.style.opacity = '1';
             copyBtn.style.opacity = '1';
