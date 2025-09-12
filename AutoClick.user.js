@@ -89,8 +89,6 @@ GM_addStyle(`
 `);
 
 
-
-
 class linkManagerDB {
     constructor() {
         this.dbName = 'linkManager';
@@ -98,23 +96,28 @@ class linkManagerDB {
         this.db = null;
     }
 
+
     async init() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.dbName, 3);
+            const req = indexedDB.open(this.dbName);
+            req.onsuccess = (ev) => {
+                const db = ev.target.result;
+                const Version = db.version;
+                db.close();
 
-            request.onupgradeneeded = (e) => {
-                const db = e.target.result;
-                if (!db.objectStoreNames.contains(this.storeName)) {
-                    db.createObjectStore(this.storeName, { keyPath: 'S' });
-                }
+                const request = indexedDB.open(this.dbName, Version);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(this.storeName)) {
+                        db.createObjectStore(this.storeName, { keyPath: 'S' });
+                    }
+                };
+                request.onsuccess = (e) => {
+                    this.db = e.target.result;
+                    resolve();
+                };
+                request.onerror = (e) => reject(e.target.error);
             };
-
-            request.onsuccess = (e) => {
-                this.db = e.target.result;
-                resolve();
-            };
-
-            request.onerror = (e) => reject(e.target.error);
         });
     }
 
@@ -163,21 +166,28 @@ class IndexedDBQueue {
         this.storeName = storeName;
         this.db = null;
     }
-
+        
     async init() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.dbName, 3);
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                if (!db.objectStoreNames.contains(this.storeName)) {
-                    db.createObjectStore(this.storeName, { keyPath: 'url' });
-                }
+            const req = indexedDB.open(this.dbName);
+            req.onsuccess = (ev) => {
+                const db = ev.target.result;
+                const Version = db.version;
+                db.close();
+
+                const request = indexedDB.open(this.dbName, Version);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(this.storeName)) {
+                        db.createObjectStore(this.storeName, { keyPath: 'url' });
+                    }
+                };
+                request.onsuccess = (e) => {
+                    this.db = e.target.result;
+                    resolve();
+                };
+                request.onerror = (e) => reject(e.target.error);
             };
-            request.onsuccess = (event) => {
-                this.db = event.target.result;
-                resolve();
-            };
-            request.onerror = (event) => reject(event.target.error);
         });
     }
 
