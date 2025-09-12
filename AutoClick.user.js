@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         AutoClick (Refactored)
-// @version      2025.09.08
+// @version      2025.09.12
 // @description  Auto actions and cross-window messaging with maintainable structure
 // @author       DandyClubs
 // @include      /^https?:\/\/(cosplayjav|nylons)\.pl\/(download|thumbnails)\/\?forPost=.*$/
@@ -95,7 +95,7 @@ class linkManagerDB {
     constructor() {
         this.dbName = 'linkManager';
         this.storeName = 'linkStore';
-        this.db = null;        
+        this.db = null;
     }
 
     async init() {
@@ -104,7 +104,7 @@ class linkManagerDB {
 
             request.onupgradeneeded = (e) => {
                 const db = e.target.result;
-                if (!db.objectStoreNames.contains(this.storeName)) {                    
+                if (!db.objectStoreNames.contains(this.storeName)) {
                     db.createObjectStore(this.storeName, { keyPath: 'S' });
                 }
             };
@@ -118,8 +118,8 @@ class linkManagerDB {
         });
     }
 
-    async add(S, U, F) {        
-        return this._tx('readwrite', store => store.put({ S: S, U: U , F: F }));
+    async add(S, U, F) {
+        return this._tx('readwrite', store => store.put({ S: S, U: U, F: F }));
     }
 
     async remove(S) {
@@ -243,6 +243,7 @@ class IndexedDBQueue {
 const queue = new IndexedDBQueue();
 
 const AutoClickBC = new BroadcastChannel("AutoClickChannel");
+
 let queueState = null;
 let processCount = 5;
 let size = 0;
@@ -611,7 +612,7 @@ async function startWork(currentLinks) {
         window._isWorking = true;
         const entry = currentLinks[0];
         console.log(`작업 지시 수신: ${PageURL} (${entry.type}) ${myIndex + 1}/${processCount}`);
-        childWindow = window.open(entry.oldLink, entry.title);        
+        childWindow = window.open(entry.oldLink, entry.title);
     } else {
         console.log(`대기중: ${PageURL} 순번: ${myIndex + 1} / ${processCount}`);
     }
@@ -629,7 +630,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
     DBResetButton();
     const checkSubPage = document.querySelector('body.single-post');
     if (!checkSubPage) {
-        AutoClickBC.onmessage = async (e) => {
+        AutoClickBC.onmessage = (e) => {
             if (e.data?.type === 'updateState') {
                 updatequeueState();
             }
@@ -763,9 +764,12 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
         updatequeueState();
         startWork(currentLinks);
         AutoClickBC.postMessage({ type: "updateState" });
-        AutoClickBC.onmessage = async (e) => {
+        AutoClickBC.onmessage = (e) => {
             if (e.data?.type === 'updateState') {
-                startWork(currentLinks)
+                updatequeueState();
+                if (!window._isWorking) {
+                    startWork(currentLinks);
+                }
             }
         };
     }
@@ -801,7 +805,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
             if (e.data.token === 'NotFound') {
                 childWindow.postMessage({ action: 'closed' }, e.origin);
                 // 현재 type 실패 → 곧바로 다음 type으로 넘어감
-                linkManager.add(entry.oldLink, 'NotFound', 'File Not Found');                
+                linkManager.add(entry.oldLink, 'NotFound', 'File Not Found');
                 UIManager.addResetButton(entry.linkEl, entry.oldLink, 'File Not Found');
                 //entry.linkEl.remove();
                 await sleep(500);
@@ -823,7 +827,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                 }
             } else {
                 // 성공 → 링크 갱신 & 캐시 저장
-                linkManager.add(entry.oldLink, e.data.token, e.data.FileName || entry.title);                
+                linkManager.add(entry.oldLink, e.data.token, e.data.FileName || entry.title);
                 entry.linkEl.href = e.data.token;
                 if (allowHost.test(e.data.token)) {
                     JdownloaderData.push(e.data.token);
@@ -1062,14 +1066,14 @@ async function Downloader(el) {
  * Boot
  * =============================== */
 window.addEventListener("DOMContentLoaded", async () => {
-    
-    
-    if (/allasiangirls\.net|bestgirlsexy\.com|misskon\.com/.test(PageURL)) {        
+
+
+    if (/allasiangirls\.net|bestgirlsexy\.com|misskon\.com/.test(PageURL)) {
         await linkManager.init();
         log('AutoClick init');
-        await queue.init();            
-    }    
-    
+        await queue.init();
+    }
+
     insertFontAwesome();
 
     const key = normalizeUrlKey();
