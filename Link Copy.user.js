@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy (indexedDB)
-// @version      2025.09.07
+// @version      2025.09.13
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.(org|my)/
@@ -72,12 +72,12 @@
 // ==/UserScript==
 
 const FontAwesomeCSS = function () {
-    let css = document.createElement('link')
-    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css'
-    css.rel = 'stylesheet'
-    css.type = 'text/css'
-    document.getElementsByTagName('head')[0].appendChild(css)
-}
+    let css = document.createElement('link');
+    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css';
+    css.rel = 'stylesheet';
+    css.type = 'text/css';
+    document.getElementsByTagName('head')[0].appendChild(css);
+};
 
 GM_addStyle(`
 @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c&family=Nanum+Gothic&family=Nanum+Gothic+Coding&family=Noto+Sans&display=swap');
@@ -352,42 +352,42 @@ class LinkCopyDB {
 const linkDB = new LinkCopyDB();
 let indexedDBCache = [];
 
-await linkDB.init()
+await linkDB.init();
 
 // 외부에서 DB 변경 감지
-linkDB.onchange = (event) => {
+linkDB.onchange = async (event) => {
     //console.log("로컬 DB 이벤트 발생:", event);
-    indexedDBUpdate()
+    indexedDBCache = await indexedDBUpdate();
 };
 
-linkDB.bc.onmessage = (event) => {
+linkDB.bc.onmessage = async (event) => {
     //console.log("멀티탭 DB 이벤트 발생:", event.data);
-    indexedDBUpdate()
+    indexedDBCache = await indexedDBUpdate();
 };
 
-let CopyLinks = []
-let AllCopyLinks = []
+let CopyLinks = [];
+let AllCopyLinks = [];
 
-let PackageName = ''
-let AutoCopy = JSON.parse(localStorage.getItem('AutoCopy')) || false
-let AutoClose = JSON.parse(localStorage.getItem('AutoClose')) || false
-let userCopy = true
-let userClose = true
+let PackageName = '';
+let AutoCopy = JSON.parse(localStorage.getItem('AutoCopy')) || false;
+let AutoClose = JSON.parse(localStorage.getItem('AutoClose')) || false;
+let userCopy = true;
+let userClose = true;
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
-const RootDomain = extractRootDomain(PageURL)
+const RootDomain = extractRootDomain(PageURL);
 
-const linkEreg = /(?:https|http|ftp|file):\/\/.+?(?=[,.]?(?:\s|$))/gi
+const linkEreg = /(?:https|http|ftp|file):\/\/.+?(?=[,.]?(?:\s|$))/gi;
 
 
-let pageLinksDB = []
+let pageLinksDB = [];
 
-let GetState, PackageCount
-let Maker = '', ReleaseDate = ''
-let SkipTitle = []
+let GetState, PackageCount;
+let Maker = '', ReleaseDate = '';
+let SkipTitle = [];
 
-let GetDPI, DefaultFontSize
-let Target, DownloadArea, CopyTitle = '', copyOffsetArea, InfoArea, Resolution = '', TitleLast = '', Series = '', Title, ID = '', TitleID, CopyTitleTmp, InfoTitleTmp, CoverImage, MatchWebRegExp, Gallery, DownloadAreaSelector
+let GetDPI, DefaultFontSize;
+let Target, DownloadArea, CopyTitle = '', copyOffsetArea, InfoArea, Resolution = '', TitleLast = '', Series = '', Title, ID = '', TitleID, CopyTitleTmp, InfoTitleTmp, CoverImage, MatchWebRegExp, Gallery, DownloadAreaSelector;
 const skipFilterPatterns = [
     /#$/i,
     /3xplanetpremium/i,
@@ -427,14 +427,14 @@ const skipFilterPatterns = [
     /xtvtv\.com\/explanation/i,
     /katfile\.com\/\?op=registration/i,
     /zippyshare\.com/i,
-]
-const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i')
-const WaitChangeLink = new RegExp('tma\\.cx\/', 'i')
+];
+const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i');
+const WaitChangeLink = new RegExp('tma\\.cx\/', 'i');
 //const WaitChangeLink = new RegExp('TestTest\\.cx\/', 'i')
-const LAST_TAGS_REGEX = /\s*\[[^\]]+\][^\[]*$/
-const HexCode = /x([0-9A-Fa-f]{2})/g   // xYY 타입
+const LAST_TAGS_REGEX = /\s*\[[^\]]+\][^\[]*$/;
+const HexCode = /x([0-9A-Fa-f]{2})/g;   // xYY 타입
 
-const SkipFileName = /demosaic|\.UMR|iris2/
+const SkipFileName = /demosaic|\.UMR|iris2/;
 
 
 
@@ -446,13 +446,13 @@ window.addEventListener('storage', async (e) => {
     }
 });
 
-let currentConfig = null
+let currentConfig = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
-    console.log('Start Link Copy!')
-    FontAwesomeCSS()
-    FirstStep()
-}, { once: true })
+    console.log('Start Link Copy!');
+    FontAwesomeCSS();
+    FirstStep();
+}, { once: true });
 
 
 const RegexFrom = (strings, flags) =>
@@ -463,34 +463,34 @@ const RegexFrom = (strings, flags) =>
             // Escape special characters
             .join("|"),
         flags
-    )
+    );
 
 
-const SkipModelEx = RegexFrom(SkipModel.split(/\r?\n/), 'gi')
-const SkipWordEx = RegexFrom(SkipWord.split(/\r?\n/), 'gi')
+const SkipModelEx = RegexFrom(SkipModel.split(/\r?\n/), 'gi');
+const SkipWordEx = RegexFrom(SkipWord.split(/\r?\n/), 'gi');
 
 
-let ShortUrl
-let AllowDirect
+let ShortUrl;
+let AllowDirect;
 
-let CenterBoxFontSize, StateFontSize, StateLineHeight, LinkCopyCenterBox
+let CenterBoxFontSize, StateFontSize, StateLineHeight, LinkCopyCenterBox;
 
-const SkipClassNames = ['adead_link', 'autohyperlink', 'social-icon']
+const SkipClassNames = ['adead_link', 'autohyperlink', 'social-icon'];
 //const JapaneseChar = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/g
-const JapaneseChar = /[ぁ-んァ-ン一-龯]/
-const ThaiChar = /[ๅภถุึคตจขชๆไำพะัีรนยบลฃฟหกดเ้่าสวงผปแอิืทมใฝ๑๒๓๔ู฿๕๖๗๘๙๐ฎฑธํ๊ณฯญฐฅฤฆฏโฌ็๋ษศซฉฮฺ์ฒฬฦ]/
-const SearchID = /([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2,3}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})(.*)/
-const MatchID = /^([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2,3}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}|FC2.+\d{6.8})(.*)/
-const SearchFC2ID = /(^FC2.+\d{6})(.*)/
-const SearchIDRegExp = /^(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})|T\d{2}-\d{3})(?!(C_\d+|file\d+))(.*)$/
-const K2SRegExp = /(.*k2s\.cc\/file\/)(.*\/?)/
-const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/
-const extractID = /(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})|T\d{2}-\d{3})(?!(C_\d+|file\d+))/
-const ID3D = /(MCB3DBD-\d+)(.*)$/i
+const JapaneseChar = /[ぁ-んァ-ン一-龯]/;
+const ThaiChar = /[ๅภถุึคตจขชๆไำพะัีรนยบลฃฟหกดเ้่าสวงผปแอิืทมใฝ๑๒๓๔ู฿๕๖๗๘๙๐ฎฑธํ๊ณฯญฐฅฤฆฏโฌ็๋ษศซฉฮฺ์ฒฬฦ]/;
+const SearchID = /([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2,3}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})(.*)/;
+const MatchID = /^([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2,3}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}|FC2.+\d{6.8})(.*)/;
+const SearchFC2ID = /(^FC2.+\d{6})(.*)/;
+const SearchIDRegExp = /^(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})|T\d{2}-\d{3})(?!(C_\d+|file\d+))(.*)$/;
+const K2SRegExp = /(.*k2s\.cc\/file\/)(.*\/?)/;
+const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/;
+const extractID = /(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})|T\d{2}-\d{3})(?!(C_\d+|file\d+))/;
+const ID3D = /(MCB3DBD-\d+)(.*)$/i;
 
 
 
-let GetDirect, AllCollectionLinks = []
+let GetDirect, AllCollectionLinks = [];
 
 const DirectLink = (url) => {
     return new Promise((resolve, reject) => {
@@ -500,43 +500,43 @@ const DirectLink = (url) => {
             onload: function (resp) {
                 //console.log(resp.status)
                 //console.log(resp.responseText)
-                const Final = GetDirectLink(url, resp.finalUrl)
-                resolve(Final)
+                const Final = GetDirectLink(url, resp.finalUrl);
+                resolve(Final);
             },
             onerror: function (error) {
-                console.log(error)
-                reject(null)
+                console.log(error);
+                reject(null);
             }
-        })
-    })
-}
+        });
+    });
+};
 
 const GetDirectLink = (url, data) => {
     //let match = /window\.location='(?<url>http[^']+)/?.exec(data)
-    let match = data.replace(/\?site=.+/, '')
+    let match = data.replace(/\?site=.+/, '');
     if (match) {
         Array.from(document.querySelectorAll('a[href*="' + url + '"]')).forEach(T => {
-            T.setAttribute('href', match)
-        })
+            T.setAttribute('href', match);
+        });
     }
-    return match
+    return match;
 
-}
+};
 
 
 const io = new IntersectionObserver((entries, self) => {
     for (const entry of entries) {
         if (entry.isIntersecting) {
-            LinkCopyCenterBox = entry.target
+            LinkCopyCenterBox = entry.target;
             //console.log(LinkCopyCenterBox)
 
             if (entry.target.complete) {
-                self.unobserve(entry.target)
+                self.unobserve(entry.target);
             }
         }
     }
 
-}, { root: null, rootMargin: "0px 0px 0px 0px" })
+}, { root: null, rootMargin: "0px 0px 0px 0px" });
 
 
 /**
@@ -548,7 +548,7 @@ const io = new IntersectionObserver((entries, self) => {
 function waitElement(selector, targetNode = document.body) {
     return new Promise((resolve, reject) => {
         const element = targetNode.querySelector(selector)?.querySelector('a');
-        console.log('waitElement: ', selector, 'TargetNode: ', targetNode)
+        console.log('waitElement: ', selector, 'TargetNode: ', targetNode);
         if (element) {
             resolve(element);
         }
@@ -577,10 +577,10 @@ function observeDownloadArea(WatchArea, downloadAreaSelector) {
         // MutationObserver로 aria-modal 속성 변화를 감지
         const downloadAreaOpen = new MutationObserver((mutations) => {
             for (const mutation of mutations) {
-                const isOpen = document.querySelector(downloadAreaSelector)
+                const isOpen = document.querySelector(downloadAreaSelector);
                 if (isOpen) {
-                    Start()
-                    return
+                    Start();
+                    return;
                 }
             }
         });
@@ -590,18 +590,21 @@ function observeDownloadArea(WatchArea, downloadAreaSelector) {
             childList: true,
             subtree: true
         });
-    })
+    });
 }
 
 
-async function indexedDBUpdate() {
-    linkDB.getAll().then((result) => {
-        indexedDBCache = result;
-        GetState = indexedDBCache.length
-        PackageCount = PackageList(indexedDBCache).length
-        updateUI(GetState, PackageCount)
-    }).catch(error => {
-        console.error("Failed get data:", error);
+function indexedDBUpdate() {
+    return new Promise((resolve, reject) => {
+        linkDB.getAll().then((result) => {
+            indexedDBCache = result;
+            GetState = indexedDBCache.length;
+            PackageCount = PackageList(indexedDBCache).length;
+            updateUI(GetState, PackageCount);
+            resolve(indexedDBCache);
+        }).catch(error => {
+            console.error("Failed get data:", error);
+        });
     });
 }
 
@@ -758,11 +761,11 @@ const siteConfigs = [
                 if (!copyOffsetArea) return;
                 DownloadArea = document.querySelectorAll('div#download, div#downloadhidden, div.DownloadArea');
 
-                makeSearch()
+                makeSearch();
 
                 //Extracting Text Before Each <br> and the Last Line
-                let EachTitle = getTextLinesWithIconTag('div.post-content-single p strong', 'br')
-                console.log('EachTitle: ', EachTitle)
+                let EachTitle = getTextLinesWithIconTag('div.post-content-single p strong', 'br');
+                console.log('EachTitle: ', EachTitle);
 
                 let MatchWeb, InfoCast, InfoAreaCast, SearchWebPoint, FirstMatchWeb, Released, ReleasedEn, Episode, SearchTitle, MatchCast;
                 function getInfoArea() {
@@ -819,15 +822,15 @@ const siteConfigs = [
                 }
 
                 const { info, cast } = getInfoArea();
-                InfoArea = info
-                InfoAreaCast = cast
-                console.log('InfoArea:', InfoArea, 'InfoAreaCast:', InfoAreaCast)
+                InfoArea = info;
+                InfoAreaCast = cast;
+                console.log('InfoArea:', InfoArea, 'InfoAreaCast:', InfoAreaCast);
 
                 // `CopyTitle`에서 `MatchWeb` 추출
                 const CopyTitleRaw = copyOffsetArea.innerText.trim();
                 const MatchWebPoint = CopyTitleRaw.search(/\s-\s/);
                 MatchWeb = MatchWebPoint !== -1 ? CopyTitleRaw.substring(0, MatchWebPoint).replace(/\s|\./g, '') : CopyTitleRaw;
-                console.log('MatchWeb:', MatchWeb, 'MatchWebPoint:', MatchWebPoint)
+                console.log('MatchWeb:', MatchWeb, 'MatchWebPoint:', MatchWebPoint);
 
                 // CopyTitle에 'OnlyFans Mix'가 포함된 경우
                 if (/OnlyFans\sMix/i.test(CopyTitleRaw)) {
@@ -845,7 +848,7 @@ const siteConfigs = [
                     const MatchTitle = MatchWebPoint !== -1 ? CopyTitleRaw.substring(MatchWebPoint + 3) : CopyTitleRaw;
                     const FindMatchCast = MatchTitle.split(/\s+/).filter(e => e && isNaN(e) && e.length > 1);
                     const rawCast = InfoArea.find(txt => /^Cast\s?:/.test(txt))?.match(/^Cast\s?:\s?(.+)/)?.[1]?.trim();
-                    console.log('MatchTitle:', MatchTitle, 'FindMatchCast:', FindMatchCast, 'rawCast:', rawCast)
+                    console.log('MatchTitle:', MatchTitle, 'FindMatchCast:', FindMatchCast, 'rawCast:', rawCast);
                     if (rawCast) {
                         MatchCast = rawCast;
                     } else {
@@ -855,15 +858,15 @@ const siteConfigs = [
                             const searchCasts = rawSearchCast.replace(/&|,/g, ' ').split(/\s+/).filter(Boolean);
                             MatchCast = searchCasts.find(name => FindMatchCast.includes(name)) || '';
                             InfoCast = MatchCast && searchCastPoint;
-                            console.log('searchCasts:', searchCasts)
+                            console.log('searchCasts:', searchCasts);
                         }
                     }
 
-                    console.log('MatchCast:', MatchCast, 'InfoCast:', InfoCast)
+                    console.log('MatchCast:', MatchCast, 'InfoCast:', InfoCast);
 
                     // `Released` 날짜 추출
                     Released = InfoArea.find(txt => /(\.\d+\.\d+\.\d+\.)/.test(txt))?.match(/(\.\d+\.\d+\.\d+\.)/)?.[1] || '';
-                    console.log('Released:', Released)
+                    console.log('Released:', Released);
                     // `Episode` 추출
                     const epMatch = InfoArea.find(txt => /^(?!.*S\d+)(?=.*E\d{2,5}).*$/.test(txt));
                     Episode = epMatch ? '.' + epMatch.match(/E\d{2,5}/)[0] : '';
@@ -877,7 +880,7 @@ const siteConfigs = [
                         }
                         ReleasedEn = '.' + parts.join('.') + '.';
                     }
-                    console.log('ReleasedEn:', ReleasedEn)
+                    console.log('ReleasedEn:', ReleasedEn);
 
                     // 최종 `CopyTitle` 조합
                     if (!/SITERIP|OnlyFans|Collection|Updates/i.test(CopyTitleRaw)) {
@@ -894,7 +897,7 @@ const siteConfigs = [
 
 
 
-                    console.log('CopyTitle:', CopyTitle)
+                    console.log('CopyTitle:', CopyTitle);
 
                     // 다운로드 링크 추출 및 우선순위
                     if (!/OnlyFans|Updates|SITERIP|Collection/i.test(CopyTitleRaw)) {
@@ -921,7 +924,7 @@ const siteConfigs = [
                         };
 
                         const finalDownloadLinks = getDownloadLinks(DownloadArea);
-                        console.log('finalDownloadLinks:', finalDownloadLinks)
+                        console.log('finalDownloadLinks:', finalDownloadLinks);
                         if (finalDownloadLinks.length > 0) {
                             DownloadArea = createDownloadArea(finalDownloadLinks.map(link => link.outerHTML));
 
@@ -1003,7 +1006,7 @@ const siteConfigs = [
                             linkGroups['Other'].push(link);
                         }
                     }
-                    console.log('linkGroups:', linkGroups)
+                    console.log('linkGroups:', linkGroups);
 
                     const priorityOrder = ['2160p', '1080p', '720p', 'Photos', 'Other'];
 
@@ -1021,7 +1024,7 @@ const siteConfigs = [
                         }
                     }
                 }
-                console.log('SearchDB:', SearchDB)
+                console.log('SearchDB:', SearchDB);
 
                 if (SearchDB.length > 0) {
                     const LinkDB = SearchDB.map(entry => entry.outerHTML);
@@ -1123,11 +1126,11 @@ const siteConfigs = [
             postProcess: (config) => {
                 copyOffsetArea = document.querySelector('div.container table#detail-table tbody tr td.taj:not(.levo)');
                 //const downloadContainer = await waitElement('div.container table#detail-table tbody tr td.dlinks.taj a[href*="https://rapidgator.net/file/"]');
-                DownloadArea = document.querySelectorAll('div.container table#detail-table tbody tr td.dlinks.taj')
+                DownloadArea = document.querySelectorAll('div.container table#detail-table tbody tr td.dlinks.taj');
                 if (/#show$/.test(PageURL)) {
                     window.addEventListener("scroll", () => {
                         window.scrollTo({ top: 0, behavior: 'auto' });
-                    }, { once: true })
+                    }, { once: true });
                 }
             },
         },
@@ -1198,7 +1201,7 @@ const siteConfigs = [
                     if (resMatch) Resolution = ' ' + resMatch[0];
                 }
 
-                console.log(copyOffsetArea)
+                console.log(copyOffsetArea);
                 if (copyOffsetArea) {
                     let tempTitle = copyOffsetArea.innerText.replace(/\((UltraHD|Full|HD|SD).+/i, '').replace(/\s+/g, ' ').trim();
                     tempTitle = capitalize(tempTitle);
@@ -1512,41 +1515,41 @@ const siteConfigs = [
                         p.innerText.replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n').split(/\n\n|\n/).filter(Boolean)
                     );
 
-                    let fc = SearchFC2ID?.exec(Title)
+                    let fc = SearchFC2ID?.exec(Title);
                     if (fc) {
-                        let fcId = fc.groups ? fc.groups[1] : fc[1]
-                        Title = `${fcId} ${InfoArea[0]}`
+                        let fcId = fc.groups ? fc.groups[1] : fc[1];
+                        Title = `${fcId} ${InfoArea[0]}`;
                     } else {
-                        let cleanIDTitle, cleanIDInfoTitle, compareInfoAreaID, newTitle
-                        let infoTitle = InfoArea.find(line => line.match(SearchIDRegExp)) || ''
-                        let entryID = Title.match(SearchIDRegExp)?.[2] || ''
-                        let infoAreaID
+                        let cleanIDTitle, cleanIDInfoTitle, compareInfoAreaID, newTitle;
+                        let infoTitle = InfoArea.find(line => line.match(SearchIDRegExp)) || '';
+                        let entryID = Title.match(SearchIDRegExp)?.[2] || '';
+                        let infoAreaID;
                         if (infoTitle && entryID) {
-                            infoAreaID = infoTitle?.match(SearchIDRegExp)?.[2] || ''
-                            cleanIDTitle = Title.replace(entryID, '').trim()
-                            cleanIDInfoTitle = infoTitle.replace(infoAreaID, '').trim()
+                            infoAreaID = infoTitle?.match(SearchIDRegExp)?.[2] || '';
+                            cleanIDTitle = Title.replace(entryID, '').trim();
+                            cleanIDInfoTitle = infoTitle.replace(infoAreaID, '').trim();
                         } else {
-                            infoTitle = InfoArea.find(line => line.match(ID3D))
-                            infoAreaID = infoTitle?.match(ID3D)?.[1] || ''
-                            entryID = Title.match(ID3D)?.[1] || ''
+                            infoTitle = InfoArea.find(line => line.match(ID3D));
+                            infoAreaID = infoTitle?.match(ID3D)?.[1] || '';
+                            entryID = Title.match(ID3D)?.[1] || '';
                             if (infoAreaID && entryID) {
-                                cleanIDTitle = Title.replace(entryID, '').trim()
-                                cleanIDInfoTitle = infoTitle.replace(infoAreaID, '').trim()
+                                cleanIDTitle = Title.replace(entryID, '').trim();
+                                cleanIDInfoTitle = infoTitle.replace(infoAreaID, '').trim();
                             }
                         }
                         if (entryID && infoAreaID) {
-                            let IDMatch = entryID ?? infoAreaID
+                            let IDMatch = entryID ?? infoAreaID;
                             let ID = IDMatch ? IDMatch.trim() : '';
                             if (ID) {
-                                ID = ID ? ID + ' ' : ''
+                                ID = ID ? ID + ' ' : '';
                             }
-                            compareInfoAreaID = entryID === infoAreaID ? infoAreaID : /-/.test(entryID) ? entryID.replace(/-/g, '') : ''
-                            newTitle = `${entryID}${compareJapaneseCharacters(cleanIDTitle, cleanIDInfoTitle)}`
+                            compareInfoAreaID = entryID === infoAreaID ? infoAreaID : /-/.test(entryID) ? entryID.replace(/-/g, '') : '';
+                            newTitle = `${entryID}${compareJapaneseCharacters(cleanIDTitle, cleanIDInfoTitle)}`;
                         } else {
-                            newTitle = `${entryID || infoAreaID} ${compareJapaneseCharacters(cleanIDTitle, cleanIDInfoTitle)}`
+                            newTitle = `${entryID || infoAreaID} ${compareJapaneseCharacters(cleanIDTitle, cleanIDInfoTitle)}`;
                         }
-                        console.log({ newTitle })
-                        Title = newTitle ? newTitle : Title
+                        console.log({ newTitle });
+                        Title = newTitle ? newTitle : Title;
 
                     }
                     Title = mbConvertKana(Title.trim(), 'rans');
@@ -1559,7 +1562,7 @@ const siteConfigs = [
                 //Maker = Maker ? '[' + Maker + '] ' : ''
 
 
-                CopyTitle = Title
+                CopyTitle = Title;
                 CopyTitle = byteLengthOf(CopyTitle, 241).trim();
                 CoverImage = DownloadArea?.[0]?.querySelector('p img')?.src || '';
                 console.log({ CopyTitle, CoverImage, ID, ReleaseDate, Maker, DownloadArea });
@@ -1606,7 +1609,7 @@ const siteConfigs = [
             copyOffsetAreaSelector: 'article#the-post .post-title.entry-title',
             postProcess: async () => {
                 let Title = copyOffsetArea?.textContent.trim() || '';
-                Title = Title.replace(/(\d+)\sphotos/i, `$1P`).replace(/(\d+)\svideos?/i, `$1V`).replace(/P(\s\+\s)/, 'P')
+                Title = Title.replace(/(\d+)\sphotos/i, `$1P`).replace(/(\d+)\svideos?/i, `$1V`).replace(/P(\s\+\s)/, 'P');
                 Title = mbConvertKana(Title, 'rans');
                 CopyTitle = byteLengthOf(Title, 241).trim();
             }
@@ -1630,26 +1633,26 @@ const siteRules = [
                     .filter(line => line); // Filter out empty lines
             };
 
-            let Resolution = ''
-            const bodyContentText = document.querySelector('div.body-content')
+            let Resolution = '';
+            const bodyContentText = document.querySelector('div.body-content');
             if (bodyContentText) {
                 let info = cleanText(document.querySelector('div.body-content')?.innerText);
                 const subTitle = info.find(txt => /^Name\s?:/.test(txt))?.match(/^Name\s?:\s?(.+)/)?.[1]?.trim().replace(/\.?mp4$/i, '');
-                const compareText = compareSentencesByWordMatch(subTitle, title)
+                const compareText = compareSentencesByWordMatch(subTitle, title);
 
 
                 Resolution = /[0-9]{3,4}p/.test(title)
                     ? title.match(/[0-9]{3,4}p/)[0]
                     : /[0-9]{3,4}p/.test(subTitle)
                         ? subTitle.match(/[0-9]{3,4}p/)[0]
-                        : ''
-                title = compareText.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
+                        : '';
+                title = compareText.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim();
             }
             else {
-                Resolution = /[0-9]{3,4}p/.test(title)
-                title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
+                Resolution = /[0-9]{3,4}p/.test(title);
+                title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim();
             }
-            return `${title} ${Resolution}`
+            return `${title} ${Resolution}`;
         },
     },
     {
@@ -1680,7 +1683,7 @@ const siteRules = [
         regex: /cosplay\.jav\.pw\/\d+/,
         handler: async (title, copyOffsetArea, DownloadArea) => {
             let rebuildedText;
-            const h3 = document.querySelector('div.post_singular.hentry .entry h3')
+            const h3 = document.querySelector('div.post_singular.hentry .entry h3');
             const rawTitle = h3 ? h3.textContent.trim() : title;
 
 
@@ -1727,9 +1730,9 @@ const siteRules = [
                         const cleandedRawTitle = rawTitle.replace(rawID, '').trim();
                         const cleandedNewTitle = newTitle.replace(newID, '').trim();
                         rebuildedText = `${rawID || newID} ${compareJapaneseCharacters(cleandedRawTitle, cleandedNewTitle)}`;
-                        const Maker = /^\[.*?\]\s/.exec(rebuildedText) || /^\[.*?\]\s/.exec(newTitle)
+                        const Maker = /^\[.*?\]\s/.exec(rebuildedText) || /^\[.*?\]\s/.exec(newTitle);
                         if (Maker?.length) {
-                            rebuildedText = Maker + rebuildedText.replace(Maker[0], '')
+                            rebuildedText = Maker + rebuildedText.replace(Maker[0], '');
                         }
                         copyOffsetArea.textContent = rebuildedText.trim();
                         console.log('Rebuilded Text:', rebuildedText);
@@ -1747,17 +1750,17 @@ const siteRules = [
     {
         regex: /ultoporn\.com\/\d+/,
         handler: (title) => {
-            const Resolution = /[0-9]{3,4}p/.test(title) ? title.match(/[0-9]{3,4}p/)[0] : ''
-            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
-            return `${title} ${Resolution}`
+            const Resolution = /[0-9]{3,4}p/.test(title) ? title.match(/[0-9]{3,4}p/)[0] : '';
+            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim();
+            return `${title} ${Resolution}`;
         },
     },
     {
         regex: /hidefporn\.ws\/\d+/,
         handler: (title) => {
-            const Resolution = /[0-9]{3,4}p/.test(title) ? title.match(/[0-9]{3,4}p/)[0] : ''
-            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim()
-            return `${title} ${Resolution}`
+            const Resolution = /[0-9]{3,4}p/.test(title) ? title.match(/[0-9]{3,4}p/)[0] : '';
+            title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim();
+            return `${title} ${Resolution}`;
         },
     },
     {
@@ -2032,7 +2035,7 @@ async function processCopyTitle(currentConfig) {
         const closingBracketIndexEndPoint = CopyTitle.lastIndexOf('】');
         const closingBracketIndexStartPoint = CopyTitle.lastIndexOf('【');
         if (closingBracketIndexEndPoint < closingBracketIndexStartPoint) {
-            CopyTitle = CopyTitle.substring(0, closingBracketIndexStartPoint).trim()
+            CopyTitle = CopyTitle.substring(0, closingBracketIndexStartPoint).trim();
         }
     }
 
@@ -2152,7 +2155,7 @@ function AddSpaceUpperCaseText(pre, s) {
     while (/([a-z])-([A-Z0-9])/.test(s)) {
         s = s.replace(/([a-z])-([A-Z0-9])/g, "$1 - $2");
     }
-    t = pre + ' ' + s
+    t = pre + ' ' + s;
     return t.replace(/\s{2,}/g, ' ');
 }
 
@@ -2230,7 +2233,7 @@ async function FirstStep() {
 
     if (!LinkCopyCenterBox) {
         await mainIcon('First Run');
-        await indexedDBUpdate();
+        indexedDBCache = await indexedDBUpdate();
     }
     for (const site of siteConfigs) {
         if (site.regex.test(PageURL) && (!site.condition || site.condition())) {
@@ -2238,7 +2241,7 @@ async function FirstStep() {
             break;
         }
     }
-    if (!currentConfig) return console.log(`currentConfig not found`)
+    if (!currentConfig) return console.log(`currentConfig not found`);
     Array.from(document.querySelectorAll('a')).forEach((aEntry) => {
         if (/(\/|=)(aHR0c[a-zA-z0-9]+={0,2})($|\/|\?|&|-?-?;?)/.test(aEntry.href)) {
             aEntry.setAttribute('href', atob(aEntry.href.match(/(\/|=)(aHR0c[a-zA-z0-9]+={0,2})($|\/|\?|&|-?-?;?)/)[2]).replace(/\?site=.+/, ''));
@@ -2246,7 +2249,7 @@ async function FirstStep() {
         else if (/\?site.+$/.test(aEntry.href)) {
             aEntry.setAttribute('href', aEntry.href.replace(/\?site.+$/, ''));
         }
-    })
+    });
 
 
     Start()
@@ -2398,9 +2401,9 @@ async function mainIcon(Run) {
             localStorage.setItem('AutoClose', JSON.stringify(true));
             localStorage.setItem('AutoCopy', JSON.stringify(true));
             if (DownloadArea?.length > 0) {
-                const hasCopied = await CheckDB(listToDo(DownloadArea), 'click')
+                const hasCopied = await CheckDB(listToDo(DownloadArea), 'click');
                 if (hasCopied.length === 0) {
-                    CopyGo(SkipTitle)
+                    CopyGo(SkipTitle);
                 }
             }
         } else {
@@ -2417,9 +2420,9 @@ async function mainIcon(Run) {
             AutoCopyIcon.classList.add('On');
             localStorage.setItem('AutoCopy', JSON.stringify(true));
             if (DownloadArea?.length > 0) {
-                const hasCopied = await CheckDB(listToDo(DownloadArea), 'click')
+                const hasCopied = await CheckDB(listToDo(DownloadArea), 'click');
                 if (hasCopied.length === 0) {
-                    CopyGo(SkipTitle)
+                    CopyGo(SkipTitle);
                 }
             }
         } else {
@@ -2438,11 +2441,11 @@ async function mainIcon(Run) {
             if (window.confirm("Not Yet Copy! Clear?")) {
                 localStorage.setItem('NewAdded', JSON.stringify(false));
                 ClearUrls();
-                CopyLinks = []
+                CopyLinks = [];
             }
         } else {
             ClearUrls();
-            CopyLinks = []
+            CopyLinks = [];
         }
     });
 
@@ -2462,13 +2465,13 @@ async function mainIcon(Run) {
 
 
 async function SecondProcess() {
-    console.log('before processCopyTitle CopyTitle:', CopyTitle, copyOffsetArea, DownloadArea)
+    console.log('before processCopyTitle CopyTitle:', CopyTitle, copyOffsetArea, DownloadArea);
     if (copyOffsetArea && DownloadArea && pageLinksDB.length === 0) {
-        await processCopyTitle(currentConfig)
+        await processCopyTitle(currentConfig);
     }
-    console.log('after processCopyTitle CopyTitle:', CopyTitle)
+    console.log('after processCopyTitle CopyTitle:', CopyTitle);
 
-    console.log('Start SecondProcess!')
+    console.log('Start SecondProcess!');
 
     return new Promise((resolve, reject) => {
         if (!copyOffsetArea) {
@@ -2487,9 +2490,9 @@ async function SecondProcess() {
             document.body.insertAdjacentHTML('beforeend', `<div class="CopyNotice" style="display: none;"><div class="copyText"></div></div>`);
 
             const IconSetBox = document.querySelector(".IconSet");
-            const copyIcon = IconSetBox.querySelector('.CopyIcon')
-            const closeIcon = IconSetBox.querySelector('.CloseIcon')
-            const Minus = IconSetBox.querySelector('.Minus')
+            const copyIcon = IconSetBox.querySelector('.CopyIcon');
+            const closeIcon = IconSetBox.querySelector('.CloseIcon');
+            const Minus = IconSetBox.querySelector('.Minus');
 
             copyIcon.addEventListener('click', function (e) {
                 e.preventDefault();
@@ -2503,19 +2506,19 @@ async function SecondProcess() {
                 const SkipTitle = [];
                 AllowDirect = false;
                 if (DownloadArea?.length) {
-                    userClose = JSON.parse(localStorage.getItem('AutoClose'))
+                    userClose = JSON.parse(localStorage.getItem('AutoClose'));
                     CopyGo(SkipTitle);
                 }
-            })
+            });
             closeIcon.addEventListener('click', function (e) {
                 e.preventDefault();
                 self.close();
-            })
+            });
             Minus.addEventListener('click', async function (e) {
                 e.preventDefault();
                 await RemoveDB(listToDo(DownloadArea, 'All'), 'SecondProcess RemoveDB');
                 await CheckDB(listToDo(DownloadArea), 'SecondProcess CheckDB');
-                CopyLinks = []
+                CopyLinks = [];
             });
         }
 
@@ -2543,9 +2546,9 @@ async function SecondProcess() {
             console.log('CopyGo');
             CopyGo(SkipTitle);
         }
-        RefreshIconSet()
+        RefreshIconSet();
         resolve({ CopyTitle, DownloadArea });
-    })
+    });
 }
 
 
@@ -2632,7 +2635,7 @@ function CheckOnline(TargetLink) {
 
 
 function CheckSkipTitle() {
-    console.log(`Check CheckSkipTitle: ${CopyTitle}`)
+    console.log(`Check CheckSkipTitle: ${CopyTitle}`);
     if (!CopyTitle) return false;  // Early exit if no title
 
     // Find skip word/model matches
@@ -2646,15 +2649,15 @@ function CheckSkipTitle() {
     let M = [...new Set(MM)];
 
     if (W.length || M.length) {
-        SkipTitle = [...W, ...M]
+        SkipTitle = [...W, ...M];
 
         // Create or update CopyState div for status
         if (!document.querySelector('.CopyState')) {
             LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
         }
         let copyStateEl = document.querySelector('.CopyState');
-        let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2))
-        copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important')
+        let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
+        copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
 
         // Set flags indicating skip conditions
         userClose = false;
@@ -2665,7 +2668,7 @@ function CheckSkipTitle() {
         if (W.length) copyStateEl.innerText += 'Skip Word: ' + W.join('/');
         if (M.length) copyStateEl.innerText += (W.length ? '\n' : '') + 'Skip Model: ' + M.join('/');
         if (copyStateEl.innerText.trim()) {
-            copyStateEl.classList.add('innerText')
+            copyStateEl.classList.add('innerText');
         }
     }
 
@@ -2683,11 +2686,11 @@ function CheckSkipTitle() {
 
 async function CopyGo(SkipTitle) {
 
-    console.log(`CopyGo! ${SkipTitle}`, SkipTitle.length)
+    console.log(`CopyGo! ${SkipTitle}`, SkipTitle.length);
     if (!Array.isArray(SkipTitle)) {
         throw new Error('No Array SkipTitle');
     }
-    if (Array.isArray(SkipTitle) && SkipTitle.length !== 0) return console.log(`SkipTitle: ${SkipTitle}`)
+    if (Array.isArray(SkipTitle) && SkipTitle.length !== 0) return console.log(`SkipTitle: ${SkipTitle}`);
 
     const shortUrlExists = () =>
         Array.from(document.querySelectorAll("a")).some(a => WaitChangeLink.test(a.href));
@@ -2706,12 +2709,12 @@ async function CopyGo(SkipTitle) {
             childList: true,
             subtree: true,
             attributeFilter: ['href']
-        })
+        });
     } else {
         console.log('No short links detected. Starting copy.');
 
     }
-    if (!userCopy) return
+    if (!userCopy) return;
     Promise.resolve(CopyLink())
         .then(() => {
             // Update UI notification styles
@@ -2722,7 +2725,7 @@ async function CopyGo(SkipTitle) {
             // 변수들을 미리 계산합니다.
             const fontSizeValue = Number(((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2));
             const topValue = linkCopyCenterBox.offsetTop + linkCopyCenterBox.offsetHeight * 1.2;
-            const leftValue = linkCopyCenterBox.offsetLeft - linkCopyCenterBox.offsetWidth / 5
+            const leftValue = linkCopyCenterBox.offsetLeft - linkCopyCenterBox.offsetWidth / 5;
 
             // 계산된 값을 요소의 style 속성에 직접 할당합니다.
             copyNotice.style.fontSize = `${fontSizeValue}rem`;
@@ -2735,14 +2738,14 @@ async function CopyGo(SkipTitle) {
             if (copyIcon) copyIcon.style.color = "orange";
             const closeIcon = document.querySelector(".CloseIcon");
             if (closeIcon) closeIcon.style.visibility = "visible";
-            console.log(copyText, copyText.innerText)
+            console.log(copyText, copyText.innerText);
             if (copyText.innerText.trim()) {
                 //await showThenHide(notice, { duration: 800, pause: 2000 });
-                fadeSlideToggle(copyNotice, 1000)
+                fadeSlideToggle(copyNotice, 1000);
             }
             // 6) Finally, re-check the DB and return its result
             CheckDB(listToDo(DownloadArea), 'CopyGo');
-        })
+        });
 }
 
 
@@ -2754,23 +2757,23 @@ function sleep(ms) {
 //Match
 function MatchRegexElement(Taget, regex, attributeToSearch) {
     if (regex.test(Taget.getAttribute(attributeToSearch))) {
-        return true
+        return true;
     }
     else {
-        return false
+        return false;
     }
 }
 
 
 async function CollectionCoverImage(CoverImage) {
-    let result = []
+    let result = [];
 
-    CoverImage = /vpdmm\.cc/.test(CoverImage) ? CoverImage.replace('vpdmm.cc', 'dmm.co.jp') : CoverImage
+    CoverImage = /vpdmm\.cc/.test(CoverImage) ? CoverImage.replace('vpdmm.cc', 'dmm.co.jp') : CoverImage;
     if (CoverImage && !/imagetwist\.com/.test(CoverImage)) {
-        await UpdateDB(CoverImage, FilenameConvert(`${CopyTitle}${Resolution || ''}`))
+        await UpdateDB(CoverImage, FilenameConvert(`${CopyTitle}${Resolution || ''}`));
     }
-    result.push(CoverImage)
-    return result
+    result.push(CoverImage);
+    return result;
 }
 
 
@@ -2909,7 +2912,7 @@ async function CollectionLinks(DownloadArea) {
 
     // Dedupe and return as newline-separated string (or empty array)
     CopyLinks = [...new Set(CopyLinks)];
-    return CopyLinks
+    return CopyLinks;
 }
 
 
@@ -2927,9 +2930,9 @@ async function UpdateDB(Target, UrlTitle) {
     PackageName = UrlTitle || '';
     //console.log(`UpdateDB ${Target} ${UrlTitle}`)
     if (Target.match(K2SRegExp)) {
-        Target = Target.match(K2SRegExp)[1] + Target.match(K2SRegExp)[2].slice(0, 18)
+        Target = Target.match(K2SRegExp)[1] + Target.match(K2SRegExp)[2].slice(0, 18);
     }
-    console.log({ Target, UrlTitle })
+    console.log({ Target, UrlTitle });
     /*
         if (navigator.locks) {
             // HTTPS 환경일 때만 락 요청 로직 실행
@@ -2951,9 +2954,9 @@ async function UpdateDB(Target, UrlTitle) {
 
 
     if (!JSON.parse(localStorage.getItem('NewAdded'))) {
-        localStorage.setItem('NewAdded', JSON.stringify(true))
+        localStorage.setItem('NewAdded', JSON.stringify(true));
     }
-    return indexedDBCache
+    return indexedDBCache;
 }
 
 async function RemoveDB(listToDelete) {
@@ -2978,9 +2981,9 @@ async function RemoveDB(listToDelete) {
         await linkDB.remove(list);
     }
 
-    await indexedDBUpdate();
+    indexedDBCache = await indexedDBUpdate();
 
-    document.querySelector('.State').textContent = GetState + ' | ' + PackageCount
+    document.querySelector('.State').textContent = GetState + ' | ' + PackageCount;
     if (GetState == 0) {
         document.querySelector('.ClearButton').style = "opacity: 0.25;";
         document.querySelector('.CopyButton').style = "opacity: 0.25;";
@@ -2989,13 +2992,13 @@ async function RemoveDB(listToDelete) {
         document.querySelector('.ClearButton').style = "opacity: 0.25;";
         document.querySelector('.CopyButton').style = "opacity: 1;";
     }
-    return indexedDBCache
+    return indexedDBCache;
 }
 
 
 async function CheckDB(listTo, fromStep) {
-    console.log(`CheckDB:`, listTo, fromStep)
-    let isMatchFound = []
+    console.log(`CheckDB:`, listTo, fromStep);
+    let isMatchFound = [];
 
     const minusElement = document.querySelector('.Minus');
 
@@ -3005,8 +3008,8 @@ async function CheckDB(listTo, fromStep) {
             LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
         }
         let copyStateEl = document.querySelector('.CopyState');
-        let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2))
-        copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important')
+        let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
+        copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
 
         // Set flags indicating skip conditions
         userClose = false;
@@ -3014,14 +3017,14 @@ async function CheckDB(listTo, fromStep) {
 
     }
 
-    console.log(indexedDBCache)
+    console.log(indexedDBCache);
     if (indexedDBCache?.length > 0) {
         for (let link of listTo) {
-            const searchDB = await indexedDBCache.find(({ U }) => U === link)
+            const searchDB = await indexedDBCache.find(({ U }) => U === link);
             if (searchDB) {
-                isMatchFound.push(link)
+                isMatchFound.push(link);
                 if (pageLinksDB.length > 0) {
-                    const entry = pageLinksDB.find(item => item.U === link)
+                    const entry = pageLinksDB.find(item => item.U === link);
                     if (entry && entry.T !== searchDB.T) {
                         await linkDB.add({ U: link, T: entry.T, S: PageURL });
                     }
@@ -3048,7 +3051,7 @@ async function CheckDB(listTo, fromStep) {
             }
         }
 
-        console.log('isMatchFound:', isMatchFound, isMatchFound.length)
+        console.log('isMatchFound:', isMatchFound, isMatchFound.length);
         if (minusElement) {
             // 매칭 여부에 따라 요소의 가시성을 설정합니다.
             minusElement.style.visibility = isMatchFound.length > 0 ? 'visible' : 'hidden';
@@ -3056,10 +3059,10 @@ async function CheckDB(listTo, fromStep) {
 
         // 매칭이 발견되었을 때만 AutoClose 로직을 실행합니다.
         if (isMatchFound.length > 0) {
-            await sleep(5000)
+            await sleep(5000);
             const isAutoCloseEnabled = JSON.parse(localStorage.getItem('AutoClose'));
-            console.log({ isAutoCloseEnabled, userClose })
-            await sleep(1000)
+            console.log({ isAutoCloseEnabled, userClose });
+            await sleep(1000);
             // AutoClose 변수와 localStorage 값을 모두 확인하여 실행합니다.
             if (isAutoCloseEnabled && userClose) {
                 self.close();
@@ -3078,12 +3081,12 @@ async function CheckDB(listTo, fromStep) {
 
 function PackageList(LinksDB) {
     if (LinksDB?.length > 0) {
-        let uniqueTitle = [...new Set(LinksDB.map(x => x.T))]
+        let uniqueTitle = [...new Set(LinksDB.map(x => x.T))];
         //console.log(uniqueTitle)
-        return uniqueTitle
+        return uniqueTitle;
     }
     else {
-        return []
+        return [];
     }
 }
 
@@ -3093,10 +3096,10 @@ async function CopyLink() {
     // Prepare notice text
     let noticeLines = [];
     let allLinks = [];
-    SkipTitle = []
+    SkipTitle = [];
 
 
-    console.log('CopyLink: ', { pageLinksDB })
+    console.log('CopyLink: ', { pageLinksDB });
     // 1) If no temporary links waiting, gather fresh links
     if (pageLinksDB.length === 0) {
         let collected = await CollectionLinks(DownloadArea) || [];
@@ -3110,14 +3113,14 @@ async function CopyLink() {
                 }
             }
             //console.log('collected : ', collected)
-            allLinks = collected
+            allLinks = collected;
 
             // Fire off JDownloader if allowed
             const directOK = DirectCopy.test(PageURL) || AllowDirect;
             if (directOK) {
                 JDownloader(collected.join('\n'), `${CopyTitle}${Resolution || ''}`, PageURL);
             }
-            noticeLines.push(`${CopyTitle}${Resolution || ''}`)
+            noticeLines.push(`${CopyTitle}${Resolution || ''}`);
             noticeLines.push(collected.join('\n'));
         } else {
             noticeLines.push('Empty Links');
@@ -3128,7 +3131,7 @@ async function CopyLink() {
     else {
         // Group by title, then push URLs under each
 
-        console.log('Use pageLinksDB: ', pageLinksDB)
+        console.log('Use pageLinksDB: ', pageLinksDB);
         const uniqueTitles = [...new Set(pageLinksDB.map(e => e.T))].sort();
         for (const t of uniqueTitles) {
             noticeLines.push(t);
@@ -3147,14 +3150,14 @@ async function CopyLink() {
     }
 
     if (allLinks.length === 0) {
-        SkipTitle = ['Link is Empty']
-        return allLinks
+        SkipTitle = ['Link is Empty'];
+        return allLinks;
     }
     // 3) Update UI notice
     const noticeEl = document.querySelector('.CopyNotice .copyText');
     noticeEl.textContent = noticeLines.join("\n");
 
-    console.log('CopyLink: ', { indexedDBCache })
+    console.log('CopyLink: ', { indexedDBCache });
 
     await sleep(100);
 
@@ -3181,15 +3184,15 @@ async function CopyLink() {
             AutoClose = true;
         }
     }
-    return allLinks
+    return allLinks;
 }
 
 function checkSkipFilter(el) {
-    return skipFilterPatterns.some(rx => el.href && rx.test(el.href))
+    return skipFilterPatterns.some(rx => el.href && rx.test(el.href));
 }
 
 function listToDo(areas, type = 'Default') {
-    if(!areas) return [];
+    if (!areas) return [];
     const seenAnchors = new Set();
     const todo = [];
 
@@ -3206,15 +3209,15 @@ function listToDo(areas, type = 'Default') {
         if (checkSkipFilter(el)) continue;
         // Skip links with image children for certain hosts
         if (/(uploadgig\.com\/file\/download|alfafile\.net\/file)/.test(el.href)) {
-            const image = el.querySelector('img')
+            const image = el.querySelector('img');
             if (image) {
-                image?.remove()
-                el.textContent = 'Download'
+                image?.remove();
+                el.textContent = 'Download';
                 el.parentElement.style.cssText += `
                                     white-space: nowrap;
                                     overflow: hidden;
                                     text-overflow: ellipsis;
-                                    `
+                                    `;
             }
 
         }
@@ -3246,15 +3249,15 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
     console.log('Mutil SubTitle.... ', MatchWeb, MatchWebPoint, InfoAreaCast);
     let Empty = [];
     let AllLinks = [];
-    pageLinksDB = []
-    SkipTitle = []
-    let pauseButton = false
+    pageLinksDB = [];
+    SkipTitle = [];
+    let pauseButton = false;
     const WatchElementArea = document.querySelector('div#downloadhidden');
 
 
-    DownloadArea = document.querySelectorAll('div#download, div#downloadhidden')
+    DownloadArea = document.querySelectorAll('div#download, div#downloadhidden');
     // Collect all <a> elements inside DownloadArea
-    let filteredLinks = []
+    let filteredLinks = [];
     for (let el of DownloadArea) {
         for (let x of el.querySelectorAll('a')) {
             if (!checkSkipFilter(x)) {
@@ -3267,11 +3270,11 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
         const newLinkItems = Array.from(WatchElementArea.querySelectorAll('a')).filter(l => !checkSkipFilter(l));
         if (newLinkItems.length > 0) {
             obs.disconnect();
-            const cs = document.querySelector('.CopyState')
+            const cs = document.querySelector('.CopyState');
             if (cs) {
-                cs.remove()
+                cs.remove();
             }
-            DownloadArea = document.querySelectorAll('div#download, div#downloadhidden')
+            DownloadArea = document.querySelectorAll('div#download, div#downloadhidden');
         }
     });
     downloadhiddenobserver.observe(WatchElementArea, { childList: true, subtree: true });
@@ -3279,7 +3282,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
 
 
     if (DownloadArea.length === 0) {
-        console.log('DownloadArea is empty')
+        console.log('DownloadArea is empty');
         return;
     }
     // Collect all <a> elements inside DownloadArea
@@ -3367,12 +3370,12 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
             const LinkText = Links[0].innerText.replace(/\.xxx\.\d+p.*/i, '').split('/').pop().trim();
 
 
-            console.log('LinkText: ', LinkText)
-            console.log(MatchWeb, IAC)
+            console.log('LinkText: ', LinkText);
+            console.log(MatchWeb, IAC);
 
-            const compareT = compareSentencesByWordMatch(`${MatchWeb} ${IAC}`, LinkText)
+            const compareT = compareSentencesByWordMatch(`${MatchWeb} ${IAC}`, LinkText);
             if (compareT === LinkText) {
-                Title = LinkText
+                Title = LinkText;
             } else {
                 // Extract release date or matching pattern based on MatchWeb
                 let Released = '';
@@ -3401,11 +3404,11 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
 
                 // Compose full title string                
 
-                console.log(MatchWeb, Episode, Released, IAC)
-                Title = `${MatchWeb}${Episode}${Released ? '.' + Released + '.' : ''}${CastTitle}${IAC.replace(Released, '').trim()}`
+                console.log(MatchWeb, Episode, Released, IAC);
+                Title = `${MatchWeb}${Episode}${Released ? '.' + Released + '.' : ''}${CastTitle}${IAC.replace(Released, '').trim()}`;
 
-                Title = Title.replace(/(S\d+):(E\d+)/i, '$1$2')
-                console.log({ Title })
+                Title = Title.replace(/(S\d+):(E\d+)/i, '$1$2');
+                console.log({ Title });
             }
 
             Title = FilenameConvert(Title);
@@ -3425,9 +3428,9 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
     // Add cover image if present and allowed
     if (pageLinksDB.length > 0 && CoverImage && !/imagetwist\.com|thumbs/.test(CoverImage)) {
         let U = CoverImage;
-        let T
+        let T;
         if (/SITERIP|Collection/i.test(CopyTitleRaw)) {
-            T = FilenameConvert(CopyTitle)
+            T = FilenameConvert(CopyTitle);
         } else {
             T = FilenameConvert(CopyTitle) + Resolution;
         }
@@ -3440,10 +3443,10 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
         pageLinksDB = [];
     }
     if (pageLinksDB.length === 0) {
-        SkipTitle = ['Link is Empty']
+        SkipTitle = ['Link is Empty'];
     }
     console.log('MutilSubTitle Final pageLinksDB:', pageLinksDB);
-    return pageLinksDB
+    return pageLinksDB;
 }
 
 
@@ -3467,12 +3470,12 @@ async function ClearUrls() {
         await linkDB.clearAll()
     }
 */
-    await linkDB.clearAll()
+    await linkDB.clearAll();
 
     if (document.querySelector('.Minus')) {
-        document.querySelector('.Minus').style.visibility = "hidden"
+        document.querySelector('.Minus').style.visibility = "hidden";
     }
-    document.querySelector('.State').textContent = GetState + ' | ' + PackageCount
+    document.querySelector('.State').textContent = GetState + ' | ' + PackageCount;
     if (GetState == 0) {
         document.querySelector('.ClearButton').style = "opacity: 0.25;";
         document.querySelector('.CopyButton').style = "opacity: 0.25;";
@@ -3488,7 +3491,7 @@ async function ClipPaste() {
     //document.querySelector('.CopyButton').style.setProperty('font-size', Number(((1/(GetDPI/1.5))*(16/DefaultFontSize)).toFixed(2)) + 'rem', 'important');
     //let ClipPasteData = JSON.parse(await GM_getValue(RootDomain, '[]'))
     indexedDBCache = await linkDB.getAll();
-    return JDownloaderDB(indexedDBCache).then(e => e)
+    return JDownloaderDB(indexedDBCache).then(e => e);
     //updateClipboard(ClipPasteData)
 }
 
@@ -3507,12 +3510,12 @@ if(JdownloaderData){
 
         let data = new URLSearchParams();
         data.append(`urls`, JdownloaderData);
-        data.append(`referer`, PageURL)
+        data.append(`referer`, PageURL);
         if (sourceURL) {
-            data.append(`source`, sourceURL)
+            data.append(`source`, sourceURL);
         }
         if (PackageName) {
-            data.append(`package`, PackageName)
+            data.append(`package`, PackageName);
         }
         /*
     if(Comment){
@@ -3529,29 +3532,29 @@ if(JdownloaderData){
             body: data
         }).then((response) => {
             //console.log(response.ok)
-        })
+        });
         //console.log(data)
     }
 
 }
 
 async function JDownloaderDB(LinksDB) {
-    console.log({LinksDB})
-    let uniqueTitle = [...new Set(LinksDB.map(x => x.T))]
-    console.log('uniqueTitle: ', uniqueTitle)
+    console.log({ LinksDB });
+    let uniqueTitle = [...new Set(LinksDB.map(x => x.T))];
+    console.log('uniqueTitle: ', uniqueTitle);
     uniqueTitle.forEach(x => {
-        JDownloader(GetMatchLinks(x, LinksDB), x, GetMatchSource(x, LinksDB))
-    })
-    return true
+        JDownloader(GetMatchLinks(x, LinksDB), x, GetMatchSource(x, LinksDB));
+    });
+    return true;
 }
 
 
 function GetMatchSource(text, LinksDB) {
     try {
-        let S = LinksDB.find(u => text.includes(u.T) && u.S)
-        return S ? S.S : false
+        let S = LinksDB.find(u => text.includes(u.T) && u.S);
+        return S ? S.S : false;
     } catch (err) {
-        console.log(err, text, LinksDB)
+        console.log(err, text, LinksDB);
     }
 }
 
@@ -3559,16 +3562,16 @@ function GetMatchSource(text, LinksDB) {
 
 function GetMatchLinks(text, LinksDB) {
     try {
-        return LinksDB.filter(u => text.includes(u.T)).map(l => l.U).join('\n')
+        return LinksDB.filter(u => text.includes(u.T)).map(l => l.U).join('\n');
     } catch (err) {
-        console.log(err, text, LinksDB)
+        console.log(err, text, LinksDB);
     }
 }
 
 async function scrollToTop() {
-    window.scrollTo({ top: 0, behavior: 'auto' })
-    AllowDirect = true
-    window.removeEventListener('scroll', scrollToTop)
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    AllowDirect = true;
+    window.removeEventListener('scroll', scrollToTop);
 }
 
 function onElementLoaded(elementToObserve, parentStaticElement) {
@@ -3590,17 +3593,17 @@ function onElementLoaded(elementToObserve, parentStaticElement) {
                     if (divToCheck) {
                         console.log(`element loaded: ${elementToObserve}`);
                         Onobserver.disconnect(); // stop observing
-                        resolve(true)
+                        resolve(true);
                         //return;
                     }
-                })
+                });
 
 
                 // start observing for dynamic div
                 Onobserver.observe(parentElement, {
                     childList: true,
                     subtree: true,
-                })
+                });
             }
         } catch (e) {
             console.log(e);
@@ -3631,7 +3634,7 @@ function getTextLines(selector) {
         .filter(Boolean)
         .join('|');
 
-    const exceptLineRegEx = new RegExp(`^(${exceptLine})`, 'i')
+    const exceptLineRegEx = new RegExp(`^(${exceptLine})`, 'i');
 
     let currentLineBuffer = [];
     const container = document.querySelectorAll(selector);
@@ -3649,14 +3652,14 @@ function getTextLines(selector) {
                 }
             }
         });
-    })
-    console.log({ currentLineBuffer })
+    });
+    console.log({ currentLineBuffer });
     return currentLineBuffer;
 }
 
 
 function getTextLinesWithIconTag(selector, splitTag) {
-    const fileNames = getTextLines(selector)
+    const fileNames = getTextLines(selector);
     const container = document.querySelector(selector);
     if (!container) {
         console.warn(`Container with ID "${selector}" not found.`);
@@ -3715,13 +3718,13 @@ function getTextLinesWithIconTag(selector, splitTag) {
             const findIndex = fileNames[index].indexOf(firstLineWord);
             let prefix = '';
             if (findIndex !== -1) {
-                prefix = fileNames[index].substring(0, findIndex);            
+                prefix = fileNames[index].substring(0, findIndex);
             }
             console.log(`Icon clicked for line ${index + 1}: "${lineText}"`);
             // You can add more functionality here, e.g.:
             // alert(`You clicked the icon for: ${lineText}`);
-            event.target.style.setProperty('color', 'Orange', 'important')
-            updateClipboard(`${prefix}${lineText}`)
+            event.target.style.setProperty('color', 'Orange', 'important');
+            updateClipboard(`${prefix}${lineText}`);
         });
 
         // Append the line text and the icon to the container
@@ -3754,11 +3757,11 @@ function attrPromise(element, attributeName, attributeValue) {
 }
 
 function searchTerms(Text) {
-    let SearchWord = Text.replace(/\s&\s/g, ' ').split(/\s-\s/)
-    SearchWord = SearchWord.map(e => e.replace(/\n/g, '').trim())
-    SearchWord[0] = SearchWord[0].replace(/[^[:alnum:]]/g, '').replace(/\s/g, '')
-    SearchWord[0] = /\s-\s/.test(Text) ? SearchWord[0] : Text
-    return SearchWord.join(' ')
+    let SearchWord = Text.replace(/\s&\s/g, ' ').split(/\s-\s/);
+    SearchWord = SearchWord.map(e => e.replace(/\n/g, '').trim());
+    SearchWord[0] = SearchWord[0].replace(/[^[:alnum:]]/g, '').replace(/\s/g, '');
+    SearchWord[0] = /\s-\s/.test(Text) ? SearchWord[0] : Text;
+    return SearchWord.join(' ');
 }
 
 

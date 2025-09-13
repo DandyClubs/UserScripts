@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Remove Content
 // @namespace    http://tampermonkey.net/
-// @version      2025.09.12
+// @version      2025.09.13
 // @description  try to take over the world!
 // @author       You
 // @match        https://blogjav.net/*
@@ -149,10 +149,24 @@ class ContentDB {
 
 const contentManager = new ContentDB();
 
+let contentCache = [];
+
+function contentDBUpdate() {
+    return new Promise((resolve, reject) => {
+        contentManager.getAll().then((result) => {
+            contentCache = result;
+            resolve(contentCache);
+        }).catch(error => {
+            console.error("Failed get data:", error);
+        });
+    });
+}
+
+
 
 // 페이지 URL을 가져오는 부분은 동일합니다.
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
-const RootDomain = extractRootDomain(PageURL)
+const RootDomain = extractRootDomain(PageURL);
 
 // 정규식 관련 헬퍼 함수는 그대로 유지합니다.
 const RegexFrom = (strings, flags) =>
@@ -162,17 +176,17 @@ const RegexFrom = (strings, flags) =>
             .map(t => t.replace(/\s+/g, '\\s'))
             .join("|"),
         flags
-    )
+    );
 
-const escapeRegExp = (value) => value.replace(/[.*+?^${}()<>|[\]\\]/gi, "\\$&")
+const escapeRegExp = (value) => value.replace(/[.*+?^${}()<>|[\]\\]/gi, "\\$&");
 
-const RemoveContentEX = RegexFrom(RemoveContentText.split(/\r?\n/), 'i')
+const RemoveContentEX = RegexFrom(RemoveContentText.split(/\r?\n/), 'i');
 const MREX = /\bMR\b/;
-const SkipModelEX = RegexFrom(SkipModel.split(/\r?\n/), 'gi')
-const WarningEX = RegexFrom(WarningText.split(/\r?\n/), 'gi')
+const SkipModelEX = RegexFrom(SkipModel.split(/\r?\n/), 'gi');
+const WarningEX = RegexFrom(WarningText.split(/\r?\n/), 'gi');
 const AddDate = new Date().toISOString().slice(0, 10);
 
-console.log('RemoveContentEX: ', RemoveContentEX, '\nSkipModelEX: ', SkipModelEX, '\nWarningEX: ', WarningEX)
+console.log('RemoveContentEX: ', RemoveContentEX, '\nSkipModelEX: ', SkipModelEX, '\nWarningEX: ', WarningEX);
 
 // ----------------------------------------------------
 // 💡 개선된 부분: 사이트별 설정을 하나의 객체로 통합
@@ -279,7 +293,7 @@ span.Warning, span.SkipModel {
 	border-radius: .25em;
 	padding: .25em 0;
 }
-`)
+`);
 
 // 현재 페이지 URL과 일치하는 설정 객체를 찾습니다.
 const activeConfigKey = Object.keys(siteConfigs).find(key => PageURL.includes(key));
@@ -346,7 +360,7 @@ function getCookie(name) {
     if (document.cookie != "") {
         let cookie_array = cookie.split("; ");
         for (var index in cookie_array) {
-            var cookie_name = cookie_array[index].split("=")
+            var cookie_name = cookie_array[index].split("=");
             if (cookie_name[0] == name) {
                 return cookie_name[1];
             }
@@ -370,25 +384,6 @@ async function processContent(node, selector, isExtra = false) {
     for (const item of items) {
         let textContent = item.textContent;
 
-        if (/hidefporn\.ws|ultoporn\.com|k2sporn\.com|wetholefans\.com/.test(PageURL)) {
-            const resolutionMatch = textContent.match(/(\d+)p/);
-            const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
-            if (resolution) {
-                const Title = textContent.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(resolutionMatch[0], '').replace(/^(.*?)(?<=:)/gi, '').trim().toLowerCase();
-                if (resolution >= 1080) {
-                    console.log('Title:', Title, '\nResolution:', resolution)
-                    await contentManager.add(Title, AddDate)
-                }
-                else if (resolution <= 720) {
-                    const rawValue = await contentManager.get(Title.toLowerCase());
-                    if (rawValue) {
-                        console.log('Low resolution content removed:', resolution, Title);
-                        item.closest(Active.removeTagSelector)?.remove();
-                        continue;
-                    }
-                }
-            }
-        }
         // 추가 선택자의 경우 특정 단어로 제거
         if (isExtra) {
             if (RemoveContentEX.test(textContent) || /femdom/i.test(textContent) || MREX.test(textContent)) {
@@ -411,6 +406,24 @@ async function processContent(node, selector, isExtra = false) {
             continue;
         }
 
+        if (/hidefporn\.ws|ultoporn\.com|k2sporn\.com|wetholefans\.com/.test(PageURL)) {
+            const resolutionMatch = textContent.match(/(\d+)p/);
+            const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
+            if (resolution) {
+                const Title = textContent.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(resolutionMatch[0], '').replace(/^(.*?)(?<=:)/gi, '').trim().toLowerCase();
+                const CheckDB = (text, DB) => DB.some(s => s.K.toLowerCase().includes(text.toLowerCase()));
+                if (resolution >= 1080 && !CheckDB(Title, contentCache)) {
+                    console.log('Title:', Title, '\nResolution:', resolution);
+                    await contentManager.add(Title, AddDate);
+                    contentCache = await contentDBUpdate();
+                }
+                else if (resolution <= 720 && CheckDB(Title, contentCache)) {
+                    console.log('Low resolution content removed:', resolution, Title);
+                    item.closest(Active.removeTagSelector)?.remove();
+                    continue;
+                }
+            }
+        }
 
         // 제거되지 않은 경우 텍스트 대체
         replaceText(item);
@@ -428,7 +441,6 @@ function replaceText(node) {
         .map(child => ({ text: child.textContent.trim(), node: child }));
 
     for (const { text, node: textNode } of textNodes) {
-        let newHtml = text;
         const matches = [...(text.match(SkipModelEX) || []), ...(text.match(WarningEX) || [])];
         const uniqueMatches = [...new Set(matches)];
 
@@ -485,12 +497,12 @@ function setClearTitle(name, value) {
     const diffInSeconds = Math.floor((tomorrow - now) / 1000);
 
     // Max-Age를 사용하여 쿠키 생성    
-    document.cookie = `${name}=${value}; max-age=${diffInSeconds}; domain=${RootDomain}; path=/;`
+    document.cookie = `${name}=${value}; max-age=${diffInSeconds}; domain=${RootDomain}; path=/;`;
 }
 
 
 window.addEventListener("DOMContentLoaded", async () => {
-    await contentManager.init();
+    await contentManager.init();    
     console.log('Start Remove Content!');
     const rootElement = Active.rootSelector ? document.querySelector(Active.rootSelector) : document.body;
 
@@ -500,6 +512,8 @@ window.addEventListener("DOMContentLoaded", async () => {
         ClearTitle();
         setClearTitle("ClearTitle", "Y");
     }
+
+    contentCache = await contentDBUpdate();
 
     // 초기 페이지 콘텐츠 처리
     if (rootElement) {
