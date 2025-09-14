@@ -329,66 +329,6 @@ const JobManager = {
 };
 
 
-
-/**
- * 로컬 스토리지의 모든 데이터를 IndexedDB로 마이그레이션합니다.
- * shortUrl이 'http'로 시작하는 항목만 마이그레이션합니다.
- * 마이그레이션이 성공한 항목은 로컬 스토리지에서 삭제합니다.
- * @returns {Promise<void>}
- */
-async function migrateFromLocalStorage() {
-    console.log("Starting data migration from localStorage to IndexedDB...");
-
-    try {
-        await linkManager.init();
-        console.log("IndexedDB initialized.");
-    } catch (e) {
-        console.error("Failed to initialize IndexedDB:", e);
-        return;
-    }
-
-    const migrationTasks = [];
-
-    for (let i = 0; i < localStorage.length; i++) {
-        const shortUrl = localStorage.key(i);
-
-        if (shortUrl && shortUrl.startsWith('http')) {
-            try {
-                const rawValue = localStorage.getItem(shortUrl);
-                const data = JSON.parse(rawValue);
-
-                if (data && data.U && data.T) {
-                    console.log(`Preparing to migrate: ${shortUrl}`);
-
-                    // Promise와 shortUrl을 함께 객체로 저장합니다.
-                    const promise = linkManager.add(shortUrl, data.U, data.T);
-                    migrationTasks.push({ promise, shortUrl });
-                } else {
-                    console.warn(`Skipping invalid data for key: ${shortUrl}`);
-                }
-            } catch (e) {
-                console.error(`Error parsing data for key ${shortUrl}:`, e);
-            }
-        }
-    }
-
-    // 모든 Promise를 추출하여 Promise.all()로 기다립니다.
-    const promises = migrationTasks.map(task => task.promise);
-    await Promise.all(promises);
-
-    console.log("All data successfully migrated to IndexedDB.");
-
-    // 마이그레이션이 성공한 항목만 로컬 스토리지에서 삭제합니다.
-    migrationTasks.forEach(task => {
-        localStorage.removeItem(task.shortUrl);
-        console.log(`Removed from localStorage: ${task.shortUrl}`);
-    });
-
-    console.log("All corresponding localStorage data cleared.");
-}
-
-//migrateFromLocalStorage();
-
 /* ===============================
  * UI Manager
  * =============================== */
