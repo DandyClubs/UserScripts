@@ -407,7 +407,7 @@ async function processContent(node, selector, isExtra = false) {
         }
 
         if (/hidefporn\.ws|ultoporn\.com|k2sporn\.com|wetholefans\.com/.test(PageURL)) {
-            const resolutionMatch = textContent.match(/(\d+)p/);
+            const resolutionMatch = textContent.match(/(\d{3,4})p/);
             const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
             if (resolution) {
                 const Title = textContent.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(resolutionMatch[0], '').replace(/^(.*?)(?<=:)/gi, '').trim().toLowerCase();
