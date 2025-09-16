@@ -418,7 +418,7 @@ function addReloadEvent(delay = 60000) {
         } else {
             cancelReload();
         }
-    });
+    }, {once:true});
 }
 
 function reload(delay = 60000) {
@@ -816,7 +816,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
 
 
 async function handleAllAsianGirls() {
-    processCount = 5;
+    processCount = 3;
     const titleSelector = 'body.single.single-post div.page-title div.page-title-inner div .entry-title';
 
     let Title = document.querySelector(titleSelector)
@@ -958,10 +958,10 @@ const siteHandlers = {
     "terabox.app": () => { setupBeforeUnloadForJobs(); globalObserver.observe(document, config); },
     "themezon.net": () => globalObserver.observe(document, config),
     "sehuatang.net": () => setTimeout(() => document.querySelector('body > a.enter-btn')?.click(), 1000),
-    "shrinkme.site": () => { addReloadEvent(10000); },
-    "shrinkme.org": () => { addReloadEvent(10000); },
-    "shrinkme.top": () => { addReloadEvent(10000); },
-    "shrinkme.dev": () => { addReloadEvent(10000); },
+    "shrinkme.site": () => { addReloadEvent(30000); },
+    "shrinkme.org": () => { addReloadEvent(30000); },
+    "shrinkme.top": () => { addReloadEvent(30000); },
+    "shrinkme.dev": () => { addReloadEvent(30000); },
     "ouo.io": () => { handleOUO(); addReloadEvent(); },
     "ouo.press": () => { handleOUO(); addReloadEvent(); },
     "drive.google.com": () => { handleGoogleDrive(); },
