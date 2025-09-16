@@ -1049,6 +1049,7 @@ function assembleFinalTitle(data) {
     finalTitle = finalTitle.replace(/^\s?-\s/, '').replace(/\((\s+)?\)/g, '').replace(/\[(\s+)?\]/g, '').replace(/\.(\s+)?$/, '').replace(/\s+/g, ' ').trim();
     FullCopyTitle = finalTitle
     // 최종 길이 제한 및 추가 태그
+   
 
     const finalByteCheck = byteLengthOfCheck(finalTitle);
 
