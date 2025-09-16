@@ -816,7 +816,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
 
 
 async function handleAllAsianGirls() {
-    processCount = 3;
+    processCount = 5;
     const titleSelector = 'body.single.single-post div.page-title div.page-title-inner div .entry-title';
 
     let Title = document.querySelector(titleSelector)
