@@ -564,7 +564,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
     UIManager.setResponsiveFont();
     updatequeueState();
     UIManager.syncIcon();
-    DBResetButton();
+    //DBResetButton();
     let pendingState = false;
     const checkSubPage = document.querySelector('body.single-post');
     if (!checkSubPage) {
