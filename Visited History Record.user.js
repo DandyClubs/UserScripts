@@ -973,6 +973,7 @@ async function Start() {
             break;
         }
         case 'k2sporn.com':
+        case 'hidefporn.ws':
             document.documentElement.style.setProperty('--top', '-1rem');
             break;        
         default:
