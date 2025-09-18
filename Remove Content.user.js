@@ -351,7 +351,7 @@ async function ClearTitle() {
     const oldData = await contentManager.getOldData(oldDay);
 
     for (const data of oldData) {
-        contentManager.remove(data.S);
+        contentManager.remove(data.K);
     }
 }
 
@@ -419,7 +419,7 @@ async function processContent(node, selector, isExtra = false) {
                 }
                 else if (resolution <= 720 && CheckDB(Title, contentCache)) {
                     console.log('Low resolution content removed:', resolution, Title);
-                    item.closest(Active.removeTagSelector)?.remove();
+                    item.closest(Active.removeTagSelector)?.remove();                    
                     continue;
                 }
             }
