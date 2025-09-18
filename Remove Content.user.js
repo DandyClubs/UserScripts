@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Remove Content
 // @namespace    http://tampermonkey.net/
-// @version      2025.09.13
+// @version      2025.09.18
 // @description  try to take over the world!
 // @author       You
 // @match        https://blogjav.net/*
