@@ -355,20 +355,6 @@ async function ClearTitle() {
     }
 }
 
-function getCookie(name) {
-    let cookie = document.cookie;
-    if (document.cookie != "") {
-        let cookie_array = cookie.split("; ");
-        for (var index in cookie_array) {
-            var cookie_name = cookie_array[index].split("=");
-            if (cookie_name[0] == name) {
-                return cookie_name[1];
-            }
-        }
-    }
-    return null;
-}
-
 // ----------------------------------------------------
 // 💡 개선된 부분: 함수 역할 분리 및 명확화
 // ----------------------------------------------------
@@ -487,30 +473,46 @@ function processQueue() {
 // 💡 개선된 부분: 메인 로직 및 MutationObserver
 // ----------------------------------------------------
 
-function setClearTitle(name, value) {
+function setClearTitle(name) {
     const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
 
-    // 현재 시간과 내일 00:00:00 사이의 차이를 초 단위로 계산
-    const diffInSeconds = Math.floor((tomorrow - now) / 1000);
+    // 만료 시간 기록
+    const data = {
+        expires: tomorrow.getTime() // ms 단위 timestamp
+    };
 
-    // Max-Age를 사용하여 쿠키 생성    
-    document.cookie = `${name}=${value}; max-age=${diffInSeconds}; domain=${RootDomain}; path=/;`;
+    localStorage.setItem(name, JSON.stringify(data));
 }
 
+function getClearTitle(name) {
+    const raw = localStorage.getItem(name);
+    if (!raw) return null;
+
+    try {
+        const data = JSON.parse(raw);
+        if (Date.now() > data.expires) {
+            // 만료되었으면 삭제 후 null 반환
+            localStorage.removeItem(name);
+            return null;
+        }
+        return data.value;
+    } catch {
+        return null;
+    }
+}
 
 window.addEventListener("DOMContentLoaded", async () => {
     await contentManager.init();    
     console.log('Start Remove Content!');
     const rootElement = Active.rootSelector ? document.querySelector(Active.rootSelector) : document.body;
 
-    const cookieCheck = getCookie("ClearTitle");
-    if (!cookieCheck || cookieCheck !== "Y") {
+    if (getClearTitle("ClearTitle") === null) {
         console.log('ClearTitle');
         ClearTitle();
-        setClearTitle("ClearTitle", "Y");
+        setClearTitle("ClearTitle");
     }
 
     contentCache = await contentDBUpdate();

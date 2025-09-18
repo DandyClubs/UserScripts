@@ -819,35 +819,37 @@ async function ClearVisited() {
 }
 
 
-
-function setClearVisited(name, value) {
+function setClearVisited(name) {
     const now = new Date();
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
     tomorrow.setHours(0, 0, 0, 0);
 
-    // 현재 시간과 내일 00:00:00 사이의 차이를 초 단위로 계산
-    const diffInSeconds = Math.floor((tomorrow - now) / 1000);
+    // 만료 시간 기록
+    const data = {
+        expires: tomorrow.getTime() // ms 단위 timestamp
+    };
 
-    // Max-Age를 사용하여 쿠키 생성    
-    document.cookie = `${name}=${value}; max-age=${diffInSeconds}; domain=${RootDomain}; path=/;`
+    localStorage.setItem(name, JSON.stringify(data));
 }
 
+function getClearVisited(name) {
+    const raw = localStorage.getItem(name);
+    if (!raw) return null;
 
-
-function getCookie(name) {
-    let cookie = document.cookie;
-    if (document.cookie != "") {
-        let cookie_array = cookie.split("; ");
-        for (var index in cookie_array) {
-            var cookie_name = cookie_array[index].split("=")
-            if (cookie_name[0] == name) {
-                return cookie_name[1];
-            }
+    try {
+        const data = JSON.parse(raw);
+        if (Date.now() > data.expires) {
+            // 만료되었으면 삭제 후 null 반환
+            localStorage.removeItem(name);
+            return null;
         }
+        return data.value;
+    } catch {
+        return null;
     }
-    return null;
 }
+
 
 async function SaveVisited(el) {
     const AddDate = new Date().toISOString().slice(0, 10);
@@ -893,11 +895,10 @@ async function Start() {
 
     initVisitedListeners(Active.root);
 
-    const cookieCheck = getCookie("ClearVisited");
-    if (!cookieCheck || cookieCheck !== "Y") {
+    if (getClearVisited("ClearVisited") === null) {
         console.log('ClearVisited');
         ClearVisited();
-        setClearVisited("ClearVisited", "Y");
+        setClearVisited("ClearVisited");
     }
 
     observer.observe(document.body, { childList: true, subtree: true });
