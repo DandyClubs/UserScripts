@@ -493,12 +493,13 @@ function getClearTitle(name) {
 
     try {
         const data = JSON.parse(raw);
-        if (Date.now() > data.expires) {
+        if (!data.expires) return null;
+        else if (Date.now() > data.expires) {
             // 만료되었으면 삭제 후 null 반환
             localStorage.removeItem(name);
             return null;
         }
-        return data.value;
+        return data.expires;
     } catch {
         return null;
     }

@@ -826,7 +826,7 @@ function setClearVisited(name) {
     tomorrow.setHours(0, 0, 0, 0);
 
     // 만료 시간 기록
-    const data = {
+    const data = {        
         expires: tomorrow.getTime() // ms 단위 timestamp
     };
 
@@ -839,12 +839,13 @@ function getClearVisited(name) {
 
     try {
         const data = JSON.parse(raw);
-        if (Date.now() > data.expires) {
+        if (!data.expires) return null;
+        else if (Date.now() > data.expires) {
             // 만료되었으면 삭제 후 null 반환
             localStorage.removeItem(name);
             return null;
         }
-        return data.value;
+        return data.expires;
     } catch {
         return null;
     }
