@@ -1544,7 +1544,7 @@ const siteConfigs = [
                                 ID = ID ? ID + ' ' : '';
                             }
                             compareInfoAreaID = entryID === infoAreaID ? infoAreaID : /-/.test(entryID) ? entryID.replace(/-/g, '') : '';
-                            newTitle = `${entryID}${compareJapaneseCharacters(cleanIDTitle, cleanIDInfoTitle)}`;
+                            newTitle = `${entryID} ${compareJapaneseCharacters(cleanIDTitle, cleanIDInfoTitle)}`;
                         } else {
                             newTitle = `${entryID || infoAreaID} ${compareJapaneseCharacters(cleanIDTitle, cleanIDInfoTitle)}`;
                         }
