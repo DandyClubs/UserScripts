@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         AutoClick (Refactored)
-// @version      2025.09.12
+// @version      2025.09.20
 // @description  Auto actions and cross-window messaging with maintainable structure
 // @author       DandyClubs
 // @include      /^https?:\/\/(cosplayjav|nylons)\.pl\/(download|thumbnails)\/\?forPost=.*$/
@@ -321,8 +321,8 @@ function normalizeUrlKey() {
 }
 
 const JobManager = {
-    keys() { return GM_listValues() },
-    add(url) { GM_setValue(url, true) },
+    keys() { return GM_listValues(); },
+    add(url) { GM_setValue(url, true); },
     remove(url) {
         GM_deleteValue(url);
     }
@@ -418,7 +418,7 @@ function addReloadEvent(delay = 60000) {
         } else {
             cancelReload();
         }
-    }, {once:true});
+    }, { once: true });
 }
 
 function reload(delay = 60000) {
@@ -473,7 +473,7 @@ const globalObserver = new MutationObserver(async (mutations) => {
     // terabox / 1024tera — detect download button then orchestrate Job queue & messaging
     if (/(terabox|1024tera)\.(app|com)\/.+sharing/.test(href)) {
         ClickBTN = document.querySelector('div.action-bar div.action-bar-download.action-bar-btn');
-        const isLogin = document.querySelector('div.header-main-box div.header-right-menus div.user-card-box')
+        const isLogin = document.querySelector('div.header-main-box div.header-right-menus div.user-card-box');
         if (ClickBTN && isLogin) {
             globalObserver.disconnect();
             cancelReload();
@@ -486,7 +486,7 @@ const globalObserver = new MutationObserver(async (mutations) => {
             }
 
             const jobs = JobManager.keys();
-            const order = jobs.findIndex(j => j === PageURL);            
+            const order = jobs.findIndex(j => j === PageURL);
             await sleep(getRandomIntInclusive(0, 10) * 10 * order + 3000 * order);
             Downloader(ClickBTN);
         }
@@ -595,7 +595,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
         }
     }).filter(({ el }) => {
         if (/shink\.me|zippyshare\.com|adf\.ly/.test(el.href)) {
-            console.log(`Skip ${el} ${el.href}`)
+            console.log(`Skip ${el} ${el.href}`);
             UIManager.addResetButton(el, el.href, 'Skipped');
             return false;
         } else {
@@ -603,7 +603,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
         }
     });
 
-    console.log({ copyTitle, links })
+    console.log({ copyTitle, links });
 
     if (!links.length) {
         if (AutoClick === '1') {
@@ -679,7 +679,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
     }
     const hasRawLinksMatched = Object.values(rawLinks).some(v => v.allMatched);
     const hasAllMatched = Object.values(cachedCheck).some(v => v.allMatched);
-    const cachedTeraBoxType = Object.values(cachedCheck).some(v => v.type === 'terabox' && v.allMatched)
+    const cachedTeraBoxType = Object.values(cachedCheck).some(v => v.type === 'terabox' && v.allMatched);
 
     if (hasAllMatched || hasRawLinksMatched || cachedTeraBoxType) return;
 
@@ -710,7 +710,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
         await queue.enqueue(PageURL);
         updatequeueState();
         startWork(currentLinks);
-        AutoClickBC.postMessage({ type: "updateState" });                
+        AutoClickBC.postMessage({ type: "updateState" });
     }
 
 
@@ -788,15 +788,15 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                     AutoClickBC.postMessage({ type: 'updateState' });
                     window.removeEventListener('beforeunload', taskState);
 
-                    console.log({ autoClose }, entry.type)
-                    if (/terabox\.com|1024tera\.com|terabox\.app/.test(e.origin)){
+                    console.log({ autoClose }, entry.type);
+                    if (/terabox\.com|1024tera\.com|terabox\.app/.test(e.origin)) {
                         childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
                     }
-                    if (autoClose) {                        
+                    if (autoClose) {
                         await sleep(7500);
                         self.close();
                     }
-                    
+
                     currentLinks = [];
                     currentTypeIndex = types.length;
                     if (enableJdownloaer && JdownloaderData.length > 0) {
@@ -823,7 +823,7 @@ async function handleAllAsianGirls() {
         ?.textContent.replace(/part\d+$/i, '') || null;
     return handleSite({
         copyTitle: Title,
-        linkSelectors: [{ selector: 'a[href^="https://shrinkme"]', text: '', type: 'terabox' }],
+        linkSelectors: [{ selector: 'a[href^="https://shrinkme"], a[href^="https://ouo"]', text: '', type: 'terabox' }],
         enableJdownloaer: true,
     });
 }
@@ -885,7 +885,7 @@ async function handleOUO() {
         }
     });
 
-    console.log(PageURL, window.opener)
+    console.log(PageURL, window.opener);
     if (window.opener) {
         if (PageURL === 'https://ouo.io/' || PageURL === 'https://ouo.press/') {
             window.opener.postMessage({ retry: 'reTryAgain' }, 'https://misskon.com');
@@ -934,6 +934,16 @@ async function handleGoogleDrive() {
 }
 
 
+function childWindowClose() {
+    window.addEventListener('message', function (e) {
+        if (e.data.action === 'closed') {
+            //JobManager.remove(PageURL);
+            self.close();
+        }
+    });
+}
+
+
 const siteHandlers = {
     "thumbnails": () => {
         ['banner-top', 'img-thumbnails-info', 'show-thumbnails-info', 'btn-thumbnails', 'adblock-true', 'baner-bottom-section']
@@ -947,7 +957,7 @@ const siteHandlers = {
     "xc745.com": () => autoClickBySelector('#dlink'),
     "365shares.net": () => autoClickBySelector('#dlink'),
     "newsteez.com": () => setTimeout(() => document.querySelector('.btn.btn-primary')?.click(), 500),
-    "en.mrproblogger.com": () => { handleMrProBlogger(); addReloadEvent(); },
+    "en.mrproblogger.com": () => { handleMrProBlogger(); addReloadEvent(); childWindowClose(); },
     "allasiangirls.net": handleAllAsianGirls,
     "bestgirlsexy.com": handleBestGirlSexy,
     "misskon.com": handleMissKon,
@@ -956,12 +966,12 @@ const siteHandlers = {
     "terabox.com": () => { setupBeforeUnloadForJobs(); globalObserver.observe(document, config); },
     "1024tera.com": () => { setupBeforeUnloadForJobs(); globalObserver.observe(document, config); },
     "terabox.app": () => { setupBeforeUnloadForJobs(); globalObserver.observe(document, config); },
-    "themezon.net": () => globalObserver.observe(document, config),
+    "themezon.net": () => { globalObserver.observe(document, config); childWindowClose(); },
     "sehuatang.net": () => setTimeout(() => document.querySelector('body > a.enter-btn')?.click(), 1000),
-    "shrinkme.site": () => { addReloadEvent(30000); },
-    "shrinkme.org": () => { addReloadEvent(30000); },
-    "shrinkme.top": () => { addReloadEvent(30000); },
-    "shrinkme.dev": () => { addReloadEvent(30000); },
+    "shrinkme.site": () => { addReloadEvent(30000); childWindowClose(); },
+    "shrinkme.org": () => { addReloadEvent(30000); childWindowClose(); },
+    "shrinkme.top": () => { addReloadEvent(30000); childWindowClose(); },
+    "shrinkme.dev": () => { addReloadEvent(30000); childWindowClose(); },
     "ouo.io": () => { handleOUO(); addReloadEvent(); },
     "ouo.press": () => { handleOUO(); addReloadEvent(); },
     "drive.google.com": () => { handleGoogleDrive(); },
@@ -1040,12 +1050,12 @@ if(JdownloaderData){
 
         let data = new URLSearchParams();
         data.append(`urls`, JdownloaderData);
-        data.append(`referer`, PageURL)
+        data.append(`referer`, PageURL);
         if (sourceURL) {
-            data.append(`source`, sourceURL)
+            data.append(`source`, sourceURL);
         }
         if (PackageName) {
-            data.append(`package`, PackageName)
+            data.append(`package`, PackageName);
         }
         /*
     if(Comment){
@@ -1062,7 +1072,7 @@ if(JdownloaderData){
             body: data
         }).then((response) => {
             //console.log(response.ok)
-        })
+        });
         //console.log(data)
     }
 
