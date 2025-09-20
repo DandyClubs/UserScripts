@@ -168,11 +168,7 @@ class CopyLinksTitle {
 
             request.onupgradeneeded = (e) => {
                 const db = e.target.result;
-
-                if (db.objectStoreNames.contains('LinksTitle')) {
-                    db.deleteObjectStore('LinksTitle');
-                }
-
+                
                 if (!db.objectStoreNames.contains(this.storeNames.copyLinks)) {
                     const store = db.createObjectStore(this.storeNames.copyLinks, { keyPath: 'U' });
                     store.createIndex('copyIdIndex', 'I', { unique: false });
