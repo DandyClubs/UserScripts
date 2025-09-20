@@ -266,48 +266,6 @@ class CopyLinksTitle {
         });
     }
 
-
-    async migrateFilteredLocalStorageToLinksDate(dbInstance, RootDomain) {
-        const storeName = dbInstance.storeNames.copyID;
-
-        // 1) 조건에 맞는 key 목록 필터링
-        const keys = Object.keys(localStorage).filter(k => {
-            const value = localStorage.getItem(k);
-            return (
-                k.includes(RootDomain) &&
-                /\d{4}-\d{2}-\d{2}/.test(value) // YYYY-MM-DD
-            );
-        });
-
-        // 2) IndexedDB에 저장 + 성공하면 localStorage에서 제거
-        return new Promise((resolve, reject) => {
-            const tx = dbInstance.db.transaction([storeName], 'readwrite');
-            const store = tx.objectStore(storeName);
-
-            tx.oncomplete = () => {
-                console.log(`Migration complete. ${keys.length} items moved & removed from localStorage.`);
-                resolve(keys.length);
-            };
-            tx.onerror = (e) => reject(e.target.error);
-
-            keys.forEach(copyId => {
-                const date = localStorage.getItem(copyId);
-                if (!date) return;
-
-                const request = store.put({ I: copyId, D: date });
-
-                request.onsuccess = () => {
-                    // 저장 성공 시 로컬스토리지에서 제거
-                    localStorage.removeItem(copyId);
-                };
-                request.onerror = (err) => {
-                    console.warn(`Failed to migrate ${copyId}:`, err);
-                };
-            });
-        });
-    }
-
-
     // 내부 공통 트랜잭션
     async _tx(storeName, mode, action) {
         return new Promise((resolve, reject) => {
@@ -389,12 +347,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await CopyLinksTitleDB.init();
 
     indexedDBUpdate();
-    const migratedCount = await CopyLinksTitleDB.migrateFilteredLocalStorageToLinksDate(
-        CopyLinksTitleDB,
-        RootDomain
-    );
-    console.log(`총 ${migratedCount}개 항목이 IndexedDB로 옮겨지고 로컬스토리지에서 삭제되었습니다.`);
-
+        
     let cookieCheck = getCookie("ClearCopyed");
     if (!cookieCheck || cookieCheck != "Y") {
         console.log('ClearCopyed');
