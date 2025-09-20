@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Copy Links & Title (indexedDB)
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.24
+// @version      2025.09.20
 // @description  try to take over the world!
 // @author       You
 // @include      /gm\d+.xyz/
@@ -25,12 +25,12 @@
 // ==/UserScript==
 
 const FontAwesomeCSS = function () {
-    let css = document.createElement('link')
-    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css'
-    css.rel = 'stylesheet'
-    css.type = 'text/css'
-    document.getElementsByTagName('head')[0].appendChild(css)
-}
+    let css = document.createElement('link');
+    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css';
+    css.rel = 'stylesheet';
+    css.type = 'text/css';
+    document.getElementsByTagName('head')[0].appendChild(css);
+};
 
 
 GM_addStyle(`
@@ -154,34 +154,37 @@ GM_addStyle(`
 class CopyLinksTitle {
     constructor() {
         this.dbName = 'CopyLinksTitle';
-        this.storeName = 'LinksTitle';
+        this.storeNames = {
+            copyLinks: 'copyLinks',
+            copyID: 'copyID',
+        };
         this.db = null;
-
-        // 이벤트 채널
         this.bc = new BroadcastChannel("CopyLinksTitleChannel");
     }
 
     async init() {
         return new Promise((resolve, reject) => {
-            // 데이터베이스 버전을 1에서 2로 변경합니다.
-            const request = indexedDB.open(this.dbName, 1);
+            const request = indexedDB.open(this.dbName, 4); // ★ 버전 업
 
             request.onupgradeneeded = (e) => {
                 const db = e.target.result;
-                if (!db.objectStoreNames.contains(this.storeName)) {
-                    // Object Store를 생성합니다.
-                    const store = db.createObjectStore(this.storeName, { keyPath: 'U' });
 
-                    // CopyID에 대한 인덱스를 추가합니다.
-                    // 인덱스 이름은 'copyIdIndex'로 지정했습니다.
+                if (db.objectStoreNames.contains('LinksTitle')) {
+                    db.deleteObjectStore('LinksTitle');
+                }
+
+                if (!db.objectStoreNames.contains(this.storeNames.copyLinks)) {
+                    const store = db.createObjectStore(this.storeNames.copyLinks, { keyPath: 'U' });
                     store.createIndex('copyIdIndex', 'I', { unique: false });
-                    console.log('Object Store and "copyIdIndex" created.');
+                }
+                if (!db.objectStoreNames.contains(this.storeNames.copyID)) {
+                    const store = db.createObjectStore(this.storeNames.copyID, { keyPath: 'I' });
+                    store.createIndex('dateIndex', 'D', { unique: false });
                 }
             };
 
             request.onsuccess = (e) => {
                 this.db = e.target.result;
-                console.log('Database opened successfully.');
                 resolve();
             };
 
@@ -189,102 +192,177 @@ class CopyLinksTitle {
         });
     }
 
-    async add(data) {
-        const result = await this._tx('readwrite', store => store.put(data));
-        this._notify({ type: "add", data });
-        return result;
-    }
-
-    async get(U) {
-        return this._tx('readonly', store => store.get(U));
-    }
-
-    async getAll() {
-        return this._tx('readonly', store => store.getAll());
-    }
-
-    async remove(U) {
-        const result = await this._tx('readwrite', store => store.delete(U));
-        this._notify({ type: "remove", U });
-        return result;
-    }
-
-    // **수정된 부분:** searchIndex를 getAll 기반으로 수정
-    async searchIndex(indexName, indexKey) {
-        return this._tx('readonly', (store) => {
-            const index = store.index(indexName);
-            // getAll() 요청을 반환하여 _tx에서 Promise가 처리되도록 합니다.
-            return index.getAll(indexKey);
-        });
-    }
-
-    async clearAll() {
-        const result = await this._tx('readwrite', store => store.clear());
-        this._notify({ type: "clear" });
-        return result;
-    }
-
-    async _tx(mode, action) {
+    // 공용 add: 두 스토어에 나눠 저장
+    async add({ U, T, S = '', I = '', date }) {
         return new Promise((resolve, reject) => {
-            const tx = this.db.transaction([this.storeName], mode);
-            const store = tx.objectStore(this.storeName);
+            const tx = this.db.transaction(
+                [this.storeNames.copyLinks, this.storeNames.copyID],
+                'readwrite'
+            );
 
-            try {
-                // action이 반환하는 IDBRequest 객체를 기다립니다.
-                const request = action(store);
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
+            const copyLinksStore = tx.objectStore(this.storeNames.copyLinks);
+            const copyIDStore = tx.objectStore(this.storeNames.copyID);
 
-            } catch (error) {
-                reject(error);
-            }
+            copyLinksStore.put({ U, T, S, I });
+            if (I && date) copyIDStore.put({ I, D: date });
+
+            tx.oncomplete = () => {
+                this._notify({ type: "add" });
+                resolve(true);
+            };
+            tx.onerror = (e) => reject(e.target.error);
         });
     }
-    // 내부 알림 → BroadcastChannel
+
+    // 지정된 store에 작업 (get/remove/clear 등)
+    async get(storeName, key) {
+        return this._tx(storeName, 'readonly', store => store.get(key));
+    }
+
+    async getAll(storeName) {
+        return this._tx(storeName, 'readonly', store => store.getAll());
+    }
+
+    async search(storeName, indexName, indexKey) {
+        return this._tx(storeName, 'readonly', store => store.index(indexName).getAll(indexKey));
+    }
+
+    async remove(storeName, key) {
+        const result = await this._tx(storeName, 'readwrite', store => store.delete(key));
+        if (storeName === this.storeNames.copyLinks) {
+            this._notify({ type: "remove" });
+        }
+        return result;
+    }
+
+    async clear(storeName) {
+        const result = await this._tx(storeName, 'readwrite', store => store.clear());
+        if (storeName === this.storeNames.copyLinks) {
+            this._notify({ type: "clear" });
+        }
+        return result;
+    }
+
+    async getOldData(storeName, days) {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction([storeName], 'readonly');
+            const store = tx.objectStore(storeName);
+
+            // 'dateIndex' 인덱스를 사용합니다.
+            const index = store.index('dateIndex');
+
+            const oneDay = 1000 * 60 * 60 * 24;
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - days);
+
+            // IndexedDB 키 범위(IDBKeyRange)를 사용하여 특정 날짜 이전의 데이터만 가져옵니다.
+            // `upperBound`는 지정된 값보다 작은 모든 키를 포함합니다.
+            const range = IDBKeyRange.upperBound(cutoffDate.toISOString().slice(0, 10));
+
+            const request = index.getAll(range);
+
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+
+    async migrateFilteredLocalStorageToLinksDate(dbInstance, RootDomain) {
+        const storeName = dbInstance.storeNames.copyID;
+
+        // 1) 조건에 맞는 key 목록 필터링
+        const keys = Object.keys(localStorage).filter(k => {
+            const value = localStorage.getItem(k);
+            return (
+                k.includes(RootDomain) &&
+                /\d{4}-\d{2}-\d{2}/.test(value) // YYYY-MM-DD
+            );
+        });
+
+        // 2) IndexedDB에 저장 + 성공하면 localStorage에서 제거
+        return new Promise((resolve, reject) => {
+            const tx = dbInstance.db.transaction([storeName], 'readwrite');
+            const store = tx.objectStore(storeName);
+
+            tx.oncomplete = () => {
+                console.log(`Migration complete. ${keys.length} items moved & removed from localStorage.`);
+                resolve(keys.length);
+            };
+            tx.onerror = (e) => reject(e.target.error);
+
+            keys.forEach(copyId => {
+                const date = localStorage.getItem(copyId);
+                if (!date) return;
+
+                const request = store.put({ I: copyId, D: date });
+
+                request.onsuccess = () => {
+                    // 저장 성공 시 로컬스토리지에서 제거
+                    localStorage.removeItem(copyId);
+                };
+                request.onerror = (err) => {
+                    console.warn(`Failed to migrate ${copyId}:`, err);
+                };
+            });
+        });
+    }
+
+
+    // 내부 공통 트랜잭션
+    async _tx(storeName, mode, action) {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction([storeName], mode);
+            const store = tx.objectStore(storeName);
+            const request = action(store);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
     _notify(event) {
         this.bc.postMessage(event);
-        if (this.onchange) this.onchange(event); // ★ 같은 탭 내부에서도 바로 콜백 실행
+        if (this.onchange) this.onchange(event);
     }
 }
 
 
 const CopyLinksTitleDB = new CopyLinksTitle();
-let indexedDBCache = []
+let indexedDBCache = [];
 
 // 외부에서 DB 변경 감지
 CopyLinksTitleDB.onchange = (event) => {
     //console.log("로컬 DB 이벤트 발생:", event);
-    indexedDBUpdate()
+    indexedDBUpdate();
 };
 
 CopyLinksTitleDB.bc.onmessage = (event) => {
     //console.log("멀티탭 DB 이벤트 발생:", event.data);
-    indexedDBUpdate()
+    indexedDBUpdate();
 };
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
-const RootDomain = extractRootDomain(PageURL)
+const RootDomain = extractRootDomain(PageURL);
 
-let GetDPI, DefaultFontSize, elementPosition
-let GetState, searchDB, PackageCount
-let copyLinks = ''
-let Copyed = ''
+let GetDPI, DefaultFontSize, elementPosition;
+let GetState, searchDB, PackageCount;
+let copyLinks = '';
+let Copyed = '';
 
-let Maker
-let UrlTitle = ''
-let DirectCopy = true
+let Maker;
+let UrlTitle = '';
+let DirectCopy = true;
 
 
-let Target, DownloadArea, CopyTitle, CopyTitleArea, noticeArea, CopyTitleSelector, Series, TitleID, ID, CoverImage
-const SkipFilter = new RegExp('filejoker\\.net\/file\/q25fhzi4k86y|sendurl\\.me|xufile\\.com|pixhost\\.to|imgbox\\.com|utm_source|safedl\\.net|upgrade|\\.jpg$|javascript|SKIP|#|^\/|^(?=.*' + window.location.origin + ')(?!.*\\?site).*$')
-const SkipID = /C_\d+/i
-const JapaneseChar = /[ぁ-んァ-ン一-龯]/
-const SkipClassNames = ['adead_link', 'autohyperlink', 'social-icon', 'postdetails']
-const SearchID = /^([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})(.*)/
-const ChinaID = /([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})/
-const SearchFC2ID = /(^FC2.+\d{6})(.*)/
-const SearchIDRegExp = /^(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}))(?!(C_\d+|file\d+))(.*)$/
-const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/
+let Target, DownloadArea, CopyTitle, CopyTitleArea, noticeArea, CopyTitleSelector, Series, TitleID, ID, CoverImage;
+const SkipFilter = new RegExp('filejoker\\.net\/file\/q25fhzi4k86y|sendurl\\.me|xufile\\.com|pixhost\\.to|imgbox\\.com|utm_source|safedl\\.net|upgrade|\\.jpg$|javascript|SKIP|#|^\/|^(?=.*' + window.location.origin + ')(?!.*\\?site).*$');
+const SkipID = /C_\d+/i;
+const JapaneseChar = /[ぁ-んァ-ン一-龯]/;
+const SkipClassNames = ['adead_link', 'autohyperlink', 'social-icon', 'postdetails'];
+const SearchID = /^([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})(.*)/;
+const ChinaID = /([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})/;
+const SearchFC2ID = /(^FC2.+\d{6})(.*)/;
+const SearchIDRegExp = /^(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}))(?!(C_\d+|file\d+))(.*)$/;
+const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/;
 const SkipTitle = [
     'assfuck',
     'busty',
@@ -301,36 +379,41 @@ const SkipTitle = [
     'skinny',
     'stockings',
     'cumshot on big tits'
-]
+];
 
-console.log(SkipFilter)
+console.log(SkipFilter);
 
-let lastExecutionTime = performance.now()
-document.addEventListener("DOMContentLoaded", () => {
+let lastExecutionTime = performance.now();
+document.addEventListener("DOMContentLoaded", async () => {
 
-    let cookieCheck = getCookie("ClearCopyed")
+    await CopyLinksTitleDB.init();
+
+    indexedDBUpdate();
+    const migratedCount = await CopyLinksTitleDB.migrateFilteredLocalStorageToLinksDate(
+        CopyLinksTitleDB,
+        RootDomain
+    );
+    console.log(`총 ${migratedCount}개 항목이 IndexedDB로 옮겨지고 로컬스토리지에서 삭제되었습니다.`);
+
+    let cookieCheck = getCookie("ClearCopyed");
     if (!cookieCheck || cookieCheck != "Y") {
-        console.log('ClearCopyed')
-        ClearCopyed()
-        setClearCopyed("ClearCopyed", "Y", 1)
+        console.log('ClearCopyed');
+        ClearCopyed();
+        setClearCopyed("ClearCopyed", "Y", 1);
     }
 
-    FontAwesomeCSS()
+    FontAwesomeCSS();
 
     const DomainRules = getDomainConfig(RootDomain);
     if (!DomainRules) {
         console.error("해당 도메인에 대한 설정이 없습니다.");
-        return
+        return;
     }
 
     try {
-        MakeIcon()
-        CopyLinksTitleDB.init().then(() => {
-            indexedDBUpdate();
-        }).catch(error => {
-            console.error("Database initialization failed:", error);
-        });
+        MakeIcon();
         AddCopyIcon(document.body);
+
     } catch (error) {
         let errorMessage = "아이콘 추가 중 예상치 못한 오류가 발생했습니다.";
 
@@ -352,7 +435,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         if (node.querySelector(DomainRules.selectors.copyTitle)) {
-                            AddCopyIcon(node)
+                            AddCopyIcon(node);
                         }
 
                     }
@@ -377,17 +460,17 @@ document.addEventListener("DOMContentLoaded", () => {
             RefreshIcon(performance.now());
         }
         lastExecutionTime = now;
-    })
-    myObserver.observe(document.querySelector(".ToTop"))
+    });
+    myObserver.observe(document.querySelector(".ToTop"));
 
-}, { once: true })
+}, { once: true });
 
 async function indexedDBUpdate() {
-    CopyLinksTitleDB.getAll().then((result) => {
-        indexedDBCache = result;        
-        GetState = indexedDBCache.length
-        PackageCount = PackageList(indexedDBCache).length
-        updateUI(GetState, PackageCount)
+    CopyLinksTitleDB.getAll('copyLinks').then((result) => {
+        indexedDBCache = result;
+        GetState = indexedDBCache.length;
+        PackageCount = PackageList(indexedDBCache).length;
+        updateUI(GetState, PackageCount);
     }).catch(error => {
         console.error("Failed get data:", error);
     });
@@ -419,26 +502,35 @@ function updateUI(GetState, PackageCount) {
     }
 }
 
-function ClearCopyed() {
-    console.log('Start Delete Copyed!')
-    Copyed = Object.keys(localStorage).filter(k => k.includes(RootDomain + '/') && /\d{4}-\d{2}-\d{2}/.test(localStorage.getItem(k)))
+async function ClearCopyed() {
+    console.log('Start Delete Copyed!');
+    const oldDay = 180;
+    /**
+    Copyed = Object.keys(localStorage).filter(k => k.includes(RootDomain + '/') && /\d{4}-\d{2}-\d{2}/.test(localStorage.getItem(k)));
     for (let key of Copyed) {
         if (localStorage.getItem(key)) {
-            let Now = new Date(Date.now()).toISOString().slice(0, 10)
+            let Now = new Date(Date.now()).toISOString().slice(0, 10);
 
-            let AddedDay = new Date(localStorage.getItem(key)).toISOString().slice(0, 10)
+            let AddedDay = new Date(localStorage.getItem(key)).toISOString().slice(0, 10);
             const oneDay = 1000 * 60 * 60 * 24;
             if (((new Date(Now) - new Date(AddedDay)) / oneDay) > 180) {
-                localStorage.removeItem(key)
-                console.log('Delete Item: ', key, AddedDay)
+                localStorage.removeItem(key);
+                console.log('Delete Item: ', key, AddedDay);
             }
         }
+    }
+        */
+
+    const oldData = await CopyLinksTitleDB.getOldData('copyID', oldDay);
+
+    for (const data of oldData) {
+        CopyLinksTitleDB.remove('copyID', data.I);
     }
 }
 
 function setClearCopyed(name, value, expiresDay) {
     const NowTime = new Date();
-    const MidNight = new Date(NowTime.getFullYear(), NowTime.getMonth(), NowTime.getDate() + expiresDay, 9)
+    const MidNight = new Date(NowTime.getFullYear(), NowTime.getMonth(), NowTime.getDate() + expiresDay, 9);
     document.cookie = escape(name) + "=" + escape(value) + "; expires=" + MidNight.toUTCString();
 }
 
@@ -483,7 +575,7 @@ const DomainHandlers = {
             const rawTitle = DomainRules.relativeSelector(el)?.querySelector('a.postdetails, span.postdetails.subject')?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return parseForumTitle(infoLines, rawTitle)
+            return parseForumTitle(infoLines, rawTitle);
         },
         getCopyID: (relativeArea, pageURL) => {
             if (/newsearch\.php/.test(pageURL)) return relativeArea.querySelector('a')?.href;
@@ -491,7 +583,7 @@ const DomainHandlers = {
             return relativeArea.querySelector('a.inl-bl')?.href;
         },
         iconPosition: (iconSet) => {
-            const relativeArea = DomainRules.relativeSelector(iconSet) || ''
+            const relativeArea = DomainRules.relativeSelector(iconSet) || '';
             const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
             const iconSetMetrics = getElementMetrics(iconSet, { mode: 'relative' });
             iconSet.style.setProperty('z-index', '99999');
@@ -538,7 +630,7 @@ const DomainHandlers = {
             const rawTitle = DomainRules.relativeSelector(el)?.querySelector('div.post_subj span.postdetails span')?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return parseForumTitle(infoLines, rawTitle, { preferJapanese: true })
+            return parseForumTitle(infoLines, rawTitle, { preferJapanese: true });
         },
         getCopyID: (relativeArea) => relativeArea?.querySelector('div.post_subj a[href]').href || '',
         iconPosition: (iconSet) => {
@@ -561,11 +653,11 @@ const DomainHandlers = {
             const rawTitle = DomainRules.relativeSelector(el)?.querySelector('div.keyinfo h5')?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return parseForumTitle(infoLines, rawTitle, { preferJapanese: true })
+            return parseForumTitle(infoLines, rawTitle, { preferJapanese: true });
         },
         getCopyID: (relativeArea) => relativeArea.querySelector('div.keyinfo > [id^="subject_"] > a')?.href || '',
         iconPosition: (iconSet) => {
-            const relativeArea = DomainRules.relativeSelector(iconSet)
+            const relativeArea = DomainRules.relativeSelector(iconSet);
             const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
             const iconSetMetrics = getElementMetrics(iconSet, { mode: 'bounding' });
             iconSet.style.setProperty('top', `${(relativeAreaMetrics.height / 2 - iconSetMetrics.height) / 2}px`);
@@ -584,7 +676,7 @@ const DomainHandlers = {
             const rawTitle = DomainRules.relativeSelector(el)?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return parseForumTitle(infoLines, rawTitle, { preferJapanese: true })
+            return parseForumTitle(infoLines, rawTitle, { preferJapanese: true });
         },
         getCopyID: (relativeArea) => relativeArea.closest('table.tborder').querySelector('td.thead a[id^="postcount')?.href,
         iconPosition: (iconSet) => {
@@ -605,7 +697,7 @@ const DomainHandlers = {
             const rawTitle = DomainRules.relativeSelector(el)?.querySelector('a.topictitle')?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
-            return parseForumTitle(infoLines, rawTitle, { preferJapanese: true })
+            return parseForumTitle(infoLines, rawTitle, { preferJapanese: true });
         },
         getCopyID: (relativeArea) => relativeArea.querySelector('a.topictitle')?.href || '',
         iconPosition: (iconSet) => {
@@ -632,7 +724,7 @@ const getDomainConfig = (rootDomain) => {
 const DomainRules = getDomainConfig(RootDomain);
 if (!DomainRules) {
     console.error("해당 도메인에 대한 설정이 없습니다.");
-    return
+    return;
 }
 
 
@@ -687,7 +779,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
             } else if (copyMatch) {
                 Title = copyMatch;
             } else if (/Title\s?:/i.test(line)) {
-                Title = line.replace(/Title\s?:/i, '').trim()
+                Title = line.replace(/Title\s?:/i, '').trim();
             }
 
             Title = Title ? Title.trim() + ' ' : '';
@@ -742,23 +834,23 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
     console.log({ infoLines, cleanedinfoLines });
 
     console.log({ CopyTitle, Title, infoLines, cleanedinfoLines });
-    const infoLinesFinalTitle = Title ? `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim() : ''
+    const infoLinesFinalTitle = Title ? `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim() : '';
     const InfofinalTitle = infoLinesFinalTitle ? infoLinesFinalTitle : compareSentencesByWordMatch(CopyTitle, cleanedinfoLines[0]);
 
     console.log({ CopyTitle, InfofinalTitle });
     //preferJapanese: true 일 때, 두 문장을 비교하여 일본어가 많이 포함된 경우 우선순위를 두고, 그렇지 않으면 원본 제목을 사용합니다.
-    let preferText = ''
-    let compareText = ''
+    let preferText = '';
+    let compareText = '';
     if (preferJapanese) {
         preferText = compareJapaneseCharacters(CopyTitle, InfofinalTitle);
     }
     compareText = compareSentencesByWordMatch(CopyTitle, InfofinalTitle);
 
-    const compareLast = compareSentencesByWordMatch(preferText, compareText)
+    const compareLast = compareSentencesByWordMatch(preferText, compareText);
     if (ReleaseDate && (Maker || ID)) {
-        return `${Maker}${ID ? ID + ' ' : ''}.${ReleaseDate}.${compareLast}`
+        return `${Maker}${ID ? ID + ' ' : ''}.${ReleaseDate}.${compareLast}`;
     } else {
-        return ReleaseDate ? `${compareLast}(${ReleaseDate})` : compareLast
+        return ReleaseDate ? `${compareLast}(${ReleaseDate})` : compareLast;
     }
 }
 
@@ -773,7 +865,7 @@ function parseForumTitle(infoLines, rawTitle, options = {}) {
     rawTitle = rawTitle.replace(/amp;|\(\)/gi, '').replace(/^Re:|Subject:/i, '').trim();
 
 
-    const finalTitle = extractInfoFromText(infoLines, rawTitle, options)
+    const finalTitle = extractInfoFromText(infoLines, rawTitle, options);
     const TitleID = finalTitle?.match(SearchID)?.[1] || '';
     const Title = finalTitle?.match(SearchID)?.pop()?.trim() || finalTitle;
     console.log({ finalTitle, TitleID, Title });
@@ -782,7 +874,7 @@ function parseForumTitle(infoLines, rawTitle, options = {}) {
 }
 
 async function showCopyNotice(noticeArea, relativeArea, finalTitle, copyLinks) {
-    console.log('finalTitle:', finalTitle, '\ncopyLinks:', copyLinks)
+    console.log('finalTitle:', finalTitle, '\ncopyLinks:', copyLinks);
     GetDPI = window.devicePixelRatio;
     DefaultFontSize = getDefaultFontSize();
     const NFontSizeValue = ((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2) + 'rem';
@@ -800,7 +892,7 @@ async function showCopyNotice(noticeArea, relativeArea, finalTitle, copyLinks) {
     $(noticeArea).slideToggle('fast', 'linear');
     await sleep(500);
     $(noticeArea).slideToggle('slow');
-    await sleep(1000);    
+    await sleep(1000);
 }
 
 
@@ -812,8 +904,8 @@ function addEventListeners(container) {
 
             const copyIcon = event.target;
             const copyId = copyIcon.getAttribute("id");
-            const relativeArea = DomainRules.relativeSelector(copyIcon)
-            const noticeArea = relativeArea?.querySelector('.noticeArea')
+            const relativeArea = DomainRules.relativeSelector(copyIcon);
+            const noticeArea = relativeArea?.querySelector('.noticeArea');
 
 
             copyIcon.style.setProperty('color', 'Orange', 'important');
@@ -824,9 +916,6 @@ function addEventListeners(container) {
             await showCopyNotice(noticeArea, relativeArea, finalTitle, copyLinks);
 
             getNextSibling(copyIcon, '.Minus')?.classList.remove('NotCopyed');
-
-            const addDate = new Date().toISOString().slice(0, 10);
-            localStorage.setItem(copyId, addDate);
 
             if (DomainRules.selectors.visitedLink) {
                 relativeArea?.querySelector(DomainRules.selectors.visitedLink)?.classList.add('Copyed');
@@ -841,7 +930,7 @@ function addEventListeners(container) {
 
             const minusIcon = event.target;
             const copyIcon = getPreviousSibling(minusIcon, '.CopyIcon');
-            const relativeArea = DomainRules.relativeSelector(copyIcon)
+            const relativeArea = DomainRules.relativeSelector(copyIcon);
             const copyId = copyIcon?.getAttribute("id");
 
             if (copyIcon) {
@@ -852,8 +941,6 @@ function addEventListeners(container) {
                 if (DomainRules.selectors.visitedLink) {
                     relativeArea?.querySelector(DomainRules.selectors.visitedLink)?.classList.remove('Copyed');
                 }
-
-                localStorage.removeItem(copyId);
                 await RemoveDB(copyId);
             }
         }
@@ -868,14 +955,14 @@ async function CopyLink(el, noticeArea, CopyID) {
 
     // DomainHandlers에 relativeSelector가 정의되어 있으면 해당 선택자를 사용하고,
     // 그렇지 않으면 .IconSet의 부모 요소를 relativeArea로 설정
-    const relativeArea = DomainRules.relativeSelector(el)
+    const relativeArea = DomainRules.relativeSelector(el);
 
-    if (!relativeArea) return
+    if (!relativeArea) return;
 
     // relativeArea 내에서 infoSelector를 사용하여 downloadArea를 찾음
-    const downloadArea = DomainRules.infoSelector(el)
+    const downloadArea = DomainRules.infoSelector(el);
 
-    if (!downloadArea) return
+    if (!downloadArea) return;
 
     const copyTitle = DomainRules.GetInfo(el);
     const coverImage = DomainRules.getCoverImage?.(downloadArea) || '';
@@ -885,7 +972,7 @@ async function CopyLink(el, noticeArea, CopyID) {
     console.groupEnd();
 
     const limitedCopyTitle = byteLengthOf(copyTitle.replace(/amp;/g, '').trim(), 240);
-    let changedName = nameCorrection(limitedCopyTitle)
+    let changedName = nameCorrection(limitedCopyTitle);
     let finalTitle = FilenameConvert(changedName);
     console.log({ changedName, finalTitle });
 
@@ -896,7 +983,7 @@ async function CopyLink(el, noticeArea, CopyID) {
     let urlTitle = finalTitle;
 
     if (!linkItems?.length) {
-        return { finalTitle, copyLinks }
+        return { finalTitle, copyLinks };
     } else {
         linkItems.forEach(async (linkEntry) => {
             const target = linkEntry.href.replace(/\?site=.+/, '');
@@ -917,20 +1004,20 @@ async function CopyLink(el, noticeArea, CopyID) {
         copyLinks += coverImage;
         await UpdateDB(coverImage, urlTitle, el.getAttribute("id") || PageURL, CopyID);
     }
-    document.querySelector('.State').innerText = GetState + ' | ' + PackageCount
+    document.querySelector('.State').innerText = GetState + ' | ' + PackageCount;
     if (!JSON.parse(localStorage.getItem('NewAdded'))) {
-        localStorage.setItem('NewAdded', JSON.stringify(true))
+        localStorage.setItem('NewAdded', JSON.stringify(true));
     }
     return { finalTitle, copyLinks };
 }
 
 function PackageList(LinksDB) {
     if (LinksDB?.length > 0) {
-        let uniqueTitle = [...new Set(LinksDB.map(x => x.T))]
-        return uniqueTitle
+        let uniqueTitle = [...new Set(LinksDB.map(x => x.T))];
+        return uniqueTitle;
     }
     else {
-        return []
+        return [];
     }
 }
 
@@ -939,33 +1026,35 @@ function sleep(ms) {
 }
 
 function SearchMatch(Array, Search, ReplaceSTR) {
-    const SearchRegEx = new RegExp(Search, "i")
-    const MatchItem = Array.find((e) => e.match(SearchRegEx))
-    console.log('MatchItem:', MatchItem)
+    const SearchRegEx = new RegExp(Search, "i");
+    const MatchItem = Array.find((e) => e.match(SearchRegEx));
+    console.log('MatchItem:', MatchItem);
     if (MatchItem) {
         if (ReplaceSTR) {
-            return MatchItem.match(SearchRegEx).pop().replace(ReplaceSTR).trim()
+            return MatchItem.match(SearchRegEx).pop().replace(ReplaceSTR).trim();
         }
         else {
-            return MatchItem.match(SearchRegEx).pop().trim()
+            return MatchItem.match(SearchRegEx).pop().trim();
         }
     }
-    else { return '' }
+    else { return ''; }
 }
 
 
 async function UpdateDB(Target, UrlTitle, Source, CopyID) {
-    await CopyLinksTitleDB.add({ U: Target, T: UrlTitle, S: Source ? Source : '', I: CopyID ? CopyID : '' })
+    const addDate = new Date().toISOString().slice(0, 10);
+    await CopyLinksTitleDB.add({ U: Target, T: UrlTitle, S: Source ? Source : '', I: CopyID ? CopyID : '', addDate });
 }
 
-async function RemoveDB(CopyID) {    
+async function RemoveDB(CopyID) {
     try {
         // searchIndex는 이제 객체 배열을 반환합니다.
-        const itemsToRemove = await CopyLinksTitleDB.searchIndex('copyIdIndex', CopyID);       
+        const linksToRemove = await CopyLinksTitleDB.search('copyLinks', 'copyIdIndex', CopyID);
 
         // U(keyPath) 값을 추출하여 제거합니다.
-        for (const item of itemsToRemove) {
-            await CopyLinksTitleDB.remove(item.U);
+        for (const item of linksToRemove) {
+            await CopyLinksTitleDB.remove('copyLinks', item.U);
+            await CopyLinksTitleDB.remove('copyID', item.I);
             console.log(`Removed item with key: ${item.U}`);
         }
     } catch (error) {
@@ -985,13 +1074,13 @@ function applyClickEffect(selector) {
 
 async function clearDB() {
     applyClickEffect('.ClearButton');
-    await CopyLinksTitleDB.clearAll()
-    document.querySelector('.State').innerText = GetState + ' | ' + PackageCount
+    await CopyLinksTitleDB.clear('copyLinks');
+    document.querySelector('.State').innerText = GetState + ' | ' + PackageCount;
 }
 
 async function sendJD() {
     applyClickEffect('.CopyButton');
-    JDownloaderDB(indexedDBCache)
+    JDownloaderDB(indexedDBCache);
 }
 
 function MakeIcon() {
@@ -1113,7 +1202,7 @@ async function AddCopyIcon(node) {
         throw new TypeError("CcopyTitleAreas가 존재하지 않거나 배열이 아닙니다.");
     }
 
-    const copiedUrls = Object.keys(localStorage).filter(k => k.includes(RootDomain) && /\d{4}-\d{2}-\d{2}/.test(localStorage.getItem(k)));
+    const copiedUrls = await CopyLinksTitleDB.getAll('copyID');
 
     for (const el of copyTitleAreas) {
         const postArea = DomainRules.getPostArea(el);
@@ -1123,10 +1212,10 @@ async function AddCopyIcon(node) {
         if (!relativeArea) continue;
 
         const copyID = DomainRules.getCopyID?.(relativeArea, window.location.href) || null;
-        const isCopied = copyID && copiedUrls.includes(copyID);
+        const isCopied = copyID && copiedUrls.some(data => data.I === copyID);
 
         createAndAddIcons(relativeArea, copyID, isCopied);
-        console.log(relativeArea, copyID, isCopied)
+        console.log(relativeArea, copyID, isCopied);
     }
 }
 
@@ -1157,30 +1246,30 @@ function JDownloader(JdownloaderData, PackageName, sourceURL) {
 }
 
 function JDownloaderDB(LinksDB) {
-    let uniqueTitle = [...new Set(LinksDB.map(x => x.T))] || [...new Set(LinksDB.map(x => x.U))]
+    let uniqueTitle = [...new Set(LinksDB.map(x => x.T))] || [...new Set(LinksDB.map(x => x.U))];
     if (uniqueTitle?.length) {
         uniqueTitle.forEach(async x => {
-            JDownloader(GetMatchLinks(x, LinksDB), x, GetMatchSource(x, LinksDB))
-            await sleep(1000)
-        })
+            JDownloader(GetMatchLinks(x, LinksDB), x, GetMatchSource(x, LinksDB));
+            await sleep(1000);
+        });
     }
 }
 
 function GetMatchSource(text, LinksDB) {
     try {
-        let S = LinksDB.find(u => text.includes(u.T) && u.S)
-        return S ? S.S : false
+        let S = LinksDB.find(u => text.includes(u.T) && u.S);
+        return S ? S.S : false;
     } catch (err) {
-        console.log(err, text, LinksDB)
+        console.log(err, text, LinksDB);
     }
 }
 
 
 function GetMatchLinks(text, LinksDB) {
     try {
-        return LinksDB.filter(u => text.includes(u.T)).map(l => l.U).join('\n')
+        return LinksDB.filter(u => text.includes(u.T)).map(l => l.U).join('\n');
     } catch (err) {
-        console.log(err, text, LinksDB)
+        console.log(err, text, LinksDB);
     }
 }
 
@@ -1189,7 +1278,7 @@ function getCookie(name) {
     if (document.cookie != "") {
         var cookie_array = cookie.split("; ");
         for (var index in cookie_array) {
-            var cookie_name = cookie_array[index].split("=")
+            var cookie_name = cookie_array[index].split("=");
             if (cookie_name[0] == name) {
                 return cookie_name[1];
             }
@@ -1199,14 +1288,14 @@ function getCookie(name) {
 }
 
 function RefreshIcon() {
-    GetDPI = window.devicePixelRatio
-    DefaultFontSize = parseInt(getComputedStyle(document.documentElement).fontSize)
-    console.log('GetDPI: ', GetDPI, 'DefaultFontSize: ', DefaultFontSize)
+    GetDPI = window.devicePixelRatio;
+    DefaultFontSize = parseInt(getComputedStyle(document.documentElement).fontSize);
+    console.log('GetDPI: ', GetDPI, 'DefaultFontSize: ', DefaultFontSize);
     const centerBox = document.querySelector("div.CenterBox");
     centerBox.style.setProperty('font-size', ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)) + 'rem', 'important');
     document.querySelector('.State').style.setProperty('font-size', ((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2) + 'rem', 'important');
     document.querySelector('.AllCopyState').style.setProperty('font-size', ((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2) + 'rem', 'important');
-    document.querySelector('.IconSize')?.style.setProperty('--IconSize', ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)).toFixed(2) + 'rem')
+    document.querySelector('.IconSize')?.style.setProperty('--IconSize', ((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)).toFixed(2) + 'rem');
 }
 
 
@@ -1214,13 +1303,13 @@ function RefreshIcon() {
 async function AllCopy() {
     document.querySelector('.AllCopy').style = "color: White !important;";
 
-    let AllItems = document.querySelectorAll('.CopyIcon')
+    let AllItems = document.querySelectorAll('.CopyIcon');
     for (let i = 0; i < AllItems.length; i++) {
-        AllItems[i].click()
-        var d = new Date(Date.now())
-        var n = d.toLocaleTimeString()
-        document.querySelector('.AllCopyState').innerText = i + 1 + '/ ' + AllItems.length
-        await sleep(100)
+        AllItems[i].click();
+        var d = new Date(Date.now());
+        var n = d.toLocaleTimeString();
+        document.querySelector('.AllCopyState').innerText = i + 1 + '/ ' + AllItems.length;
+        await sleep(100);
     }
 }
 
@@ -1233,7 +1322,7 @@ function getNextSibling(elem, selector) {
 
     while (sibling) {
         if (sibling.matches(selector)) return sibling;
-        sibling = sibling.nextElementSibling
+        sibling = sibling.nextElementSibling;
     }
 }
 
