@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Copy Links & Title (indexedDB)
 // @namespace    http://tampermonkey.net/
-// @version      2025.09.20
+// @version      2025.09.21
 // @description  try to take over the world!
 // @author       You
 // @include      /gm\d+.xyz/
@@ -868,9 +868,7 @@ function addEventListeners(container) {
 
             if (DomainRules.selectors.visitedLink) {
                 relativeArea?.querySelector(DomainRules.selectors.visitedLink)?.classList.add('Copyed');
-            }
-
-            console.log('AddTitle: ', copyId, '\nAddDate: ', addDate);
+            }           
 
         }
 
@@ -992,7 +990,8 @@ function SearchMatch(Array, Search, ReplaceSTR) {
 
 async function UpdateDB(Target, UrlTitle, Source, CopyID) {
     const addDate = new Date().toISOString().slice(0, 10);
-    await CopyLinksTitleDB.add({ U: Target, T: UrlTitle, S: Source ? Source : '', I: CopyID ? CopyID : '', addDate });
+    await CopyLinksTitleDB.add({ U: Target, T: UrlTitle, S: Source ? Source : '', I: CopyID ? CopyID : '', date: addDate });
+    console.log('AddTitle: ', copyId, '\nAddDate: ', addDate);
 }
 
 async function RemoveDB(CopyID) {

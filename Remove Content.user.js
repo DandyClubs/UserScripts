@@ -394,12 +394,13 @@ async function processContent(node, selector, isExtra = false) {
 
         if (/hidefporn\.ws|ultoporn\.com|k2sporn\.com|wetholefans\.com/.test(PageURL)) {
             const resolutionMatch = textContent.match(/(\d{3,4})p/);
-            const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
+            const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;            
             if (resolution) {
                 const Title = textContent.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(resolutionMatch[0], '').replace(/^(.*?)(?<=:)/gi, '').trim().toLowerCase();
+                if (Title.split(' ').length < 2 || Title.length < 10) continue;
                 const CheckDB = (text, DB) => DB.some(s => s.K.toLowerCase().includes(text.toLowerCase()));
                 if (resolution >= 1080 && !CheckDB(Title, contentCache)) {
-                    console.log('Title:', Title, '\nResolution:', resolution);
+                    console.log('Title:', Title, '\nResolution:', resolution);                    
                     await contentManager.add(Title, AddDate);
                     contentCache = await contentDBUpdate();
                 }
