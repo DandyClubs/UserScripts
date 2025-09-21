@@ -252,6 +252,7 @@ div.SearchBox {
 	height: 1.13em;
 	display: inline-flex;
     margin: .25em;
+    gap: 5px;
 }
 
 img.Favicon {
@@ -662,88 +663,86 @@ function observeChanges(targetSelector, callback) {
 }
 
 function makeSearch() {
-    if (!document.querySelector('div.SearchBox')) {
-
+    let SearchBox = document.querySelector('div.SearchBox');
+    if (!SearchBox) {
         const titleEl = document.querySelector('.post-title.entry-title');
         const searchTitle = titleEl ? searchTerms(titleEl.innerText) : '';
         const offsetParent = copyOffsetArea.parentElement;
         offsetParent.style.position = 'relative';
 
         // create SearchBox
-        const SearchBox = document.createElement('div');
+        SearchBox = document.createElement('div');
         SearchBox.className = 'SearchBox';
         SearchBox.style.position = 'absolute';
         offsetParent.insertBefore(SearchBox, copyOffsetArea.nextSibling);
-
-
-        const baseScale = (1 / (GetDPI / 1.5)) * (16 / DefaultFontSize);
-        const rem = (value) => `${value.toFixed(2)}rem`;
-
-        SearchBox.style.maxWidth = rem(3);
-        SearchBox.style.top = `${Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20))}px`;
-        SearchBox.style.left = `${Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - baseScale * 16)}px`;
-        SearchBox.style.height = rem(1);
-
-        const ICONS = [
-            {
-                class: 'TheRarBG',
-                domain: 'therarbg.com',
-                onClick: () => openInNewTab(`https://therarbg.com/get-posts/keywords:${searchTitle}/`)
-            },
-            {
-                class: 'Zeroxxx',
-                domain: '0xxx.ws',
-                onClick: () => openInNewTab(`https://0xxx.ws/index.php?s="${searchTitle}"`)
-            },
-            {
-                class: 'PornBB',
-                domain: 'pornbb.org',
-                onClick: () => {
-                    const strong = document.querySelector('div.post-content-single.clearfix p strong span');
-                    const term = strong ? strong.innerText.replace(/^EARLY\sLEAK/, '').trim() : '';
-                    openInNewTab(`https://www.pornbb.org/newsearch.php?search_keywords=${term}`);
-                }
-            },
-            {
-                class: 'BT4G',
-                domain: 'bt4g.org',
-                onClick: () => {
-                    const strong = document.querySelector('div.post-content-single.clearfix p strong span');
-                    const term = strong ? strong.innerText.replace(/^EARLY\sLEAK/, '').replace(/\s-\s/, ' ').trim() : '';
-                    openInNewTab(`https://bt4g.org/search/${term}`);
-                }
-            }
-        ];
-
-        const searchBoxStyle = SearchBox.style;
-        searchBoxStyle.maxWidth = rem(baseScale * 0.9 * 3);
-        searchBoxStyle.top = Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20)) + 'px';
-        searchBoxStyle.left = Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - SearchBox.offsetWidth * 1.5) + 'px';
-        searchBoxStyle.height = rem(baseScale * 0.9);
-
-        // img.Favicon 모두 선택
-        const faviconImgs = document.querySelectorAll('img.Favicon');
-        faviconImgs.forEach(img => {
-            img.style.width = rem(baseScale * 0.9);
-            img.style.height = rem(baseScale * 0.9);
-        });
-
-        for (const { class: className, domain, onClick } of ICONS) {
-            const img = document.createElement('img');
-            img.className = `Favicon ${className}`;
-            img.src = `https://www.google.com/s2/favicons?sz=32&domain=${domain}`;
-            img.style.width = rem(1);
-            img.style.height = rem(1);
-            img.style.cursor = 'pointer';
-            img.addEventListener('click', (e) => {
-                e.preventDefault();
-                onClick();
-            });
-
-            SearchBox.appendChild(document.createTextNode('\u00A0\u00A0'));
-            SearchBox.appendChild(img);
-        }
     }
+
+    const baseScale = (1 / (GetDPI / 1.5)) * (16 / DefaultFontSize);
+    const rem = (value) => `${value.toFixed(2)}rem`;
+
+    SearchBox.style.maxWidth = rem(3);
+    SearchBox.style.top = `${Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20))}px`;
+    SearchBox.style.left = `${Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - baseScale * 16)}px`;
+    SearchBox.style.height = rem(1);
+
+    const ICONS = [
+        {
+            class: 'TheRarBG',
+            domain: 'therarbg.com',
+            onClick: () => openInNewTab(`https://therarbg.com/get-posts/keywords:${searchTitle}/`)
+        },
+        {
+            class: 'Zeroxxx',
+            domain: '0xxx.ws',
+            onClick: () => openInNewTab(`https://0xxx.ws/index.php?s="${searchTitle}"`)
+        },
+        {
+            class: 'PornBB',
+            domain: 'pornbb.org',
+            onClick: () => {
+                const strong = document.querySelector('div.post-content-single.clearfix p strong span');
+                const term = strong ? strong.innerText.replace(/^EARLY\sLEAK/, '').trim() : '';
+                openInNewTab(`https://www.pornbb.org/newsearch.php?search_keywords=${term}`);
+            }
+        },
+        {
+            class: 'BT4G',
+            domain: 'bt4g.org',
+            onClick: () => {
+                const strong = document.querySelector('div.post-content-single.clearfix p strong span');
+                const term = strong ? strong.innerText.replace(/^EARLY\sLEAK/, '').replace(/\s-\s/, ' ').trim() : '';
+                openInNewTab(`https://bt4g.org/search/${term}`);
+            }
+        }
+    ];
+
+    const searchBoxStyle = SearchBox.style;
+    searchBoxStyle.maxWidth = rem(baseScale * 0.9 * 3);
+    searchBoxStyle.top = Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20)) + 'px';
+    searchBoxStyle.left = Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - SearchBox.offsetWidth * 1.5) + 'px';
+    searchBoxStyle.height = rem(baseScale * 0.9);
+
+    // img.Favicon 모두 선택
+    const faviconImgs = document.querySelectorAll('img.Favicon');
+    faviconImgs.forEach(img => {
+        img.style.width = rem(baseScale * 0.9);
+        img.style.height = rem(baseScale * 0.9);
+    });
+
+    for (const { class: className, domain, onClick } of ICONS) {
+        const img = document.createElement('img');
+        img.className = `Favicon ${className}`;
+        img.src = `https://www.google.com/s2/favicons?sz=32&domain=${domain}`;
+        img.style.width = rem(1);
+        img.style.height = rem(1);
+        img.style.cursor = 'pointer';
+        img.addEventListener('click', (e) => {
+            e.preventDefault();
+            onClick();
+        });
+        SearchBox.appendChild(img);
+    }
+
 }
 
 
@@ -759,9 +758,7 @@ const siteConfigs = [
 
                 copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
                 if (!copyOffsetArea) return;
-                DownloadArea = document.querySelectorAll('div#download, div#downloadhidden, div.DownloadArea');
-
-                makeSearch();
+                DownloadArea = document.querySelectorAll('div#download, div#downloadhidden, div.DownloadArea');                
 
                 //Extracting Text Before Each <br> and the Last Line
                 let EachTitle = getTextLinesWithIconTag('div.post-content-single p strong', 'br');
@@ -940,6 +937,8 @@ const siteConfigs = [
                         }
                     }
                 }
+
+                makeSearch();
             }
         }
     },
