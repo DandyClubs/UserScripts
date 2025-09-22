@@ -1163,7 +1163,7 @@ async function AddCopyIcon(node) {
         const isCopied = copyID && copiedUrls.some(data => data.I === copyID);
 
         createAndAddIcons(relativeArea, copyID, isCopied);
-        console.log(relativeArea, copyID, isCopied);
+        //console.log(relativeArea, copyID, isCopied);
     }
 }
 
