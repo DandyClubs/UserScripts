@@ -624,7 +624,7 @@ const DomainHandlers = {
         GetInfo: (el) => {
             const rawTitle = DomainRules.relativeSelector(el)?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
-            const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
+            const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(e => e !== 'A s i a n Sex D i a r y');
             return parseForumTitle(infoLines, rawTitle, { preferJapanese: true });
         },
         getCopyID: (relativeArea) => relativeArea.closest('table.tborder').querySelector('td.thead a[id^="postcount')?.href,
