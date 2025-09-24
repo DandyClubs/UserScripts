@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Image Viewer MOD (Refactored) 
-// @version      2025.09.12
+// @version      2025.09.24
 // @description  View full image without leaving the page or on a new tab without ads
 // @namespace    https://github.com/nikolay-borzov
 // @author       nikolay-borzov
@@ -1054,35 +1054,13 @@ let PreLoadDB = []
 
 const ExpandTag = new IntersectionObserver((entries, self) => {
     for (const entry of entries) {
-        const el = entry.target;
-        if (entry.isIntersecting) {
-            triggerExpand(el, self);
-        } else {
-            // 화면 위쪽에 있는 경우 강제 실행
-            const rect = el.getBoundingClientRect();
-            if (rect.bottom < window.innerHeight) {
-                triggerExpand(el, self);
-            }
+        const el = entry.target;        
+        if (el.nodeName.toLowerCase() === 'div' && !el.classList?.contains('unfolded')) {
+            el.click();
+            self.unobserve(entry.target);
         }
     }
 }, { root: null, rootMargin: "0px 0px 500px 0px", threshold: 0.5 });
-
-function triggerExpand(el, observer) {
-    if (el.nodeName.toLowerCase() === 'div' && !el.classList?.contains('unfolded')) {
-        el.click();
-        observer.unobserve(el);
-    }
-}
-
-// 페이지 로드 시 한 번, 위쪽 요소 강제 처리
-function expandAboveViewport(el) {
-    const rect = el.getBoundingClientRect();
-    if (rect.bottom < window.innerHeight) {
-        triggerExpand(el, ExpandTag);
-    } else {
-        ExpandTag.observe(el)
-    }
-}
 
 
 const IO = new IntersectionObserver((entries, self) => {
@@ -1093,7 +1071,7 @@ const IO = new IntersectionObserver((entries, self) => {
             image.getSize(imgEl).then(async () => {
                 if (ImageExists(imgEl) && !ImageBigSize(imgEl)) {
                     addToFullSizeQueue(imgEl, { autoStart: true });
-                    self.unobserve(imgEl);
+                    self.unobserve(entry.target);
                 }
             }).catch(e => console.error(e));
         }
@@ -1262,9 +1240,8 @@ function observeViewerModal(viewer) {
                         let AutoExpandTag = '.sp-head.folded.clickable:not(.unfolded)'
                         let Ex = [...document.querySelectorAll(AutoExpandTag)]
                         Ex.forEach(el => {
-                            //ExpandTag.observe(el)
-                            //expandAboveViewport(el)
-                            el.click()
+                            ExpandTag.observe(el)                            
+                            //el.click()
                         })
                     }
                 } else {
@@ -1551,9 +1528,8 @@ async function Start() {
         let AutoExpandTag = '.sp-head.folded.clickable:not(.unfolded)'
         Ex = [...document.querySelectorAll(AutoExpandTag)]
         Ex.forEach(el => {
-            //ExpandTag.observe(el)
-            //expandAboveViewport(el)
-            el.click()
+            ExpandTag.observe(el)            
+            //el.click()
         })
     }
 
