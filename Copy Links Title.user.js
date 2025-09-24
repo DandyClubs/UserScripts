@@ -624,7 +624,7 @@ const DomainHandlers = {
         GetInfo: (el) => {
             const rawTitle = DomainRules.relativeSelector(el)?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
-            const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(e => e !== 'A s i a n Sex D i a r y');
+            const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(e => !/^(A s i a n Sex D i a r y|A s i a n S e x D i a r y|A s i a X X X T o u r)$/i.test(e));
             return parseForumTitle(infoLines, rawTitle, { preferJapanese: true });
         },
         getCopyID: (relativeArea) => relativeArea.closest('table.tborder').querySelector('td.thead a[id^="postcount')?.href,
@@ -991,7 +991,7 @@ function SearchMatch(Array, Search, ReplaceSTR) {
 async function UpdateDB(Target, UrlTitle, Source, CopyID) {
     const addDate = new Date().toISOString().slice(0, 10);
     await CopyLinksTitleDB.add({ U: Target, T: UrlTitle, S: Source ? Source : '', I: CopyID ? CopyID : '', date: addDate });
-    console.log('AddTitle: ', copyId, '\nAddDate: ', addDate);
+    console.log('AddTitle: ', CopyID, '\nAddDate: ', addDate);
 }
 
 async function RemoveDB(CopyID) {
