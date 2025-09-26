@@ -991,7 +991,7 @@ function SearchMatch(Array, Search, ReplaceSTR) {
 async function UpdateDB(Target, UrlTitle, Source, CopyID) {
     const addDate = new Date().toISOString().slice(0, 10);
     await CopyLinksTitleDB.add({ U: Target, T: UrlTitle, S: Source ? Source : '', I: CopyID ? CopyID : '', date: addDate });
-    console.log('AddTitle: ', CopyID, '\nAddDate: ', addDate);
+    //console.log('AddTitle: ', CopyID, '\nAddDate: ', addDate);
 }
 
 async function RemoveDB(CopyID) {
