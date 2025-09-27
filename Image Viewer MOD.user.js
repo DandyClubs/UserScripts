@@ -1003,20 +1003,16 @@ async function initViewer(node) {
 }
 
 function AddEvent(el) {
-    el.addEventListener('click', (event) => {
-        const galleries = document.querySelectorAll('.ViewerGallery');
+    el.addEventListener('click', (event) => {        
         const clicked = event.target.closest('.ViewerGallery');
-
         if (clicked) {
             event.preventDefault();
             event.stopPropagation();
             event.stopImmediatePropagation();            
-            const index = Array.from(galleries).indexOf(clicked); // ← 현재 클릭한 것의 인덱스
-
-            console.log("현재 클릭 index:", index);
-
             viewer.update();
             ViewerList.clear();
+            const galleries = document.querySelectorAll('.ViewerGallery');
+            const index = Array.from(galleries).indexOf(clicked); // ← 현재 클릭한 것의 인덱스            
             viewer.view(index);  // el 대신 index 사용
         }
     }, true);
