@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Image Viewer MOD (Refactored) 
-// @version      2025.09.24
+// @version      2025.09.27
 // @description  View full image without leaving the page or on a new tab without ads
 // @namespace    https://github.com/nikolay-borzov
 // @author       nikolay-borzov
@@ -598,188 +598,6 @@ function viewerUpdate() {
     }
 }
 
-// 이미지 URL을 저장할 대기열(큐) 인스턴스
-const imageQueue = new Queue();
-
-let isPreloading = false; // 중복 실행 방지를 위한 플래그
-
-/**
-         * 주어진 URL의 이미지를 미리 불러오기 위한 Promise를 반환합니다.
-         * @param {string} url - 미리 불러올 이미지의 URL
-         * @param {number} timeout - 타임아웃 시간 (밀리초)
-         * @returns {Promise<Image>} - 로딩된 Image 객체로 해결되는 Promise
-         */
-function preloadImage(url, timeout = 10000) {
-    return new Promise((resolve, reject) => {
-        if (!url) return resolve();
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error(`Failed to load image at ${url}`));
-        img.src = url;
-
-        const timer = setTimeout(() => {
-            reject(new Error(`Image load timed out for ${url}`));
-        }, timeout);
-
-        img.onload = img.onerror = () => {
-            clearTimeout(timer);
-            if (img.complete) {
-                resolve(img);
-            } else {
-                reject(new Error(`Image load failed for ${url}`));
-            }
-        };
-    });
-}
-
-/**
-         * 클릭된 이미지의 URL을 대기열에 추가하고 UI를 업데이트합니다.
-         * @param {string} url - 대기열에 추가할 이미지 URL
-         * @param {HTMLElement} element - 클릭된 이미지 요소
-         */
-function addToQueue(url) {
-    // 이미 큐에 있는 이미지는 추가하지 않습니다.
-    if (!imageQueue.getItemsArray().includes(url)) {
-        imageQueue.enqueue(url);
-        console.log(`대기열에 추가됨: ${url}`, imageQueue.getItemsArray());
-    }
-}
-
-/**
-         * 대기열에 있는 이미지를 순차적으로 미리 불러옵니다.
-         */
-async function processQueue() {
-    if (imageQueue.isEmpty()) {
-        return;
-    }
-
-    if (isPreloading) {
-        console.log('이미지 로딩이 진행 중입니다. 잠시 기다려주세요.');
-        return;
-    }
-
-    isPreloading = true;
-
-    try {
-        // 큐에 있는 모든 이미지를 처리
-        while (!imageQueue.isEmpty()) {
-            const url = imageQueue.peek(); // 현재 처리할 이미지 URL
-            await preloadImage(url, 10000);
-            imageQueue.dequeue(); // 로딩 완료 후 큐에서 제거
-        }
-
-    } catch (error) {
-        console.error('이미지 로딩 중 오류 발생:', error);
-
-    } finally {
-        // 로딩 완료 후 큐 인스턴스를 재설정하고 UI 업데이트
-        isPreloading = false;
-    }
-}
-
-
-const imageFullSizeQueue = new Queue()
-let isFullSizeProcessing = false
-let pauseFullSizeProcessing = false; // 원하면 일시정지 기능 사용
-
-function addToFullSizeQueue(imgEl, { autoStart = false } = {}) {
-    if (!imgEl) return;
-    const items = imageFullSizeQueue.getItemsArray();
-    if (items.includes(imgEl)) return; // 중복 방지
-    imageFullSizeQueue.enqueue(imgEl);
-
-    // 자동 시작을 원하면 시작
-    if (autoStart && !isFullSizeProcessing) {
-        startFullSizeProcessing();
-    }
-}
-/**
- * 큐 처리 시작
- */
-function startFullSizeProcessing() {
-    if (isFullSizeProcessing) return;
-    isFullSizeProcessing = true;
-    pauseFullSizeProcessing = false;
-    processFullSizeQueue()
-        .catch(err => console.error('processFullSizeQueue failed:', err))
-        .finally(() => { isFullSizeProcessing = false; });
-}
-
-/**
- * 큐 처리 일시정지 후, 사용자 활동 감지해서 3초 뒤 재개
- */
-function pauseFullSizeProcessingNow() {
-    pauseFullSizeProcessing = true;
-
-    let idleTimer;
-    function onUserActivity() {
-        clearTimeout(idleTimer);
-        idleTimer = setTimeout(() => {
-            pauseFullSizeProcessing = false;
-            startFullSizeProcessing();
-            // 한 번만 동작시키고 이벤트 핸들러 제거
-            ['mousemove', 'scroll', 'keydown', 'touchstart'].forEach(ev =>
-                document.removeEventListener(ev, onUserActivity)
-            );
-        }, 10000);
-    }
-
-    // 사용자 활동 감지 시작
-    ['mousemove', 'scroll', 'keydown', 'touchstart'].forEach(ev =>
-        document.addEventListener(ev, onUserActivity)
-    );
-}
-
-
-/**
- * 큐 처리 재개
- */
-function resumeFullSizeProcessing() {
-    if (!isFullSizeProcessing) startFullSizeProcessing();
-}
-
-/**
- * 실제 큐 처리 루프 (비동기)
- */
-async function processFullSizeQueue() {
-    while (!imageFullSizeQueue.isEmpty()) {
-        if (pauseFullSizeProcessing) break;
-
-        const imgEl = imageFullSizeQueue.peek();
-
-        // 안전 검사: DOM에서 사라졌거나 유효하지 않으면 건너뜀
-        if (!imgEl || !(imgEl instanceof HTMLElement)) {
-            imageFullSizeQueue.dequeue();
-            continue;
-        }
-
-        const link = imgEl.closest && imgEl.closest('a.ivChecked');
-        if (!link || imgEl.matches('.ClickAbleItem')) {
-            imageFullSizeQueue.dequeue();
-            continue;
-        }
-
-        try {
-            // getSize는 {width, height, isLoaded} 반환을 가정
-            imgEl.setAttribute('loading', 'eager');
-            await image.getSize(imgEl);
-
-            if (ImageExists(imgEl) && !ImageBigSize(imgEl)) {
-                // 실제로 full-size url 얻어오기
-                await image.getFullSizeURL(link);
-            }
-        } catch (err) {
-            console.error('Error while processing full-size for', imgEl, err);
-            // 에러가 나도 큐는 다음으로 진행
-        } finally {
-            imageFullSizeQueue.dequeue();
-        }
-
-        // 부담을 줄이기 위한 짧은 딜레이 (네트워크 과부하 방지)
-        await new Promise(r => setTimeout(r, 100));
-    }
-}
-
 let container = document.querySelector('#ViewerJS');
 
 function AddViewer() {
@@ -836,8 +654,8 @@ function bindKeyboardNavigation(viewer) {
 function bindImagePreloadHandlers(viewer) {
     const imgs = container.querySelectorAll('ul.viewer-list li img');
     imgs.forEach(img => {
-        ['click', 'mouseover'].forEach(evt =>
-            img.addEventListener(evt, () => addToQueue(img.getAttribute('data-original-url')), { once: true })
+        ['mouseover'].forEach(evt =>
+            img.addEventListener(evt, () => loadImage(img.getAttribute('data-original-url')), { once: true })
         );
     });
 }
@@ -846,7 +664,7 @@ function bindArrowNavHandlers(viewer) {
     ['prev', 'next'].forEach(dir => {
         const btn = document.querySelector(`li.viewer-${dir}`);
         if (!btn) return;
-        ['click', 'mouseover'].forEach(evt =>
+        ['click'].forEach(evt =>
             btn.addEventListener(evt, () => dir === 'prev' ? viewer.prev() : viewer.next(), { once: true })
         );
     });
@@ -1068,9 +886,10 @@ const IO = new IntersectionObserver((entries, self) => {
         const imgEl = entry.target;
         const link = imgEl.closest && imgEl.closest('a.ivChecked');
         if (!imgEl.matches('.ClickAbleItem')) {
+            imgEl.setAttribute('loading', 'eager');
             image.getSize(imgEl).then(async () => {
                 if (ImageExists(imgEl) && !ImageBigSize(imgEl)) {
-                    addToFullSizeQueue(imgEl, { autoStart: true });
+                    image.getFullSizeURL(link);
                     self.unobserve(entry.target);
                 }
             }).catch(e => console.error(e));
@@ -1183,82 +1002,25 @@ async function initViewer(node) {
     return items;
 }
 
-function AddEvent() {
-    document.addEventListener('click', (event) => {
-        //console.log(event.target.nodeName.toLowerCase() === 'figcaption' , event.target.nodeName.toLowerCase())
-        //console.log(event.target)
-        if (event.target.closest('.ViewerGallery')) {
-            event.preventDefault()
-            // 페이지 로드 후 시작
-            document.addEventListener('DOMContentLoaded', watchForViewerContainer);
+function AddEvent(el) {
+    el.addEventListener('click', (event) => {
+        const galleries = document.querySelectorAll('.ViewerGallery');
+        const clicked = event.target.closest('.ViewerGallery');
 
-            //event.stopPropagation()
-            viewer.update()
-            ViewerList.clear(); // 업데이트 후 목록 초기화      
-            //loadImage(event.target.closest('.ViewerGallery').getAttribute('data-iv-img-url'))
-            viewer.view(event.target.getAttribute('ViewIndex'))
+        if (clicked) {
+            event.preventDefault();
+            event.stopPropagation();
+            event.stopImmediatePropagation();            
+            const index = Array.from(galleries).indexOf(clicked); // ← 현재 클릭한 것의 인덱스
+
+            console.log("현재 클릭 index:", index);
+
+            viewer.update();
+            ViewerList.clear();
+            viewer.view(index);  // el 대신 index 사용
         }
-    }, true)
-
+    }, true);
 }
-
-
-function watchForViewerContainer() {
-    const checkExisting = document.querySelector('.viewer-container');
-    if (checkExisting) {
-        observeViewerModal(checkExisting);
-        return;
-    }
-
-    // 아직 없으면 DOM 변화를 감시해서 생성될 때까지 대기
-    const bodyObserver = new MutationObserver((mutations, obs) => {
-        const viewer = document.querySelector('.viewer-container');
-        if (viewer) {
-            observeViewerModal(viewer);
-            obs.disconnect(); // 찾았으니 감시 중단
-        }
-    });
-
-    bodyObserver.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
-}
-
-function observeViewerModal(viewer) {
-    console.log('Viewer container found, observing aria-modal changes');
-
-    const modalObserver = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-            if (mutation.type === 'attributes' && mutation.attributeName === 'aria-modal') {
-                const isOpen = viewer.getAttribute('aria-modal') === 'true';
-                if (isOpen) {
-                    console.log('뷰어 열림 → 큐 처리 재개');
-                    pauseFullSizeProcessing = false;
-                    startFullSizeProcessing();
-                    if (/(rutracker\.org|pornolab\.net|trupornolabs.org)/.test(PageURL)) {
-                        let AutoExpandTag = '.sp-head.folded.clickable:not(.unfolded)'
-                        let Ex = [...document.querySelectorAll(AutoExpandTag)]
-                        Ex.forEach(el => {
-                            ExpandTag.observe(el)                            
-                            //el.click()
-                        })
-                    }
-                } else {
-                    console.log('뷰어 닫힘 → 큐 처리 일시정지');
-                    pauseFullSizeProcessingNow();
-                }
-            }
-        }
-    });
-
-    modalObserver.observe(viewer, {
-        attributes: true,
-        attributeFilter: ['aria-modal']
-    });
-}
-
-
 
 
 function ImageBigSize(image) {
@@ -1315,6 +1077,7 @@ function ImageExists(image) {
 const image = {
     async getFullSizeURL(link) {
         let imageURL = link.dataset.ivImgUrl
+        let img = link.querySelector('img');
 
         if (imageURL) {
             link.dataset.ivImgUrl = imageURL
@@ -1365,10 +1128,11 @@ const image = {
 
 
         link.dataset.ivImgUrl = imageURL
-        link.classList.add('ViewerGallery')
+        link.classList.add('ViewerGallery');
+        AddEvent(img);        
         //viewer.update()
-        ViewerList.add(link)
-        viewerUpdate()
+        ViewerList.add(link);
+        viewerUpdate();
         return imageURL
     },
 
@@ -1439,7 +1203,7 @@ const image = {
             if (img.complete) {
                 resolve({ width: img.naturalWidth, height: img.naturalHeight, isLoaded: img.complete })
             }
-            else {
+            else {                
                 img.onload = () => {
                     resolve({ width: img.naturalWidth, height: img.naturalHeight, isLoaded: img.complete })
                 }
@@ -1545,10 +1309,7 @@ async function Start() {
 
     document.body.setAttribute('id', 'ViewerJS')
 
-    AddViewer()
-
-    AddEvent()
-
+    AddViewer();
 
     Array.from(document.querySelectorAll('img[src*="filesor.com"]')).forEach((el) => {
         el.replaceWith(el)
