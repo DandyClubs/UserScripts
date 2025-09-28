@@ -1449,7 +1449,7 @@ const siteConfigs = [
         },
         config: {
             copyOffsetAreaSelector: 'article.hentry header.entry-header > .entry-title',
-            downloadAreaSelector: 'article.hentry div.entry-content.post_content figure a',
+            downloadAreaSelector: 'article.hentry div.entry-content.post_content',
             getDownloadArea: () => {
                 const figureLinks = document.querySelectorAll('article.hentry div.entry-content.post_content figure a');
                 if (figureLinks?.length > 0) {
