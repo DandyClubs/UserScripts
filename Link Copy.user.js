@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy (indexedDB)
-// @version      2025.09.13
+// @version      2025.09.29
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.(org|my)/
@@ -2495,6 +2495,7 @@ async function SecondProcess() {
 
             copyIcon.addEventListener('click', function (e) {
                 e.preventDefault();
+                CopyLinks = [];
 
                 if (pageLinksDB.length === 0 && currentConfig.downloadAreaSelector) {
                     DownloadArea = document.querySelectorAll(currentConfig.downloadAreaSelector);
