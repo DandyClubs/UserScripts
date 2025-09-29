@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         AutoClick (Refactored)
-// @version      2025.09.20
+// @version      2025.09.29
 // @description  Auto actions and cross-window messaging with maintainable structure
 // @author       DandyClubs
 // @include      /^https?:\/\/(cosplayjav|nylons)\.pl\/(download|thumbnails)\/\?forPost=.*$/
@@ -26,6 +26,7 @@
 // @include      https://ouo.io/*
 // @include      https://ouo.press/*
 // @include      https://drive.google.com/*
+// @include      https://rapidgator.net/file/*
 // @run-at       document-start
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
@@ -719,7 +720,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
     * 공통 이벤트 핸들러 (중복 등록 방지)
     * =============================== */
     window.addEventListener('message', async (e) => {
-        if (!/terabox\.com|1024tera\.com|terabox\.app|en\.mrproblogger\.com|drive\.google\.com|mediafire\.com|ouo\.io|ouo\.press/.test(e.origin)) return;
+        if (!/terabox\.com|1024tera\.com|terabox\.app|en\.mrproblogger\.com|drive\.google\.com|mediafire\.com|ouo\.io|ouo\.press|rapidgator\.net/.test(e.origin)) return;
 
         // 토큰 응답 도착
         if (!currentLinks?.length) return;
@@ -918,6 +919,26 @@ async function handleMediaFire() {
     }
 }
 
+
+async function handleRapidgator() {
+    await sleep(500);
+    // relay for code -> opener
+    if (window.opener) {
+        if (PageURL.startsWith('https://rapidgator.net/error')) {
+            window.opener.postMessage({ token: 'NotFound' }, '*');
+        } else {
+            const GetFileName = document.querySelector('div.in div.text-block.file-descr div.btm p a')?.innerText?.trim() || null;
+            window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, '*');
+        }
+        window.addEventListener('message', function (e) {
+            if (e.data.action === 'closed') {
+                //JobManager.remove(PageURL);
+                self.close();
+            }
+        });
+    }
+}
+
 async function handleGoogleDrive() {
     const GetFileName = document.querySelector('head title')?.innerText.replace(' - Google Drive', '');
     if (window.opener) {
@@ -962,6 +983,7 @@ const siteHandlers = {
     "bestgirlsexy.com": handleBestGirlSexy,
     "misskon.com": handleMissKon,
     "mediafire.com": handleMediaFire,
+    "rapidgator.net": handleRapidgator,
     "imgmffmv.sbs": () => globalObserver.observe(document, config),
     "terabox.com": () => { setupBeforeUnloadForJobs(); globalObserver.observe(document, config); },
     "1024tera.com": () => { setupBeforeUnloadForJobs(); globalObserver.observe(document, config); },
