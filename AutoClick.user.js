@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         AutoClick (Refactored)
-// @version      2025.09.29
+// @version      2025.10.01
 // @description  Auto actions and cross-window messaging with maintainable structure
 // @author       DandyClubs
 // @include      /^https?:\/\/(cosplayjav|nylons)\.pl\/(download|thumbnails)\/\?forPost=.*$/
@@ -23,6 +23,7 @@
 // @include      https://www.mediafire.com/file/*
 // @include      https://www.mediafire.com/folder/*
 // @include      https://www.mediafire.com/error.php*
+// @include      https://www.mediafire.com/download_repair.php*
 // @include      https://ouo.io/*
 // @include      https://ouo.press/*
 // @include      https://drive.google.com/*
