@@ -904,7 +904,7 @@ async function handleMediaFire() {
     await sleep(500);
     // relay for code -> opener
     if (window.opener) {
-        if (PageURL.startsWith('https://www.mediafire.com/error.php')) {
+        if (PageURL.startsWith('https://www.mediafire.com/error.php') || PageURL.startsWith('https://www.mediafire.com/download_repair.php')) {
             window.opener.postMessage({ token: 'NotFound' }, '*');
         } else {
             const GetFileName = document.querySelector('div.dl-btn-label')?.getAttribute('title')?.trim() || null;
