@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Copy Links & Title (indexedDB)
 // @namespace    http://tampermonkey.net/
-// @version      2025.09.21
+// @version      2025.10.03
 // @description  try to take over the world!
 // @author       You
 // @include      /gm\d+.xyz/
@@ -168,7 +168,7 @@ class CopyLinksTitle {
 
             request.onupgradeneeded = (e) => {
                 const db = e.target.result;
-                
+
                 if (!db.objectStoreNames.contains(this.storeNames.copyLinks)) {
                     const store = db.createObjectStore(this.storeNames.copyLinks, { keyPath: 'U' });
                     store.createIndex('copyIdIndex', 'I', { unique: false });
@@ -343,7 +343,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await CopyLinksTitleDB.init();
 
     indexedDBUpdate();
-        
+
     let cookieCheck = getCookie("ClearCopyed");
     if (!cookieCheck || cookieCheck != "Y") {
         console.log('ClearCopyed');
@@ -503,7 +503,7 @@ const DomainHandlers = {
         getPostArea: (el) => el.closest('.inside-article'),
         GetInfo: (el) => DomainRules.relativeSelector(el)?.querySelector('.entry-title a')?.textContent.trim() || '',
         //getCoverImage: (downloadArea) => downloadArea.querySelector('p img')?.getAttribute('data-src') || '',
-        getCopyID: (relativeArea) => relativeArea.querySelector('.entry-title a')?.href,
+        getCopyID: (relativeArea) => relativeArea.querySelector('.entry-title a')?.getAttribute('href'),
         iconPosition: (iconSet) => {
             const relativeArea = DomainRules.relativeSelector(iconSet);
             const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
@@ -527,9 +527,9 @@ const DomainHandlers = {
             return parseForumTitle(infoLines, rawTitle);
         },
         getCopyID: (relativeArea, pageURL) => {
-            if (/newsearch\.php/.test(pageURL)) return relativeArea.querySelector('a')?.href;
+            if (/newsearch\.php/.test(pageURL)) return relativeArea.querySelector('a')?.getAttribute('href');
             if (/\.html#\d+/.test(pageURL)) return pageURL;
-            return relativeArea.querySelector('a.inl-bl')?.href;
+            return relativeArea.querySelector('a.inl-bl')?.getAttribute('href');
         },
         iconPosition: (iconSet) => {
             const relativeArea = DomainRules.relativeSelector(iconSet) || '';
@@ -581,7 +581,19 @@ const DomainHandlers = {
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
             return parseForumTitle(infoLines, rawTitle, { preferJapanese: true });
         },
-        getCopyID: (relativeArea) => relativeArea?.querySelector('div.post_subj a[href]').href || '',
+        getCopyID: (relativeArea) => {
+            const postdetails = relativeArea?.querySelector('div.post_subj div.postdetails a.bold');
+            if (postdetails) {
+                return postdetails.getAttribute('href');
+            } else {
+                const postid = relativeArea?.querySelector('div.post_subj div.postdetails a[id]')?.getAttribute('id');
+                if (postid) {
+                    return `viewtopic.php?p=${postid}#${postid}`;
+                } else {
+                    return relativeArea?.querySelector('div.post_subj a[href]')?.getAttribute('href');
+                }
+            }
+        },
         iconPosition: (iconSet) => {
             const relativeArea = DomainRules.relativeSelector(iconSet);
             const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
@@ -604,7 +616,7 @@ const DomainHandlers = {
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
             return parseForumTitle(infoLines, rawTitle, { preferJapanese: true });
         },
-        getCopyID: (relativeArea) => relativeArea.querySelector('div.keyinfo > [id^="subject_"] > a')?.href || '',
+        getCopyID: (relativeArea) => relativeArea.querySelector('div.keyinfo > [id^="subject_"] > a')?.getAttribute('href') || '',
         iconPosition: (iconSet) => {
             const relativeArea = DomainRules.relativeSelector(iconSet);
             const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
@@ -627,7 +639,7 @@ const DomainHandlers = {
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(e => !/^(A s i a n Sex D i a r y|A s i a n S e x D i a r y|A s i a X X X T o u r|A s i a XXX T o u r)$/i.test(e));
             return parseForumTitle(infoLines, rawTitle, { preferJapanese: true });
         },
-        getCopyID: (relativeArea) => relativeArea.closest('table.tborder').querySelector('td.thead a[id^="postcount')?.href,
+        getCopyID: (relativeArea) => relativeArea.closest('table.tborder').querySelector('td.thead a[id^="postcount')?.getAttribute('href'),
         iconPosition: (iconSet) => {
             const iconSetMetrics = getElementMetrics(iconSet, { mode: 'bounding' });
             iconSet.style.setProperty('top', `0px`);
@@ -648,7 +660,7 @@ const DomainHandlers = {
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
             return parseForumTitle(infoLines, rawTitle, { preferJapanese: true });
         },
-        getCopyID: (relativeArea) => relativeArea.querySelector('a.topictitle')?.href || '',
+        getCopyID: (relativeArea) => relativeArea.querySelector('a.topictitle')?.getAttribute('href') || '',
         iconPosition: (iconSet) => {
             const relativeArea = DomainRules.relativeSelector(iconSet);
             const relativeAreaMetrics = getElementMetrics(relativeArea, { mode: 'relative' });
@@ -868,7 +880,7 @@ function addEventListeners(container) {
 
             if (DomainRules.selectors.visitedLink) {
                 relativeArea?.querySelector(DomainRules.selectors.visitedLink)?.classList.add('Copyed');
-            }           
+            }
 
         }
 
