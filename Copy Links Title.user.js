@@ -586,11 +586,11 @@ const DomainHandlers = {
             if (postdetails) {
                 return postdetails.getAttribute('href');
             } else {
-                const postid = relativeArea?.querySelector('div.post_subj div.postdetails a[id]')?.getAttribute('id');
+                const postid = relativeArea?.querySelector('div.post_subj a[id]')?.getAttribute('id');
                 if (postid) {
                     return `viewtopic.php?p=${postid}#${postid}`;
                 } else {
-                    return relativeArea?.querySelector('div.post_subj a[href]')?.getAttribute('href');
+                    return null
                 }
             }
         },
