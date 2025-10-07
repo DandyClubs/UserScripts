@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Copy Links & Title (indexedDB)
 // @namespace    http://tampermonkey.net/
-// @version      2025.10.03
+// @version      2025.10.07
 // @description  try to take over the world!
 // @author       You
 // @include      /gm\d+.xyz/
@@ -521,7 +521,7 @@ const DomainHandlers = {
         },
         getPostArea: (el) => el.closest('div.postbody'),
         GetInfo: (el) => {
-            const rawTitle = DomainRules.relativeSelector(el)?.querySelector('a.postdetails, span.postdetails.subject')?.textContent.trim() || '';
+            const rawTitle = DomainRules.relativeSelector(el)?.querySelector('a.postdetails, span.postdetails.subject')?.textContent.replace('[b][size=18]', '').trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(Boolean);
             return parseForumTitle(infoLines, rawTitle);
