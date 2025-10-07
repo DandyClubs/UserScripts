@@ -1544,7 +1544,7 @@ const siteConfigs = [
                             }
                             compareInfoAreaID = entryID === infoAreaID ? infoAreaID : /-/.test(entryID) ? entryID.replace(/-/g, '') : '';
                             newTitle = `${entryID} ${compareJapaneseCharacters(cleanIDTitle, cleanIDInfoTitle)}`;
-                        } else {
+                        } else if (entryID || infoAreaID){
                             newTitle = `${entryID || infoAreaID} ${compareJapaneseCharacters(cleanIDTitle, cleanIDInfoTitle)}`;
                         }
                         console.log({ newTitle });
@@ -1900,9 +1900,6 @@ async function Start() {
     console.log('Link Copy Start!');
 
     if (currentConfig) {
-
-
-
 
         // Step 1: `copyOffsetArea`가 이미 설정되지 않았으면 기본 셀렉터로 찾기
 
@@ -2861,12 +2858,10 @@ async function CollectionLinks(DownloadArea) {
     if (!/Collection|SITERIP|OnlyFans\sLeak/i.test(CopyTitle) && !/pornrips\.cc/.test(PageURL)) {
         const UHD = /4K-ARCHIVE-?|ARCHIVE-4K-?|(-|_)?4K$/i;
         const FHD = /\.1080p/i;
-        const allNames = links.map(a => GetName(a.href));
-        const uniqueBases = UHD.test(allNames.join(''))
-            ? [...new Set(allNames.map(n => n.replace(UHD, '')))]
-            : FHD.test(allNames.join(''))
-                ? [...new Set(allNames.filter(n => FHD.test(n)).map(n => n.replace(FHD, '')))]
-                : [];
+        const allNames = links.map(a => GetName(a.href));        
+        const UHDLinks = [...new Set(allNames.filter(f => UHD.test(f)).map(n => n.replace(UHD, '')))];
+        const FHDlinks = [...new Set(allNames.filter(f => FHD.test(f)).map(n => n.replace(/\.(FHD|HD)/i, '')))];
+        const uniqueBases = UHDLinks.concat(FHDlinks)
 
         if (uniqueBases.length) {
             links = links.filter(a => {
