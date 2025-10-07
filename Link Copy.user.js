@@ -2861,7 +2861,7 @@ async function CollectionLinks(DownloadArea) {
         const allNames = links.map(a => GetName(a.href));        
         const UHDLinks = [...new Set(allNames.filter(f => UHD.test(f)).map(n => n.replace(UHD, '')))];
         const FHDlinks = [...new Set(allNames.filter(f => FHD.test(f)).map(n => n.replace(FHD, '')))];
-        const uniqueBases = UHDLinks.concat(FHDlinks)
+        const uniqueBases = [...UHDLinks, ...FHDlinks];
 
         if (uniqueBases.length) {
             links = links.filter(a => {
