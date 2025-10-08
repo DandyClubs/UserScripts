@@ -758,7 +758,7 @@ const siteConfigs = [
 
                 copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
                 if (!copyOffsetArea) return;
-                DownloadArea = document.querySelectorAll('div#download, div#downloadhidden, div.DownloadArea');                
+                DownloadArea = document.querySelectorAll('div#download, div#downloadhidden, div.DownloadArea');
 
                 //Extracting Text Before Each <br> and the Last Line
                 let EachTitle = getTextLinesWithIconTag('div.post-content-single p strong', 'br');
@@ -1544,7 +1544,7 @@ const siteConfigs = [
                             }
                             compareInfoAreaID = entryID === infoAreaID ? infoAreaID : /-/.test(entryID) ? entryID.replace(/-/g, '') : '';
                             newTitle = `${entryID} ${compareJapaneseCharacters(cleanIDTitle, cleanIDInfoTitle)}`;
-                        } else if (entryID || infoAreaID){
+                        } else if (entryID || infoAreaID) {
                             newTitle = `${entryID || infoAreaID} ${compareJapaneseCharacters(cleanIDTitle, cleanIDInfoTitle)}`;
                         }
                         console.log({ newTitle });
@@ -2858,21 +2858,21 @@ async function CollectionLinks(DownloadArea) {
     if (!/Collection|SITERIP|OnlyFans\sLeak/i.test(CopyTitle) && !/pornrips\.cc/.test(PageURL)) {
         const UHD = /4K-ARCHIVE-?|ARCHIVE-4K-?|(-|_|\.)?4K$/i;
         const FHD = /\.(1080p|HD)/i;
-        const allNames = links.map(a => GetName(a.href));        
+        const allNames = links.map(a => GetName(a.href));
         const UHDLinks = [...new Set(allNames.filter(f => UHD.test(f)).map(n => n.replace(UHD, '')))];
         const FHDlinks = [...new Set(allNames.filter(f => FHD.test(f)).map(n => n.replace(FHD, '')))];
-        const uniqueBases = [...UHDLinks, ...FHDlinks];
+        const uniqueBases = [...new Set([...UHDLinks, ...FHDlinks])];
 
-        if (uniqueBases.length) {
-            links = links.filter(a => {
-                const nm = GetName(a.href);
-                return UHD.test(nm)
-                    ? uniqueBases.includes(nm.replace(UHD, ''))
-                    : FHD.test(nm)
-                        ? uniqueBases.includes(nm.replace(FHD, ''))
-                        : false;
-            });
+        const resultLinks = [];
+
+        for (const base of uniqueBases) {
+            const group = links.filter(l => GetName(l.href).includes(base));
+            const uhd = group.filter(l => UHD.test(GetName(l.href)));
+            const fhd = group.filter(l => FHD.test(GetName(l.href)));
+            resultLinks.push(...(uhd.length > 0 ? uhd : fhd));
         }
+
+        links = resultLinks;
     }
 
     // 2e) Additional site-specific tweaks (blogjav, javarchive, etc.)
