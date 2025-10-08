@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy (indexedDB)
-// @version      2025.10.07
+// @version      2025.10.08
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.(org|my)/
@@ -1317,6 +1317,12 @@ const siteConfigs = [
         }
     },
     {
+        regex: /pornrip\.cc\/.+\.html/,
+        config: {
+            copyOffsetAreaSelector: 'div.meta .title.ularge',
+        }
+    },
+    {
         regex: /javpop\.(link|mov)/,
         config: {
             copyOffsetAreaSelector: 'main.detail article.post h2.post-title',
@@ -1867,29 +1873,20 @@ const waitDownloadArea = [
         regex: /pornrip\.cc\/.+\.html/,
         handler: async () => {
             copyOffsetArea = document.querySelector('.title.ularge');
-            const downloadContainer = await waitElement('article.main-article section.post-content');
-
-            const observer = observeChanges('article.main-article section.post-content', (mutations, obs) => {
-                mutations.forEach(mutation => {
-                    mutation.addedNodes.forEach(node => {
-                        if (node.nodeName === 'A') {
-                            const DownloadAreaSelector = 'div.su-spoiler-content';
-                            DownloadArea = downloadContainer.querySelectorAll(DownloadAreaSelector);
-                            if (DownloadArea?.length) {
-                                obs.disconnect();
-                                Array.from(document.querySelectorAll('a')).forEach((aEntry) => {
-                                    if (/\?site.+$/.test(aEntry.href)) {
-                                        aEntry.setAttribute('href', aEntry.href.replace(/\?site.+$/, ''));
-                                    }
-                                });
-                                scrollToTop();
-                                RefreshIconSet();
-                            }
-                        }
-                    });
+            const downloadContainer = await waitElement('section.post-content div.su-spoiler-content');            
+            const DownloadAreaSelector = 'section.post-content div.su-spoiler-content';
+            DownloadArea = document.querySelectorAll(DownloadAreaSelector);
+            if (downloadContainer) {                
+                for (const Area of DownloadArea){
+                Array.from(Area.querySelectorAll('a')).forEach((aEntry) => {
+                    if (/\?site.+$/.test(aEntry.href)) {
+                        aEntry.setAttribute('href', aEntry.href.replace(/\?site.+$/, ''));
+                    }
                 });
-            });
-
+            }
+                scrollToTop();
+                RefreshIconSet();
+            }
             Resolution = !Resolution && copyOffsetArea?.innerText.match(/[0-9]{3,4}p/) ? ' ' + copyOffsetArea.innerText.match(/[0-9]{3,4}p/)[0] : '';
         },
     },
@@ -1945,9 +1942,10 @@ async function Start() {
 
         // Step 6: DownloadArea 기다림
         if (!DownloadArea || DownloadArea?.length === 0) {
-            const matchingConfig = waitDownloadArea.find(config => config.regex.test(PageURL));
-            if (matchingConfig) {
+            const matchingConfig = waitDownloadArea.find(config => config.regex.test(PageURL));            
+            if (matchingConfig) {                
                 await matchingConfig.handler();
+
             }
         }
 
