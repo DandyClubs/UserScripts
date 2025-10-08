@@ -2864,15 +2864,15 @@ async function CollectionLinks(DownloadArea) {
         const uniqueBases = [...new Set([...UHDLinks, ...FHDlinks])];
 
         const resultLinks = [];
-
-        for (const base of uniqueBases) {
-            const group = links.filter(l => GetName(l.href).includes(base));
-            const uhd = group.filter(l => UHD.test(GetName(l.href)));
-            const fhd = group.filter(l => FHD.test(GetName(l.href)));
-            resultLinks.push(...(uhd.length > 0 ? uhd : fhd));
+        if (uniqueBases.length) {
+            for (const base of uniqueBases) {
+                const group = links.filter(l => GetName(l.href).includes(base));
+                const uhd = group.filter(l => UHD.test(GetName(l.href)));
+                const fhd = group.filter(l => FHD.test(GetName(l.href)));
+                resultLinks.push(...(uhd.length > 0 ? uhd : fhd.length > 0 ? fhd : group));
+            }
+            links = resultLinks;
         }
-
-        links = resultLinks;
     }
 
     // 2e) Additional site-specific tweaks (blogjav, javarchive, etc.)
