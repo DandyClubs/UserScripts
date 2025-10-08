@@ -71,6 +71,12 @@
 // @license      MIT
 // ==/UserScript==
 
+
+if (window.top !== window.self) {
+    // iframe 안이면 종료
+    return;
+}
+
 const FontAwesomeCSS = function () {
     let css = document.createElement('link');
     css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css';
@@ -374,6 +380,7 @@ let AutoCopy = JSON.parse(localStorage.getItem('AutoCopy')) || false;
 let AutoClose = JSON.parse(localStorage.getItem('AutoClose')) || false;
 let userCopy = true;
 let userClose = true;
+let useResolution = true;
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RootDomain = extractRootDomain(PageURL);
@@ -839,7 +846,11 @@ const siteConfigs = [
                     userClose = false;
                     console.log('Special case found:', CopyTitleRaw);
                     CoverImage = '';
-                    pageLinksDB = await MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast);
+                    if (EachTitle.length > 1) {
+                        pageLinksDB = await MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast);
+                    }else{
+                        useResolution = false;
+                    }
                 } else {
                     // `Cast` 정보 찾기
                     const MatchTitle = MatchWebPoint !== -1 ? CopyTitleRaw.substring(MatchWebPoint + 3) : CopyTitleRaw;
@@ -1873,17 +1884,17 @@ const waitDownloadArea = [
         regex: /pornrip\.cc\/.+\.html/,
         handler: async () => {
             copyOffsetArea = document.querySelector('.title.ularge');
-            const downloadContainer = await waitElement('section.post-content div.su-spoiler-content');            
+            const downloadContainer = await waitElement('section.post-content div.su-spoiler-content');
             const DownloadAreaSelector = 'section.post-content div.su-spoiler-content';
             DownloadArea = document.querySelectorAll(DownloadAreaSelector);
-            if (downloadContainer) {                
-                for (const Area of DownloadArea){
-                Array.from(Area.querySelectorAll('a')).forEach((aEntry) => {
-                    if (/\?site.+$/.test(aEntry.href)) {
-                        aEntry.setAttribute('href', aEntry.href.replace(/\?site.+$/, ''));
-                    }
-                });
-            }
+            if (downloadContainer) {
+                for (const Area of DownloadArea) {
+                    Array.from(Area.querySelectorAll('a')).forEach((aEntry) => {
+                        if (/\?site.+$/.test(aEntry.href)) {
+                            aEntry.setAttribute('href', aEntry.href.replace(/\?site.+$/, ''));
+                        }
+                    });
+                }
                 scrollToTop();
                 RefreshIconSet();
             }
@@ -1942,8 +1953,8 @@ async function Start() {
 
         // Step 6: DownloadArea 기다림
         if (!DownloadArea || DownloadArea?.length === 0) {
-            const matchingConfig = waitDownloadArea.find(config => config.regex.test(PageURL));            
-            if (matchingConfig) {                
+            const matchingConfig = waitDownloadArea.find(config => config.regex.test(PageURL));
+            if (matchingConfig) {
                 await matchingConfig.handler();
 
             }
@@ -2895,10 +2906,13 @@ async function CollectionLinks(DownloadArea) {
         if (CopyLinks.includes(href)) continue;
 
         CopyTitle = CopyTitle ? FilenameConvert(CopyTitle) : '';
-        if (/naughtyblog/.test(RootDomain) && /[0-9]{3,4}p/.test(a.textContent)) {
-            Resolution = `.XXX.${a.textContent.match(/[0-9]{3,4}p/)[0]}`;
+        if (/naughtyblog/.test(RootDomain) && useResolution) {
+            if (/[0-9]{3,4}p/.test(a.textContent)) {
+                Resolution = `.XXX.${a.textContent.match(/[0-9]{3,4}p/)[0]}`;
+            } else {
+                Resolution = '';
+            };
         }
-
         CopyLinks.push(href);
         await UpdateDB(href, `${CopyTitle}${Resolution || ''}`);
     }
