@@ -81,6 +81,7 @@
         /teenpornb.com\/.+.html$/,
         /top-modelz\.org.*\.html/,
         /trupornolabs.org\/torrent\/\d/,
+        /hidefporn\.ws\/\d+.*\.html/,
         /ultoporn\.com\/\d+.*\.html/,
         /wdupload.com/,
         /xxxclub\.to\/torrents\/details\//,
