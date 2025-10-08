@@ -2855,7 +2855,7 @@ async function CollectionLinks(DownloadArea) {
     }
 
     // 2d) Optionally filter for quality (4K vs 1080p) if CopyTitle and not a “Collection”
-    if (!/Collection|SITERIP|OnlyFans\sLeak/i.test(CopyTitle) && !/pornrips\.cc/.test(PageURL)) {
+    if (!/Collection|SITERIP|OnlyFans\sLeak/i.test(CopyTitle) && !/pornrips\.cc|naughtyblog/.test(PageURL)) {
         const UHD = /4K-ARCHIVE-?|ARCHIVE-4K-?|(-|_|\.)?4K$/i;
         const FHD = /\.(1080p|HD)/i;
         const allNames = links.map(a => GetName(a.href));
@@ -3012,7 +3012,7 @@ async function CheckDB(listTo, fromStep) {
 
     }
 
-    console.log(indexedDBCache);
+    //console.log(indexedDBCache);
     if (indexedDBCache?.length > 0) {
         for (let link of listTo) {
             const searchDB = await indexedDBCache.find(({ U }) => U === link);
