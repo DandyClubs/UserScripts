@@ -671,9 +671,10 @@ function observeChanges(targetSelector, callback) {
 
 function makeSearch() {
     let SearchBox = document.querySelector('div.SearchBox');
+    let searchTitle;
     if (!SearchBox) {
         const titleEl = document.querySelector('.post-title.entry-title');
-        const searchTitle = titleEl ? searchTerms(titleEl.innerText) : '';
+        searchTitle = titleEl ? searchTerms(titleEl.innerText) : '';
         const offsetParent = copyOffsetArea.parentElement;
         offsetParent.style.position = 'relative';
 
