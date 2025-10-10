@@ -216,11 +216,12 @@ async function Start() {
             castSelector: "div.container > div.movie > div.info > p.star-show",
             castProcessor: (element) => {
                 const castArea = getNextSibling(element, 'p') ? getNextSibling(element, 'p').querySelectorAll('span.genre') : '';
+                const cast = new Set();
                 if (castArea) {
                     castArea.forEach((entry) => {
-                        ModelName += entry.innerText ? entry.innerText.replace(/（.*）/, '') + ' ' : '';
+                        cast.add(entry.innerText?.replace(/（.*）/, ''));
                     });
-                    ModelName = ModelName.replace(/\s{2}/gi, ' ').trim();
+                    ModelName = [...cast].join(' ');
                 }
             },
             postProcessing: () => {
@@ -235,11 +236,12 @@ async function Start() {
             castSelector: 'div#video_info #video_cast',
             castProcessor: (element) => {
                 const castArea = element ? element.querySelectorAll('.star') : '';
+                const cast = new Set();
                 if (castArea) {
                     castArea.forEach((entry) => {
-                        ModelName += entry.innerText + ' ';
+                        cast.add(entry.innerText?.replace(/（.*）/, ''));
                     });
-                    ModelName = ModelName.replace(/\s{2}/gi, ' ').trim();
+                    ModelName = [...cast].join(' ');
                 }
             },
             postProcessing: () => {
@@ -890,7 +892,7 @@ const SiteParsers = {
             let extractedSeries = (InfoArea.find(info => info.match(/シリーズ：?.*/)) || '').replace(/シリーズ：?/, '').trim();
             let extractedReleaseDate = CfgReleaseDate && !parsedData.ReleaseDate ? SearchMatch(InfoArea, "(発売日|Release Date|配信開始日)\s?(:|：)?(.+)", '/', '-') || '' : parsedData.ReleaseDate;
             let extractedMaker = MakerCfg && !parsedData.Maker ? SearchMatch(InfoArea, "(シリーズ|メーカー|Maker|サークル)\s?(:|：)?(.+)") || '' : parsedData.Maker;
-            let extractedModelName = !ModelName ? SearchMatch(InfoArea, "^(Actress|Model|Author|Parody|出演者?)\s?(:|：)?(.*)")?.replace('(仮名)', '') || '' : '';
+            let extractedModelName = ModelName ? ModelName : SearchMatch(InfoArea, "^(Actress|Model|Author|Parody|出演者?)\s?(:|：)?(.*)")?.replace('(仮名)', '') || '';
 
             return {
                 ...parsedData,
