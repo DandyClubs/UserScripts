@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Copy Title
-// @version      2025.09.03
+// @version      2025.10.10
 // @description  try to take over the world!
 // @author       You
 // @include      /javbus.com\/.+\/([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)/
@@ -219,7 +219,7 @@ async function Start() {
                 const cast = new Set();
                 if (castArea) {
                     castArea.forEach((entry) => {
-                        cast.add(entry.innerText?.replace(/（.*）/, ''));
+                        cast.add(entry.innerText?.replace(/（.*）/, '').trim());
                     });
                     ModelName = [...cast].join(' ');
                 }
@@ -239,7 +239,7 @@ async function Start() {
                 const cast = new Set();
                 if (castArea) {
                     castArea.forEach((entry) => {
-                        cast.add(entry.innerText?.replace(/（.*）/, ''));
+                        cast.add(entry.innerText?.replace(/（.*）/, '').trim());
                     });
                     ModelName = [...cast].join(' ');
                 }
