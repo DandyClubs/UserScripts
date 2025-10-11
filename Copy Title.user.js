@@ -221,7 +221,7 @@ async function Start() {
                     castArea.forEach((entry) => {
                         cast.add(entry.innerText?.replace(/（.*）/, '').trim());
                     });
-                    ModelName = [...cast].join(' ');
+                    ModelName = [...cast].join(',');
                 }
             },
             postProcessing: () => {
@@ -241,7 +241,7 @@ async function Start() {
                     castArea.forEach((entry) => {
                         cast.add(entry.innerText?.replace(/（.*）/, '').trim());
                     });
-                    ModelName = [...cast].join(' ');
+                    ModelName = [...cast].join(',');
                 }
             },
             postProcessing: () => {
@@ -875,7 +875,7 @@ const SiteParsers = {
     },
     'default': {
         parse: () => {
-            const titleText = TitleArea.innerText;
+            const titleText = TitleArea.innerText;            
             const titleDB = titleText
                 .replace(/amp;|\(\s?ブルーレイ版\s?\)|\(ブルーレイディスク版\)|（ブルーレイディスク）/g, '')
                 .replace(/（/g, '(')
@@ -887,12 +887,13 @@ const SiteParsers = {
             };
         },
         refine: (parsedData) => {
-            const { TitleDB } = parsedData;
+            const { TitleText, TitleDB } = parsedData;
             const extractedId = extractDefaultId(TitleDB);
             let extractedSeries = (InfoArea.find(info => info.match(/シリーズ：?.*/)) || '').replace(/シリーズ：?/, '').trim();
             let extractedReleaseDate = CfgReleaseDate && !parsedData.ReleaseDate ? SearchMatch(InfoArea, "(発売日|Release Date|配信開始日)\s?(:|：)?(.+)", '/', '-') || '' : parsedData.ReleaseDate;
             let extractedMaker = MakerCfg && !parsedData.Maker ? SearchMatch(InfoArea, "(シリーズ|メーカー|Maker|サークル)\s?(:|：)?(.+)") || '' : parsedData.Maker;
             let extractedModelName = ModelName ? ModelName : SearchMatch(InfoArea, "^(Actress|Model|Author|Parody|出演者?)\s?(:|：)?(.*)")?.replace('(仮名)', '') || '';
+            let cleanedModelName = extractedModelName.split(',').filter(element => !new RegExp(escapeRegExp(element), 'i').test(TitleText)).join(' ').trim()
 
             return {
                 ...parsedData,
@@ -900,7 +901,7 @@ const SiteParsers = {
                 extractedSeries,
                 ReleaseDate: extractedReleaseDate,
                 Maker: extractedMaker,
-                extractedModelName
+                extractedModelName: cleanedModelName,
             };
         }
     }
