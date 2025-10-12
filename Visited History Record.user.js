@@ -612,7 +612,7 @@ function MakeIcon() {
                 VisitedState.innerText = OpenCount.length - Index
                 addNodesSet.delete(a)
                 processedLinks.add(a.href);
-                await sleep(500);
+                await sleep(250);
                 Index++
             }
             await sleep(1000)
