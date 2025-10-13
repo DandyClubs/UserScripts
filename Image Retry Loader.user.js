@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Image Retry Loader with GM_xmlhttpRequest
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.12
+// @version      2025.10.13
 // @description  Automatically retries loading failed images by checking their existence with GM_xmlhttpRequest.
 // @author       Your Name
 // @match        *://*/*
@@ -130,8 +130,8 @@
 
         imgElement.dataset.retryCount = ++retryCount;
         imgElement.onerror = null;
-        imgElement.setAttribute('src', imgElementSrc)
-        console.log(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement );
+        imgElement.setAttribute('src', imgElementSrc);
+        console.log(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement);
 
         imgElement.onerror = function () {
             enqueueFailedImage(this);
@@ -142,6 +142,15 @@
 
     // 새로운 이미지에 onerror 이벤트 리스너를 추가하는 함수
     function addErrorListenerToImages(element) {
+        if (/t66y\.com/.test(window.location)) {
+            if (element.hasAttributes('ess-data')) {
+                element.setAttribute('src', element.getAttribute('ess-data'));                
+            }
+        } else if (/gm55\.xyz/.test(window.location)) {
+            if (element.hasAttributes('data-src')) {
+                element.setAttribute('src', element.getAttribute('data-src'));                
+            }
+        }
         if (element.tagName === 'IMG' && element.src) {
             if (!element.complete || (element.naturalWidth === 0 && element.naturalHeight === 0)) {
                 element.onerror = function () {
@@ -163,7 +172,7 @@
                         }
                         node.querySelectorAll('img').forEach(img => {
                             node.setAttribute('loading', 'lazy');
-                            addErrorListenerToImages(img)
+                            addErrorListenerToImages(img);
                         });
                     }
                 });
@@ -178,7 +187,8 @@
             document.querySelectorAll('img').forEach(img => {
                 img.setAttribute('loading', 'lazy');
                 addErrorListenerToImages(img);
-            })
+            });
+
             observer.observe(document.body, { childList: true, subtree: true });
             console.log('[ImageRetry] 스크립트 활성화 완료');
 
