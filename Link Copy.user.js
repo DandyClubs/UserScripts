@@ -849,7 +849,7 @@ const siteConfigs = [
                     CoverImage = '';
                     if (EachTitle.length > 1) {
                         pageLinksDB = await MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast);
-                    }else{
+                    } else {
                         useResolution = false;
                     }
                 } else {
@@ -2010,6 +2010,7 @@ async function processCopyTitle(currentConfig) {
         .replace(/\[SD\s\d+p\]/, '')
         .replace(/^(FC2-PPV-|FC2\sPPV-|FC2PPV-)/i, 'FC2 PPV ')
         .replace('[NO STAMP]', '')
+        .replace('[SUMMARY]', '')
         .trim();
 
 
