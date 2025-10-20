@@ -143,13 +143,15 @@
     // 새로운 이미지에 onerror 이벤트 리스너를 추가하는 함수
     function addErrorListenerToImages(element) {
         if (/t66y\.com/.test(window.location)) {
-            if (element.hasAttributes('ess-data')) {
-                element.setAttribute('src', element.getAttribute('ess-data'));                
+            const replaceImage = element.getAttribute('ess-data');
+            if (replaceImage) {
+                element.setAttribute('src', replaceImage);                
             }
         } else if (/gm55\.xyz/.test(window.location)) {
-            if (element.hasAttributes('data-src')) {
-                element.setAttribute('src', element.getAttribute('data-src'));                
-            }
+            const replaceImage = element.getAttribute('data-src');
+            if (replaceImage) {
+                element.setAttribute('src', replaceImage);
+            }               
         }
         if (element.tagName === 'IMG' && element.src) {
             if (!element.complete || (element.naturalWidth === 0 && element.naturalHeight === 0)) {
