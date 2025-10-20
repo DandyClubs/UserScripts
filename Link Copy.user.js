@@ -1716,9 +1716,9 @@ const siteRules = [
 
 
             console.log('파일명 찾기"', { DownloadArea });
-            console.log(DownloadArea[0].querySelector('a[href*="https://katfile.com/"]'));
+            console.log(DownloadArea[0].querySelector('a[href*="https://katfile"]'));
             const GetFileNameLink =
-                DownloadArea[0].querySelector('a[href*="https://katfile.com/"]')?.href ||
+                DownloadArea[0].querySelector('a[href*="https://katfile"]')?.href ||
                 DownloadArea[0].querySelector('a[href*="https://ddownload.com/"]')?.href || '';
 
             const needsFilenameFetch =
