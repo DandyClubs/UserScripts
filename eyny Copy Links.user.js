@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         eyny Copy Links
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.13
+// @version      2025.10.22
 // @description  try to take over the world!
 // @author       You
 // @include      /eyny\.com\/forum\.php\?mod=viewthread/
@@ -171,17 +171,72 @@ const siteRules = [
     {
         regex: /eyny\.com\/forum\.php\?mod=viewthread/,
         separatorText: ['影片名稱'],
-        area: document.querySelector('div#postlist td[id^="postmessage"]'),
+        area: removeBR(document.querySelector('div#postlist td[id^="postmessage"]')),
         priority: ['3840', '1920', '1280', '720'],
         coverImage: '',
         useResolution: true,
         getTitleRegex: /(?<=影片名稱】[：:])(.*?)(?=(?:【影片大小.*$)?(?:$))/m,
         getTitleMatchPoint: 0,
         passwordRegex: /解壓密碼】[：:]?(.*?)\s*(.+)/,
-        breakPoint: ['需要存取權'],
+        breakPoint: ['需要存取權'],        
     },
 ]
 
+
+function removeBR(element) {
+    if (!element) {
+        console.error("제거 대상 요소가 유효하지 않습니다.");
+        return null;
+    }
+
+    const virtualElement = element.cloneNode(true);
+
+    // 1. 'KF :' 텍스트를 포함하는 <strong> 요소를 찾습니다.
+    const strongKF = Array.from(virtualElement.querySelectorAll('strong')).find(el =>
+        /k\s*[\u00A0\s]*f\s*:/i.test(el.textContent)
+    );
+
+    if (!strongKF) {
+        console.log("KF strong 태그를 찾지 못했습니다. 노드 제거를 건너뜁니다.");
+        return virtualElement;
+    }
+
+    // 2. strongKF가 포함된 가장 바깥쪽의 <td> 직계 자식 노드를 찾습니다.
+    let linkContainer = strongKF;
+    while (linkContainer.parentNode !== virtualElement && linkContainer.parentNode) {
+        linkContainer = linkContainer.parentNode;
+    }
+    
+    let current = linkContainer.nextSibling;
+    let startNode = null;    
+    while (current) {
+        // 요소 노드인지 확인하고, <br> 태그인지 확인합니다.
+        if (current.nodeType === 1 && current.nodeName.toUpperCase() === 'BR') {
+            startNode = current;
+            break; // 제거를 시작할 첫 번째 <br> 노드를 찾으면 중단
+        }
+        current = current.nextSibling;
+    }
+
+    if (startNode) {        
+        current = startNode;
+        while (current) {
+            const next = current.nextSibling;
+
+            // 노드 제거
+            current.remove();
+
+            // 다음 노드로 이동
+            current = next;
+        }
+        console.log("링크 이후 첫 번째 <br> 노드부터 끝까지 제거 완료.");
+    } else {
+        console.log("링크 이후에 제거할 <br> 노드를 찾지 못했습니다.");
+    }
+
+    // DOM 조작이 완료된 <td> 요소 객체 자체를 반환합니다.
+    return virtualElement;
+}
 
 // 사이트별 특별 규칙 적용
 const rule = siteRules.find((r) => r.regex.test(PageURL));
@@ -443,7 +498,7 @@ function CheckInfoArea() {
         .replace(/\n/gm, '')
         .replace(/J_VID/g, 'JVID')
         .replace(/台.灣/g, '台灣')
-        .replace(/\(MP4@多空@無碼\)/g, '')
+        .replace(/\(MP4@多空@無碼|MP4@KF@無碼\)/g, '')
         .split(/<br>|<\/p>/)
         .map(value => value.trim())
         .filter(Boolean);
