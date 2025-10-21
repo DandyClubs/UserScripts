@@ -171,7 +171,7 @@ const siteRules = [
     {
         regex: /eyny\.com\/forum\.php\?mod=viewthread/,
         separatorText: ['影片名稱'],
-        area: removeBR(document.querySelector('div#postlist td[id^="postmessage"]')),
+        area: extractContent(document.querySelector('div#postlist td[id^="postmessage"]')),
         priority: ['3840', '1920', '1280', '720'],
         coverImage: '',
         useResolution: true,
@@ -182,60 +182,73 @@ const siteRules = [
     },
 ]
 
-
-function removeBR(element) {
+function extractContent(element) {
     if (!element) {
-        console.error("제거 대상 요소가 유효하지 않습니다.");
+        console.error("대상 요소가 유효하지 않습니다.");
         return null;
     }
 
-    const virtualElement = element.cloneNode(true);
+    // 1. 복사된 내용을 담을 새로운 가상 컨테이너(<div>)를 생성합니다.
+    const Container = document.createElement('div');
 
-    // 1. 'KF :' 텍스트를 포함하는 <strong> 요소를 찾습니다.
-    const strongKF = Array.from(virtualElement.querySelectorAll('strong')).find(el =>
+    // 2. 'KF :' 텍스트를 포함하는 <strong> 요소를 찾습니다.
+    const strongKF = Array.from(element.querySelectorAll('strong')).find(el =>
         /k\s*[\u00A0\s]*f\s*:/i.test(el.textContent)
     );
 
     if (!strongKF) {
-        console.log("KF strong 태그를 찾지 못했습니다. 노드 제거를 건너뜁니다.");
-        return virtualElement;
+        console.log("KF strong 태그를 찾지 못했습니다. 원본 전체를 복사하여 반환합니다.");
+        // KF 태그를 찾지 못하면 원본 <td>의 내용을 모두 복사하여 반환합니다.
+        return element.cloneNode(true);
     }
 
-    // 2. strongKF가 포함된 가장 바깥쪽의 <td> 직계 자식 노드를 찾습니다.
-    let linkContainer = strongKF;
-    while (linkContainer.parentNode !== virtualElement && linkContainer.parentNode) {
-        linkContainer = linkContainer.parentNode;
+    // 3. strongKF가 포함된 가장 바깥쪽의 <td> 직계 자식 노드를 찾습니다.
+    let childNodesContainer = strongKF;
+    // 부모가 원본 <td> 요소(element)가 아닐 때까지 거슬러 올라갑니다.
+    while (childNodesContainer.parentNode !== element && childNodesContainer.parentNode) {
+        childNodesContainer = childNodesContainer.parentNode;
     }
-    
-    let current = linkContainer.nextSibling;
-    let startNode = null;    
+
+    // 4. 복사를 중단할 노드(첫 번째 <br>)를 찾습니다.
+    // linkContainer의 다음 형제 노드부터 시작합니다.
+    let stopNode = null;
+    let current = childNodesContainer.nextSibling;
+
     while (current) {
         // 요소 노드인지 확인하고, <br> 태그인지 확인합니다.
         if (current.nodeType === 1 && current.nodeName.toUpperCase() === 'BR') {
-            startNode = current;
-            break; // 제거를 시작할 첫 번째 <br> 노드를 찾으면 중단
+            stopNode = current;
+            break; // 복사를 중단할 첫 번째 <br> 노드를 찾으면 중단
         }
         current = current.nextSibling;
     }
 
-    if (startNode) {        
-        current = startNode;
-        while (current) {
-            const next = current.nextSibling;
+    // 5. <td>의 자식 노드를 처음부터 순회하며 stopNode 직전까지 복사합니다.
+    const childNodesToCopy = Array.from(element.childNodes);
+    let copyStopped = false;
 
-            // 노드 제거
-            current.remove();
+    for (const node of childNodesToCopy) {
 
-            // 다음 노드로 이동
-            current = next;
+        // 6. 복사를 멈춰야 하는 노드(<br>)를 만나면 복사 플래그를 설정하고 루프를 종료합니다.
+        if (node === stopNode) {
+            copyStopped = true;
+            break;
         }
-        console.log("링크 이후 첫 번째 <br> 노드부터 끝까지 제거 완료.");
-    } else {
-        console.log("링크 이후에 제거할 <br> 노드를 찾지 못했습니다.");
+
+        // 7. 현재 노드를 복사하여 새로운 컨테이너에 추가합니다.
+        // deep: true를 사용하여 노드와 그 자식 노드까지 모두 복사합니다.
+        const clonedNode = node.cloneNode(true);
+        Container.appendChild(clonedNode);
     }
 
-    // DOM 조작이 완료된 <td> 요소 객체 자체를 반환합니다.
-    return virtualElement;
+    if (copyStopped) {
+        console.log("필요한 내용만 복사하여 가상 요소에 담았습니다. (첫 번째 <br> 직전까지)");
+    } else {
+        console.log("복사를 멈출 <br> 노드를 찾지 못해 모든 내용을 복사했습니다.");
+    }
+
+    // 8. 조작된 내용만 담고 있는 새로운 가상 컨테이너(<div>)를 반환합니다.
+    return Container;
 }
 
 // 사이트별 특별 규칙 적용
