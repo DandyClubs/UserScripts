@@ -138,7 +138,7 @@ const PAGE_URL = window.location.href;
 const ROOT_DOMAIN = extractRootDomain(PAGE_URL);
 
 // 필터링 및 정규식 상수를 최상위에 정의
-let SKIP_FILTER = new RegExp('windfiles\\.com|mypikpak\\.com|pricing\\?aff|mega\\.nz\\/aff|katfile\\.com\\/free\\d+.html|developershome|md5file\\.com|attachment|premium|upgrade|javascript|search|SKIP|#$|^\/|^(?=.*' + ROOT_DOMAIN + ')(?!.*\\?site).*$');
+const SKIP_FILTER = new RegExp('windfiles\\.com|mypikpak\\.com|pricing\\?aff|mega\\.nz\\/aff|katfile\\.(com|cloud)\\/free\\d+.html|developershome|md5file\\.com|attachment|premium|upgrade|javascript|search|SKIP|#$|^\/|^(?=.*' + ROOT_DOMAIN + ')(?!.*\\?site).*$');
 const SKIP_CLASS_NAMES = ['adead_link', 'autohyperlink', 'social-icon'];
 const SKIP_TITLE = ['ACZD', 'HIGR'];
 const EXCLUDE_CHAR = /[<\/:>*?"|\\]/g;
@@ -182,6 +182,47 @@ const siteRules = [
     },
 ]
 
+
+
+function convertHttpTextToLinks(root = document.body) {
+    const urlRegex = /(https?:\/\/[^\s<>"']+)/gi;
+    const skipTags = new Set(['a', 'script', 'style', 'textarea', 'code', 'pre']);
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+            if (!node.nodeValue.includes('http')) return NodeFilter.FILTER_REJECT;
+            let parent = node.parentNode;
+            while (parent) {
+                if (skipTags.has(parent.nodeName.toLowerCase())) return NodeFilter.FILTER_REJECT;
+                parent = parent.parentNode;
+            }
+            return NodeFilter.FILTER_ACCEPT;
+        }
+    });
+
+    const textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+
+    for (const node of textNodes) {
+        const text = node.nodeValue;
+        if (!urlRegex.test(text)) continue;
+
+        const html = text.replace(urlRegex, url =>
+            `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
+        );
+
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const fragment = range.createContextualFragment(html);
+        range.deleteContents();
+        range.insertNode(fragment);
+        range.detach();
+    }
+
+    return root; // 🔹 수정된 element 반환
+}
+
+
 function extractContent(element) {
     if (!element) {
         console.error("대상 요소가 유효하지 않습니다.");
@@ -199,7 +240,7 @@ function extractContent(element) {
     if (!strongKF) {
         console.log("KF strong 태그를 찾지 못했습니다. 원본 전체를 복사하여 반환합니다.");
         // KF 태그를 찾지 못하면 원본 <td>의 내용을 모두 복사하여 반환합니다.
-        return element.cloneNode(true);
+        return convertHttpTextToLinks(element.cloneNode(true));
     }
 
     // 3. strongKF가 포함된 가장 바깥쪽의 <td> 직계 자식 노드를 찾습니다.
@@ -248,7 +289,7 @@ function extractContent(element) {
     }
 
     // 8. 조작된 내용만 담고 있는 새로운 가상 컨테이너(<div>)를 반환합니다.
-    return Container;
+    return convertHttpTextToLinks(Container);
 }
 
 // 사이트별 특별 규칙 적용
@@ -581,6 +622,7 @@ function CheckTitle(first, titleExr) {
     titleDBIndex = [...new Set(titleDBIndex)];
 }
 
+const SkipTitle = `@KF(無限速，KF更網域,舊檔址 katfile.com 改 katfile.cloud 即可)`;
 async function CopyItems() {
     const linksDB = [];
     let noticeText = '';
@@ -590,10 +632,10 @@ async function CopyItems() {
         analyzePage(rule).then(results => {                        
             for (const x of results) {
                 console.log('current Object: ', x)                
-                const title = byteLengthOfCheck(x.title) > 241 ? byteLengthOf(x.title, 241).trim() : x.title                    
-                noticeText += title + "\n";
+                if (SkipTitle === x.title) continue;                
+                const title = byteLengthOfCheck(x.title) > 241 ? byteLengthOf(x.title, 241).trim() : x.title                                    
                 for (const currentlink of x.links) {
-                    
+
                     if (SKIP_FILTER.test(currentlink)) {
                         continue;
                     }
@@ -603,13 +645,18 @@ async function CopyItems() {
                         const P = x.password;
                         const S = PAGE_URL;
                         linksDB.push({ U, T, P, S });
-                        updateDB(U, T, P, S);
-                        noticeText += U + "\n";
+                        updateDB(U, T, P, S);                        
                     }
                 }
             }
 
             if (linksDB.length) {
+                const uniqueTitle = [...new Set(linksDB.map(x => x.T))] || [...new Set(linksDB.map(x => x.U))];
+                for (const title of uniqueTitle) {
+                    noticeText += title + "\n";
+                    noticeText += GetMatchLinks(title, linksDB) + "\n";
+                }
+
                 if (copyNotice) {
                     copyNotice.innerHTML = `<code>${noticeText}</code>`;
                 }
