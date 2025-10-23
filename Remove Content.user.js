@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Remove Content
 // @namespace    http://tampermonkey.net/
-// @version      2025.09.18
+// @version      2025.10.23
 // @description  try to take over the world!
 // @author       You
 // @match        https://blogjav.net/*
@@ -423,6 +423,7 @@ async function processContent(node, selector, isExtra = false) {
  * @param {HTMLElement} node - 텍스트 노드를 포함하는 DOM 요소
  */
 function replaceText(node) {
+    const changed = [];
     const textNodes = [...node.childNodes]
         .filter(child => child.nodeType === 3 && child.textContent.trim())
         .map(child => ({ text: child.textContent.trim(), node: child }));
@@ -432,25 +433,37 @@ function replaceText(node) {
         const uniqueMatches = [...new Set(matches)];
 
         if (uniqueMatches.length) {
-            let tempHtml = text;
+            let replaced = text;
+            let changedFlag = false;
 
             const skipModelMatches = [...new Set(text.match(SkipModelEX) || [])];
             if (skipModelMatches.length) {
                 const skipModelRegex = RegexFrom(skipModelMatches.map(e => /^\[.+\]$/.test(e) ? escapeRegExp(e) : e), 'gi');
-                tempHtml = tempHtml.replaceAll(skipModelRegex, `<span class="SkipModel">$&</span>`);
+                replaced = replaced.replaceAll(skipModelRegex, `<span class="SkipModel">$&</span>`);
+                changedFlag = true;
             }
 
             const warningMatches = [...new Set(text.match(WarningEX) || [])];
             if (warningMatches.length) {
                 const warningRegex = RegexFrom(warningMatches.map(e => /^\[.+\]$/.test(e) ? escapeRegExp(e) : e), 'gi');
-                tempHtml = tempHtml.replaceAll(warningRegex, `<span class="Warning">$&</span>`);
+                replaced = replaced.replaceAll(warningRegex, `<span class="Warning">$&</span>`);
+                changedFlag = true;
+            }  
+            
+            if (changedFlag) {
+                changed.push({ node, replaced });
             }
-
-            const wrapper = document.createElement('div');
-            wrapper.innerHTML = tempHtml;
-            textNode.replaceWith(...wrapper.childNodes);
-            //console.log(`Text replaced: ${text} -> ${tempHtml}`);
         }
+    }
+
+    // ✅ DOM 교체는 여기서 한 번에 수행
+    for (const { node, replaced } of changed) {
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const fragment = range.createContextualFragment(replaced);
+        range.deleteContents();
+        range.insertNode(fragment);
+        range.detach();
     }
 }
 
