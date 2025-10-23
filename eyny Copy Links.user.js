@@ -185,43 +185,101 @@ const siteRules = [
 
 
 function convertHttpTextToLinks(root = document.body) {
+    // 인라인 태그 목록 (URL 중간에 올 수 있는 HTML 태그)
+    const inlineTags = new Set([
+        'b', 'i', 'em', 'strong', 'span', 'font', 'small', 'big', 'tt', 'cite', 'kbd', 'var', 'samp', 'dfn', 'abbr', 'acronym', 'q', 'sub', 'sup'
+    ]);
+
+    // URL 정규 표현식 (일반적인 URL 형식)
     const urlRegex = /(https?:\/\/[^\s<>"']+)/gi;
+
+    // 건너뛸 상위 태그 목록 (이 태그 내부의 텍스트는 처리하지 않음)
     const skipTags = new Set(['a', 'script', 'style', 'textarea', 'code', 'pre']);
 
-    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-        acceptNode(node) {
-            if (!node.nodeValue.includes('http')) return NodeFilter.FILTER_REJECT;
-            let parent = node.parentNode;
-            while (parent) {
-                if (skipTags.has(parent.nodeName.toLowerCase())) return NodeFilter.FILTER_REJECT;
-                parent = parent.parentNode;
+    // 재귀적으로 노드를 순회하며 처리
+    function traverseAndConvert(parentNode) {
+        let currentNode = parentNode.firstChild;
+
+        while (currentNode) {
+            // 현재 노드 저장 후 다음 노드로 이동 (DOM 변경 후에도 다음 노드를 참조하기 위함)
+            const nextNode = currentNode.nextSibling;
+
+            // 1. 건너뛸 태그 체크
+            if (currentNode.nodeType === Node.ELEMENT_NODE && skipTags.has(currentNode.nodeName.toLowerCase())) {
+                currentNode = nextNode;
+                continue;
             }
-            return NodeFilter.FILTER_ACCEPT;
+
+            // 2. 텍스트 노드 처리
+            if (currentNode.nodeType === Node.TEXT_NODE) {
+                // 인접한 텍스트 노드와 인라인 요소 노드를 모두 모으기
+                const nodesToMerge = [];
+                let currentText = '';
+                let tempNode = currentNode;
+
+                while (tempNode) {
+                    // 현재 노드가 텍스트 노드인 경우
+                    if (tempNode.nodeType === Node.TEXT_NODE) {
+                        currentText += tempNode.nodeValue;
+                        nodesToMerge.push(tempNode);
+                    }
+                    // 현재 노드가 인라인 요소이거나 주석인 경우 (URL 중간에 있을 가능성)
+                    else if (tempNode.nodeType === Node.ELEMENT_NODE && inlineTags.has(tempNode.nodeName.toLowerCase())) {
+                        currentText += tempNode.textContent;
+                        nodesToMerge.push(tempNode);
+                    }
+                    // 그 외의 블록 레벨 요소 또는 다른 태그가 나오면 병합 중단
+                    else {
+                        break;
+                    }
+                    tempNode = tempNode.nextSibling;
+                }
+
+                // 모은 텍스트에 URL이 있는지 확인
+                if (urlRegex.test(currentText)) {
+                    // 정규식의 lastIndex를 초기화하여 재사용 가능하게 함
+                    urlRegex.lastIndex = 0;
+
+                    // HTML 생성 (url을 링크 태그로 교체)
+                    const html = currentText.replace(urlRegex, url =>
+                        `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
+                    );
+
+                    // Fragment로 변환하여 삽입
+                    const range = document.createRange();
+                    // 첫 번째 노드를 기준으로 설정
+                    range.setStartBefore(nodesToMerge[0]);
+                    // 마지막 노드(또는 병합을 중단한 노드)의 끝을 기준으로 설정
+                    range.setEndAfter(nodesToMerge[nodesToMerge.length - 1]);
+
+                    const fragment = range.createContextualFragment(html);
+                    range.deleteContents(); // 기존 노드들 제거
+                    range.insertNode(fragment); // 새로운 링크 삽입
+                    range.detach();
+
+                    // DOM이 변경되었으므로, 다음 순회는 삽입된 내용의 다음 노드부터 시작
+                    currentNode = tempNode;
+                    continue; // 다음 노드로 이동
+                } else {
+                    // URL이 없으면 다음 노드로 이동
+                    currentNode = nextNode;
+                    continue;
+                }
+            }
+            // 3. 요소 노드 (재귀 호출)
+            else if (currentNode.nodeType === Node.ELEMENT_NODE) {
+                traverseAndConvert(currentNode);
+            }
+
+            currentNode = nextNode;
         }
-    });
-
-    const textNodes = [];
-    while (walker.nextNode()) textNodes.push(walker.currentNode);
-
-    for (const node of textNodes) {
-        const text = node.nodeValue;
-        if (!urlRegex.test(text)) continue;
-
-        const html = text.replace(urlRegex, url =>
-            `<a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`
-        );
-
-        const range = document.createRange();
-        range.selectNodeContents(node);
-        const fragment = range.createContextualFragment(html);
-        range.deleteContents();
-        range.insertNode(fragment);
-        range.detach();
     }
 
-    return root; // 🔹 수정된 element 반환
-}
+    // 재귀 순회 시작
+    traverseAndConvert(root);
 
+    return root;
+}
 
 function extractContent(element) {
     if (!element) {
