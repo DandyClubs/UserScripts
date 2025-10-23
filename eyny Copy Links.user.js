@@ -175,7 +175,7 @@ const siteRules = [
         priority: ['3840', '1920', '1280', '720'],
         coverImage: '',
         useResolution: true,
-        getTitleRegex: /(?<=影片名稱】[：:])(.*?)(?=(?:(\(MP4@KF@無碼\)|【影片大小.*$))?(?:$))/m,
+        getTitleRegex: /(?<=影片名稱】[：:])(.*?)(?=(?:(\(MP4@KF@無碼|【影片大小).*$)?(?:$))/m,
         getTitleMatchPoint: 0,
         passwordRegex: /解壓密碼】[：:]?(.*?)\s*(.+)/,
         breakPoint: ['需要存取權'],        
