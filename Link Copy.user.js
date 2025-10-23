@@ -724,12 +724,6 @@ function makeSearch() {
         }
     ];
 
-    const searchBoxStyle = SearchBox.style;
-    searchBoxStyle.maxWidth = rem(baseScale * 0.9 * 3);
-    searchBoxStyle.top = Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20)) + 'px';
-    searchBoxStyle.left = Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - SearchBox.offsetWidth * 1.5) + 'px';
-    searchBoxStyle.height = rem(baseScale * 0.9);
-
     // img.Favicon 모두 선택
     const faviconImgs = document.querySelectorAll('img.Favicon');
     faviconImgs.forEach(img => {
@@ -750,6 +744,12 @@ function makeSearch() {
         });
         SearchBox.appendChild(img);
     }
+
+    const searchBoxStyle = SearchBox.style;
+    searchBoxStyle.maxWidth = rem(baseScale * 0.9 * 3);
+    searchBoxStyle.top = Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20)) + 'px';
+    searchBoxStyle.left = Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - SearchBox.offsetWidth * 1.5) + 'px';
+    searchBoxStyle.height = rem(baseScale * 0.9);
 
 }
 
