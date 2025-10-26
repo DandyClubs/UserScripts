@@ -578,7 +578,7 @@ async function jobWorker() {
             }
         }
 
-        await sleep(2000); // Wait between requests
+        await sleep(250); // Wait between requests
     }
 
     isProcessing = false;
