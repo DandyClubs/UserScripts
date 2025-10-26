@@ -60,6 +60,11 @@ GM_addStyle(`
         line-height: 1.25em;
         font-weight: initial !important;
         font-style: initial !important;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 20;
+        -webkit-box-orient: vertical;
     }
 
     .CopyItemBox{
