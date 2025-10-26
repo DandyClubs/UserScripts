@@ -169,7 +169,7 @@ MakeIcon();
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const siteRules = [
     {
-        regex: /eyny\.com\/forum\.php\?mod=viewthread/,
+        regex: /eyny\.com\/(forum\.php\?mod=viewthread|thread.+\.html)/,
         separatorText: ['影片名稱'],
         area: extractContent(document.querySelector('div#postlist td[id^="postmessage"]')),
         priority: ['3840', '1920', '1280', '720'],
