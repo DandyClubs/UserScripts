@@ -2931,9 +2931,9 @@ function GetName(url) {
     name = name.replace(/\.html$/, '').replace(/\.part\d+/, '');
     const lastDot = name.lastIndexOf('.');
     if (lastDot === -1) {
-        return name; // no dot, return full name
+        return name.toUpperCase().trim(); // no dot, return full name
     }
-    return name.substring(0, lastDot);
+    return name.substring(0, lastDot).toUpperCase().trim();
 }
 
 async function UpdateDB(Target, UrlTitle) {
