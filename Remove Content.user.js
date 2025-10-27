@@ -424,10 +424,7 @@ async function processContent(node, selector, isExtra = false) {
  */
 function replaceText(node) {
     const changed = [];
-
-    const wbrNodes = node.querySelectorAll('wbr');
-    wbrNodes.forEach(wbr => wbr.remove());
-
+   
     const textNodes = [...node.childNodes]
         .filter(child => child.nodeType === 3 && child.textContent.trim())
         .map(child => ({ text: child.textContent.trim(), node: child }));
