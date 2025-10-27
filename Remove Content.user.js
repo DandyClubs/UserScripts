@@ -424,6 +424,10 @@ async function processContent(node, selector, isExtra = false) {
  */
 function replaceText(node) {
     const changed = [];
+
+    const wbrNodes = node.querySelectorAll('wbr');
+    wbrNodes.forEach(wbr => wbr.remove());
+
     const textNodes = [...node.childNodes]
         .filter(child => child.nodeType === 3 && child.textContent.trim())
         .map(child => ({ text: child.textContent.trim(), node: child }));
@@ -444,14 +448,15 @@ function replaceText(node) {
             }
 
             const warningMatches = [...new Set(text.match(WarningEX) || [])];
+
             if (warningMatches.length) {
                 const warningRegex = RegexFrom(warningMatches.map(e => /^\[.+\]$/.test(e) ? escapeRegExp(e) : e), 'gi');
                 replaced = replaced.replaceAll(warningRegex, `<span class="Warning">$&</span>`);
                 changedFlag = true;
-            }  
-            
+            }
+
             if (changedFlag) {
-                changed.push({ node, replaced });
+                changed.push({ node: textNode, replaced }); // textNode를 사용해야 합니다.
             }
         }
     }
