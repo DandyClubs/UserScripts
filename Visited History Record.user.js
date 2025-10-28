@@ -566,10 +566,7 @@ const mutCallback = (mutationsList, observer) => {
             if (node.nodeType == Node.ELEMENT_NODE && node.childNodes.length > 0 && node.querySelector(Active.exlink)) {
                 checkVisited(node).then((Lists) => {
                     Lists.forEach(a => {
-                        const href = a.href;
-                        if (SkipWorld.test(a.textContent) || SkipModelEX.test(a.textContent) || WarningEX.test(a.textContent)) {
-                            a.classList.add('Skip');
-                        }
+                        const href = a.href;                        
                         if (
                             MatchRegexElement(a, Active.RegexElement, 'href', Active.Class) &&
                             !processedLinks.has(href) && // <--- 중복 방지 로직 추가
@@ -695,6 +692,9 @@ function checkVisited(node = Active.root) {
         for (let el of checkLists) {
             let linkInfo;
             el.classList.add('RecordHistory');
+            if (SkipWorld.test(el.textContent) || SkipModelEX.test(el.textContent) || WarningEX.test(el.textContent)) {
+                el.classList.add('Skip');
+            }
             if (Active.Get === 'GetID') {
                 linkInfo = GetID(el);
             } else if (Active.Get === 'textContent') {
