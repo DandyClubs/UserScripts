@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Visited History Record
 // @namespace   DandyClubs
-// @version     2025.09.18
+// @version     2025.10.28
 // @include     https://sis001.com/forum/forum*.html
 // @match       https://sis001.com/forum/forumdisplay.php*
 // @match       https://ultoporn.com/*
@@ -25,6 +25,7 @@
 // @grant       GM_addValueChangeListener
 // @require     https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @require     https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
+// @require      https://raw.githubusercontent.com/DandyClubs/Filter/main/Filters.js
 // @noframes
 // ==/UserScript==
 
@@ -315,16 +316,19 @@ const skipWordsList = /sis001\.com/.test(PageURL)
         '酒店偷拍',
     ];
 
-// Escape each keyword, join with OR '|', and make spaces optional
-const SkipWorld = new RegExp(
-    skipWordsList
-        .map(word => escapeRegExp(word))
-        .join('|')
-        .replace(/\s/g, '\\s?'),
-    'gi'
-);
+// 정규식 관련 헬퍼 함수는 그대로 유지합니다.
+const RegexFrom = (strings, flags) =>
+    new RegExp(
+        strings
+            .filter(e => e)
+            .map(t => t.replace(/\s+/g, '\\s'))
+            .join("|"),
+        flags
+    );
+const SkipWorld = RegexFrom(skipWordsList, 'gi');
+const SkipModelEX = RegexFrom(SkipModel.split(/\r?\n/), 'gi');
+const WarningEX = RegexFrom(WarningText.split(/\r?\n/), 'gi');
 
-console.log(SkipWorld);
 
 
 const sis001 = {
@@ -525,7 +529,7 @@ const observer = new MutationObserver(mutations => {
             if (!(node instanceof HTMLElement)) continue;
 
             // Skip any “junk” text or ads
-            if (SkipWorld.test(node.textContent)) continue;
+            if (SkipWorld.test(node.textContent) || WarningEX.test(node.textContent) || SkipModelEX.test(node.textContent)) continue;
 
             // Does this new subtree contain one of our target links?
             const link = node.querySelector(Active.exlink);
