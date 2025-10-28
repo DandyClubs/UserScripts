@@ -31,12 +31,12 @@
 
 
 const FontAwesomeCSS = function () {
-    let css = document.createElement('link')
-    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css'
-    css.rel = 'stylesheet'
-    css.type = 'text/css'
-    document.getElementsByTagName('head')[0].appendChild(css)
-}
+    let css = document.createElement('link');
+    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css';
+    css.rel = 'stylesheet';
+    css.type = 'text/css';
+    document.getElementsByTagName('head')[0].appendChild(css);
+};
 
 
 
@@ -44,7 +44,7 @@ GM_addStyle(`
 @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@600&family=Noto+Sans+KR:wght@600&family=Noto+Sans:wght@600&display=swap');
 
 :root {
-  --top: 0;  
+  --top: 0;
 }
 
 a.visited {
@@ -84,7 +84,7 @@ a.visited {
     margin: .5rem;
     border-radius: .25rem !important;
     -webkit-box-sizing: border-box !important;
-    box-sizing: border-box !important;    
+    box-sizing: border-box !important;
     cursor: pointer;
     text-shadow: 1px 1px 1px red, 0 0 2px blue, 0 0 1px black;
 }
@@ -103,8 +103,8 @@ a.visited {
     position: absolute;
 	font-size: .75rem;
 	font-weight: 600;
-    top: var(--top);    
-    right: .75rem;    
+    top: var(--top);
+    right: .75rem;
 }
 
 .VisitedDay.Today {
@@ -294,8 +294,8 @@ async function migrateFromLocalStorage() {
 //migrateFromLocalStorage();
 
 
-const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href
-const RootDomain = extractRootDomain(PageURL)
+const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+const RootDomain = extractRootDomain(PageURL);
 
 function escapeRegExp(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
@@ -342,7 +342,7 @@ const sis001 = {
     Get: 'GetTitle',
     SaveMode: 'indexedDB',
     OpenTabCount: 30,
-}
+};
 
 const sehuatang = {
     MatchUrl: 'sehuatang.net',
@@ -354,7 +354,7 @@ const sehuatang = {
     Get: 'GetTitle',
     SaveMode: 'indexedDB',
     OpenTabCount: 30,
-}
+};
 
 const t66y = {
     MatchUrl: 't66y.com',
@@ -366,7 +366,7 @@ const t66y = {
     Get: 'GetID',
     SaveMode: 'indexedDB',
     OpenTabCount: 30,
-}
+};
 
 
 const k2sporn = {
@@ -379,7 +379,7 @@ const k2sporn = {
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
     OpenTabCount: 30,
-}
+};
 
 const ultoporn = {
     MatchUrl: 'ultoporn.com',
@@ -391,7 +391,7 @@ const ultoporn = {
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
     OpenTabCount: 30,
-}
+};
 
 const hidefporn = {
     MatchUrl: 'hidefporn.ws',
@@ -403,7 +403,7 @@ const hidefporn = {
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
     OpenTabCount: 30,
-}
+};
 
 const wetholefans = {
     MatchUrl: 'wetholefans.com',
@@ -415,7 +415,7 @@ const wetholefans = {
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
     OpenTabCount: 30,
-}
+};
 
 const foamgirl = {
     MatchUrl: 'foamgirl.net',
@@ -427,7 +427,7 @@ const foamgirl = {
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
     OpenTabCount: 30,
-}
+};
 
 const everia = {
     MatchUrl: 'everia.club',
@@ -439,7 +439,7 @@ const everia = {
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
     OpenTabCount: 30,
-}
+};
 
 const misskon = {
     MatchUrl: 'misskon.com',
@@ -454,7 +454,7 @@ const misskon = {
     Get: 'textContent',
     SaveMode: 'indexedDB',
     OpenTabCount: 20,
-}
+};
 
 
 
@@ -470,7 +470,7 @@ const hostExtractors = /* #__PURE__ */ Object.freeze({
     foamgirl,
     everia,
     misskon,
-})
+});
 
 
 class Queue {
@@ -496,19 +496,19 @@ class Queue {
         return this.rear - this.front;
     }
     isEmpty() {
-        return this.front === this.rear
+        return this.front === this.rear;
     }
 }
 
 const queue = new Queue();
 
 
-const extractors = Object.values(hostExtractors).filter(Boolean)
-const Active = extractors.find((extractor) => PageURL.includes(extractor.MatchUrl))
-if (!Active) { return }
+const extractors = Object.values(hostExtractors).filter(Boolean);
+const Active = extractors.find((extractor) => PageURL.includes(extractor.MatchUrl));
+if (!Active) { return; }
 
 
-let visited
+let visited;
 
 async function Management(x) {
     while (x) {
@@ -527,9 +527,6 @@ const observer = new MutationObserver(mutations => {
         for (const node of addedNodes) {
             // Only care about real elements…
             if (!(node instanceof HTMLElement)) continue;
-
-            // Skip any “junk” text or ads
-            if (SkipWorld.test(node.textContent) || WarningEX.test(node.textContent) || SkipModelEX.test(node.textContent)) continue;
 
             // Does this new subtree contain one of our target links?
             const link = node.querySelector(Active.exlink);
@@ -570,61 +567,64 @@ const mutCallback = (mutationsList, observer) => {
                 checkVisited(node).then((Lists) => {
                     Lists.forEach(a => {
                         const href = a.href;
+                        if (SkipWorld.test(a.textContent) || SkipModelEX.test(a.textContent) || WarningEX.test(a.textContent)) {
+                            a.classList.add('Skip');
+                        }
                         if (
-                            !SkipWorld.test(a.textContent) &&
-                            !a.classList?.contains('visited') &&
                             MatchRegexElement(a, Active.RegexElement, 'href', Active.Class) &&
-                            !processedLinks.has(href) // <--- 중복 방지 로직 추가
+                            !processedLinks.has(href) && // <--- 중복 방지 로직 추가
+                            !a.classList?.contains('visited') &&
+                            !a.classList?.contains('Skip')
                         ) {
                             addNodesSet.add(a);
                         }
                     });
-                })
+                });
             }
         }
     }
-}
+};
 
-const linksObserver = new MutationObserver(mutCallback)
+const linksObserver = new MutationObserver(mutCallback);
 
 
 function MakeIcon() {
-    let GetDPI = window.devicePixelRatio
-    let DefaultFontSize = getDefaultFontSize()
-    console.log('GetDPI: ', GetDPI, 'DefaultFontSize: ', DefaultFontSize)
-    let CenterBoxZIndex = 99999
-    let CenterBoxFontSize = Number(((1 / (GetDPI / 1.5)) * 0.9 * (16 / DefaultFontSize)).toFixed(2)) + 'rem'
+    let GetDPI = window.devicePixelRatio;
+    let DefaultFontSize = getDefaultFontSize();
+    console.log('GetDPI: ', GetDPI, 'DefaultFontSize: ', DefaultFontSize);
+    let CenterBoxZIndex = 99999;
+    let CenterBoxFontSize = Number(((1 / (GetDPI / 1.5)) * 0.9 * (16 / DefaultFontSize)).toFixed(2)) + 'rem';
 
-    if (document.querySelector("div.VisitedCenterBox")) { return }
-    document.querySelector("body").insertAdjacentHTML('afterbegin', '<div class="VisitedCenterBox" style="max-width: max-content; position: fixed;"></div>')
+    if (document.querySelector("div.VisitedCenterBox")) { return; }
+    document.querySelector("body").insertAdjacentHTML('afterbegin', '<div class="VisitedCenterBox" style="max-width: max-content; position: fixed;"></div>');
 
     if (Active.OpenTab) {
-        let VisitedCenterBox = document.querySelector("div.VisitedCenterBox")
-        VisitedCenterBox.insertAdjacentHTML('afterbegin', '<div class="OpenTab fa-solid fa-arrow-up-right-from-square"></div>')
-        VisitedCenterBox.insertAdjacentHTML('beforeend', '&emsp;<i class="VisitedState"></i>')
-        VisitedState = document.querySelector('.VisitedState')
+        let VisitedCenterBox = document.querySelector("div.VisitedCenterBox");
+        VisitedCenterBox.insertAdjacentHTML('afterbegin', '<div class="OpenTab fa-solid fa-arrow-up-right-from-square"></div>');
+        VisitedCenterBox.insertAdjacentHTML('beforeend', '&emsp;<i class="VisitedState"></i>');
+        VisitedState = document.querySelector('.VisitedState');
 
         document.querySelector(".OpenTab").addEventListener('click', async function (e) {
-            e.preventDefault()
-            document.querySelector('.OpenTab').style.visibility = "hidden"
+            e.preventDefault();
+            document.querySelector('.OpenTab').style.visibility = "hidden";
             const AddNodes = Array.from(addNodesSet);
-            let OpenCount = AddNodes?.length <= Active.OpenTabCount + 5 ? AddNodes : AddNodes.slice(0, Active.OpenTabCount)
-            let Index = 1
+            let OpenCount = AddNodes?.length <= Active.OpenTabCount + 5 ? AddNodes : AddNodes.slice(0, Active.OpenTabCount);
+            let Index = 1;
             while (OpenCount.length >= Index) {
-                const a = OpenCount[Index - 1]
-                await OpenTab(OpenCount[Index - 1])
-                VisitedState.innerText = OpenCount.length - Index
-                addNodesSet.delete(a)
+                const a = OpenCount[Index - 1];
+                await OpenTab(OpenCount[Index - 1]);
+                VisitedState.innerText = OpenCount.length - Index;
+                addNodesSet.delete(a);
                 processedLinks.add(a.href);
                 await sleep(250);
-                Index++
+                Index++;
             }
-            await sleep(1000)
+            await sleep(1000);
             VisitedState.innerText = addNodesSet.size;
-            document.querySelector('.OpenTab').style.visibility = "visible"
-            VisitedCenterBox.style.cssText = `font-size: ${CenterBoxFontSize}; z-index: ${CenterBoxZIndex}; display: block;`
-            VisitedState.style.cssText = `font-size: ${Number(((1 / (GetDPI / 1.5)) * 0.75 * (16 / DefaultFontSize)).toFixed(2))}rem;`
-        })
+            document.querySelector('.OpenTab').style.visibility = "visible";
+            VisitedCenterBox.style.cssText = `font-size: ${CenterBoxFontSize}; z-index: ${CenterBoxZIndex}; display: block;`;
+            VisitedState.style.cssText = `font-size: ${Number(((1 / (GetDPI / 1.5)) * 0.75 * (16 / DefaultFontSize)).toFixed(2))}rem;`;
+        });
     }
 }
 
@@ -659,13 +659,13 @@ const GetTitle = el => el.textContent.trim()
 const GetID = el => {
     const parts = el.href.split('/');
     return parts.length ? parts.pop().replace('.html', '') : '';
-}
+};
 
 
 let listenerId = GM_addValueChangeListener('NewItem', function (key, oldValue, newValue, remote) {
     if (remote) {
-        let el = querySelectorIncludesText(Active.exlink, newValue)
-        VisitedCSS(el, GM_getValue(newValue))
+        let el = querySelectorIncludesText(Active.exlink, newValue);
+        VisitedCSS(el, GM_getValue(newValue));
         //console.log("The value of the '" + key + "' key has changed from '" + oldValue + "' to '" + newValue + "'");
     }
 });
@@ -726,7 +726,7 @@ function checkVisited(node = Active.root) {
 
         }
         resolve(Array.from(newItems));
-    })
+    });
 }
 
 const initVisitedListeners = async (node) => {
@@ -747,7 +747,7 @@ const initVisitedListeners = async (node) => {
         if (VisitedState) {
             VisitedState.innerText = addNodesSet.size;
         }
-    })
+    });
 };
 
 
@@ -784,7 +784,7 @@ function VisitedCSS(el, X) {
     }
 
     el.classList.add('visited');
-    X = todayStr === xDateStr ? 'Today' : X
+    X = todayStr === xDateStr ? 'Today' : X;
     if (el.nextElementSibling?.matches('i.VisitedDay')) {
         el.nextElementSibling.innerText = X;
     } else {
@@ -818,7 +818,7 @@ async function ClearVisited() {
                     console.log('Deleted item:', key, storedDateValue);
                 }
             }
-        })
+        });
     }
 }
 
@@ -830,7 +830,7 @@ function setClearVisited(name) {
     tomorrow.setHours(0, 0, 0, 0);
 
     // 만료 시간 기록
-    const data = {        
+    const data = {
         expires: tomorrow.getTime() // ms 단위 timestamp
     };
 
@@ -865,7 +865,7 @@ async function SaveVisited(el) {
     } else if (Active.Get === 'textContent') {
         linkInfo = el.textContent.trim();
     } else {
-        linkInfo = GetTitle(el)
+        linkInfo = GetTitle(el);
     }
 
     el.classList.add('visited');
@@ -955,7 +955,7 @@ async function Start() {
         }
 
         if (target && target.classList.contains('RecordHistory')) {
-            addNodesSet.delete(target)
+            addNodesSet.delete(target);
             SaveVisited(target);
             if (VisitedState) {
                 VisitedState.innerText = addNodesSet.size;
@@ -981,16 +981,16 @@ async function Start() {
         case 'k2sporn.com':
         case 'hidefporn.ws':
             document.documentElement.style.setProperty('--top', '-1rem');
-            break;        
+            break;
         default:
             document.documentElement.style.setProperty('--top', '1.5rem');
     }
 }
 
 
-FontAwesomeCSS()
+FontAwesomeCSS();
 
-Start()
+Start();
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
