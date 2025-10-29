@@ -793,14 +793,14 @@ const SiteParsers = {
     'av-wiki\\.net': {
         parse: () => {
             let titleText = TitleArea.innerText.trim();
-            let ID = extractAvWikiId() || '';
+            const ID = extractAvWikiId() || '';
             if (ID) {
                 titleText = titleText.replace(ID, '').replace('【】', '').trim();
             }
             const extractedModelName = getNextSibling(querySelectorIncludesText(InfoArea, 'dt', 'AV女優名'), 'dd')?.innerText.trim() || '';
             let cleanedModelName = ''
             if (extractedModelName){
-                cleanedModelName = extractedModelName.split(/,/g).filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join(' ').trim();
+                cleanedModelName = extractedModelName.split(/,/g).filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join('\n').trim();
             }
             cleanedModelName = cleanedModelName.split('\n').filter(element => !/^#|\(≥o≤\)|＊＊＊/.test(element)).join(' ').trim();
             const titleDB = titleText.replace(/\s?\/\s?$/, '').split(/\s/);
