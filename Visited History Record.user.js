@@ -566,8 +566,7 @@ const mutCallback = (mutationsList, observer) => {
             if (node.nodeType == Node.ELEMENT_NODE && node.childNodes.length > 0 && node.querySelector(Active.exlink)) {
                 checkVisited(node).then((Lists) => {
                     Lists.forEach(a => {
-                        const href = a.href;
-                        console.log(a);
+                        const href = a.href;                        
                         if (
                             MatchRegexElement(a, Active.RegexElement, 'href', Active.Class) &&
                             !processedLinks.has(href) && // <--- 중복 방지 로직 추가
