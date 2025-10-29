@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Copy Title
-// @version      2025.10.10
+// @version      2025.10.29
 // @description  try to take over the world!
 // @author       You
 // @include      /javbus.com\/.+\/([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)/
@@ -292,6 +292,7 @@ async function Start() {
             titleSelector: 'article.article section.article-body div.blockquote-like p',
             infoSelector: 'article.article section.article-body dl.dltable',
             coverImageSelector: 'article.article div.article-thumbnail a.image-link-border img',
+            infoProcessor: (element) => element,
             postProcessing: () => {
                 document.querySelector('.CopyTitle').insertAdjacentHTML('afterend', '<i class="FullCopyTitle fa-solid fa-expand"></i>');
                 document.querySelector('.FullCopyTitle').addEventListener("click", async function (e) {
@@ -300,7 +301,7 @@ async function Start() {
                     updateClipboard(FullCopyTitle);
                 });
                 OffSetArea = document.querySelector('article.article div.article-thumbnail');
-                OffSetArea.insertAdjacentHTML('beforeend', '<div class="IconSet" style="visibility: hidden; position: absolute;"></div>');
+                OffSetArea.insertAdjacentHTML('beforeend', '<div class="CopyTitleIconSet" style="visibility: hidden; position: absolute;"></div>');
                 document.querySelector('.CopyTitleIconSet').insertAdjacentHTML('beforeend', '<i class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></i>');
                 OffSetArea.style.setProperty('position', 'relative');
             }
@@ -792,25 +793,33 @@ const SiteParsers = {
     'av-wiki\\.net': {
         parse: () => {
             let titleText = TitleArea.innerText.trim();
-            if (ID?.[0]) {
-                titleText = titleText.replace(ID[0], '');
+            let ID = extractAvWikiId() || '';
+            if (ID) {
+                titleText = titleText.replace(ID, '').replace('【】', '').trim();
             }
+            const extractedModelName = getNextSibling(querySelectorIncludesText(InfoArea, 'dt', 'AV女優名'), 'dd')?.innerText.trim() || '';
+            let cleanedModelName = ''
+            if (extractedModelName){
+                cleanedModelName = extractedModelName.split(/,/g).filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join(' ').trim();
+            }
+            cleanedModelName = cleanedModelName.split('\n').filter(element => !/^#|\(≥o≤\)|＊＊＊/.test(element)).join(' ').trim();
             const titleDB = titleText.replace(/\s?\/\s?$/, '').split(/\s/);
             return {
                 TitleText: titleText,
-                TitleDB: titleDB
+                TitleDB: titleDB,
+                ID,
+                cleanedModelName
             };
         },
         refine: (parsedData) => {
-            const extractedId = extractAvWikiId();
+            const { TitleText, TitleDB, ID, cleanedModelName } = parsedData;            
             const extractedAmatureName = getNextSibling(querySelectorIncludesText(InfoArea, 'dt', '素人名義'), 'dd')?.innerText.trim() || '';
-            let extractedModelName = getNextSibling(querySelectorIncludesText(InfoArea, 'dt', 'AV女優名'), 'dd')?.innerText.trim() || '';
-            extractedModelName = extractedModelName.split('\n').filter(element => !/^#|\(≥o≤\)|＊＊＊/.test(element)).join(' ').trim();
+            
             return {
                 ...parsedData,
-                extractedId,
+                extractedId: ID,
                 extractedAmatureName,
-                extractedModelName
+                extractedModelName: cleanedModelName
             };
         }
     },
