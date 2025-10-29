@@ -566,7 +566,8 @@ const mutCallback = (mutationsList, observer) => {
             if (node.nodeType == Node.ELEMENT_NODE && node.childNodes.length > 0 && node.querySelector(Active.exlink)) {
                 checkVisited(node).then((Lists) => {
                     Lists.forEach(a => {
-                        const href = a.href;                        
+                        const href = a.href;
+                        console.log(a);
                         if (
                             MatchRegexElement(a, Active.RegexElement, 'href', Active.Class) &&
                             !processedLinks.has(href) && // <--- 중복 방지 로직 추가
@@ -735,10 +736,10 @@ const initVisitedListeners = async (node) => {
         Lists.forEach(a => {
             const href = a.href;
             if (
-                !SkipWorld.test(a.textContent) &&
-                !a.classList?.contains('visited') &&
                 MatchRegexElement(a, Active.RegexElement, 'href', Active.Class) &&
-                !processedLinks.has(href) // <--- 중복 방지 로직 추가
+                !processedLinks.has(href) && // <--- 중복 방지 로직 추가
+                !a.classList?.contains('visited') &&
+                !a.classList?.contains('Skip')
             ) {
                 addNodesSet.add(a);
             }
