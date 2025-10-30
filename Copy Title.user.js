@@ -28,12 +28,12 @@
 // ==/UserScript==
 
 const FontAwesomeCSS = function () {
-    let css = document.createElement('link')
-    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css'
-    css.rel = 'stylesheet'
-    css.type = 'text/css'
-    document.head.appendChild(css)
-}
+    let css = document.createElement('link');
+    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css';
+    css.rel = 'stylesheet';
+    css.type = 'text/css';
+    document.head.appendChild(css);
+};
 
 
 GM_addStyle(`
@@ -104,17 +104,17 @@ GM_addStyle(`
 `);
 
 
-let getDPI, defaultFontSize
+let getDPI, defaultFontSize;
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
-const RootDomain = extractRootDomain(PageURL)
+const RootDomain = extractRootDomain(PageURL);
 
-let MakerCfg = false
-let CfgReleaseDate = false
-let Maker = '', ReleaseDate = '', BetweenYear = ''
+let MakerCfg = false;
+let CfgReleaseDate = false;
+let Maker = '', ReleaseDate = '', BetweenYear = '';
 
-let TitleArea, CopyTitle, FullCopyTitle, InfoArea, ID, CastArea, ModelName = '', AmatureName, byteCheck = 0, TitleLast = '', InfoSelector = '', Series = '', ModelNameDB
-let CoverImage, FullCoverImage, OffSetArea, filename, extension
+let TitleArea, CopyTitle, FullCopyTitle, InfoArea, ID, CastArea, ModelName = '', AmatureName, byteCheck = 0, TitleLast = '', InfoSelector = '', Series = '', ModelNameDB;
+let CoverImage, FullCoverImage, OffSetArea, filename, extension;
 
 
 let toUpperCaseList = `
@@ -122,38 +122,38 @@ JVID
 FC2(-)?PPV
 `;
 
-const LAST_TAGS_REGEX = /\s*\[[^\]]+\][^\[]*$/
-const TAGS_REGEX = /\[[^\]]+]|\(,.*?[\)\]]/g
+const LAST_TAGS_REGEX = /\s*\[[^\]]+\][^\[]*$/;
+const TAGS_REGEX = /\[[^\]]+]|\(,.*?[\)\]]/g;
 
-const SearchID = /^【?([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)】?/
-const SearchFC2ID = /(^FC2.+\d{6})(.*)/
-const ChinaID = /^(?=.*([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}))(?!.*\d+p).*$/i
-const JapaneseChar = /[ぁ-んァ-ン一-龯]/g
-const ExcludeChar = /[<\/:>*?"|\\]/g
-const SKIPMGSID = /(START)-/
+const SearchID = /^【?([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)】?/;
+const SearchFC2ID = /(^FC2.+\d{6})(.*)/;
+const ChinaID = /^(?=.*([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}))(?!.*\d+p).*$/i;
+const JapaneseChar = /[ぁ-んァ-ン一-龯]/g;
+const ExcludeChar = /[<\/:>*?"|\\]/g;
+const SKIPMGSID = /(START)-/;
 //YYYY-MM-DD or MM-DD-YYYY
-const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/
-const BetweenRegEx = /\d{2,4}[\/\.-]\d{2}[\/\.-]\d{2,4}\s?-\s?\d{2,4}[\/\.-]\d{2}[\/\.-]\d{2,4}|\d{4}([\/\.-]\d{1,2})\s?-\s?\d{4}([\/\.-]\d{1,2})|\d{4}\s?-\s?\d{4}/
-const UPDateRegEx = /(Оновление|UPDATE|Обновление)\D+(?=((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2}))).*/
+const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/;
+const BetweenRegEx = /\d{2,4}[\/\.-]\d{2}[\/\.-]\d{2,4}\s?-\s?\d{2,4}[\/\.-]\d{2}[\/\.-]\d{2,4}|\d{4}([\/\.-]\d{1,2})\s?-\s?\d{4}([\/\.-]\d{1,2})|\d{4}\s?-\s?\d{4}/;
+const UPDateRegEx = /(Оновление|UPDATE|Обновление)\D+(?=((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2}))).*/;
 const chineseRegex = /[\u4e00-\u9fff]/g;
 
 const myObserver = new ResizeObserver(entries => {
-    MakeDownloadIcon()
+    MakeDownloadIcon();
 });
 
 
 function RefreshImages() {
-    let Images = document.querySelectorAll('img')
+    let Images = document.querySelectorAll('img');
     for (const img of Images) {
         if (!img.complete) {
-            img.src = getUriWithParam(img.src, { Reload: new Date().getTime() })
+            img.src = getUriWithParam(img.src, { Reload: new Date().getTime() });
         }
     }
 }
 
 function getUriWithParam(baseUrl, params) {
     try {
-        const Url = new URL(baseUrl)
+        const Url = new URL(baseUrl);
         const urlParams = new URLSearchParams(Url.search);
         for (const key in params) {
             if (params[key] !== undefined) {
@@ -161,9 +161,9 @@ function getUriWithParam(baseUrl, params) {
             }
         }
         Url.search = urlParams.toString();
-        return Url.toString()
+        return Url.toString();
     } catch (err) {
-        console.log(err)
+        console.log(err);
     }
 };
 
@@ -187,17 +187,17 @@ function onElementLoaded(elementToObserve, parentStaticElement) {
                     if (divToCheck) {
                         console.log(`element loaded: ${elementToObserve}`);
                         Onobserver.disconnect(); // stop observing
-                        resolve(true)
+                        resolve(true);
                         //return;
                     }
-                })
+                });
 
 
                 // start observing for dynamic div
                 Onobserver.observe(parentElement, {
                     childList: true,
                     subtree: true,
-                })
+                });
             }
         } catch (e) {
             console.log(e);
@@ -256,7 +256,7 @@ async function Start() {
                     document.querySelector('.GetMaker').addEventListener("click", function (event) {
                         event.preventDefault();
                         event.target.style.setProperty('color', 'Orange', 'important');
-                        updateClipboard(DetectMaker.innerText.trim());
+                        copyToClipboard(DetectMaker.innerText.trim());
                     });
                 }
                 let DetectLabel = document.querySelector("div#video_info div#video_label span.label");
@@ -265,14 +265,14 @@ async function Start() {
                     document.querySelector('.GetLabel').addEventListener("click", async function (event) {
                         event.preventDefault();
                         event.target.style.setProperty('color', 'Orange', 'important');
-                        updateClipboard(DetectLabel.innerText.trim());
+                        copyToClipboard(DetectLabel.innerText.trim());
                     });
                 }
                 document.querySelector('.CopyTitle').insertAdjacentHTML('afterend', '<i class="FullCopyTitle fa-solid fa-expand"></i>');
                 document.querySelector('.FullCopyTitle').addEventListener("click", async function (e) {
                     e.preventDefault();
                     e.target.style.setProperty("color", "Orange", "important");
-                    updateClipboard(FullCopyTitle);
+                    copyToClipboard(FullCopyTitle);
                 });
             }
         },
@@ -298,7 +298,7 @@ async function Start() {
                 document.querySelector('.FullCopyTitle').addEventListener("click", async function (e) {
                     e.preventDefault();
                     e.target.style.setProperty("color", "Orange", "important");
-                    updateClipboard(FullCopyTitle);
+                    Clipboard(FullCopyTitle);
                 });
                 OffSetArea = document.querySelector('article.article div.article-thumbnail');
                 OffSetArea.insertAdjacentHTML('beforeend', '<div class="CopyTitleIconSet" style="visibility: hidden; position: absolute;"></div>');
@@ -343,7 +343,7 @@ async function Start() {
                 document.querySelector('.FullCopyTitle').addEventListener("click", async function (e) {
                     e.preventDefault();
                     e.target.style.setProperty("color", "Orange", "important");
-                    updateClipboard(FullCopyTitle);
+                    copyToClipboard(FullCopyTitle);
                 });
             }
         },
@@ -366,18 +366,18 @@ async function Start() {
     }
 
     TitleArea = document.querySelector(currentSiteConfig.titleSelector);
-    
+
     if (!TitleArea) {
         return;
     }
 
     if (currentSiteConfig.infoSelector) {
-        const element = document.querySelector(currentSiteConfig.infoSelector)
+        const element = document.querySelector(currentSiteConfig.infoSelector);
         if (element) {
             if (currentSiteConfig.infoProcessor) {
                 InfoArea = currentSiteConfig.infoProcessor(element);
             } else {
-                InfoArea = getInfoArea(element)
+                InfoArea = getInfoArea(element);
             }
         }
     }
@@ -398,13 +398,21 @@ async function Start() {
     }
 
     if (TitleArea && !document.querySelector('.CopyTitle')) {
-        MakeIcon()
+        MakeIcon();
 
         if (currentSiteConfig.postProcessing) {
             await currentSiteConfig.postProcessing();
         }
     }
-    SecondStep()
+    SecondStep();
+}
+
+function copyToClipboard(text) {
+    try {
+        updateClipboard(text);
+    } catch (err) {
+        console.error("updateClipboard: ", err);
+    }
 }
 
 
@@ -449,7 +457,7 @@ function MakeIcon() {
                 e.preventDefault();
                 //window.open(TorrentFile.href, '_blank');
                 //TorrentFile.click();
-                forceDownload(TorrentFile.href, CopyTitle)
+                forceDownload(TorrentFile.href, CopyTitle);
                 e.target.style.setProperty("color", "Orange", "important");
             });
         }
@@ -470,7 +478,7 @@ function MakeIcon() {
     addEventToIcon("CopyTitle", async function (e) {
         e.preventDefault();
         e.target.style.setProperty("color", "Orange", "important");
-        updateClipboard(CopyTitle);
+        copyToClipboard(CopyTitle);
     });
 
     addIconToCenterBox("closeIcon fa-solid fa-square-xmark", "", "red");
@@ -488,12 +496,12 @@ function MakeIcon() {
             closeIcon.style.visibility = 'visible';
         }
     });
-    
+
     addEventToIcon("closeIcon", function () {
         self.close();
     });
 
-    
+
     // 6. 스타일 및 기타 로직
     getDPI = window.devicePixelRatio;
     defaultFontSize = getDefaultFontSize();
@@ -509,30 +517,30 @@ function MakeIcon() {
 
 
 
-let Title, BTS, Remastered, TitleText
+let Title, BTS, Remastered, TitleText;
 
-let TitleDB
+let TitleDB;
 
 const regExp = {
     getMatchGroups(regExp, string) {
-        const matches = []
-        let match
+        const matches = [];
+        let match;
 
         while ((match = regExp.exec(string)) !== null) {
             if (match.index === regExp.lastIndex) {
-                regExp.lastIndex++
+                regExp.lastIndex++;
             }
 
-            const groups = match.slice(1)
+            const groups = match.slice(1);
 
             if (groups.some(Boolean)) {
-                matches.push(groups)
+                matches.push(groups);
             }
         }
 
-        return matches
+        return matches;
     }
-}
+};
 
 const padZero = (num, length) => {
     return String(num).padStart(length, '0');
@@ -569,7 +577,7 @@ const SiteParsers = {
             const searchRegex = (p) => new RegExp(`(?:${p.join('|')})\\s*[:\\-]\\s*(.+)$`);
             let titleText = TitleArea.textContent.replace('[uncen]', '');
 
-            console.log({ titleText })
+            console.log({ titleText });
 
             // 러시아어 단어 및 날짜 형식 정리
             titleText = titleText
@@ -586,12 +594,12 @@ const SiteParsers = {
                 .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?=[\(|\[])/gi, '')
                 .trim();
 
-            const extractText = titleText.match(/\([\w,\s]*\)/g) || []
+            const extractText = titleText.match(/\([\w,\s]*\)/g) || [];
 
             for (const t of extractText) {
-                let count = (t.match(/,/g) || []).length
+                let count = (t.match(/,/g) || []).length;
                 if (count >= 10) {
-                    titleText = titleText.replace(t, '')
+                    titleText = titleText.replace(t, '');
                 }
             }
             const searchModelPatterns = `
@@ -615,8 +623,8 @@ const SiteParsers = {
             }).filter(Boolean);
 
             const extractedModelName = findModelName.map(e => e.replace(/Amateur.*/i, '').trim()).filter(Boolean).join(',');
-            let cleanedModelName = extractedModelName.split(/,|\saka\s/g).filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join(' ').trim()
-            console.log({ findModelName, extractedModelName, cleanedModelName })
+            let cleanedModelName = extractedModelName.split(/,|\saka\s/g).filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join(' ').trim();
+            console.log({ findModelName, extractedModelName, cleanedModelName });
 
             // 리마스터 및 BTS 플래그 추출
             const remastered = /Remastered/.test(titleText);
@@ -628,11 +636,11 @@ const SiteParsers = {
 
 
             const resolutionMatch = titleText.match(/\d+p/g);
-            let resolution
+            let resolution;
             if (resolutionMatch) {
-                const uniqueMatch = [...new Set(resolutionMatch)]
+                const uniqueMatch = [...new Set(resolutionMatch)];
                 resolution = uniqueMatch?.length === 1 ? uniqueMatch[0] : '';
-                titleText = titleText.replaceAll(resolution, '').trim()
+                titleText = titleText.replaceAll(resolution, '').trim();
             }
 
 
@@ -645,7 +653,7 @@ const SiteParsers = {
 
             // 릴리즈 날짜 추출 및 제거
             const releaseDate = DateRegEx.test(titleText) && !BetweenRegEx.test(titleText) && !UPDateRegEx.test(titleText) ? titleText.match(DateRegEx)[1].trim() : '';
-            let FixreleaseDate = ''
+            let FixreleaseDate = '';
             if (releaseDate) {
                 titleText = titleText.replace(releaseDate, '').replace(/\s?\/\)/g, '').replace(/\s?\/ (\.|-)/, '').replace(' / )', ')').replace('(г.) ', '').trim();
                 FixreleaseDate = releaseDate.replace(/-|\//g, '.');
@@ -680,7 +688,7 @@ const SiteParsers = {
 
 
                 if (makerSearch) {
-                    titleText = titleText.replace(makerSearch, '').replace(/\(\s+\)/, '').trim()
+                    titleText = titleText.replace(makerSearch, '').replace(/\(\s+\)/, '').trim();
                     const rebuildMaker = formatSentences(makerSearch.replace(/\.(com|net)/gi, ''));
                     maker = rebuildMaker;
                 }
@@ -688,21 +696,21 @@ const SiteParsers = {
 
             // ID
             const IDSearch = SearchMatch(InfoArea, "Студийный код фильма\s?(:|：)?(.+)", "/\/|-/g, '.'");
-            let ID = IDSearch ? IDSearch.trim() : ''
+            let ID = IDSearch ? IDSearch.trim() : '';
 
             if (ID) {
                 titleText = titleText.replace(ID, '').replace(/\[\]/g, '').replace(/\(\)/g, '');
             }
-            let FC2ID = titleText.match(/FC2.+\d{6}/)
+            let FC2ID = titleText.match(/FC2.+\d{6}/);
             if (FC2ID?.length > 0 && FC2ID[0]) {
                 ID = FC2ID[0];
                 titleText = titleText.replace('-', ' ');
                 titleText = titleText.replace(/^FC2.+\s/, ' ');
-                maker = ''
+                maker = '';
             }
-            let codeID
+            let codeID;
             if (!ID) {
-                const extracodeID = titleText.split(' ').find(e => e.match(ChinaID))
+                const extracodeID = titleText.split(' ').find(e => e.match(ChinaID));
                 if (extracodeID && !extractedModelName.includes(extracodeID)) {
                     titleText = `${titleText.replace(extracodeID, '').replace(/\[\]/g, '').replace(/\(|\)/g, '').trim()}`;
                     codeID = extracodeID;
@@ -728,20 +736,20 @@ const SiteParsers = {
                 .map(e => e.trim())
                 .filter(Boolean);
 
-            titleText = titleDB.join(' ')
+            titleText = titleDB.join(' ');
 
-            const checkLang = detectJaZh(InfoArea[0])
+            const checkLang = detectJaZh(InfoArea[0]);
             if (checkLang.lang === 'ja' || checkLang.lang === 'zh') {
                 if (checkLang.lang === 'ja') {
-                    titleText = InfoArea[0]
+                    titleText = InfoArea[0];
                 }
                 else if (byteLengthOfCheck(titleText) + byteLengthOfCheck(InfoArea[0]) <= 240) {
-                    titleText = `${titleText}(${InfoArea[0]})`
+                    titleText = `${titleText}(${InfoArea[0]})`;
                 }
             }
 
             if (byteLengthOfCheck(titleText) + byteLengthOfCheck(cleanedModelName) <= 240) {
-                cleanedModelName = ''
+                cleanedModelName = '';
             }
 
 
@@ -798,8 +806,8 @@ const SiteParsers = {
                 titleText = titleText.replace(ID, '').replace('【】', '').trim();
             }
             const extractedModelName = getNextSibling(querySelectorIncludesText(InfoArea, 'dt', 'AV女優名'), 'dd')?.innerText.trim() || '';
-            let cleanedModelName = ''
-            if (extractedModelName){
+            let cleanedModelName = '';
+            if (extractedModelName) {
                 cleanedModelName = extractedModelName.split(/,/g).filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join('\n').trim();
             }
             cleanedModelName = cleanedModelName.split('\n').filter(element => !/^#|\(≥o≤\)|＊＊＊/.test(element)).join(' ').trim();
@@ -812,9 +820,9 @@ const SiteParsers = {
             };
         },
         refine: (parsedData) => {
-            const { TitleText, TitleDB, ID, cleanedModelName } = parsedData;            
+            const { TitleText, TitleDB, ID, cleanedModelName } = parsedData;
             const extractedAmatureName = getNextSibling(querySelectorIncludesText(InfoArea, 'dt', '素人名義'), 'dd')?.innerText.trim() || '';
-            
+
             return {
                 ...parsedData,
                 extractedId: ID,
@@ -830,7 +838,7 @@ const SiteParsers = {
                 .replace(/(.+)(「|【)/, '$1 $2')
                 .replace(/(NO|#)(\d+)/g, (match, prefix, number) => {
                     // 숫자와 접두어를 캡쳐하고, padZero를 사용하여 숫자를 3자리로 채웁니다.
-                    return prefix === '#' ? `${prefix}${padZero(number, 3)}` : `${prefix}.${padZero(number, 3)}`
+                    return prefix === '#' ? `${prefix}${padZero(number, 3)}` : `${prefix}.${padZero(number, 3)}`;
                 })
                 .normalize('NFC')
                 .trim();
@@ -869,14 +877,14 @@ const SiteParsers = {
     'misskon\\.com': {
         parse: () => {
             let titleText = TitleArea.innerText.trim();
-            titleText = titleText.replace(/(\d+)\sphotos/i, `$1P`).replace(/(\d+)\svideos?/i, `$1V`).replace(/P(\s\+\s)/, 'P')
+            titleText = titleText.replace(/(\d+)\sphotos/i, `$1P`).replace(/(\d+)\svideos?/i, `$1V`).replace(/P(\s\+\s)/, 'P');
             const titleDB = titleText.split(/\s/);
             return {
                 TitleText: titleText,
                 TitleDB: titleDB
             };
         },
-        refine: (parsedData) => {            
+        refine: (parsedData) => {
             return {
                 ...parsedData,
             };
@@ -884,7 +892,7 @@ const SiteParsers = {
     },
     'default': {
         parse: () => {
-            const titleText = TitleArea.innerText;            
+            const titleText = TitleArea.innerText;
             const titleDB = titleText
                 .replace(/amp;|\(\s?ブルーレイ版\s?\)|\(ブルーレイディスク版\)|（ブルーレイディスク）/g, '')
                 .replace(/（/g, '(')
@@ -902,7 +910,7 @@ const SiteParsers = {
             let extractedReleaseDate = CfgReleaseDate && !parsedData.ReleaseDate ? SearchMatch(InfoArea, "(発売日|Release Date|配信開始日)\s?(:|：)?(.+)", '/', '-') || '' : parsedData.ReleaseDate;
             let extractedMaker = MakerCfg && !parsedData.Maker ? SearchMatch(InfoArea, "(シリーズ|メーカー|Maker|サークル)\s?(:|：)?(.+)") || '' : parsedData.Maker;
             let extractedModelName = ModelName ? ModelName : SearchMatch(InfoArea, "^(Actress|Model|Author|Parody|出演者?)\s?(:|：)?(.*)")?.replace('(仮名)', '') || '';
-            let cleanedModelName = extractedModelName.split(',').filter(element => !new RegExp(escapeRegExp(element), 'i').test(TitleText)).join(' ').trim()
+            let cleanedModelName = extractedModelName.split(',').filter(element => !new RegExp(escapeRegExp(element), 'i').test(TitleText)).join(' ').trim();
 
             return {
                 ...parsedData,
@@ -926,7 +934,7 @@ function SecondStep() {
     const parsedData = SiteParsers[siteKey].parse();
 
     // GetTitle 함수는 이제 파싱된 데이터를 인자로 받습니다.
-    console.log('parsedData:', parsedData)
+    console.log('parsedData:', parsedData);
     GetTitle(parsedData);
 }
 
@@ -940,14 +948,14 @@ function SecondStep() {
 function GetTitle(parsedData) {
     const siteKey = Object.keys(SiteParsers).find(key => new RegExp(key).test(RootDomain)) || 'default';
     const refinedData = SiteParsers[siteKey].refine(parsedData);
-    console.log('refinedData:', refinedData)
+    console.log('refinedData:', refinedData);
     console.log('ID:', refinedData.extractedId);
 
-    addToPreserveList(refinedData.extractedId, toUpperCaseList, false)
-    
+    addToPreserveList(refinedData.extractedId, toUpperCaseList, false);
+
     try {
         const finalTitle = assembleFinalTitle(refinedData);
-        
+
         handleCoverImageDownload(finalTitle);
         console.log('최종 타이틀:', finalTitle);
         CopyTitle = nameCorrection(finalTitle).replace(/\.com/i, '.com').replace(/\.net/i, '.net');
@@ -971,7 +979,7 @@ function GetTitle(parsedData) {
     } catch (err) {
         console.error("최종 타이틀 생성 실패:", err);
         throw new Error("assembleFinalTitle: data가 없습니다.");
-    }   
+    }
 }
 
 /**
@@ -1017,16 +1025,16 @@ function extractDefaultId(titleDB) {
  * @param {object} data - refine 단계에서 정리된 메타데이터 객체
  * @returns {string} - 파일 이름으로 사용할 수 있도록 정리된 최종 제목
  */
-function assembleFinalTitle(data) {    
+function assembleFinalTitle(data) {
     // Destructuring을 사용하여 필요한 모든 데이터를 추출합니다.
     // NOTE: refine 단계에서 반환된 객체의 키와 일치하도록 변수명을 수정했습니다.
     let { extractedcodeID, extractedId, Maker, ReleaseDate, extractedModelName, TitleText, BetweenYear, Remastered, BTS, extractedResolution } = data;
 
     // 기본값 설정: 값이 없으면 빈 문자열을 할당하여 undefined 오류를 방지합니다.
-    TitleText = extractedId ? TitleText.replace(extractedId, '').trim() : TitleText
+    TitleText = extractedId ? TitleText.replace(extractedId, '').trim() : TitleText;
     const formattedId = extractedId && extractedcodeID ? `${extractedId} ${extractedcodeID} ` : extractedId || extractedcodeID ? `${extractedId || extractedcodeID} ` : '';
     const formattedMaker = Maker && ReleaseDate ? `${Maker}` : Maker ? `${Maker} ` : '';
-    const formattedReleaseDate = ReleaseDate ? `.${ReleaseDate}.` : ''
+    const formattedReleaseDate = ReleaseDate ? `.${ReleaseDate}.` : '';
     let formattedModelName = extractedModelName ? `(${extractedModelName})` : '';
     const formattedResolution = extractedResolution ? ` ${extractedResolution}` : '';
     const formattedBTS = BTS ? ' [Behind The Scenes]' : '';
@@ -1035,23 +1043,23 @@ function assembleFinalTitle(data) {
 
     const byteLimit = 238;
     if (formattedModelName && byteLengthOfCheck(TitleText + formattedModelName) >= byteLimit) {
-        formattedModelName = ''
+        formattedModelName = '';
     }
 
     if (byteLengthOfCheck(TitleText) >= byteLimit) {
-        let TitleLast = getLastText(TitleText)
-        let tempTitle = TitleText
+        let TitleLast = getLastText(TitleText);
+        let tempTitle = TitleText;
         if (typeof TitleLast == 'undefined' || !TitleLast || TitleLast.length === 0 || TitleLast === "" || !/[^\s]/.test(TitleLast) || /^\s*$/.test(TitleLast) || TitleLast.replace(/\s/g, "") === "") {
-            TitleText = TitleText.trim()
+            TitleText = TitleText.trim();
         }
         else {
-            tempTitle = tempTitle.split(TitleLast)[0].trim()
-            tempTitle = byteLengthOf(tempTitle, byteLimit - (byteLengthOfCheck(TitleLast)))
-            TitleText = tempTitle + TitleLast.trim()
+            tempTitle = tempTitle.split(TitleLast)[0].trim();
+            tempTitle = byteLengthOf(tempTitle, byteLimit - (byteLengthOfCheck(TitleLast)));
+            TitleText = tempTitle + TitleLast.trim();
         }
     }
 
-    console.log('TitleText: ', TitleText, byteLengthOfCheck(TitleText))
+    console.log('TitleText: ', TitleText, byteLengthOfCheck(TitleText));
 
     let finalTitle = '';
     if (/pornolab\.net/.test(RootDomain)) {
@@ -1065,22 +1073,22 @@ function assembleFinalTitle(data) {
 
     // 이중 공백 제거, 선행 하이픈 제거 후 트림
     finalTitle = finalTitle.replace(/^\s?-\s/, '').replace(/\((\s+)?\)/g, '').replace(/\[(\s+)?\]/g, '').replace(/\.(\s+)?$/, '').replace(/\s+/g, ' ').trim();
-    FullCopyTitle = finalTitle
+    FullCopyTitle = finalTitle;
     // 최종 길이 제한 및 추가 태그
-   
+
 
     const finalByteCheck = byteLengthOfCheck(finalTitle);
 
     if (finalByteCheck >= byteLimit) {
         finalTitle = byteLengthOf(finalTitle, byteLimit).trim();
     }
-    
+
     // BTS 및 Remastered 태그 추가
     //if (BTS) finalTitle += ' [Behind The Scenes]';
     //if (Remastered) finalTitle += ' [Remastered]';
 
     // 외부 함수를 호출하여 최종 정리 후 반환합니다.
-    return finalTitle;    
+    return finalTitle;
 }
 
 /**
@@ -1097,7 +1105,7 @@ function handleCoverImageDownload(title) {
         }
 
         loadImage(fullCoverImageUrl, 10000).then(async () => {
-            await sleep(1000)
+            await sleep(1000);
             MakeDownloadIcon();
             document.querySelector('.CoverDownload').addEventListener("click", function (e) {
                 e.preventDefault();
@@ -1147,9 +1155,9 @@ function getNextSibling(element, tag) {
 
 
 document.addEventListener("DOMContentLoaded", () => {
-    FontAwesomeCSS()    
-    Start()
-}, { once: true })
+    FontAwesomeCSS();
+    Start();
+}, { once: true });
 
 
 
@@ -1164,7 +1172,7 @@ function removeHTML(str) {
 function FixLink(str) {
     let tmp = document.createElement("a");
     tmp.href = str;
-    return tmp.href
+    return tmp.href;
 }
 
 function MakeDownloadIcon() {
@@ -1209,23 +1217,23 @@ function MakeDownloadIcon() {
 
 
 function SearchMatch(Array, Search, SearchReplace, ReplaceSTR) {
-    console.log(Array, Search, SearchReplace, ReplaceSTR)
-    const SearchRegEx = new RegExp(Search)
-    const SearchReplaceRegEx = SearchReplace ? new RegExp(SearchReplace, 'g') : ''
-    console.log(SearchRegEx, SearchReplaceRegEx)
-    const MatchItem = Array.find((e) => SearchRegEx.test(e) && !/http/.test(e))
-    console.log('MatchItem:', MatchItem)
+    console.log(Array, Search, SearchReplace, ReplaceSTR);
+    const SearchRegEx = new RegExp(Search);
+    const SearchReplaceRegEx = SearchReplace ? new RegExp(SearchReplace, 'g') : '';
+    console.log(SearchRegEx, SearchReplaceRegEx);
+    const MatchItem = Array.find((e) => SearchRegEx.test(e) && !/http/.test(e));
+    console.log('MatchItem:', MatchItem);
     if (MatchItem) {
         //console.log(SearchReplaceRegEx, ReplaceSTR)
         if (SearchReplace) {
             //console.log(MatchItem.match(SearchRegEx).pop())
-            return MatchItem.match(SearchRegEx).pop().trim().replace(SearchReplaceRegEx, ReplaceSTR).trim()
+            return MatchItem.match(SearchRegEx).pop().trim().replace(SearchReplaceRegEx, ReplaceSTR).trim();
         }
         else {
-            return MatchItem.match(SearchRegEx).pop().trim()
+            return MatchItem.match(SearchRegEx).pop().trim();
         }
     }
-    else { return '' }
+    else { return ''; }
 }
 
 function loadImage(path, timeout = 10000) {
@@ -1255,7 +1263,7 @@ function loadImage(path, timeout = 10000) {
 
 function forceDownload(url, fileName) {
     if (/^(\/\/|\.\/|\/)/.test(url)) {
-        url = FixLink(url)
+        url = FixLink(url);
     }
     GM_xmlhttpRequest({
         method: "GET",
@@ -1263,22 +1271,22 @@ function forceDownload(url, fileName) {
         responseType: "blob",
         onload: function (res) {
             if (res.status == 200) {
-                const matchContentType = res.responseHeaders.match(/content-type: (.*?)(;|$)/i);                
+                const matchContentType = res.responseHeaders.match(/content-type: (.*?)(;|$)/i);
                 const contentType = matchContentType ? matchContentType[1] : null;
-                console.log({ matchContentType, contentType })                
-                if (contentType && contentType === 'text/html') throw new Error(`파일이 없거나 다운로드 횟수를 초과하였습니다!`)
+                console.log({ matchContentType, contentType });
+                if (contentType && contentType === 'text/html') throw new Error(`파일이 없거나 다운로드 횟수를 초과하였습니다!`);
                 if (contentType) {
                     const extension = getExtensionFromContentType(contentType);
-                    saveAs(res.response, fileName + extension)
+                    saveAs(res.response, fileName + extension);
                 } else {
-                    saveAs(res.response, fileName)
+                    saveAs(res.response, fileName);
                 }
             }
         },
         onerror: (err) => {
             console.log("Error:", err);
         },
-    })
+    });
 }
 
 /**
