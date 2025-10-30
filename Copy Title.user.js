@@ -946,7 +946,12 @@ function GetTitle(parsedData) {
     addToPreserveList(refinedData.extractedId, toUpperCaseList, false)
 
     // 2. 최종 타이틀 조립 및 정리
-    const finalTitle = assembleFinalTitle(refinedData);
+    try {
+        const finalTitle = assembleFinalTitle(refinedData);
+    } catch (err) {
+        console.error("최종 타이틀 생성 실패:", err);
+        throw new Error("assembleFinalTitle: data가 없습니다.");
+    }
 
 
 
@@ -962,10 +967,15 @@ function GetTitle(parsedData) {
     FullCopyTitle = mbConvertKana(FullCopyTitle, 'rans');
     const copyTitle = document.querySelector('.CopyTitle')
     const fullCopyTitle = document.querySelector('.FullCopyTitle')
-    copyTitle?.setAttribute('title', CopyTitle)
-    fullCopyTitle?.setAttribute('title', FullCopyTitle)
-    console.log('정리된 최종 타이틀', '\nCopyTitle: ' + CopyTitle, byteLengthOfCheck(CopyTitle), '\nFullCopyTitle: ' + FullCopyTitle, byteLengthOfCheck(FullCopyTitle));
+    if (copyTitle && CopyTitle) {
+        copyTitle.setAttribute('title', CopyTitle);
+    }
 
+    if (fullCopyTitle && FullCopyTitle) {
+        fullCopyTitle.setAttribute('title', FullCopyTitle);
+    }
+
+    console.log('정리된 최종 타이틀', '\nCopyTitle: ' + CopyTitle, byteLengthOfCheck(CopyTitle), '\nFullCopyTitle: ' + FullCopyTitle, byteLengthOfCheck(FullCopyTitle));
 }
 
 /**
@@ -1011,7 +1021,7 @@ function extractDefaultId(titleDB) {
  * @param {object} data - refine 단계에서 정리된 메타데이터 객체
  * @returns {string} - 파일 이름으로 사용할 수 있도록 정리된 최종 제목
  */
-function assembleFinalTitle(data) {
+function assembleFinalTitle(data) {    
     // Destructuring을 사용하여 필요한 모든 데이터를 추출합니다.
     // NOTE: refine 단계에서 반환된 객체의 키와 일치하도록 변수명을 수정했습니다.
     let { extractedcodeID, extractedId, Maker, ReleaseDate, extractedModelName, TitleText, BetweenYear, Remastered, BTS, extractedResolution } = data;
@@ -1021,7 +1031,7 @@ function assembleFinalTitle(data) {
     const formattedId = extractedId && extractedcodeID ? `${extractedId} ${extractedcodeID} ` : extractedId || extractedcodeID ? `${extractedId || extractedcodeID} ` : '';
     const formattedMaker = Maker && ReleaseDate ? `${Maker}` : Maker ? `${Maker} ` : '';
     const formattedReleaseDate = ReleaseDate ? `.${ReleaseDate}.` : ''
-    const formattedModelName = extractedModelName ? `(${extractedModelName})` : '';
+    let formattedModelName = extractedModelName ? `(${extractedModelName})` : '';
     const formattedResolution = extractedResolution ? ` ${extractedResolution}` : '';
     const formattedBTS = BTS ? ' [Behind The Scenes]' : '';
     const formattedRemastered = Remastered ? ' [Remastered]' : '';
@@ -1068,13 +1078,13 @@ function assembleFinalTitle(data) {
     if (finalByteCheck >= byteLimit) {
         finalTitle = byteLengthOf(finalTitle, byteLimit).trim();
     }
-
+    
     // BTS 및 Remastered 태그 추가
     //if (BTS) finalTitle += ' [Behind The Scenes]';
     //if (Remastered) finalTitle += ' [Remastered]';
 
     // 외부 함수를 호출하여 최종 정리 후 반환합니다.
-    return finalTitle;
+    return finalTitle;    
 }
 
 /**
