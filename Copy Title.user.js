@@ -590,8 +590,6 @@ const SiteParsers = {
                 .replace(/обновление от|Обновление|Обновлено/g, 'UPDATE')
                 .replace(/эпизодов|эпизод/g, 'episode')
                 .replace(/сцена из|Сцена из фильма/i, 'Scene from')
-                .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?:\/)/, '')
-                .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?=[\(|\[])/gi, '')
                 .trim();
 
             const extractText = titleText.match(/\([\w,\s]*\)/g) || [];
