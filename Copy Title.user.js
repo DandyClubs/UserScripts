@@ -616,16 +616,6 @@ const SiteParsers = {
             `.trim().split(/\r?\n/).map(e => e.trim()).filter(Boolean);
 
 
-
-            const findModelName = InfoArea.map(line => {
-                const m = line.match(searchRegex(searchModelPatterns));
-                return m ? m[1].trim() : null;
-            }).filter(Boolean);
-
-            const extractedModelName = findModelName.map(e => e.replace(/Amateur.*/i, '').trim()).filter(Boolean).join(',');
-            let cleanedModelName = extractedModelName.split(/,|\saka\s/g).filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join(' ').trim();
-            console.log({ findModelName, extractedModelName, cleanedModelName });
-
             // 리마스터 및 BTS 플래그 추출
             const remastered = /Remastered/.test(titleText);
             const bts = /Behind\s?The\s?Scenes/.test(titleText);
@@ -658,7 +648,7 @@ const SiteParsers = {
                 titleText = titleText.replace(releaseDate, '').replace(/\s?\/\)/g, '').replace(/\s?\/ (\.|-)/, '').replace(' / )', ')').replace('(г.) ', '').trim();
                 FixreleaseDate = releaseDate.replace(/-|\//g, '.');
             } else {
-                const infoAreaReleaseDate = SearchMatch(InfoArea, "(Дата релиза|Дата выхода)\s?(:|：)?(.+)", "/\/|-/g, '.'");
+                const infoAreaReleaseDate = SearchMatch(InfoArea, "(Дата релиза|Дата выхода|Дата производства)\s?(:|：)?(.+)", "/\/|-/g, '.'");
                 if (infoAreaReleaseDate) {
                     FixreleaseDate = infoAreaReleaseDate.replace(/-|\//g, '.');
                 }
@@ -670,6 +660,7 @@ const SiteParsers = {
             Выпущено
             Подсайт и сайт
             Издатель
+            Сайт
             `.trim().split(/\r?\n/).map(e => e.trim()).filter(Boolean);
 
 
@@ -721,8 +712,8 @@ const SiteParsers = {
             titleText = titleText.replace(TAGS_REGEX, '').trim();
 
             const titleDB = titleText
-                .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?:\/)/, '')
-                .replace(/(\/|-)\s(?=[а-яА-ЯЁё]).*?(?=[\(|\[])/gi, '')
+                .replace(/((\/|-)\s|^)(?=[а-яА-ЯЁё]).*?(?:\/)/, '')
+                .replace(/((\/|-)\s|^)(?=[а-яА-ЯЁё]).*?(?=[\(|\[])/gi, '')
                 .replace(/\[.*г.*?\]/, '')
                 .replace(/\s?\/\s?\)$/, ')')
                 .replace(/\s?\/\s?$/, '')
@@ -738,6 +729,15 @@ const SiteParsers = {
 
             titleText = titleDB.join(' ');
 
+            const findModelName = InfoArea.map(line => {
+                const m = line.match(searchRegex(searchModelPatterns));
+                return m ? m[1].trim() : null;
+            }).filter(Boolean);
+
+            const extractedModelName = findModelName.map(e => e.replace(/Amateur.*/i, '').trim()).filter(Boolean).join(',');
+            let cleanedModelName = extractedModelName.split(/,|\saka\s/g).filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join(' ').trim();
+
+
             const checkLang = detectJaZh(InfoArea[0]);
             if (checkLang.lang === 'ja' || checkLang.lang === 'zh') {
                 if (checkLang.lang === 'ja') {
@@ -748,13 +748,15 @@ const SiteParsers = {
                 }
             }
 
-            if (byteLengthOfCheck(titleText) + byteLengthOfCheck(cleanedModelName) <= 240) {
+            if (byteLengthOfCheck(titleText) + byteLengthOfCheck(cleanedModelName) >= 240) {
                 cleanedModelName = '';
             }
 
+            console.log({ findModelName, extractedModelName, cleanedModelName }, titleText, byteLengthOfCheck(titleText));
+
 
             return {
-                TitleText: titleText,
+                TitleText: nameCorrection(titleText).replace(/\.com/i, '.com').replace(/\.net/i, '.net'),
                 Remastered: remastered,
                 BTS: bts,
                 BetweenYear: betweenYear,
@@ -764,7 +766,7 @@ const SiteParsers = {
                 extractedId: ID,
                 extractedcodeID: codeID,
                 extractedResolution: resolution,
-                extractedModelName: cleanedModelName,
+                cleanedModelName,
             };
         },
         refine: (parsedData) => {
@@ -956,13 +958,10 @@ function GetTitle(parsedData) {
     try {
         let { finalTitle, FullCopyTitle } = assembleFinalTitle(refinedData);
 
-        handleCoverImageDownload(finalTitle);
-        console.log('최종 타이틀:', finalTitle);
-        CopyTitle = nameCorrection(finalTitle).replace(/\.com/i, '.com').replace(/\.net/i, '.net');
-        console.log('CopyTitle:', CopyTitle);
-        CopyTitle = FilenameConvert(CopyTitle);
+        handleCoverImageDownload(finalTitle);                
+        CopyTitle = FilenameConvert(finalTitle);
         CopyTitle = mbConvertKana(CopyTitle, 'rans');
-        FullCopyTitle = nameCorrection(FullCopyTitle).replace(/\.com/i, '.com').replace(/\.net/i, '.net');
+        console.log('최종 타이틀:', finalTitle);                
         FullCopyTitle = FilenameConvert(FullCopyTitle);
         FullCopyTitle = mbConvertKana(FullCopyTitle, 'rans');
         const copyTitle = document.querySelector('.CopyTitle');
@@ -1031,11 +1030,22 @@ function assembleFinalTitle(data) {
     let { extractedcodeID, extractedId, Maker, ReleaseDate, extractedModelName, TitleText, BetweenYear, Remastered, BTS, extractedResolution } = data;
 
     // 기본값 설정: 값이 없으면 빈 문자열을 할당하여 undefined 오류를 방지합니다.
+
     TitleText = extractedId ? TitleText.replace(extractedId, '').trim() : TitleText;
+    TitleText = nameCorrection(TitleText);
     const formattedId = extractedId && extractedcodeID ? `${extractedId} ${extractedcodeID} ` : extractedId || extractedcodeID ? `${extractedId || extractedcodeID} ` : '';
     const formattedMaker = Maker && ReleaseDate ? `${Maker}` : Maker ? `${Maker} ` : '';
     const formattedReleaseDate = ReleaseDate ? `.${ReleaseDate}.` : '';
-    let formattedModelName = extractedModelName ? `(${extractedModelName})` : '';
+    let formattedModelName;
+    if (extractedModelName) {
+        if (/pornolab\.net/.test(RootDomain) && formattedMaker) {            
+            formattedModelName = formattedReleaseDate ? `${extractedModelName} - `  : `- ${extractedModelName} - `;
+        } else {
+            formattedModelName = `(${extractedModelName})`;
+        }
+    } else {
+        formattedModelName = '';
+    }
     const formattedResolution = extractedResolution ? ` ${extractedResolution}` : '';
     const formattedBTS = BTS ? ' [Behind The Scenes]' : '';
     const formattedRemastered = Remastered ? ' [Remastered]' : '';
@@ -1059,11 +1069,15 @@ function assembleFinalTitle(data) {
         }
     }
 
-    console.log('TitleText: ', TitleText, byteLengthOfCheck(TitleText));
+    console.log('TitleText: ', TitleText, byteLengthOfCheck(TitleText));   
 
     let finalTitle = '';
     if (/pornolab\.net/.test(RootDomain)) {
-        finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
+        if (formattedMaker && formattedReleaseDate && formattedModelName) {
+            finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${formattedModelName}${TitleText}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
+        } else {
+            finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
+        }
     } else if (/bestjavporn\.com|allasiangirls\.net/.test(RootDomain)) {
         finalTitle = `${TitleText}${formattedModelName}`;
     }
@@ -1072,7 +1086,7 @@ function assembleFinalTitle(data) {
     }
 
     // 이중 공백 제거, 선행 하이픈 제거 후 트림
-    finalTitle = finalTitle.replace(/^\s?-\s/, '').replace(/\((\s+)?\)/g, '').replace(/\[(\s+)?\]/g, '').replace(/\.(\s+)?$/, '').replace(/\s+/g, ' ').trim();    
+    finalTitle = finalTitle.replace(/^\s?-\s/, '').replace(/\((\s+)?\)/g, '').replace(/\[(\s+)?\]/g, '').replace(/\.(\s+)?$/, '').replace(/\s+/g, ' ').trim();
     // 최종 길이 제한 및 추가 태그
 
 
@@ -1087,7 +1101,7 @@ function assembleFinalTitle(data) {
     //if (Remastered) finalTitle += ' [Remastered]';
 
     // 외부 함수를 호출하여 최종 정리 후 반환합니다.
-    return {finalTitle, FullCopyTitle};
+    return { finalTitle, FullCopyTitle };
 }
 
 /**
