@@ -954,7 +954,7 @@ function GetTitle(parsedData) {
     addToPreserveList(refinedData.extractedId, toUpperCaseList, false);
 
     try {
-        const finalTitle = assembleFinalTitle(refinedData);
+        let { finalTitle, FullCopyTitle } = assembleFinalTitle(refinedData);
 
         handleCoverImageDownload(finalTitle);
         console.log('최종 타이틀:', finalTitle);
@@ -1039,7 +1039,7 @@ function assembleFinalTitle(data) {
     const formattedResolution = extractedResolution ? ` ${extractedResolution}` : '';
     const formattedBTS = BTS ? ' [Behind The Scenes]' : '';
     const formattedRemastered = Remastered ? ' [Remastered]' : '';
-
+    FullCopyTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText} ${formattedModelName}`;
 
     const byteLimit = 238;
     if (formattedModelName && byteLengthOfCheck(TitleText + formattedModelName) >= byteLimit) {
@@ -1072,8 +1072,7 @@ function assembleFinalTitle(data) {
     }
 
     // 이중 공백 제거, 선행 하이픈 제거 후 트림
-    finalTitle = finalTitle.replace(/^\s?-\s/, '').replace(/\((\s+)?\)/g, '').replace(/\[(\s+)?\]/g, '').replace(/\.(\s+)?$/, '').replace(/\s+/g, ' ').trim();
-    FullCopyTitle = finalTitle;
+    finalTitle = finalTitle.replace(/^\s?-\s/, '').replace(/\((\s+)?\)/g, '').replace(/\[(\s+)?\]/g, '').replace(/\.(\s+)?$/, '').replace(/\s+/g, ' ').trim();    
     // 최종 길이 제한 및 추가 태그
 
 
@@ -1088,7 +1087,7 @@ function assembleFinalTitle(data) {
     //if (Remastered) finalTitle += ' [Remastered]';
 
     // 외부 함수를 호출하여 최종 정리 후 반환합니다.
-    return finalTitle;
+    return {finalTitle, FullCopyTitle};
 }
 
 /**
