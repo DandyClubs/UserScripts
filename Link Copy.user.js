@@ -3733,7 +3733,7 @@ function getTextLinesWithIconTag(selector, splitTag) {
             console.log(`Icon clicked for line ${index + 1}: "${lineText}"`);
             // You can add more functionality here, e.g.:
             // alert(`You clicked the icon for: ${lineText}`);
-            event.target.style.setProperty('color', 'Orange', 'important');
+            event.target.style.setProperty('color', 'White', 'important');
             updateClipboard(`${prefix}${lineText}`);
         });
 

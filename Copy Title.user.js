@@ -944,38 +944,34 @@ function GetTitle(parsedData) {
     console.log('ID:', refinedData.extractedId);
 
     addToPreserveList(refinedData.extractedId, toUpperCaseList, false)
-
-    // 2. 최종 타이틀 조립 및 정리
+    
     try {
         const finalTitle = assembleFinalTitle(refinedData);
+        
+        handleCoverImageDownload(finalTitle);
+        console.log('최종 타이틀:', finalTitle);
+        CopyTitle = nameCorrection(finalTitle).replace(/\.com/i, '.com').replace(/\.net/i, '.net');
+        console.log('CopyTitle:', CopyTitle);
+        CopyTitle = FilenameConvert(CopyTitle);
+        CopyTitle = mbConvertKana(CopyTitle, 'rans');
+        FullCopyTitle = nameCorrection(FullCopyTitle).replace(/\.com/i, '.com').replace(/\.net/i, '.net');
+        FullCopyTitle = FilenameConvert(FullCopyTitle);
+        FullCopyTitle = mbConvertKana(FullCopyTitle, 'rans');
+        const copyTitle = document.querySelector('.CopyTitle');
+        const fullCopyTitle = document.querySelector('.FullCopyTitle');
+        if (copyTitle && CopyTitle) {
+            copyTitle.setAttribute('title', CopyTitle);
+        }
+
+        if (fullCopyTitle && FullCopyTitle) {
+            fullCopyTitle.setAttribute('title', FullCopyTitle);
+        }
+
+        console.log('정리된 최종 타이틀', '\nCopyTitle: ' + CopyTitle, byteLengthOfCheck(CopyTitle), '\nFullCopyTitle: ' + FullCopyTitle, byteLengthOfCheck(FullCopyTitle));
     } catch (err) {
         console.error("최종 타이틀 생성 실패:", err);
         throw new Error("assembleFinalTitle: data가 없습니다.");
-    }
-
-
-
-    // 3. 표지 이미지 다운로드 로직
-    handleCoverImageDownload(finalTitle);
-    console.log('최종 타이틀:', finalTitle);
-    CopyTitle = nameCorrection(finalTitle).replace(/\.com/i, '.com').replace(/\.net/i, '.net')
-    console.log('CopyTitle:', CopyTitle)
-    CopyTitle = FilenameConvert(CopyTitle);
-    CopyTitle = mbConvertKana(CopyTitle, 'rans');
-    FullCopyTitle = nameCorrection(FullCopyTitle).replace(/\.com/i, '.com').replace(/\.net/i, '.net')
-    FullCopyTitle = FilenameConvert(FullCopyTitle);
-    FullCopyTitle = mbConvertKana(FullCopyTitle, 'rans');
-    const copyTitle = document.querySelector('.CopyTitle')
-    const fullCopyTitle = document.querySelector('.FullCopyTitle')
-    if (copyTitle && CopyTitle) {
-        copyTitle.setAttribute('title', CopyTitle);
-    }
-
-    if (fullCopyTitle && FullCopyTitle) {
-        fullCopyTitle.setAttribute('title', FullCopyTitle);
-    }
-
-    console.log('정리된 최종 타이틀', '\nCopyTitle: ' + CopyTitle, byteLengthOfCheck(CopyTitle), '\nFullCopyTitle: ' + FullCopyTitle, byteLengthOfCheck(FullCopyTitle));
+    }   
 }
 
 /**
