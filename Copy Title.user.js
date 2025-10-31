@@ -298,7 +298,7 @@ async function Start() {
                 document.querySelector('.FullCopyTitle').addEventListener("click", async function (e) {
                     e.preventDefault();
                     e.target.style.setProperty("color", "Orange", "important");
-                    Clipboard(FullCopyTitle);
+                    copyToClipboard(FullCopyTitle);
                 });
                 OffSetArea = document.querySelector('article.article div.article-thumbnail');
                 OffSetArea.insertAdjacentHTML('beforeend', '<div class="CopyTitleIconSet" style="visibility: hidden; position: absolute;"></div>');
