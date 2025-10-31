@@ -1161,7 +1161,7 @@ const siteConfigs = [
 
                 if (copyOffsetArea) {
                     CopyTitle = copyOffsetArea.innerText.replace(/\((UltraHD|Full|HD|SD).+/, '').replace(/\s+/g, ' ').trim();
-                    CopyTitle = capitalize(CopyTitle);
+                    CopyTitle = nameCorrection(CopyTitle);
                     CopyTitle = CopyTitle.replace(/\*/g, '＊').replace(/\?/g, '？');
                 }
             }
@@ -1215,7 +1215,7 @@ const siteConfigs = [
                 console.log(copyOffsetArea);
                 if (copyOffsetArea) {
                     let tempTitle = copyOffsetArea.innerText.replace(/\((UltraHD|Full|HD|SD).+/i, '').replace(/\s+/g, ' ').trim();
-                    tempTitle = capitalize(tempTitle);
+                    tempTitle = nameCorrection(tempTitle);
                     const MatchWebPoint = tempTitle.indexOf(' - ');
                     const MatchWeb = MatchWebPoint !== -1 ? tempTitle.substring(0, MatchWebPoint).replace(/\s/g, '') : tempTitle;
 
