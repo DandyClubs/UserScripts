@@ -2009,8 +2009,7 @@ async function processCopyTitle(currentConfig) {
         .replace(/^\[FHD\]/, '')
         .replace(/\[SD\s\d+p\]/, '')
         .replace(/^(FC2-PPV-|FC2\sPPV-|FC2PPV-)/i, 'FC2 PPV ')
-        .replace('[NO STAMP]', '')
-        .replace('[SUMMARY]', '')
+        .replace(/^\[(NO\sSTAMP|SUMMARY|BLUR)\]/, '')
         .trim();
 
 
