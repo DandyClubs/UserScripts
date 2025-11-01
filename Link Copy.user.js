@@ -2867,7 +2867,7 @@ async function CollectionLinks(DownloadArea) {
 
     // 2d) Optionally filter for quality (4K vs 1080p) if CopyTitle and not a “Collection”
     if (!/Collection|SITERIP|OnlyFans\sLeak/i.test(CopyTitle) && !/pornrips\.cc|naughtyblog/.test(PageURL)) {
-        const UHD = /4K-ARCHIVE-?|ARCHIVE-4K-?|(-|_|\.)?4K$/i;
+        const UHD = /(A-4K-ARCHIVE|4K-ARCHIVE|ARCHIVE-4K)-?|(-|_|\.)?4K$/i;
         const FHD = /\.(1080p|HD)/i;
         const allNames = links.map(a => GetName(a.href));
         const UHDLinks = [...new Set(allNames.filter(f => UHD.test(f)).map(n => n.replace(UHD, '')))];
