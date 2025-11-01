@@ -2772,7 +2772,6 @@ function MatchRegexElement(Taget, regex, attributeToSearch) {
     }
 }
 
-
 async function CollectionCoverImage(CoverImage) {
     let result = [];
 
@@ -2865,8 +2864,35 @@ async function CollectionLinks(DownloadArea) {
         );
     }
 
-    // 2d) Optionally filter for quality (4K vs 1080p) if CopyTitle and not a “Collection”
-    if (!/Collection|SITERIP|OnlyFans\sLeak/i.test(CopyTitle) && !/pornrips\.cc|naughtyblog/.test(PageURL)) {
+    // 2e) Additional site-specific tweaks (blogjav, javarchive, etc.)
+    if (/blogjav/.test(RootDomain)) {
+        links = links.filter(a => !/\.(mp4|mkv)$/i.test(a.textContent));
+        const getDownloadLinks = (links) => {
+            const priorityPatterns = [/2160p|4K/i, /1080p|1080\.mp4/i];
+            let finalLinks = [];
+            for (const pattern of priorityPatterns) {
+                const filterLinks = links.filter(a => pattern.test(GetName(a.textContent)));
+                if (filterLinks.length > 0) {
+                    finalLinks.push(...filterLinks);
+                    break; // 가장 높은 해상도만 선택
+                }
+            };
+            return finalLinks;
+        };
+        const finalDownloadLinks = getDownloadLinks(links);
+        if (finalDownloadLinks.length > 0) {
+            links = finalDownloadLinks;
+        }
+    } else if (/javarchive/.test(RootDomain)) {
+        const noSuby = links.filter(a => !/subyshare\.com/i.test(a.textContent));
+        const parts = noSuby.filter(a => /part\d+\.rar/i.test(a.textContent));
+        if (noSuby.length >= 3) {
+            links = noSuby.filter(a => !/part\d+\.rar/i.test(a.textContent));
+        } else if (parts.length >= 2) {
+            links = parts;
+        } else {
+            links = noSuby;
+        }
         const UHD = /(A-4K-ARCHIVE|4K-ARCHIVE|ARCHIVE-4K)-?|(-|_|\.)?4K$/i;
         const FHD = /\.(1080p|HD)/i;
         const allNames = links.map(a => GetName(a.href));
@@ -2883,21 +2909,6 @@ async function CollectionLinks(DownloadArea) {
                 resultLinks.push(...(uhd.length > 0 ? uhd : fhd.length > 0 ? fhd : group));
             }
             links = resultLinks;
-        }
-    }
-
-    // 2e) Additional site-specific tweaks (blogjav, javarchive, etc.)
-    if (/blogjav/.test(RootDomain)) {
-        links = links.filter(a => !/\.(mp4|mkv)$/i.test(a.textContent));
-    } else if (/javarchive/.test(RootDomain)) {
-        const noSuby = links.filter(a => !/subyshare\.com/i.test(a.textContent));
-        const parts = noSuby.filter(a => /part\d+\.rar/i.test(a.textContent));
-        if (noSuby.length >= 3) {
-            links = noSuby.filter(a => !/part\d+\.rar/i.test(a.textContent));
-        } else if (parts.length >= 2) {
-            links = parts;
-        } else {
-            links = noSuby;
         }
     }
 
