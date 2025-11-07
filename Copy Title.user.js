@@ -127,7 +127,7 @@ const TAGS_REGEX = /\[[^\]]+]|\(,.*?[\)\]]/g;
 
 const SearchID = /^【?([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)】?/;
 const SearchFC2ID = /(^FC2.+\d{6})(.*)/;
-const ChinaID = /^(?=.*([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}))(?!.*\d+p).*$/i;
+const ChinaID = /(?=.*([a-zA-Z]{2,11}-\d{2,6}[a-zA-Z]|\d{2,4}[a-zA-Z]{2,7}-\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-\d{2}-\d{2}|[a-zA-Z]{2,7}-[a-zA-Z]{1,2}\d{2}))(?!.*\d+p)/i;
 const JapaneseChar = /[ぁ-んァ-ン一-龯]/g;
 const ExcludeChar = /[<\/:>*?"|\\]/g;
 const SKIPMGSID = /(START)-/;
@@ -699,10 +699,10 @@ const SiteParsers = {
             }
             let codeID;
             if (!ID) {
-                const extracodeID = titleText.split(' ').find(e => e.match(ChinaID));
-                if (extracodeID && !extractedModelName.includes(extracodeID)) {
-                    titleText = `${titleText.replace(extracodeID, '').replace(/\[\]/g, '').replace(/\(|\)/g, '').trim()}`;
-                    codeID = extracodeID;
+                const extracodeID = ChinaID.exec(titleText);
+                if (extracodeID && extracodeID[1]) {
+                    titleText = `${titleText.replace(extracodeID[1], '').replace(/\[\]/g, '').replace(/\(|\)/g, '').trim()}`;
+                    codeID = extracodeID[1];
                 }
             }
 
