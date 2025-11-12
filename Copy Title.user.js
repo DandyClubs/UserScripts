@@ -956,10 +956,10 @@ function GetTitle(parsedData) {
     try {
         let { finalTitle, FullCopyTitle } = assembleFinalTitle(refinedData);
 
-        handleCoverImageDownload(finalTitle);                
+        handleCoverImageDownload(finalTitle);
         CopyTitle = FilenameConvert(finalTitle);
         CopyTitle = mbConvertKana(CopyTitle, 'rans');
-        console.log('최종 타이틀:', finalTitle);                
+        console.log('최종 타이틀:', finalTitle);
         FullCopyTitle = FilenameConvert(FullCopyTitle);
         FullCopyTitle = mbConvertKana(FullCopyTitle, 'rans');
         const copyTitle = document.querySelector('.CopyTitle');
@@ -1036,8 +1036,8 @@ function assembleFinalTitle(data) {
     const formattedReleaseDate = ReleaseDate ? `.${ReleaseDate}.` : '';
     let formattedModelName;
     if (extractedModelName) {
-        if (/pornolab\.net/.test(RootDomain) && formattedMaker) {            
-            formattedModelName = formattedReleaseDate ? `${extractedModelName} - `  : `- ${extractedModelName} - `;
+        if (/pornolab\.net/.test(RootDomain) && formattedMaker) {
+            formattedModelName = formattedReleaseDate ? `${extractedModelName} - ` : `- ${extractedModelName} - `;
         } else {
             formattedModelName = `(${extractedModelName})`;
         }
@@ -1047,7 +1047,12 @@ function assembleFinalTitle(data) {
     const formattedResolution = extractedResolution ? ` ${extractedResolution}` : '';
     const formattedBTS = BTS ? ' [Behind The Scenes]' : '';
     const formattedRemastered = Remastered ? ' [Remastered]' : '';
-    FullCopyTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText} ${formattedModelName}`;
+
+    if (formattedMaker || formattedId) {
+        FullCopyTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText} ${formattedModelName}`;
+    } else {
+        FullCopyTitle = `${TitleText}${formattedModelName}${formattedReleaseDate}`;
+    }
 
     const byteLimit = 238;
     if (formattedModelName && byteLengthOfCheck(TitleText + formattedModelName) >= byteLimit) {
@@ -1067,20 +1072,28 @@ function assembleFinalTitle(data) {
         }
     }
 
-    console.log('TitleText: ', TitleText, byteLengthOfCheck(TitleText));   
+    console.log('TitleText: ', TitleText, byteLengthOfCheck(TitleText));
 
     let finalTitle = '';
     if (/pornolab\.net/.test(RootDomain)) {
         if (formattedMaker && formattedReleaseDate && formattedModelName) {
             finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${formattedModelName}${TitleText}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
         } else {
-            finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
+            if (formattedMaker || formattedId) {
+                finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
+            } else {
+                finalTitle = `${TitleText}${formattedReleaseDate}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
+            }
         }
     } else if (/bestjavporn\.com|allasiangirls\.net/.test(RootDomain)) {
         finalTitle = `${TitleText}${formattedModelName}`;
     }
     else {
-        finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}`;
+        if (formattedMaker || formattedId) {
+            finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}`;
+        } else {
+            finalTitle = `${TitleText}${formattedModelName}${formattedReleaseDate}`;
+        }
     }
 
     // 이중 공백 제거, 선행 하이픈 제거 후 트림
