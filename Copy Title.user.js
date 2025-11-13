@@ -673,7 +673,7 @@ const SiteParsers = {
                 const makerSearch = InfoArea.map(line => {
                     const m = line.match(searchRegex(makerSearchPatterns));
                     return m ? m[1].trim() : null;
-                }).filter(e => !/^http/.test(e)).join(' ');
+                }).filter(e => !/^http/.test(e)).filter(Boolean).join(' ');
 
 
                 if (makerSearch) {
