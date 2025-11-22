@@ -18,12 +18,12 @@
 
 
 const FontAwesomeCSS = function () {
-    let css = document.createElement('link')
-    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css'
-    css.rel = 'stylesheet'
-    css.type = 'text/css'
-    document.getElementsByTagName('head')[0].appendChild(css)
-}
+    let css = document.createElement('link');
+    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css';
+    css.rel = 'stylesheet';
+    css.type = 'text/css';
+    document.getElementsByTagName('head')[0].appendChild(css);
+};
 
 GM_addStyle(`
 @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c&family=Nanum+Gothic&family=Nanum+Gothic+Coding&family=Noto+Sans&display=swap');
@@ -164,25 +164,25 @@ li.post div.article a:visited {
 
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
-const RootDomain = extractRootDomain(PageURL)
-let AutoCopy = false
+const RootDomain = extractRootDomain(PageURL);
+let AutoCopy = false;
 //console.log(RootDomainDB)
 
-let InfoArea = []
+let InfoArea = [];
 
-const SkipClassNames = ['adead_link', 'autohyperlink', 'social-icon']
-let SkipFilter = new RegExp('safedl\\.net|katfile\\.com\\/free\\d+.html|developershome|md5file\\.com|attachment|premium|upgrade|javascript|search|SKIP|#$|^\/|^(?=.*' + RootDomain + ')(?!.*\\?site).*$')
-const TitleExr = /(GetTitle\s:\s?)(.+)/
-const ExcludeChar = /[<\/:>*?"|\\]/g
+const SkipClassNames = ['adead_link', 'autohyperlink', 'social-icon'];
+let SkipFilter = new RegExp('safedl\\.net|katfile\\.com\\/free\\d+.html|developershome|md5file\\.com|attachment|premium|upgrade|javascript|search|SKIP|#$|^\/|^(?=.*' + RootDomain + ')(?!.*\\?site).*$');
+const TitleExr = /(GetTitle\s:\s?)(.+)/;
+const ExcludeChar = /[<\/:>*?"|\\]/g;
 
-let TitleDBIndex = [], GetDPI, DefaultFontSize, CenterBoxFontSize, StateFontSize, StateLineHeight, CenterBoxZIndex
+let TitleDBIndex = [], GetDPI, DefaultFontSize, CenterBoxFontSize, StateFontSize, StateLineHeight, CenterBoxZIndex;
 
-let CopyOffSetArea
+let CopyOffSetArea;
 
-let GetState, PackageCount
-let RootDomainDB = []
+let GetState, PackageCount;
+let RootDomainDB = [];
 
-let AutoClose = localStorage.getItem('AutoClose') || 0
+let AutoClose = localStorage.getItem('AutoClose') || 0;
 
 async function Start() {
     console.log('Link Copy Start!');
@@ -272,7 +272,7 @@ async function Start() {
 
         CopyButton: (target) => {
             UpdateDB();
-            target.style.setProperty('--main-color', 'white')
+            target.style.setProperty('--main-color', 'white');
             JDownloaderDB(RootDomainDB);
         },
 
@@ -302,7 +302,7 @@ async function Start() {
 
         for (const className in handlers) {
             if (target.classList.contains(className)) {
-                e.preventDefault()
+                e.preventDefault();
                 // async 핸들러 지원 위해 await 처리
                 await handlers[className](target);
                 break; // 하나만 처리
@@ -313,7 +313,7 @@ async function Start() {
     const CopyOffSetArea = $('#post_content');
 
     UpdateDB();
-    if (!CopyOffSetArea) return
+    if (!CopyOffSetArea) return;
 
     if (CopyOffSetArea && !$('.IconSet')) {
         centerBox.insertAdjacentHTML('afterend', `
@@ -337,9 +337,9 @@ async function Start() {
 }
 
 
-FontAwesomeCSS()
+FontAwesomeCSS();
 
-GetOriginalURL('a[href*="https://safedl.net/dl/"]')
+GetOriginalURL('a[href*="https://safedl.net/dl"]');
 
 async function GetOriginalURL(selector) {
     const linkElements = Array.from(document.querySelectorAll(selector));
@@ -398,10 +398,10 @@ async function GetOriginalURL(selector) {
 
 window.addEventListener('storage', (e) => {
     if (localStorage.getItem('AutoClose') == 1) {
-        CopyItems()
+        CopyItems();
     }
-    UpdateDB()
-})
+    UpdateDB();
+});
 
 
 function UpdateDB() {
@@ -426,6 +426,7 @@ function UpdateDB() {
     const opacity = count === 0 ? "0.25" : "1";
     clearBtn.style.opacity = opacity;
     copyBtn.style.opacity = opacity;
+    copyBtn.style.setProperty('--main-color', 'LimeGreen');
 
     // AutoClose 상태 반영
     const autoCloseEnabled = localStorage.getItem('AutoClose') === '1';
@@ -525,24 +526,28 @@ function CheckTitle(startIndex) {
 }
 
 
-const extractText = (DOMElement) => {
+function extractText(DOMElement) {
     if (!DOMElement) return [];
 
     return Array.from(DOMElement.childNodes)
         .filter(child => child.textContent?.trim())
         .map(child => {
+            console.log(child.outerHTML);
             const text = child.textContent.trim();
             const isTitle = /<h[12].+<\/h[12]>/s.test(child.outerHTML) || /<div class="title-04">\s*<div class="red"/s.test(child.outerHTML);
-            return text.replace('\n', ' ').replace('Download (ダウンロード):', '').trim();
-        })
-        .filter(text => text && text !== 'GetTitle :');
-    }
+            if (isTitle) {
+                return 'GetTitle :' + text.trim();
+            } else {
+                return text.replace('\n', ' ').replace('Download (ダウンロード):', '').trim();
+            }
+        });
+}
 
 function createArea(A, B) {
     if (B) {
-        A.appendChild(B)
+        A.appendChild(B);
     }
-    return A
+    return A;
 }
 
 // 슬라이드 애니메이션 (slideToggle 대체)
@@ -567,7 +572,7 @@ function slideToggle(el, duration = 300) {
         });
         setTimeout(() => {
             el.style.display = 'none';
-            el.textContent = ''
+            el.textContent = '';
         }, duration);
     }
 }
@@ -579,22 +584,23 @@ function sleep(ms) {
 
 // 메인 실행 함수
 async function CopyItems() {
-    console.log('CopyItems Start!')
+    console.log('CopyItems Start!');
     const titleParagraph = document.querySelector('div#post_content > div div.item-top > div.title-04 > p');
+    const mutilTitleParagraph = document.querySelectorAll('div#post_content > h1 > span');
     const mainContent = document.querySelector('div#post_content');
     const baseElement = titleParagraph ? createArea(
         document.querySelector('div#post_content > div div.item-top > div.title-04'),
         mainContent.querySelector('p')
     ) : mainContent;
-    console.log(titleParagraph, mainContent, baseElement)
+    console.log(titleParagraph, mutilTitleParagraph, mainContent, baseElement);
 
     InfoArea = extractText(baseElement)
         .flatMap(e => e.split('\n'))
         .map(e => e.trim())
         .filter(Boolean);
 
-    TitleDBIndex = CheckTitle(0)
-    console.log(InfoArea, TitleDBIndex, baseElement)
+    TitleDBIndex = CheckTitle(0);
+    console.log(InfoArea, TitleDBIndex, baseElement);
 
     const LinksDB = [];
     let Notice = '';
@@ -604,7 +610,7 @@ async function CopyItems() {
         const Last = TitleDBIndex[i + 1] ?? InfoArea.length;
         const rawTitle = InfoArea[First].match(TitleExr)?.[2] || InfoArea[First];
         const Title = NormalizeTitle(rawTitle);
-        console.log(Title, First, Last)
+        console.log(Title, First, Last);
         for (let j = First + 1; j < Last; j++) {
             const line = InfoArea[j];
             if (/GetTitle/.test(line)) break;
@@ -646,12 +652,12 @@ async function CopyItems() {
 
 function PackageList(LinksDB) {
     if (LinksDB?.length > 0) {
-        let uniqueTitle = [...new Set(LinksDB.map(x => x.T))]
-        console.log(uniqueTitle)
-        return uniqueTitle
+        let uniqueTitle = [...new Set(LinksDB.map(x => x.T))];
+        console.log(uniqueTitle);
+        return uniqueTitle;
     }
     else {
-        return []
+        return [];
     }
 }
 
@@ -688,7 +694,7 @@ function FilenameConvert(str) {
 
 
 function JDownloader(JdownloaderData, PackageName) {
-    console.log(PackageName + '\n' + JdownloaderData)
+    console.log(PackageName + '\n' + JdownloaderData);
     if (JdownloaderData) {
         /*
         $.post("http://127.0.0.1:9666/flash/add", {
@@ -699,9 +705,9 @@ function JDownloader(JdownloaderData, PackageName) {
         */
         let data = new URLSearchParams();
         data.append(`urls`, JdownloaderData);
-        data.append(`referer`, PageURL)
+        data.append(`referer`, PageURL);
         if (PackageName) {
-            data.append(`package`, PackageName)
+            data.append(`package`, PackageName);
         }
         //console.log(data)
         fetch('http://127.0.0.1:9666/flash/add', {
@@ -711,16 +717,16 @@ function JDownloader(JdownloaderData, PackageName) {
                 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
             },
             body: data
-        })
+        });
 
     }
 
 }
 
 function JDownloaderDB(LinksDB) {
-    let uniqueTitle = [...new Set(LinksDB.map(x => x.T))] || [...new Set(LinksDB.map(x => x.U))]
+    let uniqueTitle = [...new Set(LinksDB.map(x => x.T))] || [...new Set(LinksDB.map(x => x.U))];
     //console.log(uniqueTitle)
-    uniqueTitle.forEach(x => JDownloader(GetMatchLinks(x, LinksDB), x))
+    uniqueTitle.forEach(x => JDownloader(GetMatchLinks(x, LinksDB), x));
 }
 
 function GetMatchLinks(text, LinksDB) {
