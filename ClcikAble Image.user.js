@@ -66,7 +66,7 @@ const xidol = {
 
 const jappydolls = {
     MatchUrl: 'jappydolls.net',
-    MakeClickImage: 'article.hentry div.entry-content a img',
+    MakeClickImage: 'article.hentry div.entry-content center a img, article.hentry div.entry-summary center a img',
     Approach: 'AReplace',
     closestTag: 'article.hentry',
     SearchATag: 'header.entry-header h1.entry-title a',
