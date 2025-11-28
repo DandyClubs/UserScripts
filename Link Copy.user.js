@@ -843,7 +843,7 @@ const siteConfigs = [
                     CoverImage = '';
                 }
                 // 그 외의 경우, 특정 키워드(Updates, SITERIP, Collection)가 포함되어 있고 InfoAreaCast의 길이가 1보다 클 때
-                else if (/Updates|SITERIP|Collection/i.test(CopyTitleRaw)) {
+                else if (/Updates|SITERIP|Collection/i.test(CopyTitleRaw) || EachTitle.length > 1) {
                     userClose = false;
                     console.log('Special case found:', CopyTitleRaw);
                     CoverImage = '';
@@ -909,7 +909,7 @@ const siteConfigs = [
                     console.log('CopyTitle:', CopyTitle);
 
                     // 다운로드 링크 추출 및 우선순위
-                    if (!/OnlyFans|Updates|SITERIP|Collection/i.test(CopyTitleRaw)) {
+                    if (!/OnlyFans|Updates|SITERIP|Collection/i.test(CopyTitleRaw) || EachTitle.length <= 1) {
                         const getDownloadLinks = (areas) => {
                             const priorityPatterns = [/1080p|1080\.mp4/i, /2160p/i];
                             let finalLinks = [];
