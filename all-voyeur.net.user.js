@@ -586,11 +586,12 @@ async function CopyItems() {
     console.log('CopyItems Start!');
     const titleParagraph = document.querySelector('div#post_content > div div.item-top > div.title-04 > p');
     const mutilTitleParagraph = document.querySelectorAll('div#post_content > h1 > span');
+    const singleParagraph = document.querySelector('div#content div.article_container');
     const mainContent = document.querySelector('div#post_content');
     const baseElement = titleParagraph ? createArea(
         document.querySelector('div#post_content > div div.item-top > div.title-04'),
         mainContent.querySelector('p')
-    ) : mainContent;
+    ) : singleParagraph;
     console.log(titleParagraph, mutilTitleParagraph, mainContent, baseElement);
 
     InfoArea = extractText(baseElement)
