@@ -591,7 +591,7 @@ async function CopyItems() {
     const baseElement = titleParagraph ? createArea(
         document.querySelector('div#post_content > div div.item-top > div.title-04'),
         mainContent.querySelector('p')
-    ) : singleParagraph;
+    ) : mutilTitleParagraph?.length > 0 ? mainContent : singleParagraph;
     console.log(titleParagraph, mutilTitleParagraph, mainContent, baseElement);
 
     InfoArea = extractText(baseElement)
