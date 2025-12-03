@@ -143,7 +143,7 @@ const PAGE_URL = window.location.href;
 const ROOT_DOMAIN = extractRootDomain(PAGE_URL);
 
 // 필터링 및 정규식 상수를 최상위에 정의
-const SKIP_FILTER = new RegExp('windfiles\\.com|mypikpak\\.com|pricing\\?aff|mega\\.nz\\/aff|katfile\\.(com|cloud)\\/free\\d+.html|developershome|md5file\\.com|attachment|premium|upgrade|javascript|search|SKIP|#$|^\/|^(?=.*' + ROOT_DOMAIN + ')(?!.*\\?site).*$');
+const SKIP_FILTER = new RegExp('rapidgator\\.net\\/folder\\/|windfiles\\.com|mypikpak\\.com|pricing\\?aff|mega\\.nz\\/aff|katfile\\.(com|cloud)\\/(free|users)\\/|developershome|md5file\\.com|attachment|premium|upgrade|javascript|search|SKIP|#$|^\/|^(?=.*' + ROOT_DOMAIN + ')(?!.*\\?site).*$');
 const SKIP_CLASS_NAMES = ['adead_link', 'autohyperlink', 'social-icon'];
 const SKIP_TITLE = ['ACZD', 'HIGR'];
 const EXCLUDE_CHAR = /[<\/:>*?"|\\]/g;
@@ -525,7 +525,7 @@ if (!document.querySelector('.CopyItemIcon') && document.querySelector('.pg_view
 
     copyKatIcon.addEventListener("click", function (e) {
         e.preventDefault();
-        SKIP_FILTER = /developershome|md5file\.com|attachment|premium|upgrade|javascript|search|SKIP|\/(users|reg)\/|#$|^\/|^(?!.*(fikper|katfile|rosefile|mega|rapidgator|mexa\.sh|drop\.download)).*$/;
+        SKIP_FILTER = /developershome|md5file\.com|attachment|premium|upgrade|javascript|search|SKIP|\/(users|reg|folder)\/|#$|^\/|^(?!.*(fikper|katfile|rosefile|mega|rapidgator|mexa\.sh|drop\.download)).*$/;
         console.log(SKIP_FILTER);
         copyKatIcon.style.setProperty('color', 'Orange', 'important');
         KatCopyProcess();
