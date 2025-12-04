@@ -137,6 +137,7 @@
         { site: /xchina\.co/, c: el => el.closest('div.list div.item'), a: 'NEW_TAB' },
         { site: /thotsbay|cyberleaks/, c: el => el.parentElement.classList.contains('structItem-title'), a: 'NEW_TAB' },
         { site: /theleaksbay\.com/, c: el => el.classList.contains('image-link'), a: 'NEW_TAB' },
+        { site: /planetsuzy\.org/, c: el => el.closest('td')?.getAttribute('id').match(/td_threadtitle/), a: 'NEW_TAB' },
         { site: /xxx-sharing\.net/, c: el => el.getAttribute('id')?.match(/thread_title/), a: 'NEW_TAB' },
         { site: /yandex\.com\/search/, c: el => el.classList.contains('OrganicTitle-Link') || el.closest('a.OrganicTitle-Link'), a: 'NEW_TAB' },
         { site: /.*/, c: el => el.closest('.infy-scroll-divider'), a: 'SAME_TAB' },
