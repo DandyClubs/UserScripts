@@ -525,8 +525,6 @@ if (!document.querySelector('.CopyItemIcon') && document.querySelector('.pg_view
 
     copyKatIcon.addEventListener("click", function (e) {
         e.preventDefault();
-        SKIP_FILTER = /developershome|md5file\.com|attachment|premium|upgrade|javascript|search|SKIP|\/(users|reg|folder)\/|#$|^\/|^(?!.*(fikper|katfile|rosefile|mega|rapidgator|mexa\.sh|drop\.download)).*$/;
-        console.log(SKIP_FILTER);
         copyKatIcon.style.setProperty('color', 'Orange', 'important');
         KatCopyProcess();
     });
