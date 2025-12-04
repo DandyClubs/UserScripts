@@ -143,7 +143,7 @@ const PAGE_URL = window.location.href;
 const ROOT_DOMAIN = extractRootDomain(PAGE_URL);
 
 // 필터링 및 정규식 상수를 최상위에 정의
-const SKIP_FILTER = new RegExp('rapidgator\\.net\\/folder\\/|windfiles\\.com|mypikpak\\.com|pricing\\?aff|mega\\.nz\\/aff|katfile\\.(com|cloud)\\/(free|users)\\/|developershome|md5file\\.com|attachment|premium|upgrade|javascript|search|SKIP|#$|^\\/|^(?=.*' + ROOT_DOMAIN + ')(?!.*\\?site).*$');
+const SKIP_FILTER = new RegExp('rapidgator\\.net\\/folder\\/|windfiles\\.com|mypikpak\\.com|pricing\\?aff|mega\\.nz\\/aff|katfile\\.(com|cloud)\\/(free|users)\\/|developershome|md5file\\.com|attachment|premium|upgrade|javascript|search|SKIP|#$|^\\/|^(?=.*' + ROOT_DOMAIN + ').*$');
 const SKIP_CLASS_NAMES = ['adead_link', 'autohyperlink', 'social-icon'];
 const SKIP_TITLE = ['ACZD', 'HIGR'];
 const EXCLUDE_CHAR = /[<\/:>*?"|\\]/g;
