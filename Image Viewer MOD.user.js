@@ -881,12 +881,14 @@ const ExpandTag = new IntersectionObserver((entries, self) => {
 }, { root: null, rootMargin: "0px 0px 500px 0px", threshold: 0.5 });
 
 
+const imagesQueue = new Queue();
+
 const IO = new IntersectionObserver((entries, self) => {
     for (const entry of entries) {
         const imgEl = entry.target;
         const link = imgEl.closest && imgEl.closest('a.ivChecked');
         if (!imgEl.matches('.ClickAbleItem')) {
-            imgEl.setAttribute('loading', 'eager');
+            //imgEl.setAttribute('loading', 'eager');            
             image.getSize(imgEl).then(async () => {
                 if (ImageExists(imgEl) && !ImageBigSize(imgEl)) {
                     image.getFullSizeURL(link);
@@ -895,7 +897,7 @@ const IO = new IntersectionObserver((entries, self) => {
             }).catch(e => console.error(e));
         }
     }
-}, { root: null, rootMargin: "0px 0px", threshold: 0 });
+}, { root: null, rootMargin: "0px 1000px", threshold: 0 });
 
 
 function AtoBLinks(link) {
