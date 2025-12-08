@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Image Viewer MOD (Refactored) 
-// @version      2025.09.27
+// @version      2025.12.08
 // @description  View full image without leaving the page or on a new tab without ads
 // @namespace    https://github.com/nikolay-borzov
 // @author       nikolay-borzov
@@ -384,12 +384,12 @@ const siteModules = [
 siteModules.sort((a, b) => a.name.localeCompare(b.name));
 
 const viewerCSS = function () {
-    let css = document.createElement('link')
-    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.css'
-    css.rel = 'stylesheet'
-    css.type = 'text/css'
-    document.getElementsByTagName('head')[0].appendChild(css)
-}
+    let css = document.createElement('link');
+    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.css';
+    css.rel = 'stylesheet';
+    css.type = 'text/css';
+    document.getElementsByTagName('head')[0].appendChild(css);
+};
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const lazyAttributes = [
@@ -409,10 +409,10 @@ const lazyAttributes = [
     "data-placeholder",
     "data-thumb_url",
     "data-url",
-]
+];
 
 // 转为 Object
-let lazyAttributesMap = []
+let lazyAttributesMap = [];
 lazyAttributes.forEach(function (name) {
     lazyAttributesMap[name] = true;
 });
@@ -452,13 +452,13 @@ filter: alpha(opacity=80);
     box-shadow: 2px 4px 10px 0 rgba(0, 0, 0, .5);
     border-radius: .5em;
 }
-`
+`;
 
 function AddStyles(CSS, ID) {
-    let styleSheet = document.createElement("style")
-    styleSheet.textContent = CSS
-    styleSheet.id = ID
-    document.head.appendChild(styleSheet)
+    let styleSheet = document.createElement("style");
+    styleSheet.textContent = CSS;
+    styleSheet.id = ID;
+    document.head.appendChild(styleSheet);
 }
 
 
@@ -512,6 +512,74 @@ class Queue {
 
 
 const queue = new Queue();
+const getFullSizeQueue = new Queue();
+
+
+let getFullSizeManagementWorking = false; // should be declared outside
+
+const TASK_TIMEOUT_MS = 5000; // 👈 작업 시간 초과 설정 (5초)
+
+function getFullSizeManagement() {
+    if (getFullSizeManagementWorking) return; // prevent concurrent runs
+    getFullSizeManagementWorking = true;
+
+    // 비동기 재귀 함수로 변경
+    async function processNext() {
+        if (getFullSizeQueue.isEmpty()) {
+            getFullSizeManagementWorking = false;
+            return; // 큐가 비면 종료
+        }
+
+        const linkElement = getFullSizeQueue.dequeue(); // 큐에서 작업을 꺼냅니다.
+
+        // 1. 작업 실행 및 시간 초과 설정
+        try {
+            // image.getFullSizeURL(linkElement)는 Promise를 반환합니다.
+            const taskPromise = image.getFullSizeURL(linkElement);
+
+            // 2. 시간 초과 Promise 생성
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Task Timeout')), TASK_TIMEOUT_MS)
+            );
+
+            // 3. 둘 중 먼저 완료되는 것을 기다립니다.
+            await Promise.race([taskPromise, timeoutPromise]);
+            // 성공적으로 URL을 얻었을 경우
+            // console.log(`[Queue] Success for ${linkElement.href}`);
+
+        } catch (error) {
+            // 시간 초과 또는 getFullSizeURL 내부 오류 발생 시
+            if (error.message === 'Task Timeout') {
+                console.warn(`[Queue] Timeout processing link: ${linkElement}`);
+                // URL 추출에 실패했음을 사용자에게 알리는 등의 추가 처리를 할 수 있습니다.
+                // 예: image.markAsBroken(linkElement);
+            } else {
+                console.error(`[Queue] Error processing link: ${linkElement}`, error);
+            }
+        }
+
+        // 4. 다음 작업을 처리합니다. (성공, 실패, 시간 초과 모두 다음으로 진행)        
+        processNext();
+    }
+
+    // 첫 번째 작업 시작
+    processNext();
+}
+
+function IO(imgEl) {
+    const link = imgEl.closest && imgEl.closest('a.ivChecked');
+    if (!imgEl.matches('.ClickAbleItem')) {
+        //imgEl.setAttribute('loading', 'eager');            
+        image.getSize(imgEl).then(async () => {
+            if (ImageExists(imgEl) && !ImageBigSize(imgEl)) {
+                getFullSizeQueue.enqueue(link);
+                if (!getFullSizeManagementWorking) {
+                    getFullSizeManagement();
+                }
+            }
+        }).catch(e => console.error(e));
+    }
+}
 
 
 let ManagementWorking = false; // should be declared outside
@@ -545,8 +613,8 @@ function Management() {
 
 
 
-let viewer = null, AddStyleRun = true
-let startTime, endTime
+let viewer = null, AddStyleRun = true;
+let startTime, endTime;
 
 const loadImage = (imageSrc) => new Promise((resolve, reject) => {
     const image = new Image();
@@ -570,10 +638,10 @@ const loadImage = (imageSrc) => new Promise((resolve, reject) => {
 
 
 let ViewerList = new Set();
-let isWorking = false
+let isWorking = false;
 
-let lastViewerUpdated = performance.now()
-let viewerUpdateTimer = null
+let lastViewerUpdated = performance.now();
+let viewerUpdateTimer = null;
 
 function viewerUpdate() {
     if (viewerUpdateTimer) {
@@ -584,14 +652,14 @@ function viewerUpdate() {
         if (ViewerList.size >= 10) {
             viewer.update();
             ViewerList.clear();
-            clearTimeout(viewerUpdateTimer)
+            clearTimeout(viewerUpdateTimer);
             viewerUpdateTimer = null; // 타이머 실행 후 초기화
         }
         else {
             viewerUpdateTimer = setTimeout(() => {
                 viewer.update();
                 ViewerList.clear();
-                clearTimeout(viewerUpdateTimer)
+                clearTimeout(viewerUpdateTimer);
                 viewerUpdateTimer = null; // 타이머 실행 후 초기화
             }, 5000);
         }
@@ -701,8 +769,8 @@ const request = (details) => new Promise((resolve, reject) => {
 });
 
 let openInTab = (url, openInBackground) => {
-    return GM_openInTab(url, openInBackground)
-}
+    return GM_openInTab(url, openInBackground);
+};
 
 
 function GetOnline(details) {
@@ -720,7 +788,7 @@ function GetOnline(details) {
             onload: function (resp) {
                 //let container = document.implementation.createHTMLDocument().documentElement;
                 //container.innerHTML = resp.responseText;
-                resolve(resp)
+                resolve(resp);
             },
             onerror: function (err) {
                 reject(err);
@@ -728,8 +796,8 @@ function GetOnline(details) {
             ontimeout: function (err) {
                 reject(err);
             },
-        })
-    })
+        });
+    });
 }
 
 async function getURLFromPage(link, extractor, requestDetails) {
@@ -770,9 +838,9 @@ async function getURLFromPage(link, extractor, requestDetails) {
 
 async function getPageHtml(requestDetails) {
     //console.log(requestDetails)
-    const response = await request(requestDetails)
+    const response = await request(requestDetails);
     //console.log('getPageHtml: ', response)
-    return response.responseText
+    return response.responseText;
 }
 
 
@@ -818,22 +886,22 @@ const urlExtractor = {
     },
 };
 
-const getExtractor = urlExtractor.getHostExtractorMatcher()
+const getExtractor = urlExtractor.getHostExtractorMatcher();
 
 function sortCaseInsensitive(items, getValue) {
     return items
         .map((value, index) => ({ index, value: getValue(value).toLowerCase() }))
         .sort((a, b) => {
             if (a.value > b.value) {
-                return 1
+                return 1;
             }
             if (a.value < b.value) {
-                return -1
+                return -1;
             }
 
-            return 0
+            return 0;
         })
-        .map((m) => items[m.index])
+        .map((m) => items[m.index]);
 }
 
 
@@ -855,24 +923,24 @@ const CLASSES = {
     grabbing: 'iv-image--grabbing',
     buttonActive: 'iv-icon-button--active',
     imageView: 'ViewerImage',
-}
+};
 
 const SELECTORS = {
     imageLink: `.${CLASSES.imageLink}`,
     imageOpenInNewLink: `.${CLASSES.imageLinkOpenInNew}`,
-}
+};
 
 const EMPTY_SRC =
-    'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEAAAAALAAAAAABAAEAAAI='
+    'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEAAAAALAAAAAABAAEAAAI=';
 
-const TRANSITION_DURATION = 350
+const TRANSITION_DURATION = 350;
 
-let PreLoadDB = []
+let PreLoadDB = [];
 
 
 const ExpandTag = new IntersectionObserver((entries, self) => {
     for (const entry of entries) {
-        const el = entry.target;        
+        const el = entry.target;
         if (el.nodeName.toLowerCase() === 'div' && !el.classList?.contains('unfolded')) {
             el.click();
             self.unobserve(entry.target);
@@ -880,31 +948,11 @@ const ExpandTag = new IntersectionObserver((entries, self) => {
     }
 }, { root: null, rootMargin: "0px 0px 500px 0px", threshold: 0.5 });
 
-
-const imagesQueue = new Queue();
-
-const IO = new IntersectionObserver((entries, self) => {
-    for (const entry of entries) {
-        const imgEl = entry.target;
-        const link = imgEl.closest && imgEl.closest('a.ivChecked');
-        if (!imgEl.matches('.ClickAbleItem')) {
-            //imgEl.setAttribute('loading', 'eager');            
-            image.getSize(imgEl).then(async () => {
-                if (ImageExists(imgEl) && !ImageBigSize(imgEl)) {
-                    image.getFullSizeURL(link);
-                    self.unobserve(entry.target);
-                }
-            }).catch(e => console.error(e));
-        }
-    }
-}, { root: null, rootMargin: "0px 1000px", threshold: 0 });
-
-
 function AtoBLinks(link) {
-    let linkAtoB = /(\/|=)(aHR0c[a-zA-z0-9]+={0,2})($|\/|\?|&|-?-?;?)/.exec(link.href)
-    console.log(linkAtoB)
-    link.href = atob(linkAtoB[2]).replace(/\?site=.+/, '')
-    return link
+    let linkAtoB = /(\/|=)(aHR0c[a-zA-z0-9]+={0,2})($|\/|\?|&|-?-?;?)/.exec(link.href);
+    console.log(linkAtoB);
+    link.href = atob(linkAtoB[2]).replace(/\?site=.+/, '');
+    return link;
 }
 
 
@@ -913,7 +961,7 @@ const linkCommonClasses = [
     'iv-image-link',
     //'iv-icon--hover',
     //'iv-icon--size-button',
-]
+];
 
 
 
@@ -997,7 +1045,7 @@ async function initViewer(node) {
                 : [CLASSES.imageLink])
         );
 
-        IO.observe(img);
+        IO(img);
     }
 
     // 3) Return the items for any further use
@@ -1005,12 +1053,12 @@ async function initViewer(node) {
 }
 
 function AddEvent(el) {
-    el.addEventListener('click', (event) => {        
+    el.addEventListener('click', (event) => {
         const clicked = event.target.closest('.ViewerGallery');
         if (clicked) {
             event.preventDefault();
             event.stopPropagation();
-            event.stopImmediatePropagation();            
+            event.stopImmediatePropagation();
             viewer.update();
             ViewerList.clear();
             const galleries = document.querySelectorAll('.ViewerGallery');
@@ -1022,7 +1070,7 @@ function AddEvent(el) {
 
 
 function ImageBigSize(image) {
-    let big = false
+    let big = false;
     let W = image.naturalWidth;
     let H = image.naturalHeight;
 
@@ -1032,7 +1080,7 @@ function ImageBigSize(image) {
     else if (W >= 600 && H >= 800) {
         big = true;
     }
-    return big
+    return big;
 }
 
 
@@ -1059,14 +1107,14 @@ function ImageExists(image) {
     if (!dimensions) return true; // no known "no image" dimensions for this domain
 
     // Check if image size matches any known "no image" dimension
-    const result = dimensions.some(dim => dim.w === W && dim.h === H)
+    const result = dimensions.some(dim => dim.w === W && dim.h === H);
 
     if (result) {
         const link = image.closest('a');
-        link.classList.remove('ViewerGallery')
+        link.classList.remove('ViewerGallery');
         //viewer.update()
-        ViewerList.delete(link)
-        viewerUpdate()
+        ViewerList.delete(link);
+        viewerUpdate();
     }
     return !result;
 }
@@ -1074,115 +1122,115 @@ function ImageExists(image) {
 
 const image = {
     async getFullSizeURL(link) {
-        let imageURL = link.dataset.ivImgUrl
+        let imageURL = link.dataset.ivImgUrl;
         let img = link.querySelector('img');
 
         if (imageURL) {
-            link.dataset.ivImgUrl = imageURL
-            link.classList.add('ViewerGallery')
-            return imageURL
+            link.dataset.ivImgUrl = imageURL;
+            link.classList.add('ViewerGallery');
+            return imageURL;
         }
 
-        const thumbnailURL = link.dataset.ivThumbnail
-        const imageHost = link.dataset.ivHost
+        const thumbnailURL = link.dataset.ivThumbnail;
+        const imageHost = link.dataset.ivHost;
 
         if (!thumbnailURL || !imageHost) {
             throw new Error(
                 '[image-viewer] Either thumbnail URL or host is not set'
-            )
+            );
         }
 
         imageURL = await urlExtractor.getImageURL({
             url: link.href,
             thumbnailURL,
             host: imageHost,
-        })
+        });
 
         //console.log('urlExtractor: ', imageURL)
 
         if (!imageURL) {
-            image.markAsBroken(link)
-            link.classList.remove('ViewerGallery')
+            image.markAsBroken(link);
+            link.classList.remove('ViewerGallery');
             //viewer.update()
-            ViewerList.delete(link)
-            viewerUpdate()
-            return
+            ViewerList.delete(link);
+            viewerUpdate();
+            return;
         }
 
         try {
-            const extractor = urlExtractor.getExtractorByHost(imageHost)
+            const extractor = urlExtractor.getExtractorByHost(imageHost);
             if (extractor.viewMode === 'origin-download') {
                 //imageURL = await image.CheckOnline(imageURL)
                 //console.log(imageURL)
-                imageURL = await image.loadAsBlob(imageURL)
+                imageURL = await image.loadAsBlob(imageURL);
                 //console.log(imageURL)
             }
 
         } catch {
-            console.log(imageURL)
-            image.markAsBroken(link)
-            link.setAttribute('target', '_blank')
+            console.log(imageURL);
+            image.markAsBroken(link);
+            link.setAttribute('target', '_blank');
         }
 
 
-        link.dataset.ivImgUrl = imageURL
+        link.dataset.ivImgUrl = imageURL;
         link.classList.add('ViewerGallery');
-        AddEvent(img);        
+        AddEvent(img);
         //viewer.update()
         ViewerList.add(link);
         viewerUpdate();
-        return imageURL
+        return imageURL;
     },
 
     preload(url, onSizeGet) {
         return new Promise((resolve, reject) => {
-            const imageObject = new Image()
+            const imageObject = new Image();
 
-            imageObject.addEventListener('load', () => resolve())
-            imageObject.addEventListener('error', reject)
+            imageObject.addEventListener('load', () => resolve());
+            imageObject.addEventListener('error', reject);
 
-            imageObject.src = url
+            imageObject.src = url;
 
             if (onSizeGet) {
-                image.getSize(imageObject).then(onSizeGet)
+                image.getSize(imageObject).then(onSizeGet);
             }
-        })
+        });
     },
 
 
     CheckOnline(url) {
         return new Promise((resolve, reject) => {
-            console.log(url)
+            console.log(url);
             GM_xmlhttpRequest({
                 method: "GET",
                 url: url,
                 responseType: 'blob',
                 timeout: 600000,
                 onload: function (resp) {
-                    console.log(url, resp.status)
+                    console.log(url, resp.status);
                     //resolve(resp.status)
                     if (resp.status == 200) {
-                        resolve(window.URL.createObjectURL(resp.response))
+                        resolve(window.URL.createObjectURL(resp.response));
                     }
                     else {
-                        console.log(url, resp.status)
-                        reject(resp.status)
+                        console.log(url, resp.status);
+                        reject(resp.status);
                     }
                 },
                 onerror: function (error) {
-                    console.log(url, error.status)
+                    console.log(url, error.status);
                     reject(error);
                 },
                 ontimeout: function (error) {
-                    console.log(url, 'timeout')
+                    console.log(url, 'timeout');
                     reject(error);
                 }
-            })
-        })
+            });
+        });
     },
 
     async loadAsBlob(url) {
-        const origin = new URL(url).origin
+        const origin = new URL(url).origin;
 
         const response = await request({
             url,
@@ -1191,33 +1239,33 @@ const image = {
                 origin,
             },
             responseType: 'blob',
-        })
+        });
         //console.log(response, response.status)
-        return URL.createObjectURL(response.response)
+        return URL.createObjectURL(response.response);
     },
 
     getSize(img) {
         return new Promise((resolve) => {
             if (img.complete) {
-                resolve({ width: img.naturalWidth, height: img.naturalHeight, isLoaded: img.complete })
+                resolve({ width: img.naturalWidth, height: img.naturalHeight, isLoaded: img.complete });
             }
-            else {                
+            else {
                 img.onload = () => {
-                    resolve({ width: img.naturalWidth, height: img.naturalHeight, isLoaded: img.complete })
-                }
+                    resolve({ width: img.naturalWidth, height: img.naturalHeight, isLoaded: img.complete });
+                };
             }
-        })
+        });
     },
 
     markAsBroken(link) {
-        link.classList.remove('js-image-link')
-        link.removeAttribute('title')
+        link.classList.remove('js-image-link');
+        link.removeAttribute('title');
     },
-}
+};
 
 
 const mutCallback = (mutationsList, observer) => {
-    let AddList = []
+    let AddList = [];
     for (const { addedNodes } of mutationsList) {
         for (const node of addedNodes) {
             if (!(node instanceof HTMLElement)) continue;
@@ -1226,9 +1274,9 @@ const mutCallback = (mutationsList, observer) => {
                 //console.log(node, node.nodeName, node.parentNode?.querySelector('img'))
                 for (const e of node.parentNode?.querySelectorAll('img:not(.Error)')) {
                     if (e.closest('a') && !e.closest('a').classList?.contains('ivChecked')) {
-                        let P = e.closest('a').parentElement.parentElement
+                        let P = e.closest('a').parentElement.parentElement;
                         if (P.nodeName !== 'BODY') {
-                            AddList.push(P)
+                            AddList.push(P);
                         }
                     }
                 }
@@ -1237,89 +1285,89 @@ const mutCallback = (mutationsList, observer) => {
     }
 
     if (AddList.length) {
-        let unique = [...new Set(AddList)]
+        let unique = [...new Set(AddList)];
 
         for (let x of unique) {
-            queue.enqueue(x)
+            queue.enqueue(x);
         }
         //console.log(ManagementWorking , queue.peek())
         if (!ManagementWorking && queue.peek()) {
-            Management()
+            Management();
         }
     }
-}
+};
 
-const attributesobserver = new MutationObserver(mutCallback)
+const attributesobserver = new MutationObserver(mutCallback);
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 window.addEventListener("DOMContentLoaded", () => {
-    viewerCSS()
-    Start()
+    viewerCSS();
+    Start();
 }, { once: true });
 
 async function Start() {
-    startTime = performance.now()
-    let ImageLinks = []
+    startTime = performance.now();
+    let ImageLinks = [];
     if (/javarchive\.com\/.*\.html/.test(PageURL)) {
-        ImageLinks = document.querySelectorAll('a[href*="https://pixhost.to/show"]')
+        ImageLinks = document.querySelectorAll('a[href*="https://pixhost.to/show"]');
         Array.from(ImageLinks).forEach(async (el) => {
             if (el.innerText === 'CLICK HERE!') {
-                el.children[0].remove()
-                const ImageTag = document.createElement('img')
-                ImageTag.src = await CheckThumbnail(el.href)
-                el.appendChild(ImageTag)
+                el.children[0].remove();
+                const ImageTag = document.createElement('img');
+                ImageTag.src = await CheckThumbnail(el.href);
+                el.appendChild(ImageTag);
             }
-        })
-        ImageLinks = document.querySelectorAll('a[href*="img.javstore.net/images"]')
+        });
+        ImageLinks = document.querySelectorAll('a[href*="img.javstore.net/images"]');
         Array.from(ImageLinks).forEach(el => {
             if (el.innerText === 'CLICK HERE!') {
-                el.children[0].remove()
-                const ImageTag = document.createElement('img')
-                const thumbnailExtension = el.href.split('.').pop() ?? ''
-                ImageTag.src = el.href.replace('.' + thumbnailExtension, '.th.' + thumbnailExtension)
-                el.appendChild(ImageTag)
+                el.children[0].remove();
+                const ImageTag = document.createElement('img');
+                const thumbnailExtension = el.href.split('.').pop() ?? '';
+                ImageTag.src = el.href.replace('.' + thumbnailExtension, '.th.' + thumbnailExtension);
+                el.appendChild(ImageTag);
             }
-        })
+        });
     }
 
-    let Ex = []
+    let Ex = [];
     if (/(rutracker\.org|pornolab\.net|trupornolabs.org)/.test(PageURL)) {
-        let AutoExpandTag = '.sp-head.folded.clickable:not(.unfolded)'
-        Ex = [...document.querySelectorAll(AutoExpandTag)]
+        let AutoExpandTag = '.sp-head.folded.clickable:not(.unfolded)';
+        Ex = [...document.querySelectorAll(AutoExpandTag)];
         Ex.forEach(el => {
-            ExpandTag.observe(el)            
+            ExpandTag.observe(el);
             //el.click()
-        })
+        });
     }
 
 
     if (!Ex?.length && !CheckViewerList(document.body)) {
-        return (`No Image Viewer Item`)
+        return (`No Image Viewer Item`);
     }
 
-    console.log('Start Image Viewer!!!!!!')
+    console.log('Start Image Viewer!!!!!!');
 
-    AddStyles(styles, 'Viewer')
+    AddStyles(styles, 'Viewer');
 
 
-    document.body.setAttribute('id', 'ViewerJS')
+    document.body.setAttribute('id', 'ViewerJS');
 
     AddViewer();
 
     Array.from(document.querySelectorAll('img[src*="filesor.com"]')).forEach((el) => {
-        el.replaceWith(el)
-    })
+        el.replaceWith(el);
+    });
 
     initViewer(document.body)
         .then(async e => {
             if (e.length) {
-                attributesobserver.observe(document.body, { subtree: true, childList: true })
+                attributesobserver.observe(document.body, { subtree: true, childList: true });
             }
             else if (Ex?.length) {
-                attributesobserver.observe(document.body, { subtree: true, childList: true })
+                attributesobserver.observe(document.body, { subtree: true, childList: true });
             }
         })
         .catch(() => {
@@ -1332,7 +1380,7 @@ async function Start() {
 
 
 function CheckThumbnail(url) {
-    let Thumbnail, imageName
+    let Thumbnail, imageName;
     return new Promise((resolve, reject) => {
         GM_xmlhttpRequest({
             method: "GET",
@@ -1341,24 +1389,24 @@ function CheckThumbnail(url) {
             headers: { referer: document.location.href, origin: document.location.href },
             onload: async function (resp) {
                 if (resp.response) {
-                    imageName = url.split('/').pop()?.replace('.html', '')
-                    Thumbnail = resp.response.querySelector('img[src*="' + imageName + '"]')
+                    imageName = url.split('/').pop()?.replace('.html', '');
+                    Thumbnail = resp.response.querySelector('img[src*="' + imageName + '"]');
                     if (Thumbnail) {
-                        resolve(Thumbnail.src.replace('//img', '//t').replace('/images/', '/thumbs/'))
+                        resolve(Thumbnail.src.replace('//img', '//t').replace('/images/', '/thumbs/'));
                     }
                 }
                 else {
-                    console.log(resp)
+                    console.log(resp);
                     reject(resp.response);
                 }
             },
             onerror: function (error) {
-                console.log(error)
-                CheckThumbnail(url)
+                console.log(error);
+                CheckThumbnail(url);
                 //reject(resp.response);
             }
-        })
-    })
+        });
+    });
 }
 
 
@@ -1375,16 +1423,16 @@ function PreloadImages(PreLoadDB) {
             img.onerror = img.onabort = function () {
                 reject(img);
             };
-            img.src = PreLoadDB[0]
+            img.src = PreLoadDB[0];
         }).then(() => {
-            PreLoadDB.shift()
+            PreLoadDB.shift();
             if (PreLoadDB?.length > 0) {
-                PreloadImages(PreLoadDB)
+                PreloadImages(PreLoadDB);
             }
         })
             .catch((img) => {
-                console.log(img)
-                img.style.backgroundImage = "url(" + PreLoadDB[0] + ")"
-            })
+                console.log(img);
+                img.style.backgroundImage = "url(" + PreLoadDB[0] + ")";
+            });
     }
 }
