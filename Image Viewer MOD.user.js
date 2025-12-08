@@ -517,7 +517,7 @@ const getFullSizeQueue = new Queue();
 
 let getFullSizeManagementWorking = false; // should be declared outside
 
-const TASK_TIMEOUT_MS = 5000; // 👈 작업 시간 초과 설정 (5초)
+const TASK_TIMEOUT_MS = 2000; // 👈 작업 시간 초과 설정 (5초)
 
 function getFullSizeManagement() {
     if (getFullSizeManagementWorking) return; // prevent concurrent runs
