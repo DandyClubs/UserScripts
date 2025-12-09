@@ -518,7 +518,7 @@ const getFullSizeQueue = new Queue();
 
 let getFullSizeManagementWorking = false; // should be declared outside
 
-const TASK_TIMEOUT_MS = 3000; // 👈 작업 시간 초과 설정 (5초)
+const TASK_TIMEOUT_MS = 2000; // 👈 작업 시간 초과 설정 (5초)
 
 function getFullSizeManagement() {
     if (getFullSizeManagementWorking) return; // prevent concurrent runs
@@ -582,12 +582,12 @@ function lazyImageManagement() {
         }
 
         const linkElement = lazyImageQueue.dequeue(); // 큐에서 작업을 꺼냅니다.
+        const imgsrc = linkElement.dataset.ivThumbnail;
+        const img = linkElement.querySelector('img');
+        img.setAttribute('src', imgsrc);
 
         // 1. 작업 실행 및 시간 초과 설정
-        try {
-            const imgsrc = linkElement.dataset.ivThumbnail;
-            const img = linkElement.querySelector('img');            
-            img.setAttribute('src', imgsrc);
+        try {            
             // image.getFullSizeURL(linkElement)는 Promise를 반환합니다.
             const taskPromise = loadImage(imgsrc);
 
@@ -597,15 +597,7 @@ function lazyImageManagement() {
             );
 
             // 3. 둘 중 먼저 완료되는 것을 기다립니다.
-            await Promise.race([taskPromise, timeoutPromise]);
-            image.getSize(img).then(async () => {
-                if (ImageExists(img) && !ImageBigSize(img)) {                    
-                    getFullSizeQueue.enqueue(linkElement);
-                    if (!getFullSizeManagementWorking) {
-                        getFullSizeManagement();
-                    }
-                }
-            }).catch(e => console.error(e));
+            await Promise.race([taskPromise, timeoutPromise]);            
             // 성공적으로 URL을 얻었을 경우
             // console.log(`[Queue] Success for ${linkElement.href}`);
 
@@ -614,27 +606,20 @@ function lazyImageManagement() {
             if (error.message === 'Task Timeout') {
                 console.warn(`[Queue] Timeout processing link: ${linkElement}`);
                 // URL 추출에 실패했음을 사용자에게 알리는 등의 추가 처리를 할 수 있습니다.
-                // 예: image.markAsBroken(linkElement);
-                image.getSize(img).then(async () => {
-                    if (ImageExists(img) && !ImageBigSize(img)) {
-                        getFullSizeQueue.enqueue(linkElement);
-                        if (!getFullSizeManagementWorking) {
-                            getFullSizeManagement();
-                        }
-                    }
-                }).catch(e => console.error(e));
+                // 예: image.markAsBroken(linkElement);                
             } else {
-                console.error(`[Queue] Error processing link: ${linkElement}`, error);
-                image.getSize(img).then(async () => {
-                    if (ImageExists(img) && !ImageBigSize(img)) {
-                        getFullSizeQueue.enqueue(linkElement);
-                        if (!getFullSizeManagementWorking) {
-                            getFullSizeManagement();
-                        }
-                    }
-                }).catch(e => console.error(e));
+                console.error(`[Queue] Error processing link: ${linkElement}`, error);                
             }
         }
+
+        image.getSize(img).then(async () => {
+            if (ImageExists(img) && !ImageBigSize(img)) {
+                getFullSizeQueue.enqueue(linkElement);
+                if (!getFullSizeManagementWorking) {
+                    getFullSizeManagement();
+                }
+            }
+        }).catch(e => console.error(e));
 
         // 4. 다음 작업을 처리합니다. (성공, 실패, 시간 초과 모두 다음으로 진행)        
         processNext();
