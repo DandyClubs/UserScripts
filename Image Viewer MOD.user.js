@@ -519,6 +519,7 @@ const getFullSizeQueue = new Queue();
 let getFullSizeManagementWorking = false; // should be declared outside
 
 const TASK_TIMEOUT_MS = 3000; // 👈 작업 시간 초과 설정 (5초)
+const lazyImageTimeoutMS = 2000; // 👈 작업 시간 초과 설정 (5초)
 
 function getFullSizeManagement() {
     if (getFullSizeManagementWorking) return; // prevent concurrent runs
@@ -593,7 +594,7 @@ function lazyImageManagement() {
 
             // 2. 시간 초과 Promise 생성
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Task Timeout')), TASK_TIMEOUT_MS)
+                setTimeout(() => reject(new Error('Task Timeout')), lazyImageTimeoutMS)
             );
 
             // 3. 둘 중 먼저 완료되는 것을 기다립니다.
