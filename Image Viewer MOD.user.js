@@ -566,20 +566,6 @@ function getFullSizeManagement() {
     processNext();
 }
 
-function IO(imgEl) {
-    const link = imgEl.closest && imgEl.closest('a.ivChecked');
-    if (!imgEl.matches('.ClickAbleItem')) {
-        //imgEl.setAttribute('loading', 'eager');            
-        image.getSize(imgEl).then(async () => {
-            if (ImageExists(imgEl) && !ImageBigSize(imgEl)) {
-                getFullSizeQueue.enqueue(link);
-                if (!getFullSizeManagementWorking) {
-                    getFullSizeManagement();
-                }
-            }
-        }).catch(e => console.error(e));
-    }
-}
 
 
 let ManagementWorking = false; // should be declared outside
@@ -1043,10 +1029,24 @@ async function initViewer(node) {
             ...(isNewTab
                 ? [CLASSES.imageLinkOpenInNew, CLASSES.openInNewIcon]
                 : [CLASSES.imageLink])
-        );
-
-        IO(img);
+        );       
     }
+
+    for (const { link, img } of items) {        
+        if (!img.matches('.ClickAbleItem')) {
+            //imgEl.setAttribute('loading', 'eager');            
+            image.getSize(img).then(async () => {
+                if (ImageExists(img) && !ImageBigSize(img)) {
+                    console.log(link.href);
+                    getFullSizeQueue.enqueue(link);
+                    if (!getFullSizeManagementWorking) {
+                        getFullSizeManagement();
+                    }
+                }
+            }).catch(e => console.error(e));
+        }
+    }
+
 
     // 3) Return the items for any further use
     return items;
