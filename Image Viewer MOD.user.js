@@ -512,6 +512,7 @@ class Queue {
 
 
 const queue = new Queue();
+const lazyImageQueue = new Queue();
 const getFullSizeQueue = new Queue();
 
 
@@ -555,6 +556,83 @@ function getFullSizeManagement() {
                 // 예: image.markAsBroken(linkElement);
             } else {
                 console.error(`[Queue] Error processing link: ${linkElement}`, error);
+            }
+        }
+
+        // 4. 다음 작업을 처리합니다. (성공, 실패, 시간 초과 모두 다음으로 진행)        
+        processNext();
+    }
+
+    // 첫 번째 작업 시작
+    processNext();
+}
+
+
+let lazyImageManagementWorking = false;
+
+function lazyImageManagement() {
+    if (lazyImageManagementWorking) return; // prevent concurrent runs
+    lazyImageManagementWorking = true;
+
+    // 비동기 재귀 함수로 변경
+    async function processNext() {
+        if (lazyImageQueue.isEmpty()) {
+            lazyImageManagementWorking = false;
+            return; // 큐가 비면 종료
+        }
+
+        const linkElement = lazyImageQueue.dequeue(); // 큐에서 작업을 꺼냅니다.
+
+        // 1. 작업 실행 및 시간 초과 설정
+        try {
+            const imgsrc = linkElement.dataset.ivThumbnail;
+            const img = linkElement.querySelector('img');            
+            img.setAttribute('src', imgsrc);
+            // image.getFullSizeURL(linkElement)는 Promise를 반환합니다.
+            const taskPromise = loadImage(imgsrc);
+
+            // 2. 시간 초과 Promise 생성
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Task Timeout')), TASK_TIMEOUT_MS)
+            );
+
+            // 3. 둘 중 먼저 완료되는 것을 기다립니다.
+            await Promise.race([taskPromise, timeoutPromise]);
+            image.getSize(img).then(async () => {
+                if (ImageExists(img) && !ImageBigSize(img)) {                    
+                    getFullSizeQueue.enqueue(linkElement);
+                    if (!getFullSizeManagementWorking) {
+                        getFullSizeManagement();
+                    }
+                }
+            }).catch(e => console.error(e));
+            // 성공적으로 URL을 얻었을 경우
+            // console.log(`[Queue] Success for ${linkElement.href}`);
+
+        } catch (error) {
+            // 시간 초과 또는 getFullSizeURL 내부 오류 발생 시
+            if (error.message === 'Task Timeout') {
+                console.warn(`[Queue] Timeout processing link: ${linkElement}`);
+                // URL 추출에 실패했음을 사용자에게 알리는 등의 추가 처리를 할 수 있습니다.
+                // 예: image.markAsBroken(linkElement);
+                image.getSize(img).then(async () => {
+                    if (ImageExists(img) && !ImageBigSize(img)) {
+                        getFullSizeQueue.enqueue(linkElement);
+                        if (!getFullSizeManagementWorking) {
+                            getFullSizeManagement();
+                        }
+                    }
+                }).catch(e => console.error(e));
+            } else {
+                console.error(`[Queue] Error processing link: ${linkElement}`, error);
+                image.getSize(img).then(async () => {
+                    if (ImageExists(img) && !ImageBigSize(img)) {
+                        getFullSizeQueue.enqueue(linkElement);
+                        if (!getFullSizeManagementWorking) {
+                            getFullSizeManagement();
+                        }
+                    }
+                }).catch(e => console.error(e));
             }
         }
 
@@ -1029,25 +1107,15 @@ async function initViewer(node) {
             ...(isNewTab
                 ? [CLASSES.imageLinkOpenInNew, CLASSES.openInNewIcon]
                 : [CLASSES.imageLink])
-        );       
-    }
-
-    for (const { link, img } of items) {        
+        );
         if (!img.matches('.ClickAbleItem')) {
-            //imgEl.setAttribute('loading', 'eager');            
-            image.getSize(img).then(async () => {
-                if (ImageExists(img) && !ImageBigSize(img)) {
-                    console.log(link.href);
-                    getFullSizeQueue.enqueue(link);
-                    if (!getFullSizeManagementWorking) {
-                        getFullSizeManagement();
-                    }
-                }
-            }).catch(e => console.error(e));
+            img.removeAttribute('src');
+            lazyImageQueue.enqueue(link);            
         }
     }
-
-
+    if (!lazyImageManagementWorking) {
+        lazyImageManagement();
+    }
     // 3) Return the items for any further use
     return items;
 }

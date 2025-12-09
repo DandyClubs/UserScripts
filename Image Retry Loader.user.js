@@ -172,18 +172,18 @@
     });
 
 
-    if (document.readyState === 'loading') {
-        window.addEventListener("DOMContentLoaded", () => {
 
-            document.querySelectorAll('img').forEach(img => {
-                img.setAttribute('loading', 'lazy');
-                addErrorListenerToImages(img);
-            });
+    window.addEventListener("DOMContentLoaded", () => {
 
-            observer.observe(document.body, { childList: true, subtree: true });
-            console.log('[ImageRetry] 스크립트 활성화 완료');
+        document.querySelectorAll('img').forEach(img => {
+            img.setAttribute('loading', 'lazy');
+            addErrorListenerToImages(img);
+        });
 
-        }, { once: true });
-    }
+        observer.observe(document.body, { childList: true, subtree: true });
+        console.log('[ImageRetry] 스크립트 활성화 완료');
+
+    }, { once: true });
+
 
 })();
