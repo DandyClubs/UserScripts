@@ -518,7 +518,7 @@ const getFullSizeQueue = new Queue();
 
 let getFullSizeManagementWorking = false; // should be declared outside
 
-const TASK_TIMEOUT_MS = 2000; // 👈 작업 시간 초과 설정 (5초)
+const TASK_TIMEOUT_MS = 3000; // 👈 작업 시간 초과 설정 (5초)
 
 function getFullSizeManagement() {
     if (getFullSizeManagementWorking) return; // prevent concurrent runs
@@ -560,7 +560,7 @@ function getFullSizeManagement() {
         }
 
         // 4. 다음 작업을 처리합니다. (성공, 실패, 시간 초과 모두 다음으로 진행)        
-        processNext();
+        setTimeout(processNext, 10);
     }
 
     // 첫 번째 작업 시작
@@ -622,7 +622,7 @@ function lazyImageManagement() {
         }).catch(e => console.error(e));
 
         // 4. 다음 작업을 처리합니다. (성공, 실패, 시간 초과 모두 다음으로 진행)        
-        processNext();
+        setTimeout(processNext, 10);
     }
 
     // 첫 번째 작업 시작
@@ -654,7 +654,7 @@ function Management() {
         }
 
         // Process next item
-        processNext();
+        setTimeout(processNext, 10);
     }
 
     processNext();
