@@ -612,6 +612,7 @@ function lazyImageManagement() {
                 console.error(`[Queue] Error processing link: ${linkElement}`, error);
             }
         }
+
         if (!img.matches('.ClickAbleItem')) {
             image.getSize(img).then(async () => {
                 if (ImageExists(img) && !ImageBigSize(img)) {
@@ -622,9 +623,6 @@ function lazyImageManagement() {
                 }
             }).catch(e => console.error(e));
         }
-
-
-
         // 4. 다음 작업을 처리합니다. (성공, 실패, 시간 초과 모두 다음으로 진행)        
         setTimeout(processNext, 10);
 
