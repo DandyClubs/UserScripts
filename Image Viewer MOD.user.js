@@ -582,13 +582,13 @@ function lazyImageManagement() {
             return; // 큐가 비면 종료
         }
 
-        const linkElement = lazyImageQueue.dequeue(); // 큐에서 작업을 꺼냅니다.
-        const imgsrc = linkElement.dataset.ivThumbnail;
+        const linkElement = lazyImageQueue.dequeue(); // 큐에서 작업을 꺼냅니다.        
         const img = linkElement.querySelector('img');
+        const imgsrc = img.getAttribute('data-original-url');
         img.setAttribute('src', imgsrc);
 
         // 1. 작업 실행 및 시간 초과 설정
-        try {            
+        try {
             // image.getFullSizeURL(linkElement)는 Promise를 반환합니다.
             const taskPromise = loadImage(imgsrc);
 
@@ -598,7 +598,7 @@ function lazyImageManagement() {
             );
 
             // 3. 둘 중 먼저 완료되는 것을 기다립니다.
-            await Promise.race([taskPromise, timeoutPromise]);            
+            await Promise.race([taskPromise, timeoutPromise]);
             // 성공적으로 URL을 얻었을 경우
             // console.log(`[Queue] Success for ${linkElement.href}`);
 
@@ -609,21 +609,25 @@ function lazyImageManagement() {
                 // URL 추출에 실패했음을 사용자에게 알리는 등의 추가 처리를 할 수 있습니다.
                 // 예: image.markAsBroken(linkElement);                
             } else {
-                console.error(`[Queue] Error processing link: ${linkElement}`, error);                
+                console.error(`[Queue] Error processing link: ${linkElement}`, error);
             }
         }
-
-        image.getSize(img).then(async () => {
-            if (ImageExists(img) && !ImageBigSize(img)) {
-                getFullSizeQueue.enqueue(linkElement);
-                if (!getFullSizeManagementWorking) {
-                    getFullSizeManagement();
+        if (!img.matches('.ClickAbleItem')) {
+            image.getSize(img).then(async () => {
+                if (ImageExists(img) && !ImageBigSize(img)) {
+                    getFullSizeQueue.enqueue(linkElement);
+                    if (!getFullSizeManagementWorking) {
+                        getFullSizeManagement();
+                    }
                 }
-            }
-        }).catch(e => console.error(e));
+            }).catch(e => console.error(e));
+        }
+
+
 
         // 4. 다음 작업을 처리합니다. (성공, 실패, 시간 초과 모두 다음으로 진행)        
         setTimeout(processNext, 10);
+
     }
 
     // 첫 번째 작업 시작
@@ -1095,8 +1099,9 @@ async function initViewer(node) {
                 : [CLASSES.imageLink])
         );
         if (!img.matches('.ClickAbleItem')) {
+            img.setAttribute('data-original-url', img.src);
             img.removeAttribute('src');
-            lazyImageQueue.enqueue(link);            
+            lazyImageQueue.enqueue(link);
         }
     }
     if (!lazyImageManagementWorking) {
