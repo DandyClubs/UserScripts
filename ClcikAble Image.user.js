@@ -18,7 +18,7 @@
 // @exclude      /jappydolls\.net\/\d+/
 // @exclude      https://x-idol.net/?p*
 // @exclude      https://top-modelz.org/*.html
-// @run-at       document-body
+// @run-at       document-start
 // @grant        none
 // @noframes
 // ==/UserScript==

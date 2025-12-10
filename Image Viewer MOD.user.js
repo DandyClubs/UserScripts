@@ -590,7 +590,7 @@ function lazyImageManagement() {
         // 1. 작업 실행 및 시간 초과 설정
         try {
             // image.getFullSizeURL(linkElement)는 Promise를 반환합니다.
-            const taskPromise = loadImage(imgsrc);
+            const taskPromise = image.getSize(img);
 
             // 2. 시간 초과 Promise 생성
             const timeoutPromise = new Promise((_, reject) =>
@@ -1026,6 +1026,8 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
 
     root.querySelectorAll(`a:not(.${processedClass}) > img:not(.Error), a:not(.${processedClass}) > * > img:not(.Error)`)
         .forEach(img => {
+            if (img.matches('.ClickAbleItem')) return;
+            
             const link = img.closest('a');
             if (!link) return;
 
