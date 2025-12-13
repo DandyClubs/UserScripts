@@ -519,7 +519,7 @@ const getFullSizeQueue = new Queue();
 let getFullSizeManagementWorking = false; // should be declared outside
 
 const TASK_TIMEOUT_MS = 3000; // 👈 작업 시간 초과 설정 (5초)
-const lazyImageTimeoutMS = 2000; // 👈 작업 시간 초과 설정 (5초)
+const lazyImageTimeoutMS = 3000; // 👈 작업 시간 초과 설정 (5초)
 
 function getFullSizeManagement() {
     if (getFullSizeManagementWorking) return; // prevent concurrent runs
@@ -584,8 +584,10 @@ function lazyImageManagement() {
 
         const linkElement = lazyImageQueue.dequeue(); // 큐에서 작업을 꺼냅니다.        
         const img = linkElement.querySelector('img');
-        const imgsrc = img.getAttribute('data-original-url');
+        const imgsrc = img.getAttribute('data-original-url');        
         img.setAttribute('src', imgsrc);
+        img.setAttribute('loading', 'eager');
+        
 
         // 1. 작업 실행 및 시간 초과 설정
         try {
