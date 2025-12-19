@@ -699,7 +699,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
     let CopyTitle = fallbackTitle
         .replace(/^(UNCENSORED|CENSORED)\s/, '')
-        .replace(/amp;|\(\)/g, '')
+        .replace(/amp;|\(\)/g, '')        
         .trim();
 
     if (rawMode) return CopyTitle;
@@ -739,8 +739,8 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
                 Title = titleMatch;
             } else if (copyMatch) {
                 Title = copyMatch;
-            } else if (/Title\s?:/i.test(line)) {
-                Title = line.replace(/Title\s?:/i, '').trim();
+            } else if (/^Title\s?:/i.test(line)) {
+                Title = line.replace(/^Title\s?:/i, '').trim();
             }
 
             Title = Title ? Title.trim() + ' ' : '';
@@ -760,7 +760,12 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         }
 
         if (!ReleaseDate) {
-            ReleaseDate = DateRegEx.test(line) ? line.match(DateRegEx)[1].replace(/\/|-|_/g, '.') : '';
+            ReleaseDate = DateRegEx.test(line) ? line.match(DateRegEx)[1] : '';
+            if (ReleaseDate){
+                line = line.replace(ReleaseDate, '').trim();
+                ReleaseDate = ReleaseDate.replace(/\/|-|_/g, '.');
+            }
+            
         }
         return ID && ModelName && ReleaseDate && Title && Maker;
     });
