@@ -519,7 +519,7 @@ const getFullSizeQueue = new Queue();
 let getFullSizeManagementWorking = false; // should be declared outside
 
 const TASK_TIMEOUT_MS = 3000; // 👈 작업 시간 초과 설정 (5초)
-const lazyImageTimeoutMS = 3000; // 👈 작업 시간 초과 설정 (5초)
+const lazyImageTimeoutMS = 2000; // 👈 작업 시간 초과 설정 (5초)
 
 function getFullSizeManagement() {
     if (getFullSizeManagementWorking) return; // prevent concurrent runs
@@ -586,7 +586,7 @@ function lazyImageManagement() {
         const img = linkElement.querySelector('img');
         const imgsrc = img.getAttribute('data-original-url');        
         img.setAttribute('src', imgsrc);
-        img.setAttribute('loading', 'eager');
+        img.removeAttribute('loading');
         
 
         // 1. 작업 실행 및 시간 초과 설정
@@ -603,6 +603,14 @@ function lazyImageManagement() {
             await Promise.race([taskPromise, timeoutPromise]);
             // 성공적으로 URL을 얻었을 경우
             // console.log(`[Queue] Success for ${linkElement.href}`);
+            if (!img.matches('.ClickAbleItem')) {             
+                    if (ImageExists(img) && !ImageBigSize(img)) {
+                        getFullSizeQueue.enqueue(linkElement);
+                        if (!getFullSizeManagementWorking) {
+                            getFullSizeManagement();
+                        }
+                    }             
+            }
 
         } catch (error) {
             // 시간 초과 또는 getFullSizeURL 내부 오류 발생 시
@@ -610,21 +618,21 @@ function lazyImageManagement() {
                 console.warn(`[Queue] Timeout processing link: ${linkElement}`);
                 // URL 추출에 실패했음을 사용자에게 알리는 등의 추가 처리를 할 수 있습니다.
                 // 예: image.markAsBroken(linkElement);                
+                if (!img.matches('.ClickAbleItem')) {
+                    image.getSize(img).then(() => {
+                        if (ImageExists(img) && !ImageBigSize(img)) {
+                            getFullSizeQueue.enqueue(linkElement);
+                            if (!getFullSizeManagementWorking) {
+                                getFullSizeManagement();
+                            }
+                        }
+                    }).catch(e => console.error(e));
+                }
             } else {
                 console.error(`[Queue] Error processing link: ${linkElement}`, error);
             }
         }
-
-        if (!img.matches('.ClickAbleItem')) {
-            image.getSize(img).then(async () => {
-                if (ImageExists(img) && !ImageBigSize(img)) {
-                    getFullSizeQueue.enqueue(linkElement);
-                    if (!getFullSizeManagementWorking) {
-                        getFullSizeManagement();
-                    }
-                }
-            }).catch(e => console.error(e));
-        }
+        
         // 4. 다음 작업을 처리합니다. (성공, 실패, 시간 초과 모두 다음으로 진행)        
         setTimeout(processNext, 10);
 
