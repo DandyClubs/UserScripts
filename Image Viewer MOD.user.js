@@ -518,8 +518,8 @@ const getFullSizeQueue = new Queue();
 
 let getFullSizeManagementWorking = false; // should be declared outside
 
-const TASK_TIMEOUT_MS = 3000; // 👈 작업 시간 초과 설정 (5초)
-const lazyImageTimeoutMS = 2000; // 👈 작업 시간 초과 설정 (5초)
+const TASK_TIMEOUT_MS = 5000; // 👈 작업 시간 초과 설정 (5초)
+const lazyImageTimeoutMS = 1000; // 👈 작업 시간 초과 설정 (5초)
 
 function getFullSizeManagement() {
     if (getFullSizeManagementWorking) return; // prevent concurrent runs
@@ -554,10 +554,12 @@ function getFullSizeManagement() {
             if (error.message === 'Task Timeout') {
                 console.warn(`[Queue] Timeout processing link: ${linkElement}`);
                 // URL 추출에 실패했음을 사용자에게 알리는 등의 추가 처리를 할 수 있습니다.
-                // 예: image.markAsBroken(linkElement);
+                // 예: image.markAsBroken(linkElement);                
             } else {
                 console.error(`[Queue] Error processing link: ${linkElement}`, error);
             }
+
+            getFullSizeQueue.enqueue(linkElement);
         }
 
         // 4. 다음 작업을 처리합니다. (성공, 실패, 시간 초과 모두 다음으로 진행)        
