@@ -584,10 +584,10 @@ function lazyImageManagement() {
 
         const linkElement = lazyImageQueue.dequeue(); // 큐에서 작업을 꺼냅니다.        
         const img = linkElement.querySelector('img');
-        const imgsrc = img.getAttribute('data-original-url');        
+        const imgsrc = img.getAttribute('data-original-url');
         img.setAttribute('src', imgsrc);
         img.removeAttribute('loading');
-        
+
 
         // 1. 작업 실행 및 시간 초과 설정
         try {
@@ -603,13 +603,13 @@ function lazyImageManagement() {
             await Promise.race([taskPromise, timeoutPromise]);
             // 성공적으로 URL을 얻었을 경우
             // console.log(`[Queue] Success for ${linkElement.href}`);
-            if (!img.matches('.ClickAbleItem')) {             
-                    if (ImageExists(img) && !ImageBigSize(img)) {
-                        getFullSizeQueue.enqueue(linkElement);
-                        if (!getFullSizeManagementWorking) {
-                            getFullSizeManagement();
-                        }
-                    }             
+            if (!img.matches('.ClickAbleItem')) {
+                if (ImageExists(img) && !ImageBigSize(img)) {
+                    getFullSizeQueue.enqueue(linkElement);
+                    if (!getFullSizeManagementWorking) {
+                        getFullSizeManagement();
+                    }
+                }
             }
 
         } catch (error) {
@@ -632,7 +632,7 @@ function lazyImageManagement() {
                 console.error(`[Queue] Error processing link: ${linkElement}`, error);
             }
         }
-        
+
         // 4. 다음 작업을 처리합니다. (성공, 실패, 시간 초과 모두 다음으로 진행)        
         setTimeout(processNext, 10);
 
@@ -1037,7 +1037,7 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
     root.querySelectorAll(`a:not(.${processedClass}) > img:not(.Error), a:not(.${processedClass}) > * > img:not(.Error)`)
         .forEach(img => {
             if (img.matches('.ClickAbleItem')) return;
-            
+
             const link = img.closest('a');
             if (!link) return;
 
