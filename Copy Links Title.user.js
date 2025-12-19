@@ -800,7 +800,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
     console.log({ infoLines, cleanedinfoLines });
 
     console.log({ CopyTitle, Title, infoLines, cleanedinfoLines });
-    const infoLinesFinalTitle = Title ? `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim() : '';
+    const infoLinesFinalTitle = Title ? (Maker || ID ? `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim() : `${Title}${ModelName} ${ReleaseDate ? `(${ReleaseDate})` : ''}`.replace(/\s+/g, ' ').trim() ) : '';
     const InfofinalTitle = infoLinesFinalTitle ? infoLinesFinalTitle : compareSentencesByWordMatch(CopyTitle, cleanedinfoLines[0]);
 
     console.log({ CopyTitle, InfofinalTitle });
