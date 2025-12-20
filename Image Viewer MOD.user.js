@@ -518,7 +518,7 @@ const getFullSizeQueue = new Queue();
 
 let getFullSizeManagementWorking = false; // should be declared outside
 
-const TASK_TIMEOUT_MS = 5000; // 👈 작업 시간 초과 설정 (5초)
+const TASK_TIMEOUT_MS = 3000; // 👈 작업 시간 초과 설정 (5초)
 
 function getFullSizeManagement() {
     if (getFullSizeManagementWorking) return; // prevent concurrent runs
@@ -557,8 +557,7 @@ function getFullSizeManagement() {
             } else {
                 console.error(`[Queue] Error processing link: ${linkElement}`, error);
             }
-
-            getFullSizeQueue.enqueue(linkElement);
+            image.getFullSizeURL(linkElement)
         }
 
         // 4. 다음 작업을 처리합니다. (성공, 실패, 시간 초과 모두 다음으로 진행)        
@@ -585,8 +584,6 @@ function lazyImageManagement() {
 
         const linkElement = lazyImageQueue.dequeue(); // 큐에서 작업을 꺼냅니다.        
         const img = linkElement.querySelector('img');
-        const imgsrc = img.getAttribute('data-original-url');
-        img.setAttribute('src', imgsrc);
         img.removeAttribute('loading');
 
 
@@ -1111,8 +1108,7 @@ async function initViewer(node) {
         );
         if (!img.matches('.ClickAbleItem')) {
             if (!img.complete) {
-                img.setAttribute('data-original-url', img.src);
-                img.removeAttribute('src');
+                img.setAttribute('loading', 'lazy');
                 lazyImageQueue.enqueue(link);
             } else {
                 if (ImageExists(img) && !ImageBigSize(img)) {
