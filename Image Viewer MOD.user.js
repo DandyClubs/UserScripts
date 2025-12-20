@@ -519,7 +519,6 @@ const getFullSizeQueue = new Queue();
 let getFullSizeManagementWorking = false; // should be declared outside
 
 const TASK_TIMEOUT_MS = 5000; // 👈 작업 시간 초과 설정 (5초)
-const lazyImageTimeoutMS = 1000; // 👈 작업 시간 초과 설정 (5초)
 
 function getFullSizeManagement() {
     if (getFullSizeManagementWorking) return; // prevent concurrent runs
@@ -598,7 +597,7 @@ function lazyImageManagement() {
 
             // 2. 시간 초과 Promise 생성
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Task Timeout')), lazyImageTimeoutMS)
+                setTimeout(() => reject(new Error('Task Timeout')), TASK_TIMEOUT_MS)
             );
 
             // 3. 둘 중 먼저 완료되는 것을 기다립니다.
@@ -1111,9 +1110,18 @@ async function initViewer(node) {
                 : [CLASSES.imageLink])
         );
         if (!img.matches('.ClickAbleItem')) {
-            img.setAttribute('data-original-url', img.src);
-            img.removeAttribute('src');
-            lazyImageQueue.enqueue(link);
+            if (!img.complete) {
+                img.setAttribute('data-original-url', img.src);
+                img.removeAttribute('src');
+                lazyImageQueue.enqueue(link);
+            } else {
+                if (ImageExists(img) && !ImageBigSize(img)) {
+                    getFullSizeQueue.enqueue(link);
+                    if (!getFullSizeManagementWorking) {
+                        getFullSizeManagement();
+                    }
+                }
+            }
         }
     }
     if (!lazyImageManagementWorking) {
