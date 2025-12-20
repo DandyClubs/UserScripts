@@ -516,58 +516,62 @@ const lazyImageQueue = new Queue();
 const getFullSizeQueue = new Queue();
 
 
-let getFullSizeManagementWorking = false; // should be declared outside
-
-const TASK_TIMEOUT_MS = 3000; // 👈 작업 시간 초과 설정 (5초)
+let getFullSizeManagementWorking = false;
+const TASK_TIMEOUT_MS = 3000;
+const processCount = 5; // 👈 동시에 처리할 최대 작업 수
 
 function getFullSizeManagement() {
-    if (getFullSizeManagementWorking) return; // prevent concurrent runs
+    if (getFullSizeManagementWorking) return;
     getFullSizeManagementWorking = true;
 
-    // 비동기 재귀 함수로 변경
-    async function processNext() {
-        if (getFullSizeQueue.isEmpty()) {
-            getFullSizeManagementWorking = false;
-            return; // 큐가 비면 종료
-        }
-
-        const linkElement = getFullSizeQueue.dequeue(); // 큐에서 작업을 꺼냅니다.
-
-        // 1. 작업 실행 및 시간 초과 설정
+    // 개별 작업을 처리하는 핵심 로직
+    async function performTask(linkElement) {
         try {
-            // image.getFullSizeURL(linkElement)는 Promise를 반환합니다.
+            // 1. 작업 실행 및 시간 초과 설정
             const taskPromise = image.getFullSizeURL(linkElement);
-
-            // 2. 시간 초과 Promise 생성
             const timeoutPromise = new Promise((_, reject) =>
                 setTimeout(() => reject(new Error('Task Timeout')), TASK_TIMEOUT_MS)
             );
 
-            // 3. 둘 중 먼저 완료되는 것을 기다립니다.
+            // 2. 먼저 완료되는 쪽을 기다림
             await Promise.race([taskPromise, timeoutPromise]);
-            // 성공적으로 URL을 얻었을 경우
-            // console.log(`[Queue] Success for ${linkElement.href}`);
-
         } catch (error) {
-            // 시간 초과 또는 getFullSizeURL 내부 오류 발생 시
             if (error.message === 'Task Timeout') {
-                console.warn(`[Queue] Timeout processing link: ${linkElement}`);
-                // URL 추출에 실패했음을 사용자에게 알리는 등의 추가 처리를 할 수 있습니다.
-                // 예: image.markAsBroken(linkElement);                
+                console.warn(`[Queue] Timeout processing link: ${linkElement.href}`);
+                // 타임아웃 발생 시 재시도 로직이 필요하다면 여기에 추가 가능
             } else {
-                console.error(`[Queue] Error processing link: ${linkElement}`, error);
+                console.error(`[Queue] Error processing link: ${linkElement.href}`, error);
             }
-            image.getFullSizeURL(linkElement)
         }
-
-        // 4. 다음 작업을 처리합니다. (성공, 실패, 시간 초과 모두 다음으로 진행)        
-        setTimeout(processNext, 10);
     }
 
-    // 첫 번째 작업 시작
-    processNext();
-}
+    // 큐가 빌 때까지 계속해서 작업을 뽑아 수행하는 '워커' 함수
+    async function worker() {
+        while (!getFullSizeQueue.isEmpty()) {
+            const linkElement = getFullSizeQueue.dequeue();
+            if (linkElement) {
+                await performTask(linkElement);
+            }
+            // 작업 사이의 아주 짧은 지연 (UI 프리징 방지)
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+    }
 
+    // 3. 지정된 개수(processCount)만큼의 워커를 동시에 가동
+    const workers = [];
+    for (let i = 0; i < processCount; i++) {
+        workers.push(worker());
+    }
+
+    // 모든 워커가 종료되면 상태 초기화
+    Promise.all(workers).finally(() => {
+        getFullSizeManagementWorking = false;
+        // 워커가 끝난 직후 혹시 큐에 새로 들어온 작업이 있는지 확인
+        if (!getFullSizeQueue.isEmpty()) {
+            getFullSizeManagement();
+        }
+    });
+}
 
 let lazyImageManagementWorking = false;
 
