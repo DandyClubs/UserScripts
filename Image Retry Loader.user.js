@@ -157,12 +157,10 @@
             if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
-                        if (node.tagName === 'IMG') {
-                            node.setAttribute('loading', 'lazy');
+                        if (node.tagName === 'IMG') {                            
                             addErrorListenerToImages(node);
                         }
-                        node.querySelectorAll('img').forEach(img => {
-                            node.setAttribute('loading', 'lazy');
+                        node.querySelectorAll('img').forEach(img => {                            
                             addErrorListenerToImages(img);
                         });
                     }
@@ -174,8 +172,7 @@
 
 
     window.addEventListener("DOMContentLoaded", () => {
-        document.querySelectorAll('img').forEach(img => {
-            img.setAttribute('loading', 'lazy');
+        document.querySelectorAll('img').forEach(img => {            
             addErrorListenerToImages(img);
         });
 
