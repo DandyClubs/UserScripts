@@ -516,15 +516,23 @@ const lazyImageQueue = new Queue();
 const getFullSizeQueue = new Queue();
 
 let getFullSizeManagementWorking = false;
-const TASK_TIMEOUT_MS = 3000;
-const processCount = 5; // 👈 동시에 처리할 최대 작업 수
 
-function getFullSizeManagement() {
-    if (getFullSizeManagementWorking) return;
-    getFullSizeManagementWorking = true;
+const TASK_TIMEOUT_MS = 5000;
+const processCount = 5; // 👈 동시에 처리할 최대 작업 수
+let activeWorkerCount = 0; // 현재 작동 중인 워커의 수
+let isSpawning = false; // 워커가 생성 중인지 확인하는 플래그
+
+async function getFullSizeManagement() {
+    // 1. 이미 워커를 생성 중이거나, 최대 개수에 도달했으면 중단
+    if (isSpawning || activeWorkerCount >= processCount || getFullSizeQueue.isEmpty()) return;
+
+    isSpawning = true; // 생성 프로세스 시작
 
     // 개별 작업을 처리하는 핵심 로직
     async function performTask(linkElement) {
+        const startTime = performance.now(); // 1. 작업 시작 시간 기록
+        const linkUrl = linkElement.href;
+        console.log(`[Queue] 🚀 Task Started: ${linkUrl}`);
         try {
             // 1. 작업 실행 및 시간 초과 설정
             const taskPromise = image.getFullSizeURL(linkElement);
@@ -534,21 +542,29 @@ function getFullSizeManagement() {
 
             // 2. 먼저 완료되는 쪽을 기다림
             await Promise.race([taskPromise, timeoutPromise]);
+            const endTime = performance.now(); // 2. 성공 시 종료 시간 기록
+            const duration = (endTime - startTime).toFixed(2);
+            console.log(`[Queue] ✅ Task Finished: ${linkUrl} | 소요 시간: ${duration}ms`);
         } catch (error) {
+            const errorTime = performance.now();
+            const elapsedSoFar = (errorTime - startTime).toFixed(2);
+
             if (error.message === 'Task Timeout') {
-                console.warn(`[Queue] Timeout processing link: ${linkElement.href}`);
-                // 타임아웃 발생 시 재시도 로직이 필요하다면 여기에 추가 가능
+                console.warn(`[Queue] ⚠️ Task Timeout: ${linkUrl} | ${elapsedSoFar}ms 경과...`);
             } else {
                 console.error(`[Queue] Error processing link: ${linkElement.href}`, error);
             }
-            
-        } finally {
-            image.getFullSizeURL(linkElement); // 재시도
+            try {
+                await image.getFullSizeURL(linkElement);
+            } catch (retryError) {
+                console.error(`[Worker ${workerId}] ❌ Retry Failed: ${linkUrl}`);
+            }
         }
     }
 
     // 큐가 빌 때까지 계속해서 작업을 뽑아 수행하는 '워커' 함수
     async function worker() {
+        activeWorkerCount++;
         while (!getFullSizeQueue.isEmpty()) {
             const linkElement = getFullSizeQueue.dequeue();
             if (linkElement) {
@@ -556,23 +572,30 @@ function getFullSizeManagement() {
             }
             // 작업 사이의 아주 짧은 지연 (UI 프리징 방지)
             await new Promise(resolve => setTimeout(resolve, 10));
+
+            if (!getFullSizeQueue.isEmpty()) {
+                getFullSizeManagement();
+            }
+        }
+        activeWorkerCount--;
+    }
+    // 2. 워커 생성 루프 (1초 간격 딜레이)
+    while (activeWorkerCount < processCount && !getFullSizeQueue.isEmpty()) {
+        const workerId = Math.floor(Math.random() * 1000);
+
+        // 중요: worker() 앞에 await를 붙이지 않습니다. 
+        // (워커를 백그라운드에서 실행하고 다음 코드로 넘어가기 위함)
+        worker(workerId);
+
+        console.log(`[System] Worker ${workerId} 가동 시작 (현재 활성: ${activeWorkerCount}개)`);
+
+        // 3. 다음 워커를 실행하기 전 1초간 대기
+        if (activeWorkerCount < processCount) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
     }
 
-    // 3. 지정된 개수(processCount)만큼의 워커를 동시에 가동
-    const workers = [];
-    for (let i = 0; i < processCount; i++) {
-        workers.push(worker());
-    }
-
-    // 모든 워커가 종료되면 상태 초기화
-    Promise.all(workers).finally(() => {
-        getFullSizeManagementWorking = false;
-        // 워커가 끝난 직후 혹시 큐에 새로 들어온 작업이 있는지 확인
-        if (!getFullSizeQueue.isEmpty()) {
-            getFullSizeManagement();
-        }
-    });
+    isSpawning = false; // 생성 프로세스 종료
 }
 
 let lazyImageManagementWorking = false;
@@ -610,7 +633,7 @@ function lazyImageManagement() {
             if (!img.matches('.ClickAbleItem')) {
                 if (ImageExists(img) && !ImageBigSize(img)) {
                     getFullSizeQueue.enqueue(linkElement);
-                    if (!getFullSizeManagementWorking) {
+                    if (!isSpawning) {
                         getFullSizeManagement();
                     }
                 }
@@ -626,7 +649,7 @@ function lazyImageManagement() {
                     image.getSize(img).then(() => {
                         if (ImageExists(img) && !ImageBigSize(img)) {
                             getFullSizeQueue.enqueue(linkElement);
-                            if (!getFullSizeManagementWorking) {
+                            if (!isSpawning) {
                                 getFullSizeManagement();
                             }
                         }
@@ -1052,6 +1075,7 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
             }
 
             // 2) Force HTTPS on known hosts
+            /*
             ['fastpic', 'imagebam'].forEach(host => {
                 if (link.href.startsWith(`http://${host}`)) {
                     link.href = link.href.replace(/^http:/, 'https:');
@@ -1060,6 +1084,8 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
                     img.src = img.src.replace(/^http:/, 'https:');
                 }
             });
+            */
+
 
             // 3) Resolve a “real” thumbnail URL:
             let thumb = img.src;
@@ -1119,7 +1145,7 @@ async function initViewer(node) {
             } else {
                 if (ImageExists(img) && !ImageBigSize(img)) {
                     getFullSizeQueue.enqueue(link);
-                    if (!getFullSizeManagementWorking) {
+                    if (!isSpawning) {
                         getFullSizeManagement();
                     }
                 }

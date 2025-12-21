@@ -21,6 +21,7 @@
     // 재시도 간격 및 횟수
     const RETRY_INTERVAL = 10000;
     const MAX_RETRY_COUNT = 1;
+    const LOAD_TIMEOUT = 5000; // 5초 타임아웃
 
     class Queue {
         constructor() {
