@@ -515,24 +515,45 @@ const queue = new Queue();
 const lazyImageQueue = new Queue();
 const getFullSizeQueue = new Queue();
 
-
 let getFullSizeManagementWorking = false;
-const TASK_TIMEOUT_MS = 3000;
+const TASK_TIMEOUT_MS = 5000;
 const processCount = 5; // 👈 동시에 처리할 최대 작업 수
 
 function getFullSizeManagement() {
     if (getFullSizeManagementWorking) return;
-    getFullSizeManagementWorking = true;    
-    
+    getFullSizeManagementWorking = true;
+
+    // 개별 작업을 처리하는 핵심 로직
+    async function performTask(linkElement) {
+        try {
+            // 1. 작업 실행 및 시간 초과 설정
+            const taskPromise = image.getFullSizeURL(linkElement);
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Task Timeout')), TASK_TIMEOUT_MS)
+            );
+
+            // 2. 먼저 완료되는 쪽을 기다림
+            await Promise.race([taskPromise, timeoutPromise]);
+        } catch (error) {
+            if (error.message === 'Task Timeout') {
+                console.warn(`[Queue] Timeout processing link: ${linkElement.href}`);
+                // 타임아웃 발생 시 재시도 로직이 필요하다면 여기에 추가 가능
+            } else {
+                console.error(`[Queue] Error processing link: ${linkElement.href}`, error);
+            }
+            image.getFullSizeURL(linkElement); // 재시도
+        }
+    }
+
     // 큐가 빌 때까지 계속해서 작업을 뽑아 수행하는 '워커' 함수
     async function worker() {
         while (!getFullSizeQueue.isEmpty()) {
             const linkElement = getFullSizeQueue.dequeue();
             if (linkElement) {
-                await image.getFullSizeURL(linkElement);;
+                await performTask(linkElement);
             }
             // 작업 사이의 아주 짧은 지연 (UI 프리징 방지)
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 10));
         }
     }
 
