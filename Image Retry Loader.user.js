@@ -22,6 +22,69 @@
     const RETRY_INTERVAL = 10000;
     const MAX_RETRY_COUNT = 1;
 
+    class Queue {
+        constructor() {
+            this.items = {};
+            this.front = 0;
+            this.rear = 0;
+        }
+        enqueue(item) { this.items[this.rear++] = item; }
+        dequeue() {
+            if (this.isEmpty()) return undefined;
+            const item = this.items[this.front];
+            delete this.items[this.front++];
+            return item;
+        }
+        get size() { return this.rear - this.front; }
+        isEmpty() { return this.size === 0; }
+    }
+
+    const lazyImageQueue = new Queue();
+    let isLazyProcessing = false;
+
+    function waitForImage(img, timeout) {
+        return new Promise((resolve) => {
+            const timer = setTimeout(() => {
+                console.warn(`[ImageRetry] 로딩 타임아웃 (다음으로 넘어감): ${img.src}`);
+                cleanup();
+                resolve('timeout');
+            }, timeout);
+
+            function cleanup() {
+                clearTimeout(timer);
+                img.removeEventListener('load', onLoad);
+                img.removeEventListener('error', onError);
+            }
+
+            function onLoad() { cleanup(); resolve('loaded'); }
+            function onError() { cleanup(); resolve('error'); }
+
+            img.addEventListener('load', onLoad);
+            img.addEventListener('error', onError);
+
+            // 강제 로딩 시작
+            img.setAttribute('loading', 'eager');
+            // src가 이미 설정되어 있다면 다시 할당하여 로딩 트리거 (일부 브라우저 대응)
+            const currentSrc = img.src;
+            img.src = currentSrc;
+        });
+    }
+
+    async function processLazyQueue() {
+        if (isLazyProcessing) return;
+        isLazyProcessing = true;
+
+        while (!lazyImageQueue.isEmpty()) {
+            const img = lazyImageQueue.dequeue();
+            if (img && img.isConnected) { // 문서에 붙어있는지 확인
+                //console.log(`[ImageRetry] 순차 로딩 시작: ${img.src}`);
+                await waitForImage(img, LOAD_TIMEOUT);
+            }
+        }
+
+        isLazyProcessing = false;
+    }
+
 
     // GM_xmlhttpRequest를 이용한 이미지 존재 여부 확인 (상태별 처리)
     function checkImageExistenceWithGM(url) {
@@ -157,24 +220,57 @@
             if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
-                        if (node.tagName === 'IMG') {                            
+                        if (node.tagName === 'IMG') {      
+                            if (isValidExternalImage(node)) {
+                                node.setAttribute('loading', 'lazy');
+                                lazyImageQueue.enqueue(node);
+                                if (!isLazyProcessing) {
+                                    processLazyQueue();
+                                }        
+                            }                                  
                             addErrorListenerToImages(node);
                         }
-                        node.querySelectorAll('img').forEach(img => {                            
+                        node.querySelectorAll('img').forEach(img => {  
+                            if (isValidExternalImage(img)) {
+                                img.setAttribute('loading', 'lazy');
+                                lazyImageQueue.enqueue(img);
+                                if (!isLazyProcessing) {
+                                    processLazyQueue();
+                                }        
+                            }                                      
                             addErrorListenerToImages(img);
                         });
-                    }
+                    }                    
                 });
-            }
+            }            
         }
     });
 
 
+    /**
+     * 처리가 필요한 이미지인지 확인 (data: URI 제외)
+     */
+    function isValidExternalImage(img) {
+        // src가 없거나, 이미 로딩 완료되었거나, data: 형식인 경우 제외
+        if (!img || !img.src) return false;
+        if (img.complete && img.naturalWidth !== 0) return false;
+        if (img.src.startsWith('data:')) return false;
+        return true;
+    }
+
 
     window.addEventListener("DOMContentLoaded", () => {
-        document.querySelectorAll('img').forEach(img => {            
+        document.querySelectorAll('img').forEach(img => {    
+            if (isValidExternalImage(img)) {
+                img.setAttribute('loading', 'lazy');                
+                lazyImageQueue.enqueue(img);
+            }            
             addErrorListenerToImages(img);
         });
+
+        if (!isLazyProcessing) {
+            processLazyQueue();
+        }        
 
         observer.observe(document.body, { childList: true, subtree: true });
         console.log('[ImageRetry] 스크립트 활성화 완료');

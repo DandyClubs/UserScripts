@@ -516,7 +516,7 @@ const lazyImageQueue = new Queue();
 const getFullSizeQueue = new Queue();
 
 let getFullSizeManagementWorking = false;
-const TASK_TIMEOUT_MS = 5000;
+const TASK_TIMEOUT_MS = 3000;
 const processCount = 5; // 👈 동시에 처리할 최대 작업 수
 
 function getFullSizeManagement() {
@@ -541,6 +541,8 @@ function getFullSizeManagement() {
             } else {
                 console.error(`[Queue] Error processing link: ${linkElement.href}`, error);
             }
+            
+        } finally {
             image.getFullSizeURL(linkElement); // 재시도
         }
     }
