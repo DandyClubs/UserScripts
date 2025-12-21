@@ -553,7 +553,7 @@ function getFullSizeManagement() {
                 await performTask(linkElement);
             }
             // 작업 사이의 아주 짧은 지연 (UI 프리징 방지)
-            await new Promise(resolve => setTimeout(resolve, 10));
+            await new Promise(resolve => setTimeout(resolve, 100));
         }
     }
 
