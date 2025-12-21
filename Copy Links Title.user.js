@@ -743,7 +743,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
                 Title = line.replace(/^Title\s?:/i, '').trim();
             }
 
-            Title = Title ? Title.trim() + ' ' : '';
+            Title = Title ? Title.trim() + ' ' : '';            
         }
 
 
@@ -787,13 +787,16 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         Title = `${Featuring} - ${Title}`;
     }
 
+    Title = Title.replace(/Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re:|^File\sName/i, '').trim();
+
     const cleanedinfoLines = infoLines.join('\n')
+        .replace(/Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re:|^File\sName/i, '')
         .replace(/(Actress|Model|Label|Circle|Featuring)\s*:?/gi, '')
-        .replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n')
-        .replace(/Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re:/gi, '')
+        .replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n')        
         .replaceAll('"|：', '')
         .replace(/\*\*\*/g, '')
         .replace(/\n{2,}/g, '\n')
+        .trim()
         .split('\n')
         .filter(line => line.trim() && !/^(http|Download|Duration|Resolution|Categories|About)/i.test(line));
 
