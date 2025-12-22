@@ -683,6 +683,34 @@ function CheckTitle(first, titleExr) {
     titleDBIndex = [...new Set(titleDBIndex)];
 }
 
+
+/**
+ * 문자열 내의 모든 원형 숫자를 일반 숫자로 교체하는 함수
+ * @param {string} originText - 원본 문자열 (예: "①번 과제와 ②번 과제")
+ * @returns {string} - 변환된 문자열
+ */
+function replaceCircleNumbers(originText) {
+    // 1. 원형 숫자 범위(①~⑳)를 찾는 정규 표현식
+    // ①(9312) ~ ⑮(9326), ⑯(9451) ~ ⑳(9455)
+    const circleRegex = /[①-⑳]/g;
+
+    // 2. replace 메서드로 패턴에 맞는 문자만 골라 변환
+    return originText.replace(circleRegex, (match) => {
+        const code = match.charCodeAt(0);
+
+        // ① ~ ⑮ 범위 처리
+        if (code >= 9312 && code <= 9326) {
+            return code - 9311;
+        }
+        // ⑯ ~ ⑳ 범위 처리
+        if (code >= 9451 && code <= 9455) {
+            return code - 9435;
+        }
+
+        return match; // 예외 경우 원래 문자 반환
+    });
+}
+
 const SkipTitle = `@KF(無限速，KF更網域,舊檔址 katfile.com 改 katfile.cloud 即可)`;
 async function CopyItems() {
     const linksDB = [];
