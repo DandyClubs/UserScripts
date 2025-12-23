@@ -790,7 +790,7 @@ function AddViewer() {
             autoFitImage(viewer, image);
         },
         shown() {
-            bindImagePreloadHandlers(viewer);
+            //bindImagePreloadHandlers(viewer);
         },
     });
 }
