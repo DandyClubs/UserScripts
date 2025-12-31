@@ -590,7 +590,7 @@ const DomainHandlers = {
                 if (postid) {
                     return `viewtopic.php?p=${postid}#${postid}`;
                 } else {
-                    return null
+                    return null;
                 }
             }
         },
@@ -634,7 +634,7 @@ const DomainHandlers = {
         },
         getPostArea: (el) => el.closest('table.tborder'),
         GetInfo: (el) => {
-            const rawTitle = DomainRules.relativeSelector(el)?.textContent.trim() || '';
+            let rawTitle = DomainRules.relativeSelector(el)?.textContent.trim() || '';
             const infoRaw = DomainRules.infoSelector(el)?.innerText || '';
             const infoLines = infoRaw.split(/\n+/).map(line => line.trim()).filter(e => !/^(A s i a n Sex D i a r y|A s i a n S e x D i a r y|A s i a X X X T o u r|A s i a XXX T o u r)$/i.test(e));
             return parseForumTitle(infoLines, rawTitle, { preferJapanese: true });
@@ -699,7 +699,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
     let CopyTitle = fallbackTitle
         .replace(/^(UNCENSORED|CENSORED)\s/, '')
-        .replace(/amp;|\(\)/g, '')        
+        .replace(/amp;|\(\)/g, '')
         .trim();
 
     if (rawMode) return CopyTitle;
@@ -743,7 +743,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
                 Title = line.replace(/^Title\s?:/i, '').trim();
             }
 
-            Title = Title ? Title.trim() + ' ' : '';            
+            Title = Title ? Title.trim() + ' ' : '';
         }
 
 
@@ -761,11 +761,11 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
         if (!ReleaseDate) {
             ReleaseDate = DateRegEx.test(line) ? line.match(DateRegEx)[1] : '';
-            if (ReleaseDate){
+            if (ReleaseDate) {
                 line = line.replace(ReleaseDate, '').trim();
                 ReleaseDate = ReleaseDate.replace(/\/|-|_/g, '.');
             }
-            
+
         }
         return ID && ModelName && ReleaseDate && Title && Maker;
     });
@@ -792,7 +792,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
     const cleanedinfoLines = infoLines.join('\n')
         .replace(/Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re:|^File\sName/i, '')
         .replace(/(Actress|Model|Label|Circle|Featuring)\s*:?/gi, '')
-        .replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n')        
+        .replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n')
         .replaceAll('"|：', '')
         .replace(/\*\*\*/g, '')
         .replace(/\n{2,}/g, '\n')
@@ -803,7 +803,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
     console.log({ infoLines, cleanedinfoLines });
 
     console.log({ CopyTitle, Title, infoLines, cleanedinfoLines });
-    const infoLinesFinalTitle = Title ? (Maker || ID ? `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim() : `${Title}${ModelName} ${ReleaseDate ? `(${ReleaseDate})` : ''}`.replace(/\s+/g, ' ').trim() ) : '';
+    const infoLinesFinalTitle = Title ? (Maker || ID ? `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim() : `${Title}${ModelName} ${ReleaseDate ? `(${ReleaseDate})` : ''}`.replace(/\s+/g, ' ').trim()) : '';
     const InfofinalTitle = infoLinesFinalTitle ? infoLinesFinalTitle : compareSentencesByWordMatch(CopyTitle, cleanedinfoLines[0]);
 
     console.log({ CopyTitle, InfofinalTitle });
@@ -831,8 +831,11 @@ function parseForumTitle(infoLines, rawTitle, options = {}) {
         rawMode = false,
     } = options;
     //console.log('parseForumTitle:', { infoLines, rawTitle, options });
-    rawTitle = rawTitle.replace(/amp;|\(\)/gi, '').replace(/^Re:|Subject:/i, '').trim();
-
+    if (/newsearch\.php/.test(PageURL)) {
+        rawTitle = '';
+    } else {
+        rawTitle = rawTitle.replace(/amp;|\(\)/gi, '').replace(/^Re:|Subject:/i, '').trim();
+    }
 
     const finalTitle = extractInfoFromText(infoLines, rawTitle, options);
     const TitleID = finalTitle?.match(SearchID)?.[1] || '';
