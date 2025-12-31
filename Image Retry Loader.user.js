@@ -254,8 +254,8 @@
     function isValidExternalImage(img) {
         // src가 없거나, 이미 로딩 완료되었거나, data: 형식인 경우 제외
         if (!img || !img.src) return false;
-        if (img.complete && img.naturalWidth !== 0) return false;
         if (img.src.startsWith('data:')) return false;
+        if (img.complete) return false;        
         return true;
     }
 
