@@ -195,8 +195,7 @@ function convertHttpTextToLinks(root = document.body) {
         'b', 'i', 'em', 'strong', 'span', 'font', 'small', 'big', 'tt', 'cite', 'kbd', 'var', 'samp', 'dfn', 'abbr', 'acronym', 'q', 'sub', 'sup'
     ]);
 
-    // URL 정규 표현식 (일반적인 URL 형식)
-    const urlRegex = /(https?:\/\/[^\s<>"']+)/gi;
+    const urlRegex = /https?:\/\/[^\s<>"'\[\]()]+(?:\([^\s<>"'\[\]()]+\)|[^\s<>"'\[\]().,?!:;\"'\]\)])/gi;
 
     // 건너뛸 상위 태그 목록 (이 태그 내부의 텍스트는 처리하지 않음)
     const skipTags = new Set(['a', 'script', 'style', 'textarea', 'code', 'pre']);
