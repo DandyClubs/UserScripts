@@ -782,8 +782,8 @@ function AddViewer() {
 
         ready() {
             // Only bind these handlers once
-            bindKeyboardNavigation(viewer);
-            bindArrowNavHandlers(viewer);
+            //bindKeyboardNavigation(viewer);
+            //bindArrowNavHandlers(viewer);
         },
 
         viewed({ detail: { image } }) {
