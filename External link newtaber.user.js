@@ -57,10 +57,7 @@
     const alwaysNewTabPatterns = [
         // 개별 사이트 및 패턴 규칙
         /20pie\.com.*\.html/,
-        /avcensdownload.pro\/video(?!tag)/,
-        /.\/viewtopic.php\?(f|t|id)/,
-        /viewthread\.php\?tid/,
-        /forum\/viewtopic\.php\?t/,
+        /avcensdownload.pro\/video(?!tag)/,        
         /hdreactor\.club.*\.html/,
         /hiderefer/,
         /girlscanner\.org\/.+\.html$/,
@@ -103,8 +100,7 @@
         /filecrypt.cc\/Container\/.+\.html/,
         /gomoviz/,
         /hentaiprn/,
-        /rosefile.net\/d/,
-        /viewtopic.php.+&start/,
+        /rosefile.net\/d/,        
 
         // 페이지네이션
         /\/page\/\d+/,
@@ -187,6 +183,7 @@
             /topic-title/,    
             /topictitle/,        
             /post-box-title/,
+            /list-row/
         ]
     };
 
