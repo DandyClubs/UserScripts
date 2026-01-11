@@ -184,7 +184,8 @@
             /topic-title/,    
             /topictitle/,        
             /post-box-title/,
-            /list-row/
+            /list-row/,
+            /torTopic/
         ]
     };
 
