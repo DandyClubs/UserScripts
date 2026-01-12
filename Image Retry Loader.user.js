@@ -223,7 +223,7 @@
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         if (node.tagName === 'IMG') {      
                             if (isValidExternalImage(node)) {
-                                //node.setAttribute('loading', 'lazy');
+                                node.setAttribute('loading', 'lazy');
                                 lazyImageQueue.enqueue(node);
                                 if (!isLazyProcessing) {
                                     processLazyQueue();
@@ -233,7 +233,7 @@
                         }
                         node.querySelectorAll('img').forEach(img => {  
                             if (isValidExternalImage(img)) {
-                                //img.setAttribute('loading', 'lazy');
+                                img.setAttribute('loading', 'lazy');
                                 lazyImageQueue.enqueue(img);
                                 if (!isLazyProcessing) {
                                     processLazyQueue();
@@ -263,7 +263,7 @@
     window.addEventListener("DOMContentLoaded", () => {
         document.querySelectorAll('img').forEach(img => {    
             if (isValidExternalImage(img)) {
-                //img.setAttribute('loading', 'lazy');                
+                img.setAttribute('loading', 'lazy');                
                 lazyImageQueue.enqueue(img);
             }            
             addErrorListenerToImages(img);
