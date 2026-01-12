@@ -11,6 +11,7 @@
 // @match        https://javfree.me/*
 // @match        http://wetholefans.com/*
 // @match        https://therarbg.com/*
+// @match        https://sukebei.nyaa.si/*
 // @exclude      /javarchive\.com\/\d{4,6}/
 // @match        https://sis001.com/forum/forum*.html
 // @match        https://www.naughtyblog.org/*
@@ -283,6 +284,10 @@ const siteConfigs = {
     'allasiangirls.net': {
         linkSelector: 'div.box-text.text-center div.box-text-inner.blog-post-inner .post-title a',
         removeTagSelector: 'div.post-item',
+    },
+    'sukebei.nyaa.si': {
+        linkSelector: 'table.torrent-list tbody tr.default td a',
+        removeTagSelector: 'tr.default',
     },
 };
 
