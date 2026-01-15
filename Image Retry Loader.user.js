@@ -64,7 +64,7 @@
             img.addEventListener('error', onError);
 
             // 강제 로딩 시작
-            img.setAttribute('loading', 'eager');
+            img.removeAttribute('loading');
             // src가 이미 설정되어 있다면 다시 할당하여 로딩 트리거 (일부 브라우저 대응)
             const currentSrc = img.src;
             img.src = currentSrc;
