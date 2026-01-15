@@ -1079,11 +1079,11 @@ function assembleFinalTitle(data) {
         if (formattedMaker && formattedReleaseDate && formattedModelName) {
             finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${formattedModelName}${TitleText}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
         } else {
-            if (formattedMaker && formattedId) {
+            if (formattedMaker && formattedId && formattedReleaseDate) {
                 finalTitle = `${formattedMaker} ${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
             }
-            else if (formattedMaker || formattedId) {
-                finalTitle = `${formattedMaker} ${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
+            else if ((formattedMaker || formattedId) && formattedReleaseDate) {
+                finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
             } else {
                 finalTitle = `${TitleText}${formattedReleaseDate}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
             }
