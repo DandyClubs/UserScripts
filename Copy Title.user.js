@@ -1076,13 +1076,13 @@ function assembleFinalTitle(data) {
 
     let finalTitle = '';
     if (/pornolab\.net/.test(RootDomain)) {
-        if (formattedMaker && formattedReleaseDate && formattedModelName) {
+        if (formattedMaker && formattedReleaseDate) {
             finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${formattedModelName}${TitleText}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
         } else {
-            if (formattedMaker && formattedId && formattedReleaseDate) {
+            if (formattedMaker && formattedId) {
                 finalTitle = `${formattedMaker} ${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
             }
-            else if ((formattedMaker || formattedId) && formattedReleaseDate) {
+            else if (formattedMaker || formattedId) {
                 finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
             } else {
                 finalTitle = `${TitleText}${formattedReleaseDate}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
