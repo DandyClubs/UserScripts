@@ -825,7 +825,7 @@ async function handleAllAsianGirls() {
         ?.textContent.replace(/part\d+$/i, '') || null;
     return handleSite({
         copyTitle: Title,
-        linkSelectors: [{ selector: 'a[href^="https://shrinkme"], a[href^="https://ouo"]', text: '', type: 'terabox' }],
+        linkSelectors: [{ selector: 'a[href^="https://shrinkme"], a[href^="https://ouo"]', text: 'Terabox', type: 'terabox' }],
         enableJdownloaer: true,
     });
 }
