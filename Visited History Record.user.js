@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Visited History Record
 // @namespace   DandyClubs
-// @version     2025.10.28
+// @version     2026.01.20
 // @include     https://sis001.com/forum/forum*.html
 // @match       https://sis001.com/forum/forumdisplay.php*
 // @match       https://ultoporn.com/*
@@ -9,6 +9,7 @@
 // @include     https://sehuatang.net/forum*
 // @include     https://www.t66y.com/thread*
 // @include     https://k2sporn.com/*
+// @include     https://k2sprn.com/*
 // @include     https://hidefporn.ws/*
 // @include     https://everia.club/*
 // @include     https://foamgirl.net/*
@@ -25,7 +26,7 @@
 // @grant       GM_addValueChangeListener
 // @require     https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @require     https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
-// @require      https://raw.githubusercontent.com/DandyClubs/Filter/main/Filters.js
+// @require     https://raw.githubusercontent.com/DandyClubs/Filter/main/Filters.js
 // @noframes
 // ==/UserScript==
 
@@ -381,6 +382,18 @@ const k2sporn = {
     OpenTabCount: 30,
 };
 
+const k2sprn = {
+    MatchUrl: 'k2sprn.com',
+    root: document.querySelector('div.side_main'),
+    exlink: 'div.story-head a',
+    Class: null,
+    RegexElement: /\/\d{3,}.*.html/,
+    OpenTab: false,
+    Get: 'GetTitle',
+    SaveMode: 'ScriptStorage',
+    OpenTabCount: 30,
+};
+
 const ultoporn = {
     MatchUrl: 'ultoporn.com',
     root: document.querySelector('div#midside'),
@@ -464,6 +477,7 @@ const hostExtractors = /* #__PURE__ */ Object.freeze({
     sis001,
     t66y,
     k2sporn,
+    k2sprn,
     ultoporn,
     hidefporn,
     wetholefans,
@@ -927,6 +941,13 @@ async function Start() {
                         }
                         break;
                     }
+                    case 'k2sprn.com': {
+                        const closestShortStoryImg = e.target.closest('.shortstory-img');
+                        if (closestShortStoryImg) {
+                            target = closestShortStoryImg.closest('.shortstory').querySelector(Active.exlink);
+                        }
+                        break;
+                    }
                     case 'wetholefans.com': {
                         if (e.target.matches('h2') || e.target.matches('div.short-story center a img')) {
                             const closestShortStory = e.target.closest('.short-story');
@@ -978,7 +999,8 @@ async function Start() {
             document.documentElement.style.setProperty('--top', `${off}px`);
             break;
         }
-        case 'k2sporn.com':
+        case 'k2sporn.com':\
+        case 'k2sprn.com':
         case 'hidefporn.ws':
             document.documentElement.style.setProperty('--top', '-1rem');
             break;

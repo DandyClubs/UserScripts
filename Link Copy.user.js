@@ -37,7 +37,7 @@
 // @include      https://aincest.com/*
 // @include      https://models-nudeteen.org/*
 // @include      /(bestgirlsexy|bestvideosexy)\.com/
-// @include      https://k2sporn.com/*
+// @include      /(k2sporn|k2sprn).com/
 // @include      https://hidefporn.ws/*
 // @include      https://ultoporn.com/*
 // @include      https://3xplanet.net/*
@@ -1292,7 +1292,7 @@ const siteConfigs = [
         }
     },
     {
-        regex: /(k2sporn\.com|hidefporn\.ws)\/\d+/,
+        regex: /((k2sporn|k2sprn)\.com|hidefporn\.ws)\/\d+/,
         config: {
             copyOffsetAreaSelector: 'div.story-head .title',
             downloadAreaSelector: 'div.story-cont div.quote'
@@ -1638,7 +1638,7 @@ const siteConfigs = [
 
 const siteRules = [
     {
-        regex: /k2sporn\.com\/\d{4,6}/,
+        regex: /(k2sporn|k2sprn)\.com\/\d{4,6}/,
         handler: (title) => {
 
             const cleanText = (text) => {

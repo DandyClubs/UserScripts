@@ -18,6 +18,7 @@
 // @match        https://sis001.com/forum/forumdisplay.php*
 // @match        https://ultoporn.com/*
 // @match        https://k2sporn.com/*
+// @match        https://k2sprn.com/*
 // @match        https://hidefporn.ws/*
 // @match        https://misskon.com/*
 // @match        https://www.t66y.com/thread*
@@ -232,6 +233,10 @@ const siteConfigs = {
         linkSelector: 'div.story-head h2.title a',
         removeTagSelector: 'div.story.shortstory',
     },
+    'k2sprn.com': {
+        linkSelector: 'div.story-head h2.title a',
+        removeTagSelector: 'div.story.shortstory',
+    },
     'hidefporn.ws': {
         linkSelector: 'div.story-head h2.title a',
         removeTagSelector: 'div.story.shortstory',
@@ -397,7 +402,7 @@ async function processContent(node, selector, isExtra = false) {
             continue;
         }
 
-        if (/hidefporn\.ws|ultoporn\.com|k2sporn\.com|wetholefans\.com/.test(PageURL)) {
+        if (/hidefporn\.ws|ultoporn\.com|(k2sporn|k2sprn)\.com|wetholefans\.com/.test(PageURL)) {
             const resolutionMatch = textContent.match(/(\d{3,4})p/);
             const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;            
             if (resolution) {
