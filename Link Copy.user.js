@@ -53,6 +53,7 @@
 // @include      https://www.nicewww.com/*
 // @include      https://www.xtvtv.com/*
 // @include      https://softmodels.net/*
+// @include      https://xjapan.org/*
 // @exclude      https://x-idol.net/
 // @exclude      https://x-idol.net/?paged=*
 // @exclude      https://www.google.com/search*
@@ -1223,6 +1224,13 @@ const siteConfigs = [
                     CopyTitle = CopyTitle.replace(/\*/g, '＊').replace(/\?/g, '？');
                 }
             }
+        }
+    },
+    {
+        regex: /xjapan\.org/,
+        config: {
+            copyOffsetAreaSelector: 'header.entry-header .entry-title',
+            downloadAreaSelector: 'div.entry-container div.entry-content p:last-of-type'
         }
     },
     {
