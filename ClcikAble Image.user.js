@@ -82,10 +82,10 @@ const av18plus = {
 
 const blogjav = {
     MatchUrl: 'blogjav.net',
-    MakeClickImage: 'div.ast-blog-single-element p > img',
+    MakeClickImage: 'div.inside-article div.entry-content p img',
     Approach: 'closest',
-    closestTag: 'div.post-content',
-    SearchATag: 'h2.entry-title.ast-blog-single-element a',
+    closestTag: 'div.inside-article',
+    SearchATag: 'header.entry-header .entry-title a',
 }
 
 const ultoporn = {
