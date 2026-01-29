@@ -999,7 +999,7 @@ async function Start() {
             document.documentElement.style.setProperty('--top', `${off}px`);
             break;
         }
-        case 'k2sporn.com':\
+        case 'k2sporn.com':
         case 'k2sprn.com':
         case 'hidefporn.ws':
             document.documentElement.style.setProperty('--top', '-1rem');
