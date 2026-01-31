@@ -69,6 +69,7 @@
         /jpavs.net\/.+htm/,        
         /justjavhd\.com\/\d{4}\//,
         /k2sporn\.com\/\d+.*\.html/,
+        /k2sprn\.com\/\d+.*\.html/,
         /littlecaprice-dreams\.com\/project/,
         /namethatporn\.com\/post\/\d+/,
         /porndoe\.com\/watch\//,
