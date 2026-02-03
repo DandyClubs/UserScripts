@@ -1180,7 +1180,7 @@ const siteConfigs = [
                     config.downloadAreaSelector = 'div#entry';
                 }
 
-                copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
+                copyOffsetArea = document.querySelector(config.copyOffsetArea);
                 DownloadArea = document.querySelectorAll(config.downloadAreaSelector);
 
                 if (copyOffsetArea) {
