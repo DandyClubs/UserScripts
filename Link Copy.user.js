@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy (indexedDB)
-// @version      2025.10.08
+// @version      2026.02.04
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.(org|my)/
