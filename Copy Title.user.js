@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Copy Title
-// @version      2025.10.29
+// @version      2026.02.03
 // @description  try to take over the world!
 // @author       You
 // @include      /javbus.com\/.+\/([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)/
@@ -729,10 +729,10 @@ const SiteParsers = {
 
             const findModelName = InfoArea.map(line => {
                 const m = line.match(searchRegex(searchModelPatterns));
-                return m ? m[1].trim() : null;
+                return m && m[1].trim() && !titleText.includes(m[1].trim()) ? m[1].trim() : null;
             }).filter(Boolean);
 
-            const extractedModelName = findModelName.map(e => e.replace(/Amateur.*/i, '').trim()).filter(Boolean).join(',');
+            const extractedModelName = findModelName.map(e => e.replace(/Amateur.*/i, '').trim()).filter(Boolean).join(',');            
             let cleanedModelName = extractedModelName.split(/,|\saka\s/g).filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join(' ').trim();
 
 
