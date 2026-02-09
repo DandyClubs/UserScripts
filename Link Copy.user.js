@@ -1230,7 +1230,7 @@ const siteConfigs = [
         regex: /xjapan\.org/,
         config: {
             copyOffsetAreaSelector: 'header.entry-header .entry-title',
-            downloadAreaSelector: 'div.entry-container div.entry-content p:last-of-type'
+            downloadAreaSelector: 'div.entry-container div.entry-content p'
         }
     },
     {
