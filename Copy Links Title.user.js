@@ -715,59 +715,70 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
     const Featuring = FeaturingLine ? FeaturingLine.replace(/(Featuring|Title)\s?:/i, '').trim() : '';
 
     infoLines.some((line, index) => {
+        // 1. ID 추출 (최적화)
         if (!ID) {
             const idMatch = line.match(SearchID);
-            if (idMatch && !line.match(SkipID)) {
+            // SkipID에 해당하지 않는 경우에만 할당
+            if (idMatch && (!SkipID || !line.match(SkipID))) {
                 ID = idMatch[1];
             }
         }
 
+        // 2. Title 추출 (로직 단순화)
         if (!Title) {
             const titleMatchRaw = line.match(SearchID);
-            const copyMatchRaw = CopyTitle.match(SearchID);
+            const copyMatchRaw = CopyTitle ? CopyTitle.match(SearchID) : null;
 
-            const titleMatch = titleMatchRaw ? titleMatchRaw.pop().trim() : null;
-            const copyMatch = copyMatchRaw ? copyMatchRaw.pop().trim() : null;
+            const titleMatch = titleMatchRaw?.at(-1)?.trim();
+            const copyMatch = copyMatchRaw?.at(-1)?.trim();
 
             if (titleMatch && copyMatch) {
-                if (preferJapanese) {
-                    Title = compareJapaneseCharacters(titleMatch, copyMatch);
-                } else {
-                    Title = titleMatch || copyMatch;
-                }
-            } else if (titleMatch) {
-                Title = titleMatch;
-            } else if (copyMatch) {
-                Title = copyMatch;
-            } else if (/^Title\s?:/i.test(line)) {
+                Title = preferJapanese ? compareJapaneseCharacters(titleMatch, copyMatch) : (titleMatch || copyMatch);
+            } else {
+                Title = titleMatch || copyMatch;
+            }
+
+            // 특정 패턴(Title:)으로 시작하는 경우 예외 처리
+            if (!Title && /^Title\s?:/i.test(line)) {
                 Title = line.replace(/^Title\s?:/i, '').trim();
             }
 
-            Title = Title ? Title.trim() + ' ' : '';
+            if (Title) Title = Title.trim() + ' ';
         }
 
-
-        if (!Maker && /(Circle|Label)\s?:/.test(line)) {
-            const raw = line.match(/(Circle|Label)\s?:(.*)/)[2].trim();
-            const cleaned = SkipMakers.reduce((acc, keyword) => {
-                return acc.replace(new RegExp(keyword, 'gi'), '');
-            }, raw).trim();
-            if (cleaned) Maker = `[${cleaned}] `;
-        }
-
-        if (!ModelName && /(Actress|Model|Author)\s?:/.test(line)) {
-            ModelName = line.match(/(Actress|Model|Author)\s?:(.*)/)[2].trim();
-        }
-
-        if (!ReleaseDate) {
-            ReleaseDate = DateRegEx.test(line) ? line.match(DateRegEx)[1] : '';
-            if (ReleaseDate) {
-                infoLines[index] = line.replace(ReleaseDate, '').trim();                    
-                ReleaseDate = ReleaseDate.replace(/\/|-|_/g, '.');
+        // 3. Maker (Circle/Label) 추출
+        if (!Maker) {
+            const makerMatch = line.match(/(?:Circle|Label)\s?:\s?(.*)/i);
+            if (makerMatch) {
+                const raw = makerMatch[1].trim();
+                const cleaned = SkipMakers.reduce((acc, keyword) => {
+                    return acc.replace(new RegExp(keyword, 'gi'), '');
+                }, raw).trim();
+                if (cleaned) Maker = `[${cleaned}] `;
             }
-
         }
-        return ID && ModelName && ReleaseDate && Title && Maker;
+
+        // 4. ModelName (Actress/Model/Author) 추출
+        if (!ModelName) {
+            const modelMatch = line.match(/(?:Actress|Model|Author)\s?:\s?(.*)/i);
+            if (modelMatch) {
+                ModelName = modelMatch[1].trim();
+            }
+        }
+
+        // 5. ReleaseDate 추출 및 포맷팅 (선택적 원본 수정)
+        if (!ReleaseDate) {
+            const dateMatch = line.match(DateRegEx);
+            if (dateMatch) {
+                ReleaseDate = dateMatch[1];
+                // 원본 배열의 line에서 날짜를 지우고 싶다면 아래 주석 해제 (부모 스코프 영향 필요)
+                infoLines[index] = line.replace(ReleaseDate, '').trim(); 
+                ReleaseDate = ReleaseDate.replace(/[\/\-_]/g, '.');
+            }
+        }
+
+        // 모든 정보가 수집되면 루프 종료 (some의 특성 활용)
+        return !!(ID && ModelName && ReleaseDate && Title && Maker);
     });
 
     console.log({ ID, ModelName, ReleaseDate, Title });
@@ -787,7 +798,8 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         Title = `${Featuring} - ${Title}`;
     }
 
-    Title = Title.replace(/Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re:|^File\sName/i, '').trim();
+
+    Title = Title ? Title.replace(/Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re:|^File\sName/i, '').trim() : '';
 
     const cleanedinfoLines = infoLines.join('\n')
         .replace(/Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re:|^File\sName/i, '')
