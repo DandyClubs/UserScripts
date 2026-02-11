@@ -714,7 +714,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
     const FeaturingLine = infoLines.find(line => line.match(/(Featuring|Title)/i));
     const Featuring = FeaturingLine ? FeaturingLine.replace(/(Featuring|Title)\s?:/i, '').trim() : '';
 
-    infoLines.some((line) => {
+    infoLines.some((line, index) => {
         if (!ID) {
             const idMatch = line.match(SearchID);
             if (idMatch && !line.match(SkipID)) {
@@ -762,7 +762,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         if (!ReleaseDate) {
             ReleaseDate = DateRegEx.test(line) ? line.match(DateRegEx)[1] : '';
             if (ReleaseDate) {
-                line = line.replace(ReleaseDate, '').trim();
+                infoLines[index] = line.replace(ReleaseDate, '').trim();                    
                 ReleaseDate = ReleaseDate.replace(/\/|-|_/g, '.');
             }
 
