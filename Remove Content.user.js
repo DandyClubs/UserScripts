@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Remove Content
 // @namespace    http://tampermonkey.net/
-// @version      2025.10.23
+// @version      2026.02.13
 // @description  try to take over the world!
 // @author       You
 // @match        https://blogjav.net/*
@@ -273,7 +273,7 @@ const siteConfigs = {
     },
     'sis001.com': {
         linkSelector: 'th span a[href*="thread"], th span a[href*="viewthread.php?tid"]',
-        extraSelector: 'th em a',
+        extraSelector: 'th.lock em a',        
         removeTagSelector: 'tbody',
         rootSelector: 'div.mainbox.threadlist form table:last-child',
     },
@@ -375,10 +375,10 @@ async function ClearTitle() {
  * @param {string} selector - 요소를 찾는 CSS 선택자
  * @param {boolean} isExtra - 추가 선택자인지 여부
  */
-async function processContent(node, selector, isExtra = false) {
+async function processContent(node, selector, isExtra = false) {    
     const items = [...node.querySelectorAll(selector)];
     for (const item of items) {
-        let textContent = item.textContent;
+        const textContent = item.textContent;
 
         // 추가 선택자의 경우 특정 단어로 제거
         if (isExtra) {
@@ -388,6 +388,7 @@ async function processContent(node, selector, isExtra = false) {
                 continue;
             }
         }
+
         // 일반 링크의 경우 URL 또는 텍스트로 제거
 
         if (/\/(femdom|transsexuals)\//i.test(item.href)) {
@@ -404,19 +405,19 @@ async function processContent(node, selector, isExtra = false) {
 
         if (/hidefporn\.ws|ultoporn\.com|(k2sporn|k2sprn)\.com|wetholefans\.com/.test(PageURL)) {
             const resolutionMatch = textContent.match(/(\d{3,4})p/);
-            const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;            
+            const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
             if (resolution) {
                 const Title = textContent.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(resolutionMatch[0], '').replace(/^(.*?)(?<=:)/gi, '').trim().toLowerCase();
                 if (Title.split(' ').length < 2 || Title.length < 10) continue;
                 const CheckDB = (text, DB) => DB.some(s => s.K.toLowerCase().includes(text.toLowerCase()));
                 if (resolution >= 1080 && !CheckDB(Title, contentCache)) {
-                    console.log('Title:', Title, '\nResolution:', resolution);                    
+                    console.log('Title:', Title, '\nResolution:', resolution);
                     await contentManager.add(Title, AddDate);
                     contentCache = await contentDBUpdate();
                 }
                 else if (resolution <= 720 && CheckDB(Title, contentCache)) {
                     console.log('Low resolution content removed:', resolution, Title);
-                    item.closest(Active.removeTagSelector)?.remove();                    
+                    item.closest(Active.removeTagSelector)?.remove();
                     continue;
                 }
             }
@@ -434,7 +435,7 @@ async function processContent(node, selector, isExtra = false) {
  */
 function replaceText(node) {
     const changed = [];
-   
+
     const textNodes = [...node.childNodes]
         .filter(child => child.nodeType === 3 && child.textContent.trim())
         .map(child => ({ text: child.textContent.trim(), node: child }));
@@ -490,6 +491,7 @@ function processQueue() {
         if (Active.extraSelector) {
             processContent(item, Active.extraSelector, true);
         }
+
         processContent(item, Active.linkSelector);
     }
     managementWorking = false;
@@ -532,7 +534,7 @@ function getClearTitle(name) {
 }
 
 window.addEventListener("DOMContentLoaded", async () => {
-    await contentManager.init();    
+    await contentManager.init();
     console.log('Start Remove Content!');
     const rootElement = Active.rootSelector ? document.querySelector(Active.rootSelector) : document.body;
 

@@ -329,13 +329,13 @@ const RegexFrom = (strings, flags) =>
 const SkipWorld = RegexFrom(skipWordsList, 'gi');
 const SkipModelEX = RegexFrom(SkipModel.split(/\r?\n/), 'gi');
 const WarningEX = RegexFrom(WarningText.split(/\r?\n/), 'gi');
-
-
+const authorEX = /Avhunter|love69sex|mikkingole|堕落上帝/i;
 
 const sis001 = {
     MatchUrl: 'sis001.com',
     root: document.querySelector('div.mainbox.threadlist table:has(tbody[id^="normalthread"])'),
     exlink: 'th span:not(.threadpages) a[href*="thread"], th span:not(.threadpages) a[href*="viewthread.php"]',
+    authorSelector: 'td.author cite a',
     Class: null,
     ID: /normalthread/,
     RegexElement: /thread.+\.html|viewthread\.php/i,
@@ -706,7 +706,7 @@ function checkVisited(node = Active.root) {
         for (let el of checkLists) {
             let linkInfo;
             el.classList.add('RecordHistory');
-            if (SkipWorld.test(el.textContent) || SkipModelEX.test(el.textContent) || WarningEX.test(el.textContent)) {
+            if (SkipWorld.test(el.textContent) || SkipModelEX.test(el.textContent) || WarningEX.test(el.textContent) || authorEX.test(el.closest('tr')?.querySelector('td.author cite a')?.textContent)) {
                 el.classList.add('Skip');
             }
             if (Active.Get === 'GetID') {
