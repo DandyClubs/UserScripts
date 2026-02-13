@@ -309,6 +309,7 @@ const skipWordsList = /sis001\.com/.test(PageURL)
         'HEYZO',
         '1Pondo',
         '1PON',
+        'AI破解版',
     ]
     : [
         '中字高清',
@@ -571,19 +572,38 @@ const addNodesSet = new Set();
 let VisitedState;
 const processedLinks = new Set();
 
-
 const mutCallback = (mutationsList, observer) => {
-    for (const { addedNodes } of mutationsList) {
-        for (const node of addedNodes) {
+    for (const mutation of mutationsList) {
+        // --- [1] 노드가 삭제되었을 때 처리 ---
+        for (const removedNode of mutation.removedNodes) {
+            if (!(removedNode instanceof HTMLElement)) continue;
+
+            // 1. 삭제된 노드 자체가 Set에 있는지 확인 후 삭제
+            if (addNodesSet.has(removedNode)) {
+                addNodesSet.delete(removedNode);
+            }
+
+            // 2. 삭제된 노드의 자식들 중 Set에 포함된 요소가 있는지 확인 (중요)
+            // 삭제된 부모 요소 안에 우리가 관리하던 a 태그가 있을 수 있기 때문입니다.
+            const containedLinks = removedNode.querySelectorAll('a');
+            containedLinks.forEach(link => {
+                if (addNodesSet.has(link)) {
+                    addNodesSet.delete(link);
+                }
+            });
+        }
+
+        // --- [2] 노드가 추가되었을 때 처리 (기존 로직) ---
+        for (const node of mutation.addedNodes) {
             if (!(node instanceof HTMLElement)) continue;
 
             if (node.nodeType == Node.ELEMENT_NODE && node.childNodes.length > 0 && node.querySelector(Active.exlink)) {
                 checkVisited(node).then((Lists) => {
                     Lists.forEach(a => {
-                        const href = a.href;                        
+                        const href = a.href;
                         if (
                             MatchRegexElement(a, Active.RegexElement, 'href', Active.Class) &&
-                            !processedLinks.has(href) && // <--- 중복 방지 로직 추가
+                            !processedLinks.has(href) &&
                             !a.classList?.contains('visited') &&
                             !a.classList?.contains('Skip')
                         ) {
@@ -617,22 +637,47 @@ function MakeIcon() {
 
         document.querySelector(".OpenTab").addEventListener('click', async function (e) {
             e.preventDefault();
-            document.querySelector('.OpenTab').style.visibility = "hidden";
+
+            const openBtn = e.currentTarget; // 혹은 document.querySelector('.OpenTab')
+            openBtn.style.visibility = "hidden";
+
+            // 1. Set을 배열로 변환 (순회용)
             const AddNodes = Array.from(addNodesSet);
-            let OpenCount = AddNodes?.length <= Active.OpenTabCount + 5 ? AddNodes : AddNodes.slice(0, Active.OpenTabCount);
-            let Index = 1;
-            while (OpenCount.length >= Index) {
-                const a = OpenCount[Index - 1];
-                await OpenTab(OpenCount[Index - 1]);
-                VisitedState.innerText = OpenCount.length - Index;
+
+            // 2. 열어야 할 개수 계산 (슬라이싱)
+            let targetNodes = AddNodes.length <= Active.OpenTabCount + 5
+                ? AddNodes
+                : AddNodes.slice(0, Active.OpenTabCount);
+
+            let currentIndex = 0;
+
+            // while 대신 for...of 를 사용하면 Index 관리가 더 직관적입니다.
+            for (const a of targetNodes) {
+                // [중요] 루프 도중 다른 스크립트가 a를 삭제했을 수도 있으므로 체크
+                if (!document.body.contains(a)) {
+                    addNodesSet.delete(a);
+                    continue;
+                }
+
+                await OpenTab(a);
+
+                // 처리 완료 후 업데이트
                 addNodesSet.delete(a);
                 processedLinks.add(a.href);
+
+                currentIndex++;
+                VisitedState.innerText = targetNodes.length - currentIndex;
+
                 await sleep(250);
-                Index++;
             }
+
             await sleep(1000);
+
+            // 최종 상태 업데이트
             VisitedState.innerText = addNodesSet.size;
-            document.querySelector('.OpenTab').style.visibility = "visible";
+            openBtn.style.visibility = "visible";
+
+            // 스타일 설정
             VisitedCenterBox.style.cssText = `font-size: ${CenterBoxFontSize}; z-index: ${CenterBoxZIndex}; display: block;`;
             VisitedState.style.cssText = `font-size: ${Number(((1 / (GetDPI / 1.5)) * 0.75 * (16 / DefaultFontSize)).toFixed(2))}rem;`;
         });
