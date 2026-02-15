@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Torrent Sites - add magnet links
 // @namespace   DandyClubs
-// @version     2025.09.11
+// @version     2026.02.15
 // @description Adds a column with magnet links in lists (multi-site support)
 // @author      DandyClubs
 // @license     MIT
@@ -469,8 +469,9 @@ async function appendColumn() {
 
                 if (config.hasTitleCopy) {
                     cell.querySelector('.GetTitle').addEventListener('click', (event) => {
+                        link.click();                       
                         updateClipboard(Key.replace(/(\[|\(|\d+p).*/i, '').trim());
-                        event.target.style.setProperty('color', 'Orange', 'important');
+                        event.target.style.setProperty('color', 'Orange', 'important');                         
                     })
                 }
             }
