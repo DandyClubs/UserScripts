@@ -713,7 +713,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
     const FeaturingLine = infoLines.find(line => line.match(/(Featuring|Title)/i));
     const Featuring = FeaturingLine ? FeaturingLine.replace(/(Featuring|Title)\s?:/i, '').trim() : '';
-    const cleanInfoLines = infoLines.map(line => line.replace(/^Video\s?info:$/i, '').trim())).filter(Boolean);
+    const cleanInfoLines = infoLines.map(line => line.replace(/^Video\s?info:$/i, '').trim()).filter(Boolean);
     console.log({ cleanInfoLines });
 
     cleanInfoLines.some((line, index) => {
