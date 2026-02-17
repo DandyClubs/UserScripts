@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Copy Links & Title (indexedDB)
 // @namespace    http://tampermonkey.net/
-// @version      2025.10.07
+// @version      2026.02.17
 // @description  try to take over the world!
 // @author       You
 // @include      /gm\d+.xyz/
@@ -314,7 +314,7 @@ const JapaneseChar = /[ぁ-んァ-ン一-龯]/;
 const SkipClassNames = ['adead_link', 'autohyperlink', 'social-icon', 'postdetails'];
 const SearchID = /^([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})(.*)/;
 const ChinaID = /([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})/;
-const SearchFC2ID = /(^FC2.+\d{6})(.*)/;
+const SearchFC2ID = /(^FC2.+\d{6,7})(.*)/;
 const SearchIDRegExp = /^(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}))(?!(C_\d+|file\d+))(.*)$/;
 const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/;
 const SkipTitle = [
@@ -713,7 +713,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
     const FeaturingLine = infoLines.find(line => line.match(/(Featuring|Title)/i));
     const Featuring = FeaturingLine ? FeaturingLine.replace(/(Featuring|Title)\s?:/i, '').trim() : '';
-    const cleanInfoLines = infoLines.map(line => line.replace(/^Video\s?info:$/i, '').trim()).filter(Boolean);
+    const cleanInfoLines = infoLines.map(line => line.replace(/^(Video\s?info:|Video\sfile\sinformation:|General\s\/\sNames)$/i, '').trim()).filter(Boolean);
     console.log({ cleanInfoLines });
 
     cleanInfoLines.some((line, index) => {
@@ -803,7 +803,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
     Title = Title ? Title.replace(/Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re:|^File\sName/i, '').trim() : '';
 
-    const cleanedinfoLines = infoLines.join('\n')
+    const cleanedinfoLines = cleanInfoLines.join('\n')
         .replace(/Actress\sand\sTitle\sVideo:|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re:|^File\sName/i, '')
         .replace(/(Actress|Model|Label|Circle|Featuring)\s*:?/gi, '')
         .replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n')
@@ -813,8 +813,6 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         .trim()
         .split('\n')
         .filter(line => line.trim() && !/^(http|Download|Duration|Resolution|Categories|About)/i.test(line));
-
-    console.log({ infoLines, cleanedinfoLines });
 
     console.log({ CopyTitle, Title, infoLines, cleanedinfoLines });
     const infoLinesFinalTitle = Title ? (Maker || ID ? `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim() : `${Title}${ModelName} ${ReleaseDate ? `(${ReleaseDate})` : ''}`.replace(/\s+/g, ' ').trim()) : '';
