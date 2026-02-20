@@ -732,7 +732,7 @@ const SiteParsers = {
                 return m && m[1].trim() && !titleText.includes(m[1].trim()) ? m[1].trim() : null;
             }).filter(Boolean);
 
-            const extractedModelName = findModelName.map(e => e.replace(/Amateur.*/i, '').trim()).filter(Boolean).join(',');            
+            const extractedModelName = findModelName.map(e => e.replace(/Amateur.*/i, '').trim()).filter(Boolean).join(',');
             let cleanedModelName = extractedModelName.split(/,|\saka\s/g).filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join(' ').trim();
 
 
@@ -1083,12 +1083,12 @@ function assembleFinalTitle(data) {
                 finalTitle = `${formattedMaker} ${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
             }
             else if (formattedMaker || formattedId) {
-                if (formattedId){
-                finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
-                } else if (formattedReleaseDate){
+                if (formattedId) {
                     finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
-                } else{
-                    `${formattedMaker} - ${TitleText}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
+                } else if (formattedReleaseDate) {
+                    finalTitle = `${formattedMaker}${formattedId}${formattedReleaseDate}${TitleText}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
+                } else {
+                    finalTitle = `${formattedMaker} - ${TitleText}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
                 }
             } else {
                 finalTitle = `${TitleText}${formattedReleaseDate}${formattedModelName}${BetweenYear}${formattedBTS}${formattedRemastered}${formattedResolution}`;
