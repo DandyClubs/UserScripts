@@ -599,15 +599,15 @@ const mutCallback = (mutationsList, observer) => {
 
             if (node.nodeType == Node.ELEMENT_NODE && node.childNodes.length > 0 && node.querySelector(Active.exlink)) {
                 checkVisited(node).then((Lists) => {
-                    Lists.forEach(a => {
-                        const href = a.href;
+                    Lists.forEach(link => {
+                        const href = link.href;
                         if (
-                            MatchRegexElement(a, Active.RegexElement, 'href', Active.Class) &&
+                            MatchRegexElement(link, Active.RegexElement, 'href', Active.Class) &&
                             !processedLinks.has(href) &&
                             !a.classList?.contains('visited') &&
                             !a.classList?.contains('Skip')
                         ) {
-                            addNodesSet.add(a);
+                            addNodesSet.add(link);
                         }
                     });
                 });
@@ -751,8 +751,13 @@ function checkVisited(node = Active.root) {
         for (let el of checkLists) {
             let linkInfo;
             el.classList.add('RecordHistory');
-            if (SkipWorld.test(el.textContent) || SkipModelEX.test(el.textContent) || WarningEX.test(el.textContent) || authorEX.test(el.closest('tr')?.querySelector('td.author cite a')?.textContent)) {
+            if (authorEX.test(el.closest('tr')?.querySelector('td.author cite a')?.textContent)){
                 el.classList.add('Skip');
+                continue;
+            } 
+            if (SkipWorld.test(el.textContent) || SkipModelEX.test(el.textContent) || WarningEX.test(el.textContent)) {
+                el.classList.add('Skip');
+                continue;
             }
             if (Active.Get === 'GetID') {
                 linkInfo = GetID(el);
@@ -780,7 +785,9 @@ function checkVisited(node = Active.root) {
                     VisitedCSS(el, X);
                 }
             } else {
-                newItems.add(el);
+                if (document.body.contains(el)) {
+                    newItems.add(el);
+                }
             }
 
         }
