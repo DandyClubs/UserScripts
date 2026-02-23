@@ -1073,9 +1073,9 @@ const siteConfigs = [
                 else DownloadArea = document.querySelectorAll('.entry-content > p');
 
                 if (is8kcosplay) CoverImage = '';
-                else {
+                else if (!isJavfree) {
                     const imgTag = DownloadArea[0]?.querySelector('p > img');
-                    CoverImage = imgTag?.getAttribute('data-lazy-src') ?? imgTag?.src ?? '';
+                    CoverImage = imgTag?.getAttribute('data-lazy-src') ?? imgTag?.src ?? '';                    
                 }
 
                 let rawTitle = copyOffsetArea?.textContent.trim() ?? '';
