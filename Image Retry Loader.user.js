@@ -155,7 +155,7 @@
      */
     function enqueueFailedImage(imgElement) {
 
-        if (imgElement.src.startsWith('blob:') || imgElementSrc.startsWith('data:')) {
+        if (imgElement.src.startsWith('blob:') || imgElement.src.startsWith('data:')) {
             return;
         }    
 
