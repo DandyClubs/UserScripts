@@ -45,6 +45,10 @@
 
     function waitForImage(img, timeout) {
         return new Promise((resolve) => {
+
+            if (img.complete && img.naturalWidth > 0) return resolve('loaded');
+            if (img.src.startsWith('blob:')) return resolve('loaded');
+
             const timer = setTimeout(() => {
                 console.warn(`[ImageRetry] 로딩 타임아웃 (다음으로 넘어감): ${img.src}`);
                 cleanup();
@@ -254,8 +258,10 @@
     function isValidExternalImage(img) {
         // src가 없거나, 이미 로딩 완료되었거나, data: 형식인 경우 제외
         if (!img || !img.src) return false;
-        if (img.src.startsWith('data:')) return false;
-        if (img.complete) return false;        
+        if (img.src.startsWith('blob:') || img.src.startsWith('data:')) {
+            return false;
+        }
+        if (img.complete && img.naturalWidth > 0) return false;     
         return true;
     }
 
