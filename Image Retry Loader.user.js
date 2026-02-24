@@ -154,9 +154,14 @@
      * 큐에 이미지 추가 함수
      */
     function enqueueFailedImage(imgElement) {
+
+        if (imgElement.src.startsWith('blob:') || imgElementSrc.startsWith('data:')) {
+            return;
+        }    
+
         if (retryQueue.some(item => item === imgElement)) {
             return;
-        }
+        }       
 
         imgElement.dataset.retryCount = imgElement.dataset.retryCount ? parseInt(imgElement.dataset.retryCount) : 0;
 
@@ -189,7 +194,10 @@
         }
 
         // 재시도 전에 GM_xmlhttpRequest를 사용하여 실제 파일 존재 여부 확인
-        const imgElementSrc = imgElement.getAttribute('src');
+        const imgElementSrc = imgElement.getAttribute('src');    
+        if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:')) {
+            return;
+        }    
         const exists = await checkImageExistenceWithGM(imgElement.getAttribute('src'));
         if (!exists) {
             console.log(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: `, imgElement);
@@ -211,7 +219,7 @@
     // 새로운 이미지에 onerror 이벤트 리스너를 추가하는 함수
     function addErrorListenerToImages(element) {
         if (element.tagName === 'IMG' && element.src) {
-            if (!element.complete || (element.naturalWidth === 0 && element.naturalHeight === 0)) {
+            if (!element.complete || element.src.startsWith('blob:') || (element.naturalWidth === 0 && element.naturalHeight === 0)) {
                 element.onerror = function () {
                     enqueueFailedImage(this);
                 };
