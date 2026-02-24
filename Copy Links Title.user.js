@@ -800,7 +800,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         Title = `${Featuring} - ${Title}`;
     }
 
-    const replaceEx = /(Actress\sand\sTitle\sVideo|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re|^File\sName):?/i;
+    const replaceEx = /(Actress\sand\sTitle\sVideo|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re|^File\sName)(\s?:)?/i;
     Title = Title ? Title.replace(replaceEx, '').trim() : '';
 
     const cleanedinfoLines = cleanInfoLines.join('\n')
