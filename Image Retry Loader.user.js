@@ -46,6 +46,13 @@
     function waitForImage(img, timeout) {
         return new Promise((resolve) => {
 
+            const currentSrc = img.getAttribute('src');
+
+            // src가 없거나 현재 페이지 주소와 같다면 로딩 시도 자체를 안 함
+            if (!currentSrc || currentSrc === "" || img.src === window.location.href) {
+                return resolve('skipped');
+            }
+
             if (img.complete && img.naturalWidth > 0) return resolve('loaded');
             if (img.src.startsWith('blob:')) return resolve('loaded');
 
@@ -69,8 +76,7 @@
 
             // 강제 로딩 시작
             img.removeAttribute('loading');
-            // src가 이미 설정되어 있다면 다시 할당하여 로딩 트리거 (일부 브라우저 대응)
-            const currentSrc = img.src;
+            // src가 이미 설정되어 있다면 다시 할당하여 로딩 트리거 (일부 브라우저 대응)            
             img.src = currentSrc;
         });
     }
@@ -264,12 +270,21 @@
      * 처리가 필요한 이미지인지 확인 (data: URI 제외)
      */
     function isValidExternalImage(img) {
-        // src가 없거나, 이미 로딩 완료되었거나, data: 형식인 경우 제외
-        if (!img || !img.src) return false;
+        if (!img) return false;
+
+        // getAttribute를 사용하여 HTML에 적힌 원본 src 값을 확인 (비어있으면 차단)
+        const rawSrc = img.getAttribute('src');
+        if (!rawSrc || rawSrc.trim() === "" || rawSrc === window.location.href) {
+            return false;
+        }
+
         if (img.src.startsWith('blob:') || img.src.startsWith('data:')) {
             return false;
         }
-        if (img.complete && img.naturalWidth > 0) return false;     
+
+        // 이미 잘 로드된 경우 제외
+        if (img.complete && img.naturalWidth > 0) return false;
+
         return true;
     }
 
