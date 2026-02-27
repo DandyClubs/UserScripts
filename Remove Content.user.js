@@ -198,7 +198,7 @@ console.log('RemoveContentEX: ', RemoveContentEX, '\nSkipModelEX: ', SkipModelEX
 const siteConfigs = {
     'blogjav.net': {
         linkSelector: '.entry-title a',
-        removeTagSelector: 'article.hentry',
+        removeTagSelector: 'div.col-xs-12',
     },
     'bestgirlsexy.com': {
         linkSelector: 'div.elementor-post__text h3.elementor-post__title a',
