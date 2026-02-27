@@ -78,6 +78,8 @@ if (window.top !== window.self) {
     return;
 }
 
+
+
 const FontAwesomeCSS = function () {
     let css = document.createElement('link');
     css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css';
@@ -255,18 +257,19 @@ margin: .25em;
 
 
 div.SearchBox {
-	position: absolute;
-	height: 1.13em;
+	position: absolute;	
 	display: inline-flex;
     margin: .25em;
     gap: 5px;
 }
 
 img.Favicon {
-    margin: .25em;
-    cursor: pointer;
-    box-shadow: rgba(0, 0, 0, 0.17) 0px -23px 25px 0px inset, rgba(0, 0, 0, 0.15) 0px -36px 30px 0px inset, rgba(0, 0, 0, 0.1) 0px -79px 40px 0px inset, rgba(0, 0, 0, 0.06) 0px 2px 1px, rgba(0, 0, 0, 0.09) 0px 4px 2px, rgba(0, 0, 0, 0.09) 0px 8px 4px, rgba(0, 0, 0, 0.09) 0px 16px 8px, rgba(0, 0, 0, 0.09) 0px 32px 16px;
-    }
+	width: auto !important;
+	height: 1.5em !important;
+	margin: .25em;
+	cursor: pointer;
+	box-shadow: rgba(0, 0, 0, 0.17) 0px -23px 25px 0px inset, rgba(0, 0, 0, 0.15) 0px -36px 30px 0px inset, rgba(0, 0, 0, 0.1) 0px -79px 40px 0px inset, rgba(0, 0, 0, 0.06) 0px 2px 1px, rgba(0, 0, 0, 0.09) 0px 4px 2px, rgba(0, 0, 0, 0.09) 0px 8px 4px, rgba(0, 0, 0, 0.09) 0px 16px 8px, rgba(0, 0, 0, 0.09) 0px 32px 16px;
+}
 
 `);
 
@@ -672,23 +675,25 @@ function observeChanges(targetSelector, callback) {
 
 function makeSearch() {
     let SearchBox = document.querySelector('div.SearchBox');
+    if (SearchBox) return;
     let searchTitle;
-    if (!SearchBox) {
-        const titleEl = document.querySelector('.post-title.entry-title');
-        searchTitle = titleEl ? searchTerms(titleEl.innerText) : '';
-        const offsetParent = copyOffsetArea.parentElement;
-        offsetParent.style.position = 'relative';
 
-        // create SearchBox
-        SearchBox = document.createElement('div');
-        SearchBox.className = 'SearchBox';
-        SearchBox.style.position = 'absolute';
-        offsetParent.insertBefore(SearchBox, copyOffsetArea.nextSibling);
-    }
+    const titleEl = document.querySelector('.post-title.entry-title');
+    searchTitle = titleEl ? searchTerms(titleEl.innerText) : '';
+    const offsetParent = copyOffsetArea.parentElement;
+    offsetParent.style.position = 'relative';
+
+    // create SearchBox
+    SearchBox = document.createElement('div');
+    SearchBox.className = 'SearchBox';
+    SearchBox.style.position = 'absolute';
+    offsetParent.insertBefore(SearchBox, copyOffsetArea.nextSibling);
+
 
     const baseScale = (1 / (GetDPI / 1.5)) * (16 / DefaultFontSize);
     const rem = (value) => `${value.toFixed(2)}rem`;
 
+    SearchBox.style.visibility = 'hidden';
     SearchBox.style.maxWidth = rem(3);
     SearchBox.style.top = `${Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20))}px`;
     SearchBox.style.left = `${Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - baseScale * 16)}px`;
@@ -725,32 +730,26 @@ function makeSearch() {
         }
     ];
 
-    // img.Favicon 모두 선택
-    const faviconImgs = document.querySelectorAll('img.Favicon');
-    faviconImgs.forEach(img => {
-        img.style.width = rem(baseScale * 0.9);
-        img.style.height = rem(baseScale * 0.9);
-    });
-
     for (const { class: className, domain, onClick } of ICONS) {
         const img = document.createElement('img');
         img.className = `Favicon ${className}`;
         img.src = `https://www.google.com/s2/favicons?sz=32&domain=${domain}`;
-        img.style.width = rem(1);
-        img.style.height = rem(1);
-        img.style.cursor = 'pointer';
         img.addEventListener('click', (e) => {
             e.preventDefault();
             onClick();
         });
         SearchBox.appendChild(img);
     }
+    
 
-    const searchBoxStyle = SearchBox.style;
-    searchBoxStyle.maxWidth = rem(baseScale * 0.9 * 3);
-    searchBoxStyle.top = Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20)) + 'px';
-    searchBoxStyle.left = Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - SearchBox.offsetWidth * 1.5) + 'px';
-    searchBoxStyle.height = rem(baseScale * 0.9);
+    window.addEventListener('load', function () {
+        const searchBoxStyle = SearchBox.style;
+        searchBoxStyle.maxWidth = rem(baseScale * 0.9 * 3);
+        searchBoxStyle.top = Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20)) + 'px';
+        searchBoxStyle.left = Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - SearchBox.offsetWidth * 1.5) + 'px';
+        searchBoxStyle.height = rem(baseScale * 0.9);
+        SearchBox.style.visibility = 'visible';
+    });
 
 }
 
@@ -952,6 +951,7 @@ const siteConfigs = [
                 }
 
                 makeSearch();
+
             }
         }
     },
@@ -1075,7 +1075,7 @@ const siteConfigs = [
                 if (is8kcosplay) CoverImage = '';
                 else if (!isJavfree) {
                     const imgTag = DownloadArea[0]?.querySelector('p > img');
-                    CoverImage = imgTag?.getAttribute('data-lazy-src') ?? imgTag?.src ?? '';                    
+                    CoverImage = imgTag?.getAttribute('data-lazy-src') ?? imgTag?.src ?? '';
                 }
 
                 let rawTitle = copyOffsetArea?.textContent.trim() ?? '';
