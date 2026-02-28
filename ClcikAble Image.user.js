@@ -82,7 +82,7 @@ const av18plus = {
 
 const blogjav = {
     MatchUrl: 'blogjav.net',
-    MakeClickImage: '.entry-summary.bloghash-entry p img',
+    MakeClickImage: '.entry-summary.bloghash-entry img',
     Approach: 'closest',
     closestTag: 'article.bloghash-article',
     SearchATag: 'header.entry-header .entry-title a',
