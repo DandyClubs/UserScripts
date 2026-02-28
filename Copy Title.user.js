@@ -575,12 +575,12 @@ const SiteParsers = {
         parse: () => {
 
             const searchRegex = (p) => new RegExp(`(?:${p.join('|')})\\s*[:\\-]\\s*(.+)$`);
-            let titleText = TitleArea.textContent.replace('[uncen]', '');
+            let rawTitleText = TitleArea.textContent.replace('[uncen]', '');
 
-            console.log({ titleText });
+            console.log({ rawTitleText });
 
             // 러시아어 단어 및 날짜 형식 정리
-            titleText = titleText
+            rawTitleText = rawTitleText
                 .replace(/ролика|роликов|ролик|клипов/g, 'Video Clips')
                 .replace('Удаленные видео', 'Deleted Videos')
                 .replace('видео', 'Videos')
@@ -607,7 +607,7 @@ const SiteParsers = {
                 return processedText.replace(/\s{2,}/g, ' ').trim();
             }
 
-            titleText = cleanTextWithCommaLimit(titleText, 10);
+            let cleanTextitleText = cleanTextWithCommaLimit(rawTitleText, 10);
 
             const searchModelPatterns = `
             В ролях
@@ -624,35 +624,35 @@ const SiteParsers = {
 
 
             // 리마스터 및 BTS 플래그 추출
-            const remastered = /Remastered/.test(titleText);
-            const bts = /Behind\s?The\s?Scenes/.test(titleText);
+            const remastered = /Remastered/.test(rawTitleText)  || /Remastered/.test(cleanTextitleText);
+            const bts = /Behind\s?The\s?Scenes/.test(rawTitleText)  || /Behind\s?The\s?Scenes/.test(cleanTextitleText);
 
             if (remastered) {
-                titleText = titleText.replace('[Remastered]', '').replace(' - Remastered', '');
+                cleanTextitleText = cleanTextitleText.replace('[Remastered]', '').replace(' - Remastered', '');
             }
 
 
-            const resolutionMatch = titleText.match(/\d+p/g);
+            const resolutionMatch = rawTitleText.match(/\d+p/g);
             let resolution;
             if (resolutionMatch) {
                 const uniqueMatch = [...new Set(resolutionMatch)];
                 resolution = uniqueMatch?.length === 1 ? uniqueMatch[0] : '';
-                titleText = titleText.replaceAll(resolution, '').trim();
+                cleanTextitleText = cleanTextitleText.replaceAll(resolution, '').trim();
             }
 
 
             // 날짜 범위 및 제작자 추출
-            const betweenMatch = BetweenRegEx.exec(titleText);
+            const betweenMatch = BetweenRegEx.exec(rawTitleText);
             const betweenYear = betweenMatch ? ` [${betweenMatch[0].replace(/(\d+)\/(\d+)\/(\d+)/g, '$1.$2.$3')}]` : '';
             if (betweenMatch) {
-                titleText = titleText.replace(betweenMatch[1], '').replace(/\(\s?\)/g, '').trim();
+                cleanTextitleText = cleanTextitleText.replace(betweenMatch[1], '').replace(/\(\s?\)/g, '').trim();
             }
 
             // 릴리즈 날짜 추출 및 제거
-            const releaseDate = DateRegEx.test(titleText) && !BetweenRegEx.test(titleText) && !UPDateRegEx.test(titleText) ? titleText.match(DateRegEx)[1].trim() : '';
+            const releaseDate = DateRegEx.test(rawTitleText) && !BetweenRegEx.test(rawTitleText) && !UPDateRegEx.test(rawTitleText) ? rawTitleText.match(DateRegEx)[1].trim() : '';
             let FixreleaseDate = '';
             if (releaseDate) {
-                titleText = titleText.replace(releaseDate, '').replace(/\s?\/\)/g, '').replace(/\s?\/ (\.|-)/, '').replace(' / )', ')').replace('(г.) ', '').trim();
+                cleanTextitleText = cleanTextitleText.replace(releaseDate, '').replace(/\s?\/\)/g, '').replace(/\s?\/ (\.|-)/, '').replace(' / )', ')').replace('(г.) ', '').trim();
                 FixreleaseDate = releaseDate.replace(/-|\//g, '.');
             } else {
                 const infoAreaReleaseDate = SearchMatch(InfoArea, "(Дата релиза|Дата выхода|Дата производства)\s?(:|：)?(.+)", "/\/|-/g, '.'");
@@ -672,10 +672,10 @@ const SiteParsers = {
 
 
             let maker;
-            if (/^\[.*?\]/.test(titleText)) {
-                const makerMatch = /^\[(.*?)\]/.exec(titleText);
+            if (/^\[.*?\]/.test(rawTitleText)) {
+                const makerMatch = /^\[(.*?)\]/.exec(rawTitleText);
                 if (makerMatch && makerMatch.length) {
-                    titleText = titleText.replace(makerMatch[0], '');
+                    cleanTextitleText = cleanTextitleText.replace(makerMatch[0], '');
                     maker = formatSentences(makerMatch[1].replace(/(\.(com|net))/gi, ''));
                 }
             } else {
@@ -686,7 +686,7 @@ const SiteParsers = {
 
 
                 if (makerSearch) {
-                    titleText = titleText.replace(makerSearch, '').replace(/\(\s+\)/, '').trim();
+                    cleanTextitleText = cleanTextitleText.replace(makerSearch, '').replace(/\(\s+\)/, '').trim();
                     const rebuildMaker = formatSentences(makerSearch.replace(/\.(com|net)/gi, ''));
                     maker = rebuildMaker;
                 }
@@ -697,28 +697,28 @@ const SiteParsers = {
             let ID = IDSearch ? IDSearch.trim() : '';
 
             if (ID) {
-                titleText = titleText.replace(ID, '').replace(/\[\]/g, '').replace(/\(\)/g, '');
+                cleanTextitleText = cleanTextitleText.replace(ID, '').replace(/\[\]/g, '').replace(/\(\)/g, '');
             }
-            let FC2ID = titleText.match(/FC2.+\d{6}/);
+            let FC2ID = rawTitleText.match(/FC2.+\d{6}/);
             if (FC2ID?.length > 0 && FC2ID[0]) {
                 ID = FC2ID[0];
-                titleText = titleText.replace('-', ' ');
-                titleText = titleText.replace(/^FC2.+\s/, ' ');
+                cleanTextitleText = cleanTextitleText.replace('-', ' ');
+                cleanTextitleText = cleanTextitleText.replace(/^FC2.+\s/, ' ');
                 maker = '';
             }
             let codeID;
             if (!ID) {
                 const extracodeID = ChinaID.exec(titleText);
                 if (extracodeID && extracodeID[1]) {
-                    titleText = `${titleText.replace(extracodeID[1], '').replace(/\[\]/g, '').replace(/\(|\)/g, '').trim()}`;
+                    cleanTextitleText = `${cleanTextitleText.replace(extracodeID[1], '').replace(/\[\]/g, '').replace(/\(|\)/g, '').trim()}`;
                     codeID = extracodeID[1];
                 }
             }
 
 
-            titleText = titleText.replace(TAGS_REGEX, '').trim();
+            cleanTextitleText = cleanTextitleText.replace(TAGS_REGEX, '').trim();
 
-            const titleDB = titleText
+            const titleDB = cleanTextitleText
                 .replace(/((\/|-)\s|^)(?=[а-яА-ЯЁё]).*?(?:\/)/, '')
                 .replace(/((\/|-)\s|^)(?=[а-яА-ЯЁё]).*?(?=[\(|\[])/gi, '')
                 .replace(/\[.*г.*?\]/, '')
@@ -734,7 +734,7 @@ const SiteParsers = {
                 .map(e => e.trim())
                 .filter(Boolean);
 
-            titleText = titleDB.join(' ');
+            const titleText = titleDB.join(' ');
 
             const findModelName = InfoArea.map(line => {
                 const m = line.match(searchRegex(searchModelPatterns));
