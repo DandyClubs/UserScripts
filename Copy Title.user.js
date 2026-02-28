@@ -592,14 +592,23 @@ const SiteParsers = {
                 .replace(/сцена из|Сцена из фильма/i, 'Scene from')
                 .trim();
 
-            const extractText = titleText.match(/\([\w,\s]*\)/g) || [];
+            function cleanTextWithCommaLimit(text, threshold) {
+                // 1. [], (), {} 형태의 괄호 덩어리를 찾는 정규표현식
+                const bracketPattern = /\[[^\]]*\]|\([^\)]*\)|\{[^\}]*\}/g;
 
-            for (const t of extractText) {
-                let count = (t.match(/,/g) || []).length;
-                if (count >= 10) {
-                    titleText = titleText.replace(t, '');
-                }
+                // 2. 조건에 맞는 괄호 삭제
+                let processedText = text.replace(bracketPattern, (match) => {
+                    const commaCount = (match.match(/,/g) || []).length;
+                    return (commaCount >= threshold) ? "" : match;
+                });
+
+                // 3. 연속된 스페이스(2개 이상)를 1개로 치환
+                // \s는 공백, \s{2,}는 공백이 2개 이상 연속됨을 의미합니다.
+                return processedText.replace(/\s{2,}/g, ' ').trim();
             }
+
+            titleText = cleanTextWithCommaLimit(titleText, 10);
+
             const searchModelPatterns = `
             В ролях
             Погоняло бесстыдницы
@@ -732,7 +741,7 @@ const SiteParsers = {
                 return m && m[1].trim() && !titleText.includes(m[1].trim()) ? m[1].trim() : null;
             }).filter(Boolean);
 
-            const extractedModelName = findModelName.map(e => e.replace(/Amateur.*/i, '').trim()).filter(Boolean).join(',');
+            const extractedModelName = findModelName.map(e => e.replace(/Amateur.*/i, '').replace(/ч(\.\d+)/g, 'Part$1').replace(/часть|Часть/g, 'Part').trim()).filter(Boolean).join(',');
             let cleanedModelName = extractedModelName.split(/,|\saka\s/g).filter(element => !new RegExp(escapeRegExp(element), 'i').test(titleText)).join(' ').trim();
 
 
