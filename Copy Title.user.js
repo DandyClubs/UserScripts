@@ -127,7 +127,7 @@ const TAGS_REGEX = /\[[^\]]+]|\(,.*?[\)\]]/g;
 
 const SearchID = /^【?([a-zA-Z]{2,7}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d+-?\d+|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d+)】?/;
 const SearchFC2ID = /(^FC2.+\d{6})(.*)/;
-const ChinaID = /(?=.*([a-zA-Z]{2,11}-\d{2,6}[a-zA-Z]|\d{2,4}[a-zA-Z]{2,7}-\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-\d{2}-\d{2}|[a-zA-Z]{2,7}-[a-zA-Z]{1,2}\d{2}))(?!.*\d+p)/i;
+const ChinaID = /([a-zA-Z]{2,11}-\d{2,6}[a-zA-Z]|\d{2,4}[a-zA-Z]{2,7}-\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-\d{2}-\d{2}|[a-zA-Z]{2,7}-[a-zA-Z]{1,2}\d{2}|[a-zA-Z]{2,4}-\d{2,4}|[a-zA-Z]{3,4}\d{3,4}-\d{1,2})/i;
 const JapaneseChar = /[ぁ-んァ-ン一-龯]/g;
 const ExcludeChar = /[<\/:>*?"|\\]/g;
 const SKIPMGSID = /(START)-/;
@@ -668,6 +668,7 @@ const SiteParsers = {
             Подсайт и сайт
             Издатель
             Сайт
+            Студия
             `.trim().split(/\r?\n/).map(e => e.trim()).filter(Boolean);
 
 
@@ -734,7 +735,7 @@ const SiteParsers = {
                 .map(e => e.trim())
                 .filter(Boolean);
 
-            const titleText = titleDB.join(' ');
+            let titleText = titleDB.join(' ');
 
             const findModelName = InfoArea.map(line => {
                 const m = line.match(searchRegex(searchModelPatterns));
