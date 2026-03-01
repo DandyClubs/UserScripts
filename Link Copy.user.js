@@ -2040,6 +2040,7 @@ async function processCopyTitle(currentConfig) {
             tempTitle = byteLengthOf(tempTitle, limitText - byteLengthOfCheck(titleLast));
             finalTitle = (tempTitle + titleLast).trim();
         }
+        console.log('byteLengthOfCheck: ', finalTitle, byteLengthOfCheck(finalTitle));
         CopyTitle = finalTitle;
     }
 
