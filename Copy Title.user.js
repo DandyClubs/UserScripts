@@ -708,7 +708,7 @@ const SiteParsers = {
             }
             let codeID;
             if (!ID) {
-                const extracodeID = ChinaID.exec(titleText);
+                const extracodeID = ChinaID.exec(rawTitleText);
                 if (extracodeID && extracodeID[1]) {
                     cleanTextitleText = `${cleanTextitleText.replace(extracodeID[1], '').replace(/\[\]/g, '').replace(/\(|\)/g, '').trim()}`;
                     codeID = extracodeID[1];
