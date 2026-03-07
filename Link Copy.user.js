@@ -760,8 +760,8 @@ const siteConfigs = [
         config: {
             copyOffsetAreaSelector: '.post-title.entry-title',
             downloadAreaSelector: 'div#download, div#downloadhidden',
-            coverImageSelector: 'div.post-content-single a > img',
-            coverImageAttribute: 'src',
+            //coverImageSelector: 'div.post-content-single a > img',
+            //coverImageAttribute: 'src',
             postProcess: async (config) => {
 
                 copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
