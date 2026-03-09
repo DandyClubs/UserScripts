@@ -712,9 +712,9 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
 
     const FeaturingLine = infoLines.find(line => line.match(/(Featuring|Title)/i));
-    const Featuring = FeaturingLine ? FeaturingLine.replace(/(Featuring|Title)\s?:/i, '').trim() : '';
+    const Featuring = FeaturingLine ? FeaturingLine.replace(/(Featuring|Title)\s?(::|:|：)/i, '').trim() : '';
     const cleanInfoLines = infoLines.map(line => line.replace(/^(Video\s?info:|Video\sfile\sinformation:|General\s\/\sNames)$/i, '').trim()).filter(Boolean);
-    console.log({ cleanInfoLines });
+    console.log({ cleanInfoLines, Featuring });
 
     cleanInfoLines.some((line, index) => {
         // 1. ID 추출 (최적화)
@@ -745,7 +745,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
                 Title = line.replace(/^Title\s?:/i, '').trim();
             }            
 
-            if (Title) Title = Title.trim() + ' ';
+            if (Title) Title = Title.replace(/^\s?(::|:|：)/, '').trim() + ' ';
         }
 
         // 3. Maker (Circle/Label) 추출
@@ -783,7 +783,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         return !!(ID && ModelName && ReleaseDate && Title && Maker);
     });
 
-    console.log({ ID, ModelName, ReleaseDate, Title });
+    console.log({ ID, ModelName, ReleaseDate, Title, Featuring });
 
     if (ModelName) {
         let ModelNameList = ModelName.split(/[,|]/).map(s => s.trim()).filter(Boolean);
@@ -796,13 +796,14 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
         ModelName = ModelNameList.length ? `[${ModelNameList.join(' ')}]` : '';
     }
-    if (Featuring) {
+    if (Featuring && Featuring !== Title.trim()) {
         Title = `${Featuring} - ${Title}`;
     }
 
-    const replaceEx = /(Actress\sand\sTitle\sVideo|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re|^File\sName)(\s?:)?/i;
+    const replaceEx = /(Actress\sand\sTitle\sVideo|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re|^File\sName|Title)(\s?(::|:|：))?/i;
+    console.log({ Title });
     Title = Title ? Title.replace(replaceEx, '').trim() : '';
-
+    console.log({Title});
     const cleanedinfoLines = cleanInfoLines.join('\n')
         .replace(replaceEx, '')
         .replace(/(Actress|Model|Label|Circle|Featuring)\s*:?/gi, '')
