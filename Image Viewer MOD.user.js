@@ -1317,11 +1317,17 @@ const image = {
 };
 
 const mutCallback = (mutationsList) => {
+
     const addSet = new Set();
+
     for (const { addedNodes } of mutationsList) {
+
         for (const node of addedNodes) {
+
             if (!(node instanceof HTMLElement)) continue;
+
             let imgs = [];
+
             // 1️⃣ node 자체가 img
             if (node.tagName === 'IMG') {
                 imgs = [node];
@@ -1332,12 +1338,18 @@ const mutCallback = (mutationsList) => {
             }
 
             for (const img of imgs) {
+
                 const link = img.closest('a');
+
                 if (!link || link.classList.contains('ivChecked')) continue;
-                const P = link.closest('div, section, article') || link.parentElement;
+
+                const P = link.closest('div, section, article') || link.parentElement?.parentElement;
+                console.log(node, P);
+
                 if (P && P.nodeName !== 'BODY') {
                     addSet.add(P);
                 }
+
             }
         }
     }
@@ -1348,47 +1360,12 @@ const mutCallback = (mutationsList) => {
             queue.enqueue(el);
         }
 
-        if (!ManagementWorking) {
+        if (!ManagementWorking && !queue.isEmpty()) {
             Management();
         }
     }
 };
-
-/*
-const mutCallback = (mutationsList, observer) => {
-    let AddList = [];
-    for (const { addedNodes } of mutationsList) {
-        for (const node of addedNodes) {
-            if (!(node instanceof HTMLElement)) continue;
-            if (node.nodeType == Node.ELEMENT_NODE && node.nodeName && node.parentNode?.querySelector('img')) {
-
-                //console.log(node, node.nodeName, node.parentNode?.querySelector('img'))
-                for (const e of node.parentNode?.querySelectorAll('img:not(.Error)')) {
-                    if (e.closest('a') && !e.closest('a').classList?.contains('ivChecked')) {
-                        let P = e.closest('a').parentElement.parentElement;
-                        if (P.nodeName !== 'BODY') {
-                            AddList.push(P);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (AddList.length) {
-        let unique = [...new Set(AddList)];
-
-        for (let x of unique) {
-            queue.enqueue(x);
-        }
-        //console.log(ManagementWorking , queue.peek())
-        if (!ManagementWorking && queue.peek()) {
-            Management();
-        }
-    }
-};
-*/
-
+// 옵저버 설정 (기존과 동일하지만, 대상 범위가 중요합니다)
 const attributesobserver = new MutationObserver(mutCallback);
 
 function sleep(ms) {
@@ -1435,11 +1412,10 @@ async function Start() {
         });
     }
 
-
     if (!Ex?.length && !CheckViewerList(document.body)) {
         return (`No Image Viewer Item`);
     }
-
+    
     console.log('Start Image Viewer!!!!!!');
 
     AddStyles(styles, 'Viewer');
@@ -1465,6 +1441,8 @@ async function Start() {
         .catch(() => {
 
         });
+
+
 
     console.log(`Start Logic time: ${performance.now() - startTime} ms`);
 
