@@ -461,8 +461,6 @@ function AddStyles(CSS, ID) {
     document.head.appendChild(styleSheet);
 }
 
-
-
 class Queue {
     constructor() {
         this.items = []; // 객체 대신 배열 사용 (현대 브라우저에서는 배열 최적화가 더 잘 됨)
@@ -475,6 +473,7 @@ class Queue {
 
 
 const queue = new Queue();
+const queued = new WeakSet();
 const lazyImageQueue = new Queue();
 const getFullSizeQueue = new Queue();
 
@@ -598,7 +597,6 @@ function lazyImageManagement() {
     // 첫 번째 작업 시작
     processNext();
 }
-
 
 
 let ManagementWorking = false; // should be declared outside
@@ -973,15 +971,26 @@ const TRANSITION_DURATION = 350;
 let PreLoadDB = [];
 
 
-const ExpandTag = new IntersectionObserver((entries, self) => {
-    for (const entry of entries) {
+const ExpandTag = new IntersectionObserver(entries => {
+
+    for (const entry of entries) {        
         const el = entry.target;
-        if (el.nodeName.toLowerCase() === 'div' && !el.classList?.contains('unfolded')) {
-            el.click();
-            self.unobserve(entry.target);
-        }
+        if (el.classList.contains('unfolded')) continue;
+        el.click();
+        const P = entry.target.nextElementSibling;
+        queue.enqueue(P);
+        ExpandTag.unobserve(el);        
+    }    
+
+    if (!ManagementWorking && !queue.isEmpty()) {
+        Management();
     }
-}, { root: null, rootMargin: "0px 0px 500px 0px", threshold: 0.5 });
+
+}, {
+    root: null,
+    rootMargin: "0px 0px 500px 0px",
+    threshold: 0
+});
 
 function AtoBLinks(link) {
     let linkAtoB = /(\/|=)(aHR0c[a-zA-z0-9]+={0,2})($|\/|\?|&|-?-?;?)/.exec(link.href);
@@ -1319,12 +1328,12 @@ const image = {
 const mutCallback = (mutationsList) => {
 
     const addSet = new Set();
-
     for (const { addedNodes } of mutationsList) {
-
         for (const node of addedNodes) {
-
             if (!(node instanceof HTMLElement)) continue;
+            const skip = node.closest('div.sp-body.inited');
+
+            if (skip) continue;
 
             let imgs = [];
 
@@ -1334,32 +1343,24 @@ const mutCallback = (mutationsList) => {
             }
             // 2️⃣ node 안에 img 포함
             else {
-                imgs = node.querySelectorAll?.('img:not(.Error)') || [];
+                imgs = node.querySelectorAll?.('a img:not(.Error)') || [];
             }
 
             for (const img of imgs) {
-
                 const link = img.closest('a');
-
                 if (!link || link.classList.contains('ivChecked')) continue;
-
-                const P = link.closest('div, section, article') || link.parentElement?.parentElement;
-                console.log(node, P);
-
+                const P = link.closest('div, section, article') || link.parentElement?.parentElement;                
                 if (P && P.nodeName !== 'BODY') {
                     addSet.add(P);
                 }
-
             }
         }
     }
 
     if (addSet.size) {
-
         for (const el of addSet) {
             queue.enqueue(el);
         }
-
         if (!ManagementWorking && !queue.isEmpty()) {
             Management();
         }
