@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Image Viewer MOD (Refactored) 
-// @version      2025.12.08
+// @version      2026.03.12
 // @description  View full image without leaving the page or on a new tab without ads
 // @namespace    https://github.com/nikolay-borzov
 // @author       nikolay-borzov
@@ -465,49 +465,12 @@ function AddStyles(CSS, ID) {
 
 class Queue {
     constructor() {
-        this.items = {};
-        this.front = 0;
-        this.rear = 0;
+        this.items = []; // 객체 대신 배열 사용 (현대 브라우저에서는 배열 최적화가 더 잘 됨)
     }
-
-    enqueue(item) {
-        this.items[this.rear] = item;
-        this.rear++;
-    }
-
-    dequeue() {
-        if (this.isEmpty()) {
-            return undefined;
-        }
-        const item = this.items[this.front];
-        delete this.items[this.front];
-        this.front++;
-        return item;
-    }
-
-    peek() {
-        if (this.isEmpty()) {
-            return undefined;
-        }
-        return this.items[this.front];
-    }
-
-    get size() {
-        return this.rear - this.front;
-    }
-
-    isEmpty() {
-        return this.size === 0;
-    }
-
-    // UI 업데이트를 위해 큐의 모든 아이템을 배열로 반환하는 헬퍼 메서드
-    getItemsArray() {
-        const arr = [];
-        for (let i = this.front; i < this.rear; i++) {
-            arr.push(this.items[i]);
-        }
-        return arr;
-    }
+    enqueue(item) { this.items.push(item); }
+    dequeue() { return this.items.shift(); }
+    isEmpty() { return this.items.length === 0; }
+    get size() { return this.items.length; }
 }
 
 
@@ -515,87 +478,54 @@ const queue = new Queue();
 const lazyImageQueue = new Queue();
 const getFullSizeQueue = new Queue();
 
-let getFullSizeManagementWorking = false;
+// 중복 처리 방지를 위한 Set 추가
+const processedElements = new Set();
 
 const TASK_TIMEOUT_MS = 5000;
-const processCount = 5; // 👈 동시에 처리할 최대 작업 수
+const processCount = 3; // 👈 동시에 처리할 최대 작업 수
 let activeWorkerCount = 0; // 현재 작동 중인 워커의 수
 let isSpawning = false; // 워커가 생성 중인지 확인하는 플래그
 
 async function getFullSizeManagement() {
-    // 1. 이미 워커를 생성 중이거나, 최대 개수에 도달했으면 중단
     if (isSpawning || activeWorkerCount >= processCount || getFullSizeQueue.isEmpty()) return;
 
-    isSpawning = true; // 생성 프로세스 시작
+    isSpawning = true;
 
-    // 개별 작업을 처리하는 핵심 로직
-    async function performTask(linkElement) {
-        const startTime = performance.now(); // 1. 작업 시작 시간 기록
-        const linkUrl = linkElement.href;
-        console.log(`[Queue] 🚀 Task Started: ${linkUrl}`);
-        try {
-            // 1. 작업 실행 및 시간 초과 설정
-            const taskPromise = image.getFullSizeURL(linkElement);
-            const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('Task Timeout')), TASK_TIMEOUT_MS)
-            );
-
-            // 2. 먼저 완료되는 쪽을 기다림
-            await Promise.race([taskPromise, timeoutPromise]);
-            const endTime = performance.now(); // 2. 성공 시 종료 시간 기록
-            const duration = (endTime - startTime).toFixed(2);
-            console.log(`[Queue] ✅ Task Finished: ${linkUrl} | 소요 시간: ${duration}ms`);
-        } catch (error) {
-            const errorTime = performance.now();
-            const elapsedSoFar = (errorTime - startTime).toFixed(2);
-
-            if (error.message === 'Task Timeout') {
-                console.warn(`[Queue] ⚠️ Task Timeout: ${linkUrl} | ${elapsedSoFar}ms 경과...`);
-            } else {
-                console.error(`[Queue] Error processing link: ${linkElement.href}`, error);
-            }
-            try {
-                await image.getFullSizeURL(linkElement);
-            } catch (retryError) {
-                console.error(`[Worker ${workerId}] ❌ Retry Failed: ${linkUrl}`);
-            }
-        }
-    }
-
-    // 큐가 빌 때까지 계속해서 작업을 뽑아 수행하는 '워커' 함수
     async function worker() {
         activeWorkerCount++;
         while (!getFullSizeQueue.isEmpty()) {
             const linkElement = getFullSizeQueue.dequeue();
-            if (linkElement) {
-                await performTask(linkElement);
-            }
-            // 작업 사이의 아주 짧은 지연 (UI 프리징 방지)
-            await new Promise(resolve => setTimeout(resolve, 10));
+            if (!linkElement) continue;
 
-            if (!getFullSizeQueue.isEmpty()) {
-                getFullSizeManagement();
+            // 이미 처리 중이거나 완료된 링크 건너뛰기
+            if (processedElements.has(linkElement.href)) continue;
+            processedElements.add(linkElement.href);
+
+            try {
+                // 비동기 작업 레이싱 (타임아웃 적용)
+                await Promise.race([
+                    image.getFullSizeURL(linkElement),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), TASK_TIMEOUT_MS))
+                ]);
+            } catch (error) {
+                console.warn(`[Queue] Failed: ${linkElement.href}`, error.message);
+                processedElements.delete(linkElement.href); // 실패 시 재시도 가능하도록 제거
             }
+
+            // UI 스레드 점유 방지 (최소한의 micro-task 지연)
+            await new Promise(resolve => requestAnimationFrame(resolve));
         }
         activeWorkerCount--;
     }
-    // 2. 워커 생성 루프 (1초 간격 딜레이)
+
+    // 워커 병렬 가동
     while (activeWorkerCount < processCount && !getFullSizeQueue.isEmpty()) {
-        const workerId = Math.floor(Math.random() * 1000);
-
-        // 중요: worker() 앞에 await를 붙이지 않습니다. 
-        // (워커를 백그라운드에서 실행하고 다음 코드로 넘어가기 위함)
-        worker(workerId);
-
-        console.log(`[System] Worker ${workerId} 가동 시작 (현재 활성: ${activeWorkerCount}개)`);
-
-        // 3. 다음 워커를 실행하기 전 1초간 대기
+        worker();
         if (activeWorkerCount < processCount) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 500)); // 워커 간 간격 단축 (1s -> 0.5s)
         }
     }
-
-    isSpawning = false; // 생성 프로세스 종료
+    isSpawning = false;
 }
 
 let lazyImageManagementWorking = false;
@@ -683,7 +613,7 @@ function Management() {
             return;
         }
 
-        let Q = queue.peek();
+        let Q = queue.dequeue();
 
         try {
             initViewer(Q);
@@ -730,8 +660,24 @@ let ViewerList = new Set();
 let isWorking = false;
 
 let lastViewerUpdated = performance.now();
-let viewerUpdateTimer = null;
 
+let viewerPending = false;
+
+function viewerUpdate() {
+
+    if (viewerPending) return;
+
+    viewerPending = true;
+
+    requestAnimationFrame(() => {
+        viewer.update();
+        ViewerList.clear();
+        viewerPending = false;
+    });
+
+}
+/*
+let viewerUpdateTimer = null;
 function viewerUpdate() {
     if (viewerUpdateTimer) {
         return;
@@ -754,7 +700,7 @@ function viewerUpdate() {
         }
     }
 }
-
+*/
 let container = document.querySelector('#ViewerJS');
 
 function AddViewer() {
@@ -1092,12 +1038,12 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
             if (thumb.startsWith('data:image') ||
                 extractRootDomain(thumb) !== extractRootDomain(link.href)) {
                 // look for lazy attributes
-                Array.from(img.attributes).some(attr => {
+                for (const attr of img.attributes) {
                     if (lazyAttributesMap[attr.name]) {
-                        thumb = img.getAttribute(attr.name);
-                        return true;
+                        thumb = attr.value;
+                        break;
                     }
-                });
+                }
             }
 
             items.push({ link, img, thumbnailUrl: thumb });
@@ -1370,7 +1316,45 @@ const image = {
     },
 };
 
+const mutCallback = (mutationsList) => {
+    const addSet = new Set();
+    for (const { addedNodes } of mutationsList) {
+        for (const node of addedNodes) {
+            if (!(node instanceof HTMLElement)) continue;
+            let imgs = [];
+            // 1️⃣ node 자체가 img
+            if (node.tagName === 'IMG') {
+                imgs = [node];
+            }
+            // 2️⃣ node 안에 img 포함
+            else {
+                imgs = node.querySelectorAll?.('img:not(.Error)') || [];
+            }
 
+            for (const img of imgs) {
+                const link = img.closest('a');
+                if (!link || link.classList.contains('ivChecked')) continue;
+                const P = link.closest('div, section, article') || link.parentElement;
+                if (P && P.nodeName !== 'BODY') {
+                    addSet.add(P);
+                }
+            }
+        }
+    }
+
+    if (addSet.size) {
+
+        for (const el of addSet) {
+            queue.enqueue(el);
+        }
+
+        if (!ManagementWorking) {
+            Management();
+        }
+    }
+};
+
+/*
 const mutCallback = (mutationsList, observer) => {
     let AddList = [];
     for (const { addedNodes } of mutationsList) {
@@ -1403,6 +1387,7 @@ const mutCallback = (mutationsList, observer) => {
         }
     }
 };
+*/
 
 const attributesobserver = new MutationObserver(mutCallback);
 
