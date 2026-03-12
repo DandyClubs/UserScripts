@@ -978,7 +978,9 @@ const ExpandTag = new IntersectionObserver(entries => {
         if (el.classList.contains('unfolded')) continue;
         el.click();
         const P = entry.target.nextElementSibling;
-        queue.enqueue(P);
+        if (P.querySelectorAll('a img').length) {
+            queue.enqueue(P);
+        }        
         ExpandTag.unobserve(el);        
     }    
 
