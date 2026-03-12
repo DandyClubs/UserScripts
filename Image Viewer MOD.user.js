@@ -614,8 +614,7 @@ function Management() {
         let Q = queue.dequeue();
 
         try {
-            initViewer(Q);
-            queue.dequeue();
+            initViewer(Q);            
         } catch (err) {
             console.error("Error in initViewer or dequeue:", err);
             throw new Error("Error RemoveTag");
