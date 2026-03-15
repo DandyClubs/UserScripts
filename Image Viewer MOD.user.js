@@ -287,7 +287,7 @@ const siteModules = [
         id: 'javstore',
         name: 'javstore.net',
         enabled: true,
-        linkRegExp: /img\.javstore\.net/,
+        linkRegExp: /img\d+?\.javstore\.net/,
         async getURL(link) { return link.thumbnailURL.replace('.th.', '.'); },
     },
     {
@@ -1392,7 +1392,7 @@ async function Start() {
                 el.appendChild(ImageTag);
             }
         });
-        ImageLinks = document.querySelectorAll('a[href*="img.javstore.net/images"]');
+        ImageLinks = document.querySelectorAll('a[href*="javstore.net/images"]');
         Array.from(ImageLinks).forEach(el => {
             if (el.innerText === 'CLICK HERE!') {
                 el.children[0].remove();
