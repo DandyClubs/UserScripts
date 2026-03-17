@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Image Viewer MOD (Refactored) 
+// @name         Image Viewer MOD (Refactored)
 // @version      2026.03.12
 // @description  View full image without leaving the page or on a new tab without ads
 // @namespace    https://github.com/nikolay-borzov
@@ -291,6 +291,21 @@ const siteModules = [
         async getURL(link) { return link.thumbnailURL.replace('.th.', '.'); },
     },
     {
+        id: 'fc2',
+        name: 'fc2.com',
+        enabled: true,
+        linkRegExp: /^https:\/\/storage\d+-cdn\.contents\.fc2\.com\/file/,
+        viewMode: 'origin-download',
+        async getURL(link) { return link.url; },
+    },
+    {
+        id: 'fc2Direct',
+        name: 'fc2.com',
+        enabled: true,
+        linkRegExp: /^https:\/\/contents-thumbnail2\.fc2\.com/,
+        async getURL(link) { return link.url; },
+    },
+    {
         id: 'piccash',
         name: 'PicCash',
         enabled: true,
@@ -540,7 +555,7 @@ function lazyImageManagement() {
             return; // 큐가 비면 종료
         }
 
-        const linkElement = lazyImageQueue.dequeue(); // 큐에서 작업을 꺼냅니다.        
+        const linkElement = lazyImageQueue.dequeue(); // 큐에서 작업을 꺼냅니다.
         const img = linkElement.querySelector('img');
         img.removeAttribute('loading');
 
@@ -573,7 +588,7 @@ function lazyImageManagement() {
             if (error.message === 'Task Timeout') {
                 console.warn(`[Queue] Timeout processing link: ${linkElement}`);
                 // URL 추출에 실패했음을 사용자에게 알리는 등의 추가 처리를 할 수 있습니다.
-                // 예: image.markAsBroken(linkElement);                
+                // 예: image.markAsBroken(linkElement);
                 if (!img.matches('.ClickAbleItem')) {
                     image.getSize(img).then(() => {
                         if (ImageExists(img) && !ImageBigSize(img)) {
@@ -589,7 +604,7 @@ function lazyImageManagement() {
             }
         }
 
-        // 4. 다음 작업을 처리합니다. (성공, 실패, 시간 초과 모두 다음으로 진행)        
+        // 4. 다음 작업을 처리합니다. (성공, 실패, 시간 초과 모두 다음으로 진행)
         setTimeout(processNext, 10);
 
     }
@@ -614,7 +629,7 @@ function Management() {
         let Q = queue.dequeue();
 
         try {
-            initViewer(Q);            
+            initViewer(Q);
         } catch (err) {
             console.error("Error in initViewer or dequeue:", err);
             throw new Error("Error RemoveTag");
@@ -844,7 +859,7 @@ async function getURLFromPage(link, extractor, requestDetails) {
 }
 
 
-// // 헤더 추가 코드 
+// // 헤더 추가 코드
 // async function NewgetURLFromPage(link, extractor, requestDetails = {}) {
 //     // headers가 없으면 기본값으로 설정
 //     const finalRequestDetails = {
@@ -972,16 +987,16 @@ let PreLoadDB = [];
 
 const ExpandTag = new IntersectionObserver(entries => {
 
-    for (const entry of entries) {        
+    for (const entry of entries) {
         const el = entry.target;
         if (el.classList.contains('unfolded')) continue;
         el.click();
         const P = entry.target.nextElementSibling;
         if (P.querySelectorAll('a img').length) {
             queue.enqueue(P);
-        }        
-        ExpandTag.unobserve(el);        
-    }    
+        }
+        ExpandTag.unobserve(el);
+    }
 
     if (!ManagementWorking && !queue.isEmpty()) {
         Management();
@@ -1032,15 +1047,15 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
 
             // 2) Force HTTPS on known hosts
             /*
-            ['fastpic', 'imagebam'].forEach(host => {
-                if (link.href.startsWith(`http://${host}`)) {
-                    link.href = link.href.replace(/^http:/, 'https:');
-                }
-                if (img.src.startsWith(`http://${host}`)) {
-                    img.src = img.src.replace(/^http:/, 'https:');
-                }
-            });
-            */
+                ['fastpic', 'imagebam'].forEach(host => {
+                    if (link.href.startsWith(`http://${host}`)) {
+                        link.href = link.href.replace(/^http:/, 'https:');
+                    }
+                    if (img.src.startsWith(`http://${host}`)) {
+                        img.src = img.src.replace(/^http:/, 'https:');
+                    }
+                });
+                */
 
 
             // 3) Resolve a “real” thumbnail URL:
@@ -1095,7 +1110,9 @@ async function initViewer(node) {
                 : [CLASSES.imageLink])
         );
         if (!img.matches('.ClickAbleItem')) {
-            if (!img.complete) {
+            if (/^blob:/.test(img.src)) {
+                link.dataset.ivThumbnail = link.href;
+            } else if (!img.complete) {
                 img.setAttribute('loading', 'lazy');
                 lazyImageQueue.enqueue(link);
             } else {
@@ -1125,7 +1142,7 @@ function AddEvent(el) {
             viewer.update();
             ViewerList.clear();
             const galleries = document.querySelectorAll('.ViewerGallery');
-            const index = Array.from(galleries).indexOf(clicked); // ← 현재 클릭한 것의 인덱스            
+            const index = Array.from(galleries).indexOf(clicked); // ← 현재 클릭한 것의 인덱스
             viewer.view(index);  // el 대신 index 사용
         }
     }, true);
@@ -1133,6 +1150,7 @@ function AddEvent(el) {
 
 
 function ImageBigSize(image) {
+    if (/contents\.fc2\.com|blob:/.test(image.src)) return false;
     let big = false;
     let W = image.naturalWidth;
     let H = image.naturalHeight;
@@ -1194,6 +1212,7 @@ const image = {
             return imageURL;
         }
 
+
         const thumbnailURL = link.dataset.ivThumbnail;
         const imageHost = link.dataset.ivHost;
 
@@ -1209,7 +1228,7 @@ const image = {
             host: imageHost,
         });
 
-        //console.log('urlExtractor: ', imageURL)
+        console.log('urlExtractor: ', imageURL, img.src);
 
         if (!imageURL) {
             image.markAsBroken(link);
@@ -1223,10 +1242,11 @@ const image = {
         try {
             const extractor = urlExtractor.getExtractorByHost(imageHost);
             if (extractor.viewMode === 'origin-download') {
-                //imageURL = await image.CheckOnline(imageURL)
-                //console.log(imageURL)
-                imageURL = await image.loadAsBlob(imageURL);
-                //console.log(imageURL)
+                if (/^blob:/.test(img.src)) {
+                    imageURL = img.src;
+                } else {
+                    imageURL = await image.loadAsBlob(imageURL);
+                }
             }
 
         } catch {
@@ -1234,6 +1254,7 @@ const image = {
             image.markAsBroken(link);
             link.setAttribute('target', '_blank');
         }
+
 
 
         link.dataset.ivImgUrl = imageURL;
@@ -1350,7 +1371,7 @@ const mutCallback = (mutationsList) => {
             for (const img of imgs) {
                 const link = img.closest('a');
                 if (!link || link.classList.contains('ivChecked')) continue;
-                const P = link.closest('div, section, article') || link.parentElement?.parentElement;                
+                const P = link.closest('div, section, article') || link.parentElement?.parentElement;
                 if (P && P.nodeName !== 'BODY') {
                     addSet.add(P);
                 }
@@ -1403,14 +1424,60 @@ async function Start() {
             }
         });
 
-        ImageLinks = document.querySelectorAll('img[src^="https://storage201000-cdn.contents.fc2.com/file"]');                
-            Array.from(ImageLinks).map(async (el) => {
+        const container = document.getElementById('lightgallery');
+
+        if (!container) return;
+
+        // 1️⃣ 이벤트 제거 (clone)
+        const newContainer = container.cloneNode(true);
+        container.replaceWith(newContainer);
+
+        // 2️⃣ 링크 변환 + img 수집 동시에 처리
+        const imageLinks = [];
+
+        newContainer.querySelectorAll('li').forEach(li => {
+            const a = li.querySelector('a');
+            const img = li.querySelector('img');
+
+            if (!img) return;
+
+            const original = li.dataset.src || img.src;
+
+            // 링크 설정
+            if (a) {
+                a.href = original;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+            }
+
+            // 변환 대상 필터
+            if (/^https:\/\/storage\d+-cdn\.contents\.fc2\.com\/file/i.test(img.src)) {
+                imageLinks.push(img);
+            }
+        });
+
+        // 3️⃣ 이미지 변환
+        async function convertImages(list) {
+            await Promise.all(list.map(async (el) => {
                 try {
-                    el.src = await image.loadAsBlob(el.src);
+                    const blobSrc = await image.loadAsBlob(el.src);
+                    el.src = blobSrc;
                 } catch (e) {
-                    console.warn('이미지 로드 실패:', el.src);
+                    console.warn('이미지 실패:', el.src);
                 }
-            });        
+            }));
+        }
+
+        // 4️⃣ 비동기 실행 (대기 안함)
+        if (imageLinks.length > 0) {
+            convertImages(imageLinks).then(() => {
+                console.log('이미지 변환 완료!');
+                newContainer.querySelectorAll('li').forEach(li => {
+                    li.querySelector('a').classList.remove('ivChecked');
+                });
+                initViewer(newContainer);
+            });
+        }
     }
 
     let Ex = [];
@@ -1423,10 +1490,10 @@ async function Start() {
         });
     }
 
-    if (!Ex?.length && !CheckViewerList(document.body)) {
+    if (!/javarchive\.com\/.*\.html/.test(PageURL) && !Ex?.length && !CheckViewerList(document.body)) {
         return (`No Image Viewer Item`);
     }
-    
+
     console.log('Start Image Viewer!!!!!!');
 
     AddStyles(styles, 'Viewer');
