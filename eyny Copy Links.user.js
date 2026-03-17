@@ -17,6 +17,7 @@
 // @grant        unsafeWindow
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
+// @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/Masonry.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/extractMetaInfoLinks.user.js
 // @require      https://code.jquery.com/jquery-3.7.1.min.js
 // @exclude      /www\.eyny\.com\/forum\.php\?mod=viewthread.*dateline$/
@@ -132,6 +133,64 @@ GM_addStyle(`
         background-color:transparent !important;
         text-shadow: -1px 0px white, 0px 1px white, 1px 0px white, 1px -1px white;
     }
+        .image-masonry {
+    position: relative;
+    width: 100%;
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 10px;
+    transition: opacity 0.6s ease, height 0.3s ease;
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* 완료 시 스피너 숨기기 및 본체 보이기 */
+.image-masonry.layout-done {
+    opacity: 1;
+    visibility: visible;
+    background: transparent;
+    background: none !important;
+}
+.image-masonry-item {
+	position: absolute;
+	box-sizing: border-box;
+	transition: all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+	overflow: hidden !important;
+}
+
+.image-masonry-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* 비율 유지하며 꽉 채우기 */
+    border-radius: 8px;
+    display: block;
+}
+
+.viewer-backdrop {
+        background-color: rgba(0, 0, 0, 0.8) !important;
+    }
+
+.image-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    padding: 20px;
+}
+
+/* 원형 프로그레스 바 */
+.progress-circle {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    /* --p 변수에 따라 채워짐 */
+    background: radial-gradient(closest-side, white 80%, transparent 0),
+                conic-gradient(#4da3ff calc(var(--p) * 1%), #d9e9ff 0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: --p 0.3s ease; /* 부드러운 애니메이션 (브라우저 지원 필요) */
+}
+
 `);
 
 
@@ -302,7 +361,8 @@ function extractContent(element) {
     if (!strongKF) {
         console.log("KF strong 태그를 찾지 못했습니다. 원본 전체를 복사하여 반환합니다.");
         // KF 태그를 찾지 못하면 원본 <td>의 내용을 모두 복사하여 반환합니다.
-        return convertHttpTextToLinks(element.cloneNode(true));
+        return convertHttpTextToLinks(element);
+        //return convertHttpTextToLinks(element.cloneNode(true));
     }
 
     // 3. strongKF가 포함된 가장 바깥쪽의 <td> 직계 자식 노드를 찾습니다.
@@ -370,6 +430,7 @@ window.addEventListener('storage', (e) => {
 // 특정 포럼 페이지를 제외
 const forumList = document.querySelectorAll('div#wp.wp div#pt.bm.cl div.z a');
 const matchText = [...forumList].some((elem) => elem.textContent === '18+收藏俱樂部');
+
 if (matchText) {
     return;
 }
@@ -379,6 +440,112 @@ const lableText = subjectText?.match(/^kuzu_v0/) ? subjectText.match(/^kuzu_v0/)
 
 // 폰트어썸 CSS 로드 및 메인 로직 실행
 FontAwesomeCSS();
+
+const containerSelector = 'div#postlist td[id^="postmessage"]';
+
+
+async function init() {
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+
+    const wrappers = createSectionMasonry(container);
+    initImageGallery(wrappers);
+    const loaders = new Map();
+
+    for (const wrapper of wrappers) {
+        wrapper.style.visibility = 'visible';
+        const imgCount = wrapper.querySelectorAll("img").length;
+
+        // 첨부파일 이미지 형태의 로더 생성
+        const loader = document.createElement("div");
+        loader.className = "image-loader";
+        loader.innerHTML = `
+            <div class="progress-circle" style="--p: 0"></div>
+        `;
+
+        wrapper.before(loader);
+        loaders.set(wrapper, loader);
+    }
+
+    // --- 3개 병렬 처리 로직 시작 ---
+    const concurrency = 3; // 동시 실행 개수
+    const queue = [...wrappers]; // 복사본 생성
+
+    // 개별 wrapper를 처리하는 핵심 로직을 별도 함수로 분리
+    const processWrapper = async (wrapper) => {
+        try {
+            const currentLoader = loaders.get(wrapper);
+
+            // 1. 이미지 프리로딩
+            await preloadImageSizes(wrapper, currentLoader);
+
+            void wrapper.offsetWidth;
+            // 2. 레이아웃 최적화 (scaleMap 및 minHeightMap 적용)
+            optimizeSingleLayout(wrapper);
+
+
+            // 3. UI 정리
+            if (currentLoader) currentLoader.remove();
+            wrapper.classList.add('layout-done');
+            wrapper.style.visibility = '';
+        } catch (err) {
+            console.error("Layout error:", err);
+        }
+    };
+
+    // 일꾼(Worker) 생성: 큐가 빌 때까지 계속해서 processWrapper를 실행
+    const workers = Array(concurrency).fill(null).map(async () => {
+        while (queue.length > 0) {
+            const wrapper = queue.shift(); // 큐에서 맨 앞의 wrapper를 꺼냄
+            if (wrapper) {
+                await processWrapper(wrapper);
+            }
+        }
+    });
+
+    // 3개의 일꾼이 모두 작업을 마칠 때까지 대기
+    await Promise.all(workers);
+    // --- 3개 병렬 처리 로직 끝 ---
+
+    console.log("모든 렌더링이 완료되었습니다.");
+}
+
+
+function initImageGallery(wrappers) {
+    wrappers.forEach(wrapper => {
+        // Viewer.js 인스턴스 생성
+        const viewer = new Viewer(wrapper, {
+            url: (img) => {
+                // 원본 이미지가 data-src 등에 있다면 해당 주소를 리턴
+                return img.getAttribute("ess-data") || img.getAttribute("data-src") || img.src;
+            },
+            title: true,       // 이미지 제목 표시
+            toolbar: true,     // 하단 툴바 (확대, 축소, 회전 등)
+            navbar: true,      // 하단 썸네일 리스트 (요청하신 미리보기 목록)
+            tooltip: true,     // 확대 비율 표시
+            movable: true,     // 이미지 이동 가능
+            zoomable: true,    // 확대 가능
+            transition: true,  // 부드러운 전환 효과
+            fullscreen: true,  // 전체화면 지원
+            keyboard: true,    // 키보드 화살표 지원
+
+            // 화면보다 큰 경우 자동으로 화면에 맞춤 (기본값)
+            viewed() {
+
+            }
+        });
+
+        // Masonry 아이템 내의 이미지 클릭 시 이벤트 전파를 통해 Viewer 실행
+        wrapper.querySelectorAll('img').forEach(img => {
+            img.addEventListener('click', (e) => {
+                // Viewer.js가 내부적으로 클릭을 감지하지만,
+                // 명시적으로 실행하고 싶을 때 사용
+            });
+        });
+    });
+}
+
+init();
 //main();
 
 function main() {
