@@ -1402,6 +1402,17 @@ async function Start() {
                 el.appendChild(ImageTag);
             }
         });
+
+        ImageLinks = document.querySelectorAll('img[src^="https://storage201000-cdn.contents.fc2.com/file"]');        
+        Promise.all(
+            Array.from(ImageLinks).map(async (el) => {
+                try {
+                    el.src = await image.loadAsBlob(el.src);
+                } catch (e) {
+                    console.warn('이미지 로드 실패:', el.src);
+                }
+            })
+        );
     }
 
     let Ex = [];
