@@ -541,6 +541,7 @@ function initImageGallery(wrappers) {
 
         // Masonry 아이템 내의 이미지 클릭 시 이벤트 전파를 통해 Viewer 실행
         wrapper.querySelectorAll('img').forEach(img => {
+            img.style.cursor = 'pointer';
             img.addEventListener('click', (e) => {
                 // Viewer.js가 내부적으로 클릭을 감지하지만,
                 // 명시적으로 실행하고 싶을 때 사용
