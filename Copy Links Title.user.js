@@ -713,7 +713,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
     const FeaturingLine = infoLines.find(line => line.match(/(Featuring|Title)/i));
     const Featuring = FeaturingLine ? FeaturingLine.replace(/(Featuring|Title)\s?(::|:|：)/i, '').trim() : '';
-    const cleanInfoLines = infoLines.map(line => line.replace(/^(Video\s?info:|Video\sfile\sinformation:|General\s\/\sNames)$/i, '').trim()).filter(Boolean);
+    const cleanInfoLines = infoLines.map(line => line.replace(/^(Video\s?(info|name)|Video\sfile\sinformation|General\sNames)$/i, '').trim()).filter(Boolean);
     console.log({ cleanInfoLines, Featuring });
 
     cleanInfoLines.some((line, index) => {
@@ -741,8 +741,8 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
             }
 
             // 특정 패턴(Title:)으로 시작하는 경우 예외 처리
-            if (!Title && /^Title\s?:/i.test(line)) {
-                Title = line.replace(/^Title\s?:/i, '').trim();
+            if (!Title && /^(Title|Video\s?Name)\s?:/i.test(line)) {
+                Title = line.replace(/^(Title|Video\s?Name)\s?:/i, '').replace(/\s\｜.+/, '').trim();
             }            
 
             if (Title) Title = Title.replace(/^\s?(::|:|：)/, '').trim() + ' ';
