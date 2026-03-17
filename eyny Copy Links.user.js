@@ -20,6 +20,7 @@
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/Masonry.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/extractMetaInfoLinks.user.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.js
+// @require      https://code.jquery.com/jquery-4.0.0.min.js
 // @resource     VIEWER_CSS https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.css
 // @grant        GM_getResourceText
 // @exclude      /www\.eyny\.com\/forum\.php\?mod=viewthread.*dateline$/
