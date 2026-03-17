@@ -19,7 +19,9 @@
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/Masonry.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/extractMetaInfoLinks.user.js
-// @require      https://code.jquery.com/jquery-3.7.1.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.js
+// @resource     VIEWER_CSS https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.css
+// @grant        GM_getResourceText
 // @exclude      /www\.eyny\.com\/forum\.php\?mod=viewthread.*dateline$/
 // @noframes
 // ==/UserScript==
@@ -35,6 +37,8 @@ const FontAwesomeCSS = function () {
     css.type = 'text/css'
     document.getElementsByTagName('head')[0].appendChild(css)
 }
+const viewerCss = GM_getResourceText("VIEWER_CSS");
+GM_addStyle(viewerCss);
 
 GM_addStyle(`
     @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c&family=Nanum+Gothic&family=ZCOOL+KuaiLe&display=swap');
