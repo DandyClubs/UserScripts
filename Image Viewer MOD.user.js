@@ -1228,7 +1228,7 @@ const image = {
             host: imageHost,
         });
 
-        console.log('urlExtractor: ', imageURL, img.src);
+        
 
         if (!imageURL) {
             image.markAsBroken(link);
