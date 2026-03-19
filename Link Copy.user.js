@@ -2002,8 +2002,7 @@ async function processCopyTitle(currentConfig) {
 
     // 공통 제목 정리 로직
     CopyTitle = CopyTitle
-        .replace('–', '-')
-        .replace('[KBJ]', '')
+        .replace('–', '-')    
         .replace(/\s+/g, ' ')
         .replace(/(?!^)\[(UltraHD|FullHD|HD).+\].*/, '')
         .replace(/^\[(UltraHD|FullHD|HD).+\]/, '')
@@ -2017,7 +2016,7 @@ async function processCopyTitle(currentConfig) {
         .replace(/^\[FHD\]/, '')
         .replace(/\[SD\s\d+p\]/, '')
         .replace(/^(FC2-PPV-|FC2\sPPV-|FC2PPV-)/i, 'FC2 PPV ')
-        .replace(/^\[(NO\sSTAMP|SUMMARY|BLUR)\]/, '')
+        .replace(/^\[(NO\sSTAMP|SUMMARY|BLUR|Original\sVersion|KBJ)\]/, '')
         .trim();
 
 

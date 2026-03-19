@@ -278,7 +278,7 @@
             return false;
         }
 
-        if (img.src.startsWith('blob:') || img.src.startsWith('data:')) {
+        if (img.src.startsWith('blob:') || img.src.startsWith('data:') || /faleno\.jp/.test(img.src)) {
             return false;
         }
 
