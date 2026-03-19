@@ -15,7 +15,8 @@
     'use strict';
 
     // 이미지 재시도 큐
-    const retryQueue = [];    
+    const retryQueue = [];
+    const retrySet = new Set();   
 
     // 재시도 간격 및 횟수
     const RETRY_INTERVAL = 10000;
@@ -91,7 +92,7 @@
                 cleanup();
                 resolve('error');
             }
-
+            img.onerror = null;
             img.addEventListener('load', onLoad);
             img.addEventListener('error', onError);
 
@@ -121,6 +122,7 @@
                 const result = await waitForImage(img, LOAD_TIMEOUT);
 
                 if (result === 'error' || result === 'timeout' || result === 'corrupted') {
+                    img.onerror = null;
                     enqueueFailedImage(img);
                 }
             }
@@ -199,17 +201,17 @@
             return;
         }
 
-        if (retryQueue.some(item => item === imgElement)) {
+        if (retrySet.has(imgElement)) {
             return;
         }
 
         imgElement.dataset.retryCount = imgElement.dataset.retryCount ? parseInt(imgElement.dataset.retryCount) : 0;
 
         retryQueue.push({ imgElement });
+        retrySet.add(imgElement);
         console.log(`[ImageRetry] 큐에 이미지 추가됨: `, imgElement);
         startRetryWorkers();
     }
-
 
     function startRetryWorkers() {
         while (retryWorkers < RETRY_CONCURRENCY && retryQueue.length > 0) {
@@ -220,13 +222,15 @@
     /**
      * 큐에 있는 이미지를 순차적으로 처리하는 함수
      */
-    async function runRetryWorker() {
+    async function runRetryWorker() {        
         if (retryQueue.length === 0) {
             return;
         }
         retryWorkers++;
 
         const item = retryQueue.shift();
+        retrySet.delete(item.imgElement);
+
         try {
             const imgElement = item.imgElement;
             let retryCount = parseInt(imgElement.dataset.retryCount);
@@ -241,20 +245,19 @@
             if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:')) {
                 return;
             }
-            const exists = await checkImageExistenceWithGM(imgElement.getAttribute('src'));
+            const { exists, reason, status = null } = await checkImageExistenceWithGM(imgElement.getAttribute('src'));
             if (!exists) {
-                console.log(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: `, imgElement);
+                console.log(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
                 return;
             }
-
             imgElement.dataset.retryCount = ++retryCount;
             imgElement.onerror = null;
             imgElement.setAttribute('src', imgElementSrc);
             console.log(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement);
-
             imgElement.onerror = function () {
                 enqueueFailedImage(this);
             };
+            
         } finally {
             retryWorkers--;
             setTimeout(startRetryWorkers, RETRY_INTERVAL);
