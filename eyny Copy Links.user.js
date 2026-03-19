@@ -483,8 +483,6 @@ async function init() {
 
             // 1. 이미지 프리로딩
             await preloadImageSizes(wrapper, currentLoader);
-
-            void wrapper.offsetWidth;
             // 2. 레이아웃 최적화 (scaleMap 및 minHeightMap 적용)
             optimizeSingleLayout(wrapper);
 
