@@ -495,8 +495,8 @@ const getFullSizeQueue = new Queue();
 // 중복 처리 방지를 위한 Set 추가
 const processedElements = new Set();
 
-const TASK_TIMEOUT_MS = 5000;
-const processCount = 3; // 👈 동시에 처리할 최대 작업 수
+const TASK_TIMEOUT_MS = 10000;
+const processCount = 5; // 👈 동시에 처리할 최대 작업 수
 let activeWorkerCount = 0; // 현재 작동 중인 워커의 수
 let isSpawning = false; // 워커가 생성 중인지 확인하는 플래그
 
