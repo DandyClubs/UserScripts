@@ -15,8 +15,7 @@
     'use strict';
 
     // 이미지 재시도 큐
-    const retryQueue = [];
-    let isProcessing = false;
+    const retryQueue = [];    
 
     // 재시도 간격 및 횟수
     const RETRY_INTERVAL = 10000;
