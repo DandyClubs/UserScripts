@@ -601,12 +601,12 @@ const mutCallback = (mutationsList, observer) => {
             if (node.nodeType == Node.ELEMENT_NODE && node.childNodes.length > 0 && node.querySelector(Active.exlink)) {
                 checkVisited(node).then((Lists) => {
                     Lists.forEach(link => {
-                        const href = link.href;
+                        const url = link.href;
                         if (
                             MatchRegexElement(link, Active.RegexElement, 'href', Active.Class) &&
-                            !processedLinks.has(href) &&
-                            !a.classList?.contains('visited') &&
-                            !a.classList?.contains('Skip')
+                            !processedLinks.has(url) &&
+                            !link.classList?.contains('visited') &&
+                            !link.classList?.contains('Skip')
                         ) {
                             addNodesSet.add(link);
                         }
@@ -799,15 +799,15 @@ function checkVisited(node = Active.root) {
 const initVisitedListeners = async (node) => {
 
     checkVisited(node).then((Lists) => {
-        Lists.forEach(a => {
-            const href = a.href;
+        Lists.forEach(link => {
+            const url = link.href;
             if (
-                MatchRegexElement(a, Active.RegexElement, 'href', Active.Class) &&
-                !processedLinks.has(href) && // <--- 중복 방지 로직 추가
-                !a.classList?.contains('visited') &&
-                !a.classList?.contains('Skip')
+                MatchRegexElement(link, Active.RegexElement, 'href', Active.Class) &&
+                !processedLinks.has(url) && // <--- 중복 방지 로직 추가
+                !link.classList?.contains('visited') &&
+                !link.classList?.contains('Skip')
             ) {
-                addNodesSet.add(a);
+                addNodesSet.add(link);
             }
         });
 
