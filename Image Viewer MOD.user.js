@@ -1228,7 +1228,6 @@ const image = {
             host: imageHost,
         });
 
-        
 
         if (!imageURL) {
             image.markAsBroken(link);
@@ -1324,7 +1323,7 @@ const image = {
             },
             responseType: 'blob',
         });
-        //console.log(response, response.status)
+        console.log(response, response.status);
         return URL.createObjectURL(response.response);
     },
 
@@ -1369,6 +1368,9 @@ const mutCallback = (mutationsList) => {
             }
 
             for (const img of imgs) {
+                if (/faleno\.jp\/top\/wp-content\/uploads/.test(img.src)) {
+                    convertImages([img]);
+                }
                 const link = img.closest('a');
                 if (!link || link.classList.contains('ivChecked')) continue;
                 const P = link.closest('div, section, article') || link.parentElement?.parentElement;
@@ -1400,9 +1402,28 @@ window.addEventListener("DOMContentLoaded", () => {
     Start();
 }, { once: true });
 
+
+async function convertImages(list) {
+    await Promise.all(list.map(async (el) => {
+        try {
+            const blobSrc = await image.loadAsBlob(el.src);
+            el.src = blobSrc;
+        } catch (e) {
+            console.warn('이미지 실패:', el.src);
+        }
+    }));
+}
+
 async function Start() {
     startTime = performance.now();
     let ImageLinks = [];
+
+    const falenoImages = document.querySelectorAll('img[src*="faleno.jp/top/wp-content/uploads/"]');
+
+    Array.from(falenoImages).forEach(async (el) => {
+        convertImages([el]);
+    });
+
     if (/javarchive\.com\/.*\.html/.test(PageURL)) {
         ImageLinks = document.querySelectorAll('a[href*="https://pixhost.to/show"]');
         Array.from(ImageLinks).forEach(async (el) => {
@@ -1456,19 +1477,6 @@ async function Start() {
             }
         });
 
-        // 3️⃣ 이미지 변환
-        async function convertImages(list) {
-            await Promise.all(list.map(async (el) => {
-                try {
-                    const blobSrc = await image.loadAsBlob(el.src);
-                    el.src = blobSrc;
-                } catch (e) {
-                    console.warn('이미지 실패:', el.src);
-                }
-            }));
-        }
-
-        // 4️⃣ 비동기 실행 (대기 안함)
         if (imageLinks.length > 0) {
             convertImages(imageLinks).then(() => {
                 console.log('이미지 변환 완료!');
