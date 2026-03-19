@@ -41,23 +41,31 @@
     }
 
     const lazyImageQueue = new Queue();
-    let isLazyProcessing = false;
 
-    function waitForImage(img, timeout) {
+    async function waitForImage(img, timeout) {
         return new Promise((resolve) => {
 
             const currentSrc = img.getAttribute('src');
 
-            // src가 없거나 현재 페이지 주소와 같다면 로딩 시도 자체를 안 함
             if (!currentSrc || currentSrc === "" || img.src === window.location.href) {
                 return resolve('skipped');
             }
 
-            if (img.complete && img.naturalWidth > 0) return resolve('loaded');
+            // 🔥 기존 조건 제거하고 decode 기반으로 변경
+            if (img.complete && img.naturalWidth > 0) {
+                img.decode()
+                    .then(() => resolve('loaded'))
+                    .catch(() => {
+                        console.warn('[ImageRetry] decode 실패 → 깨진 이미지 감지:', img.src);
+                        resolve('corrupted');
+                    });
+                return;
+            }
+
             if (img.src.startsWith('blob:')) return resolve('loaded');
 
             const timer = setTimeout(() => {
-                console.warn(`[ImageRetry] 로딩 타임아웃 (다음으로 넘어감): ${img.src}`);
+                console.warn(`[ImageRetry] 로딩 타임아웃: ${img.src}`);
                 cleanup();
                 resolve('timeout');
             }, timeout);
@@ -68,32 +76,59 @@
                 img.removeEventListener('error', onError);
             }
 
-            function onLoad() { cleanup(); resolve('loaded'); }
-            function onError() { cleanup(); resolve('error'); }
+            function onLoad() {
+                cleanup();
+
+                // 🔥 여기 추가
+                img.decode()
+                    .then(() => resolve('loaded'))
+                    .catch(() => {
+                        console.warn('[ImageRetry] decode 실패 (onLoad 이후)');
+                        resolve('corrupted');
+                    });
+            }
+
+            function onError() {
+                cleanup();
+                resolve('error');
+            }
 
             img.addEventListener('load', onLoad);
             img.addEventListener('error', onError);
 
-            // 강제 로딩 시작
             img.removeAttribute('loading');
-            // src가 이미 설정되어 있다면 다시 할당하여 로딩 트리거 (일부 브라우저 대응)            
             img.src = currentSrc;
         });
     }
 
-    async function processLazyQueue() {
-        if (isLazyProcessing) return;
-        isLazyProcessing = true;
+    const CONCURRENCY = 5;
+    let activeWorkers = 0;
 
-        while (!lazyImageQueue.isEmpty()) {
-            const img = lazyImageQueue.dequeue();
-            if (img && img.isConnected) { // 문서에 붙어있는지 확인
-                //console.log(`[ImageRetry] 순차 로딩 시작: ${img.src}`);
-                await waitForImage(img, LOAD_TIMEOUT);
-            }
+    function startLazyWorkers() {
+        while (activeWorkers < CONCURRENCY && !lazyImageQueue.isEmpty()) {
+            runLazyWorker();
         }
+    }
 
-        isLazyProcessing = false;
+    async function runLazyWorker() {
+        if (lazyImageQueue.isEmpty()) return;
+
+        activeWorkers++;
+
+        const img = lazyImageQueue.dequeue();
+
+        try {
+            if (img && img.isConnected) {
+                const result = await waitForImage(img, LOAD_TIMEOUT);
+
+                if (result === 'error' || result === 'timeout' || result === 'corrupted') {
+                    enqueueFailedImage(img);
+                }
+            }
+        } finally {
+            activeWorkers--;
+            startLazyWorkers(); // 🔥 끝나자마자 다음 작업
+        }
     }
 
 
@@ -156,70 +191,75 @@
     }
 
 
-    /**
-     * 큐에 이미지 추가 함수
-     */
+    const RETRY_CONCURRENCY = 3;
+    let retryWorkers = 0;
+
     function enqueueFailedImage(imgElement) {
 
         if (imgElement.src.startsWith('blob:') || imgElement.src.startsWith('data:')) {
             return;
-        }    
+        }
 
         if (retryQueue.some(item => item === imgElement)) {
             return;
-        }       
+        }
 
         imgElement.dataset.retryCount = imgElement.dataset.retryCount ? parseInt(imgElement.dataset.retryCount) : 0;
 
         retryQueue.push({ imgElement });
         //console.log(`[ImageRetry] 큐에 이미지 추가됨: `, imgElement);
+        startRetryWorkers();
+    }
 
-        if (!isProcessing) {
-            processQueue();
+
+    function startRetryWorkers() {
+        while (retryWorkers < RETRY_CONCURRENCY && retryQueue.length > 0) {
+            runRetryWorker();
         }
     }
 
     /**
      * 큐에 있는 이미지를 순차적으로 처리하는 함수
      */
-    async function processQueue() {
+    async function runRetryWorker() {
         if (retryQueue.length === 0) {
-            isProcessing = false;
-            console.log('[ImageRetry] 큐 처리 완료');
             return;
         }
+        retryWorkers++;
 
-        isProcessing = true;
         const item = retryQueue.shift();
-        const imgElement = item.imgElement;
-        let retryCount = parseInt(imgElement.dataset.retryCount);
+        try {
+            const imgElement = item.imgElement;
+            let retryCount = parseInt(imgElement.dataset.retryCount);
 
-        if (retryCount >= MAX_RETRY_COUNT) {
-            console.warn(`[ImageRetry] 최대 재시도 횟수 초과: `, imgElement);
-            return;
+            if (retryCount >= MAX_RETRY_COUNT) {
+                console.warn(`[ImageRetry] 최대 재시도 횟수 초과: `, imgElement);
+                return;
+            }
+
+            // 재시도 전에 GM_xmlhttpRequest를 사용하여 실제 파일 존재 여부 확인
+            const imgElementSrc = imgElement.getAttribute('src');
+            if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:')) {
+                return;
+            }
+            const exists = await checkImageExistenceWithGM(imgElement.getAttribute('src'));
+            if (!exists) {
+                console.log(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: `, imgElement);
+                return;
+            }
+
+            imgElement.dataset.retryCount = ++retryCount;
+            imgElement.onerror = null;
+            imgElement.setAttribute('src', imgElementSrc);
+            console.log(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement);
+
+            imgElement.onerror = function () {
+                enqueueFailedImage(this);
+            };
+        } finally {
+            retryWorkers--;
+            setTimeout(startRetryWorkers, RETRY_INTERVAL);
         }
-
-        // 재시도 전에 GM_xmlhttpRequest를 사용하여 실제 파일 존재 여부 확인
-        const imgElementSrc = imgElement.getAttribute('src');    
-        if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:')) {
-            return;
-        }    
-        const exists = await checkImageExistenceWithGM(imgElement.getAttribute('src'));
-        if (!exists) {
-            console.log(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: `, imgElement);
-            return;
-        }
-
-        imgElement.dataset.retryCount = ++retryCount;
-        imgElement.onerror = null;
-        imgElement.setAttribute('src', imgElementSrc);
-        console.log(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement);
-
-        imgElement.onerror = function () {
-            enqueueFailedImage(this);
-        };
-
-        setTimeout(processQueue, RETRY_INTERVAL);
     }
 
     // 새로운 이미지에 onerror 이벤트 리스너를 추가하는 함수
@@ -239,29 +279,25 @@
             if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
-                        if (node.tagName === 'IMG') {      
+                        if (node.tagName === 'IMG') {
                             if (isValidExternalImage(node)) {
                                 node.setAttribute('loading', 'lazy');
                                 lazyImageQueue.enqueue(node);
-                                if (!isLazyProcessing) {
-                                    processLazyQueue();
-                                }        
-                            }                                  
+                                startLazyWorkers();
+                            }
                             addErrorListenerToImages(node);
                         }
-                        node.querySelectorAll('img').forEach(img => {  
+                        node.querySelectorAll('img').forEach(img => {
                             if (isValidExternalImage(img)) {
                                 img.setAttribute('loading', 'lazy');
                                 lazyImageQueue.enqueue(img);
-                                if (!isLazyProcessing) {
-                                    processLazyQueue();
-                                }        
-                            }                                      
+                                startLazyWorkers();
+                            }
                             addErrorListenerToImages(img);
                         });
-                    }                    
+                    }
                 });
-            }            
+            }
         }
     });
 
@@ -290,17 +326,14 @@
 
 
     window.addEventListener("DOMContentLoaded", () => {
-        document.querySelectorAll('img').forEach(img => {    
+        document.querySelectorAll('img').forEach(img => {
             if (isValidExternalImage(img)) {
-                img.setAttribute('loading', 'lazy');                
+                img.setAttribute('loading', 'lazy');
                 lazyImageQueue.enqueue(img);
-            }            
+            }
             addErrorListenerToImages(img);
         });
-
-        if (!isLazyProcessing) {
-            processLazyQueue();
-        }        
+        startLazyWorkers();
 
         observer.observe(document.body, { childList: true, subtree: true });
         console.log('[ImageRetry] 스크립트 활성화 완료');
