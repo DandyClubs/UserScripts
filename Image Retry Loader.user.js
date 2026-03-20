@@ -266,7 +266,7 @@
 
     // 새로운 이미지에 onerror 이벤트 리스너를 추가하는 함수
     function addErrorListenerToImages(element) {
-        if (element.tagName === 'IMG' && element.src) {
+        if (element.tagName === 'IMG' && element.src) {            
             element.onload = function () {
                 element.decode()
                     .then(() => element.onload = null)                    
@@ -292,6 +292,7 @@
                         if (node.tagName === 'IMG') {
                             if (isValidExternalImage(node)) {
                                 node.setAttribute('loading', 'lazy');
+                                node.setAttribute('decoding', 'async');
                                 lazyImageQueue.enqueue(node);
                                 startLazyWorkers();
                             }
@@ -300,6 +301,7 @@
                         node.querySelectorAll('img').forEach(img => {
                             if (isValidExternalImage(img)) {
                                 img.setAttribute('loading', 'lazy');
+                                img.setAttribute('decoding', 'async');
                                 lazyImageQueue.enqueue(img);
                                 startLazyWorkers();
                             }
@@ -342,6 +344,7 @@
         document.querySelectorAll('img').forEach(img => {
             if (isValidExternalImage(img)) {
                 img.setAttribute('loading', 'lazy');
+                img.setAttribute('decoding', 'async');
                 lazyImageQueue.enqueue(img);
             }
             addErrorListenerToImages(img);

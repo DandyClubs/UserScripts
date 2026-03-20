@@ -724,7 +724,7 @@ function AddViewer() {
 
         // Only include images whose ancestor <a.ViewerGallery> has an ivImgUrl
         filter(img) {
-            const link = img.closest('a.ViewerGallery');
+            const link = img.closest('a.ViewerGallery');            
             if (!link) return false;
             img.onclick = null;                // disable default click
             return Boolean(link.dataset.ivImgUrl);
