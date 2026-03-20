@@ -9,7 +9,6 @@
 // @connect      *
 // @grant        GM_xmlhttpRequest
 // @grant        GM_log
-// @grant		 GM_addStyle
 // @run-at       document-body
 // @noframes
 // ==/UserScript==
@@ -18,29 +17,6 @@
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const araishiURL = "https://araishi.com/redirect-check/?submit=&url=";
 const ExcludeChar = /[<\/:>*?"|\\]/g;
-
-
-GM_addStyle(`
-.pending-url {
-	place-self: center;
-	background: linear-gradient(90deg, #00f, #0ff, #00f) -100%/ 200%;	
-	-webkit-background-clip: text;
-	        background-clip: text;
-	color: transparent;
-    font: 600 clamp(1em, 1em, 1em) exo, sans-serif;	
-	animation: shimmer 2s linear infinite
-}
-
-@keyframes shimmer { to { background-position: 100% } }
-
-/* avoid problems in high contrast mode */
-@media (forced-colors: active) {
-  p {
-    background: #212121;
-    color: aquamarine
-  }
-}
-    `);
 
 // 도메인별 실패 링크를 수집하는 저장소
 const failedLinksMap = new Map();
@@ -715,8 +691,7 @@ async function startQueueProcessor() {
         const item = requestQueue.shift();
         try {
             await item.handler.run(item.link);
-            item.link.setAttribute('Direct', 'true');
-            link.classList.remove('pending-url');
+            item.link.setAttribute('Direct', 'true');            
         } catch (e) {
             console.error('Async task failed:', e);
         }
@@ -742,8 +717,7 @@ function processLink(link) {
 
     if (!handler) return;
 
-    if (handler.isAsync) {
-        link.classList.add('pending-url');
+    if (handler.isAsync) {        
         requestQueue.push({ link, handler });
         startQueueProcessor();
     } else {
