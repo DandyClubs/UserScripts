@@ -16,12 +16,12 @@
 
     // 이미지 재시도 큐
     const retryQueue = [];
-    const retrySet = new Set();   
+    const retrySet = new Set();
 
     // 재시도 간격 및 횟수
     const RETRY_INTERVAL = 10000;
     const MAX_RETRY_COUNT = 1;
-    const LOAD_TIMEOUT = 30000; // 5초 타임아웃
+    const LOAD_TIMEOUT = 60000; // 5초 타임아웃
 
     class Queue {
         constructor() {
@@ -133,17 +133,18 @@
 
 
     // GM_xmlhttpRequest를 이용한 이미지 존재 여부 확인 (상태별 처리)
-    function checkImageExistenceWithGM(url) {
+    function checkImageExistenceWithGM(link) {
+        const url = getPureUrl(link);
         return new Promise((resolve) => {
             GM_xmlhttpRequest({
                 method: 'HEAD',
-                url: !/^https?:/.test(url) ? new URL(url, location)?.href : url,
+                url: url,
                 timeout: 5000, // 5초 제한
                 onload: function (response) {
                     const status = response.status;
 
                     if (status === 0) {
-                        const sameDomain = location.hostname === new URL(url, location.href).hostname;
+                        const sameDomain = location.hostname === new URL(url).hostname;
                         if (sameDomain) {
                             console.warn(`[ImageRetry] status=0 (같은 도메인) → 네트워크 문제, 재시도 가능: ${url}`);
                             resolve({ exists: false, retry: true, reason: 'network_error' });
@@ -221,7 +222,7 @@
     /**
      * 큐에 있는 이미지를 순차적으로 처리하는 함수
      */
-    async function runRetryWorker() {        
+    async function runRetryWorker() {
         if (retryQueue.length === 0) {
             return;
         }
@@ -256,7 +257,7 @@
             imgElement.onerror = function () {
                 enqueueFailedImage(this);
             };
-            
+
         } finally {
             retryWorkers--;
             setTimeout(startRetryWorkers, RETRY_INTERVAL);
@@ -266,6 +267,14 @@
     // 새로운 이미지에 onerror 이벤트 리스너를 추가하는 함수
     function addErrorListenerToImages(element) {
         if (element.tagName === 'IMG' && element.src) {
+            element.onload = function () {
+                element.decode()
+                    .then(() => element.onload = null)                    
+                    .catch(() => {
+                        console.warn('[ImageRetry] decode 실패');
+                        element.src = element.src;
+                    });
+            }
             if (!element.complete || element.src.startsWith('blob:') || (element.naturalWidth === 0 && element.naturalHeight === 0)) {
                 element.onerror = function () {
                     enqueueFailedImage(this);
@@ -302,7 +311,10 @@
         }
     });
 
-
+    function getPureUrl(url) {
+        const u = new URL(url);
+        return u.origin + u.pathname;
+    }
     /**
      * 처리가 필요한 이미지인지 확인 (data: URI 제외)
      */
