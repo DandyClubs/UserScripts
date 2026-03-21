@@ -250,7 +250,7 @@
 
             // 재시도 전에 GM_xmlhttpRequest를 사용하여 실제 파일 존재 여부 확인
             const imgElementSrc = imgElement.getAttribute('src');
-            if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:') || imgElementSrc.startsWith('https://images.weserv.nl')) {
+            if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:') || imgElementSrc.startsWith('https://wsrv.nl')) {
                 return;
             }
             const { exists, reason, status = null } = await checkImageExistenceWithGM(imgElement.getAttribute('src'));
@@ -261,9 +261,9 @@
                 return;
             }
 
-            if (/static-file\.com/.test(imgElementSrc) && !imgElementSrc.startsWith('https://images.weserv.nl')) {
-                console.log('weserv.nl 프록시 서비스 사용', imgElement);
-                imgElement.src = `https://images.weserv.nl/?url=${encodeURIComponent(imgElementSrc)}&default=${encodeURIComponent(imgElementSrc)}`;
+            if (/static-file\.com/.test(imgElementSrc) && !imgElementSrc.startsWith('https://wsrv.nl')) {
+                console.log('wsrv.nl 프록시 서비스 사용', imgElement);
+                imgElement.src = `https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`;
                 /*
                 만약 weserv.nl이 느리다면 아래 주소로 교체해서 테스트해 보세요:;
                 https://wsrv.nl/?url=${encodeURIComponent(realSrc)} (같은 서비스의 짧은 도메인)
@@ -305,7 +305,7 @@
             const onError = () => {
                 element.removeEventListener('error', onError); // 메모리 누수 방지                
                 const pureSrc = getPureUrl(element.src);
-                if (!element.src.startsWith('https://images.weserv.nl')) {
+                if (!element.src.startsWith('https://wsrv.nl')) {
                     if (!retrySet.has(pureSrc) && !failedImagesSet.has(pureSrc)) {
                         enqueueFailedImage(element);
                     }
@@ -352,7 +352,7 @@
     });
 
     function getPureUrl(url) {
-        if (url.startsWith('https://images.weserv.nl')) {
+        if (url.startsWith('https://wsrv.nl')) {
             return url;
         }
         const u = new URL(url);
