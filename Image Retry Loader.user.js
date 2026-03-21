@@ -17,6 +17,7 @@
     // 이미지 재시도 큐
     const retryQueue = [];
     const retrySet = new Set();
+    const failedImagesSet = new Set();
 
     // 재시도 간격 및 횟수
     const RETRY_INTERVAL = 10000;
@@ -198,19 +199,20 @@
     let retryWorkers = 0;
 
     function enqueueFailedImage(imgElement) {
+        const pureSrc = getPureUrl(imgElement.src);
 
-        if (imgElement.src.startsWith('blob:') || imgElement.src.startsWith('data:')) {
+        if (pureSrc.startsWith('blob:') || pureSrc.startsWith('data:')) {
             return;
         }
 
-        if (retrySet.has(getPureUrl(imgElement.src))) {
+        if (retrySet.has(pureSrc) && failedImagesSet.has(pureSrc)) {
             return;
         }
 
         imgElement.dataset.retryCount = imgElement.dataset.retryCount ? parseInt(imgElement.dataset.retryCount) : 0;
 
         retryQueue.push({ imgElement });
-        retrySet.add(getPureUrl(imgElement.src));
+        retrySet.add(pureSrc);        
         console.log(`[ImageRetry] 큐에 이미지 추가됨: `, imgElement);
         startRetryWorkers();
     }
@@ -230,7 +232,7 @@
         }
         retryWorkers++;
 
-        const item = retryQueue.shift();
+        const item = retryQueue.shift();        
         retrySet.delete(getPureUrl(item.imgElement.src));
 
         try {
@@ -250,11 +252,18 @@
             const { exists, reason, status = null } = await checkImageExistenceWithGM(imgElement.getAttribute('src'));
             if (!exists) {
                 console.log(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
+                failedImagesSet.add(getPureUrl(imgElement.src));
                 return;
             }
 
             if (/static-file\.com/.test(imgElementSrc) && !imgElementSrc.startsWith('https://images.weserv.nl')) {
+                console.log('weserv.nl 프록시 서비스 사용', imgElement);
                 imgElement.src = `https://images.weserv.nl/?url=${encodeURIComponent(imgElementSrc)}&default=${encodeURIComponent(imgElementSrc)}`;
+                /*
+                만약 weserv.nl이 느리다면 아래 주소로 교체해서 테스트해 보세요:;
+                https://wsrv.nl/?url=${encodeURIComponent(realSrc)} (같은 서비스의 짧은 도메인)
+                https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(realSrc)} (구글 프록시)
+                */
             }
 
             imgElement.dataset.retryCount = ++retryCount;
@@ -290,8 +299,9 @@
 
             const onError = () => {
                 element.removeEventListener('error', onError); // 메모리 누수 방지                
+                const pureSrc = getPureUrl(element.src);
                 if (!element.src.startsWith('https://images.weserv.nl')) {
-                    if (!retrySet.has(getPureUrl(element.src))) {
+                    if (!retrySet.has(pureSrc) && !failedImagesSet.has(pureSrc)) {
                         enqueueFailedImage(element);
                     }
                 }
