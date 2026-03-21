@@ -242,7 +242,7 @@
 
             // 재시도 전에 GM_xmlhttpRequest를 사용하여 실제 파일 존재 여부 확인
             const imgElementSrc = imgElement.getAttribute('src');
-            if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:')) {
+            if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:') || imgElementSrc.startsWith('https://images.weserv.nl')) {
                 return;
             }
             const { exists, reason, status = null } = await checkImageExistenceWithGM(imgElement.getAttribute('src'));
