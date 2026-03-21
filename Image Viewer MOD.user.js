@@ -974,18 +974,17 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
                 link.href = decodeURIComponent(m[1]).replace(/\&ver.*/, '');
             }
 
-            // 2) Force HTTPS on known hosts
             /*
-                ['fastpic', 'imagebam'].forEach(host => {
-                    if (link.href.startsWith(`http://${host}`)) {
-                        link.href = link.href.replace(/^http:/, 'https:');
-                    }
-                    if (img.src.startsWith(`http://${host}`)) {
-                        img.src = img.src.replace(/^http:/, 'https:');
-                    }
-                });
-                */
-
+            // 2) Force HTTPS on known hosts
+            ['fastpic', 'imagebam'].forEach(host => {
+                if (link.href.startsWith(`http://${host}`)) {
+                    link.href = link.href.replace(/^http:/, 'https:');
+                }
+                if (img.src.startsWith(`http://${host}`)) {
+                    img.src = img.src.replace(/^http:/, 'https:');
+                }
+            });
+            */
 
             // 3) Resolve a “real” thumbnail URL:
             let thumb = img.src;
@@ -1040,7 +1039,7 @@ async function initViewer(node) {
         );
         if (!img.matches('.ClickAbleItem')) {
             if (img.src.startsWith('blob:')) {
-                link.dataset.ivThumbnail = link.href;                
+                link.dataset.ivThumbnail = link.href;
             } else if (!img.complete) {
                 image.getSize(img).then(() => {
                     if (ImageExists(img) && !ImageBigSize(img)) {
@@ -1059,7 +1058,7 @@ async function initViewer(node) {
                 }
             }
         }
-    }    
+    }
     // 3) Return the items for any further use
     return items;
 }

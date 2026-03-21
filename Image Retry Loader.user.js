@@ -363,8 +363,15 @@
      */
     function isValidExternalImage(img) {
         if (!img) return false;
-        if (/^http:\/\/.*\.static-file\.com:8000/.test(img.src)) {
-            img.src = img.src.replace('http:', 'https:');
+        
+        if (img.src.startsWith('http://')) {
+            const targetDomains = [/imagebam\.com/i, /fastpic\.(org|ru|net)/i, /static-file\.com/i];
+            const isTarget = targetDomains.some(regex => regex.test(realSrc));
+
+            if (isTarget) {
+                img.src = img.src.replace('http://', 'https://');
+                console.log(`[HTTPS-Upgrade] 프로토콜 변경 완료: ${realSrc}`);
+            }
         }
 
         if (isBadLink(img.src)) {
@@ -415,7 +422,7 @@
 
     window.addEventListener("DOMContentLoaded", () => {
         cleanOldBadLinks();
-        document.querySelectorAll('img').forEach(img => {
+        document.querySelectorAll('img').forEach(img => {            
             if (isValidExternalImage(img)) {
                 img.setAttribute('loading', 'lazy');
                 img.setAttribute('decoding', 'async');
