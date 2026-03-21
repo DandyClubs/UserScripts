@@ -122,7 +122,9 @@
 
                 if (result === 'error' || result === 'timeout' || result === 'corrupted') {
                     img.onerror = null;
-                    enqueueFailedImage(img);
+                    if (retrySet.has(getPureUrl(img.src))) {
+                        enqueueFailedImage(img);
+                    }
                 }
             }
         } finally {
@@ -201,14 +203,14 @@
             return;
         }
 
-        if (retrySet.has(imgElement)) {
+        if (retrySet.has(getPureUrl(imgElement.src))) {
             return;
         }
 
         imgElement.dataset.retryCount = imgElement.dataset.retryCount ? parseInt(imgElement.dataset.retryCount) : 0;
 
         retryQueue.push({ imgElement });
-        retrySet.add(imgElement);
+        retrySet.add(getPureUrl(imgElement.src));
         console.log(`[ImageRetry] 큐에 이미지 추가됨: `, imgElement);
         startRetryWorkers();
     }
@@ -229,7 +231,7 @@
         retryWorkers++;
 
         const item = retryQueue.shift();
-        retrySet.delete(item.imgElement);
+        retrySet.delete(getPureUrl(item.imgElement.src));
 
         try {
             const imgElement = item.imgElement;
@@ -250,12 +252,19 @@
                 console.log(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
                 return;
             }
+
+            if (/static-file\.com/.test(imgElementSrc) && !imgElementSrc.startsWith('https://images.weserv.nl')) {
+                imgElement.src = `https://images.weserv.nl/?url=${encodeURIComponent(imgElementSrc)}&default=${encodeURIComponent(imgElementSrc)}`;
+            }
+
             imgElement.dataset.retryCount = ++retryCount;
             imgElement.onerror = null;
             imgElement.setAttribute('src', imgElementSrc);
             console.log(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement);
             imgElement.onerror = function () {
-                enqueueFailedImage(this);
+                if (!retrySet.has(getPureUrl(this.src))) {
+                    enqueueFailedImage(this);
+                }
             };
 
         } finally {
@@ -265,7 +274,8 @@
     }
 
     function addErrorListenerToImages(element) {
-        if (element.tagName === 'IMG' && element.src) {
+        const realSrc = element.getAttribute('src');
+        if (element.tagName === 'IMG' && realSrc) {
             const onLoad = () => {
                 element.removeEventListener('load', onLoad); // 메모리 누수 방지
                 element.decode().catch(() => {
@@ -273,19 +283,24 @@
                     // 무한 루프 방지를 위해 한 번만 재시도하도록 태그 추가
                     if (!element.dataset.decodeRetried) {
                         element.dataset.decodeRetried = "true";
-                        element.src = element.src;
+                        element.src = realSrc;
                     }
                 });
             };
 
             const onError = () => {
-                enqueueFailedImage(element);
+                element.removeEventListener('error', onError); // 메모리 누수 방지                
+                if (!element.src.startsWith('https://images.weserv.nl')) {
+                    if (!retrySet.has(getPureUrl(element.src))) {
+                        enqueueFailedImage(element);
+                    }
+                }
             };
 
             // onload, onerror 덮어쓰기 대신 addEventListener 사용 (충돌 방지)
             element.addEventListener('load', onLoad);
 
-            if (!element.complete || element.src.startsWith('blob:') || (element.naturalWidth === 0 && element.naturalHeight === 0)) {
+            if (!element.complete || realSrc.startsWith('blob:') || (element.naturalWidth === 0 && element.naturalHeight === 0)) {
                 element.addEventListener('error', onError);
             }
         }
@@ -322,6 +337,9 @@
     });
 
     function getPureUrl(url) {
+        if (url.startsWith('https://images.weserv.nl')) {
+            return url;
+        }
         const u = new URL(url);
         return u.origin + u.pathname;
     }
@@ -330,7 +348,10 @@
      */
     function isValidExternalImage(img) {
         if (!img) return false;
-
+        if (/^http:\/\/.*\.static-file\.com:8000/.test(img.src)){
+            img.src = img.src.replace('http:', 'https:');
+        }
+        
         if (img.closest('.image-masonry')) return false;
 
         // getAttribute를 사용하여 HTML에 적힌 원본 src 값을 확인 (비어있으면 차단)
