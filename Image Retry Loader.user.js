@@ -264,21 +264,29 @@
         }
     }
 
-    // 새로운 이미지에 onerror 이벤트 리스너를 추가하는 함수
     function addErrorListenerToImages(element) {
-        if (element.tagName === 'IMG' && element.src) {            
-            element.onload = function () {
-                element.decode()
-                    .then(() => element.onload = null)                    
-                    .catch(() => {
-                        console.warn('[ImageRetry] decode 실패');
+        if (element.tagName === 'IMG' && element.src) {
+            const onLoad = () => {
+                element.removeEventListener('load', onLoad); // 메모리 누수 방지
+                element.decode().catch(() => {
+                    console.warn('[ImageRetry] decode 실패');
+                    // 무한 루프 방지를 위해 한 번만 재시도하도록 태그 추가
+                    if (!element.dataset.decodeRetried) {
+                        element.dataset.decodeRetried = "true";
                         element.src = element.src;
-                    });
-            }
+                    }
+                });
+            };
+
+            const onError = () => {
+                enqueueFailedImage(element);
+            };
+
+            // onload, onerror 덮어쓰기 대신 addEventListener 사용 (충돌 방지)
+            element.addEventListener('load', onLoad);
+
             if (!element.complete || element.src.startsWith('blob:') || (element.naturalWidth === 0 && element.naturalHeight === 0)) {
-                element.onerror = function () {
-                    enqueueFailedImage(this);
-                };
+                element.addEventListener('error', onError);
             }
         }
     }
@@ -322,6 +330,8 @@
      */
     function isValidExternalImage(img) {
         if (!img) return false;
+
+        if (img.closest('.image-masonry')) return false;
 
         // getAttribute를 사용하여 HTML에 적힌 원본 src 값을 확인 (비어있으면 차단)
         const rawSrc = img.getAttribute('src');

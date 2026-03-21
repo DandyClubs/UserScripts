@@ -652,6 +652,7 @@ function AddViewer() {
 
         // Only include images whose ancestor <a.ViewerGallery> has an ivImgUrl
         filter(img) {
+            if (img.closest('.image-masonry')) return false;
             const link = img.closest('a.ViewerGallery');
             if (!link) return false;
             img.onclick = null;                // disable default click
@@ -1038,7 +1039,7 @@ async function initViewer(node) {
                 : [CLASSES.imageLink])
         );
         if (!img.matches('.ClickAbleItem')) {
-            if (/^blob:/.test(img.src)) {
+            if (img.src.startsWith('blob:')) {
                 link.dataset.ivThumbnail = link.href;                
             } else if (!img.complete) {
                 image.getSize(img).then(() => {
@@ -1172,7 +1173,7 @@ const image = {
         try {
             const extractor = urlExtractor.getExtractorByHost(imageHost);
             if (extractor.viewMode === 'origin-download') {
-                if (/^blob:/.test(img.src)) {
+                if (img.src.startsWith('blob:')) {
                     imageURL = img.src;
                 } else {
                     imageURL = await image.loadAsBlob(imageURL);
@@ -1259,19 +1260,26 @@ const image = {
     },
 
     getSize(img) {
-        img.removetAttribute('loading');
+        img.removeAttribute('loading'); // 오타 수정 (removetAttribute -> removeAttribute)
         return new Promise((resolve) => {
             if (img.complete) {
                 resolve({ width: img.naturalWidth, height: img.naturalHeight, isLoaded: img.complete });
-            }
-            else {
-                img.onload = () => {
+            } else {
+                // onload 덮어쓰기 방지
+                const onImgLoad = () => {
+                    img.removeEventListener('load', onImgLoad);
                     resolve({ width: img.naturalWidth, height: img.naturalHeight, isLoaded: img.complete });
                 };
+                const onImgError = () => {
+                    img.removeEventListener('error', onImgError);
+                    console.log('이미지 로딩 에러!');
+                    resolve({ width: 0, height: 0, isLoaded: false }); // 에러 시 처리
+                };
+                img.addEventListener('load', onImgLoad);
+                img.addEventListener('error', onImgError);
             }
         });
     },
-
     markAsBroken(link) {
         link.classList.remove('js-image-link');
         link.removeAttribute('title');
