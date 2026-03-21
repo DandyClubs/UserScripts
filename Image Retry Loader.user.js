@@ -366,11 +366,11 @@
         
         if (img.src.startsWith('http://')) {
             const targetDomains = [/imagebam\.com/i, /fastpic\.(org|ru|net)/i, /static-file\.com/i];
-            const isTarget = targetDomains.some(regex => regex.test(realSrc));
+            const isTarget = targetDomains.some(regex => regex.test(img.src));
 
             if (isTarget) {
                 img.src = img.src.replace('http://', 'https://');
-                console.log(`[HTTPS-Upgrade] 프로토콜 변경 완료: ${realSrc}`);
+                console.log(`[HTTPS-Upgrade] 프로토콜 변경 완료: ${img.src}`);
             }
         }
 
