@@ -335,7 +335,7 @@
                                 startLazyWorkers();
                                 addErrorListenerToImages(node);
                             }
-                            
+
                         }
                         node.querySelectorAll('img').forEach(img => {
                             if (isValidExternalImage(img)) {
@@ -345,7 +345,7 @@
                                 startLazyWorkers();
                                 addErrorListenerToImages(img);
                             }
-                            
+
                         });
                     }
                 });
@@ -354,19 +354,31 @@
     });
 
     function getPureUrl(url) {
-        if (!/^https?:\/\//.test(url)) {
-            const currentOrigin = window.location.origin;
-            url = currentOrigin + url;
-        }
+        if (!url) return '';
+
+        // 1. 특정 서비스(프록시) 예외 처리
         if (url.startsWith('https://wsrv.nl')) {
             return url;
         }
+
         try {
-            const u = new URL(url);
+            let absoluteUrl = url;
+
+            // 2. 프로토콜 상대 경로 (//) 처리
+            if (url.startsWith('//')) {
+                absoluteUrl = window.location.protocol + url;
+            }
+            // 3. 도메인 누락 (https:///) 처리
+            else if (/^https?:\/\/\//.test(url)) {
+                absoluteUrl = url.replace(/^https?:\/\/\//, window.location.origin + '/');
+            }
+            // 4. 상대 경로 (./ 또는 / 또는 그냥 파일명) 처리
+            // new URL(상대경로, 기준경로)를 사용하면 브라우저가 알아서 합쳐줍니다.
+            const u = new URL(absoluteUrl, window.location.href);
+
             return u.origin + u.pathname;
         } catch (e) {
-            // 4. 여전히 유효하지 않은 경우 안전하게 원본 혹은 빈값 반환
-            console.error(`[Error] URL 파싱 실패: ${url}`);
+            console.error(`[Error] URL 파싱 실패: ${url}`, e);
             return url;
         }
     }
@@ -386,10 +398,10 @@
                 onload: function (result) {
                     if (result.status === 200) {
                         const parser = new DOMParser();
-                        const doc = parser.parseFromString(result.responseText, 'text/html');                        
-                        
-                        const matchedImg = doc.querySelector(`img[src*="${targetFileName}"]`)
-                                                
+                        const doc = parser.parseFromString(result.responseText, 'text/html');
+
+                        const matchedImg = doc.querySelector(`img[src*="${targetFileName}"]`);
+
                         if (matchedImg) {
                             const realSrc = matchedImg.getAttribute('src');
                             console.log(`[Success] 매칭 성공: ${realSrc}`);
@@ -412,32 +424,30 @@
         if (!img) return false;
         if (img.dataset.isFixing) return false;
         let rawSrc = img.getAttribute('src') || "";
-        
-        if (/^https?:\/\/\//.test(rawSrc)) {
-            if (/\/e\/attach/.test(rawSrc)) {
-                const videoLink = img.closest('a[href*="video.php"]');
-                if (videoLink) {
-                    // 🔥 [변경] 복구 시작 기록
-                    img.dataset.isFixing = "true";
-                    console.log(`[Fixing] 이미지 복구 시도 중: ${rawSrc}`);
 
-                    getFixUrl(videoLink.href, rawSrc)
-                        .then(realUrl => {
-                            img.src = realUrl;
-                            // 성공 후 로딩 대기열에 다시 추가 (선택 사항)
-                            addErrorListenerToImages(img);
-                            lazyImageQueue.enqueue(img);
-                            startLazyWorkers();
-                        })
-                        .catch(err => console.warn(`[Fix-Error] ${err}`))
-                        .finally(() => {
-                            // 작업 완료 후 플래그 제거는 하지 않음 (성공/실패 여부와 상관없이 재요청 방지)
-                        });
-                }
+        if (/\/e\/attach/.test(rawSrc)) {
+            const videoLink = img.closest('a[href*="video.php"]');
+            if (videoLink) {
+                // 🔥 [변경] 복구 시작 기록
+                img.dataset.isFixing = "true";
+                console.log(`[Fixing] 이미지 복구 시도 중: ${rawSrc}`);
+
+                getFixUrl(videoLink.href, rawSrc)
+                    .then(realUrl => {
+                        img.src = realUrl;
+                        // 성공 후 로딩 대기열에 다시 추가 (선택 사항)
+                        addErrorListenerToImages(img);
+                        lazyImageQueue.enqueue(img);
+                        startLazyWorkers();
+                    })
+                    .catch(err => console.warn(`[Fix-Error] ${err}`))
+                    .finally(() => {
+                        // 작업 완료 후 플래그 제거는 하지 않음 (성공/실패 여부와 상관없이 재요청 방지)
+                    });
             }
-            // 현재는 깨진 상태이므로 검사 로직상 false 반환
             return false;
         }
+        // 현재는 깨진 상태이므로 검사 로직상 false 반환
 
         if (img.src.startsWith('http://')) {
             const targetDomains = [/imagebam\.com/i, /fastpic\.(org|ru|net)/i, /static-file\.com/i];
@@ -504,7 +514,7 @@
                 lazyImageQueue.enqueue(img);
                 addErrorListenerToImages(img);
             }
-            
+
         });
         startLazyWorkers();
 
