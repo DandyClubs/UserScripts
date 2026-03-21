@@ -8,13 +8,17 @@
 // @grant        GM_xmlhttpRequest
 // @connect      *
 // @run-at       document-start
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_deleteValue
+// @grant        GM_listValues
 // @noframes
 // ==/UserScript==
 
 (function () {
     'use strict';
 
-    // 이미지 재시도 큐
+    // 이미지 재시도 큐    
     const retryQueue = [];
     const retrySet = new Set();
     const failedImagesSet = new Set();
@@ -253,6 +257,7 @@
             if (!exists) {
                 console.log(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
                 failedImagesSet.add(getPureUrl(imgElement.src));
+                saveBadLink(imgElement.src);
                 return;
             }
 
@@ -361,6 +366,11 @@
         if (/^http:\/\/.*\.static-file\.com:8000/.test(img.src)){
             img.src = img.src.replace('http:', 'https:');
         }
+
+        if (isBadLink(img.src)) {
+            console.warn(`[Skip] 이미 404로 기록된 링크입니다: ${img.src}`);            
+            return false;
+        }
         
         if (img.closest('.image-masonry')) return false;
 
@@ -380,8 +390,33 @@
         return true;
     }
 
+    function saveBadLink(url) {
+        const now = Date.now();
+        GM_setValue(getPureUrl(url), now);        
+    }
+
+    function isBadLink(url) {
+        return GM_getValue(getPureUrl(url)) !== undefined;
+    }
+
+    function cleanOldBadLinks() {
+        const now = Date.now();
+        const oneDayLimit = 24 * 60 * 60 * 1000; // 24시간 (밀리초)
+        const keys = GM_listValues();
+
+        keys.forEach(key => {
+            if (key.startsWith(BAD_LINKS_KEY_PREFIX)) {
+                const savedTime = GM_getValue(key);
+                if (now - savedTime > oneDayLimit) {
+                    GM_deleteValue(key);
+                    console.log(`[Storage] 24시간 경과 데이터 삭제: ${key}`);
+                }
+            }
+        });
+    }
 
     window.addEventListener("DOMContentLoaded", () => {
+        cleanOldBadLinks();
         document.querySelectorAll('img').forEach(img => {
             if (isValidExternalImage(img)) {
                 img.setAttribute('loading', 'lazy');
