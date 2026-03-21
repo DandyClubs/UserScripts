@@ -410,7 +410,9 @@
      */
     function isValidExternalImage(img) {
         if (!img) return false;
+        if (img.dataset.isFixing) return false;
         let rawSrc = img.getAttribute('src') || "";
+        
         if (/^https?:\/\/\//.test(rawSrc)) {
             if (/\/e\/attach/.test(rawSrc)) {
                 const videoLink = img.closest('a[href*="video.php"]');
