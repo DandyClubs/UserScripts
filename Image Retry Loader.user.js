@@ -333,8 +333,9 @@
                                 node.setAttribute('decoding', 'async');
                                 lazyImageQueue.enqueue(node);
                                 startLazyWorkers();
+                                addErrorListenerToImages(node);
                             }
-                            addErrorListenerToImages(node);
+                            
                         }
                         node.querySelectorAll('img').forEach(img => {
                             if (isValidExternalImage(img)) {
@@ -342,8 +343,9 @@
                                 img.setAttribute('decoding', 'async');
                                 lazyImageQueue.enqueue(img);
                                 startLazyWorkers();
+                                addErrorListenerToImages(img);
                             }
-                            addErrorListenerToImages(img);
+                            
                         });
                     }
                 });
@@ -352,18 +354,89 @@
     });
 
     function getPureUrl(url) {
+        if (!/^https?:\/\//.test(url)) {
+            const currentOrigin = window.location.origin;
+            url = currentOrigin + url;
+        }
         if (url.startsWith('https://wsrv.nl')) {
             return url;
         }
-        const u = new URL(url);
-        return u.origin + u.pathname;
+        try {
+            const u = new URL(url);
+            return u.origin + u.pathname;
+        } catch (e) {
+            // 4. 여전히 유효하지 않은 경우 안전하게 원본 혹은 빈값 반환
+            console.error(`[Error] URL 파싱 실패: ${url}`);
+            return url;
+        }
+    }
+
+    function getFixUrl(videoPageUrl, brokenSrc) {
+        return new Promise((resolve, reject) => {
+            // 1. 깨진 주소에서 파일명만 추출 (예: 20260226023129_9982.jpg)
+            const fileNameMatch = brokenSrc.match(/\/([^\/]+\.(jpg|jpeg|png|gif|webp))/i);
+            if (!fileNameMatch) {
+                return reject('파일명 추출 실패');
+            }
+            const targetFileName = fileNameMatch[1].split('.')[0]; // 확장자 제외 이름만 비교 (안전함)
+
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: videoPageUrl,
+                onload: function (result) {
+                    if (result.status === 200) {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(result.responseText, 'text/html');                        
+                        
+                        const matchedImg = doc.querySelector(`img[src*="${targetFileName}"]`)
+                                                
+                        if (matchedImg) {
+                            const realSrc = matchedImg.getAttribute('src');
+                            console.log(`[Success] 매칭 성공: ${realSrc}`);
+                            resolve(realSrc);
+                        } else {
+                            reject(`[Fail] 해당 파일명을 가진 이미지를 찾을 수 없음: ${targetFileName}`);
+                        }
+                    } else {
+                        reject(`서버 응답 에러: ${result.status}`);
+                    }
+                },
+                onerror: reject
+            });
+        });
     }
     /**
      * 처리가 필요한 이미지인지 확인 (data: URI 제외)
      */
     function isValidExternalImage(img) {
         if (!img) return false;
-        
+        let rawSrc = img.getAttribute('src') || "";
+        if (/^https?:\/\/\//.test(rawSrc)) {
+            if (/\/e\/attach/.test(rawSrc)) {
+                const videoLink = img.closest('a[href*="video.php"]');
+                if (videoLink) {
+                    // 🔥 [변경] 복구 시작 기록
+                    img.dataset.isFixing = "true";
+                    console.log(`[Fixing] 이미지 복구 시도 중: ${rawSrc}`);
+
+                    getFixUrl(videoLink.href, rawSrc)
+                        .then(realUrl => {
+                            img.src = realUrl;
+                            // 성공 후 로딩 대기열에 다시 추가 (선택 사항)
+                            addErrorListenerToImages(img);
+                            lazyImageQueue.enqueue(img);
+                            startLazyWorkers();
+                        })
+                        .catch(err => console.warn(`[Fix-Error] ${err}`))
+                        .finally(() => {
+                            // 작업 완료 후 플래그 제거는 하지 않음 (성공/실패 여부와 상관없이 재요청 방지)
+                        });
+                }
+            }
+            // 현재는 깨진 상태이므로 검사 로직상 false 반환
+            return false;
+        }
+
         if (img.src.startsWith('http://')) {
             const targetDomains = [/imagebam\.com/i, /fastpic\.(org|ru|net)/i, /static-file\.com/i];
             const isTarget = targetDomains.some(regex => regex.test(img.src));
@@ -382,7 +455,7 @@
         if (img.closest('.image-masonry')) return false;
 
         // getAttribute를 사용하여 HTML에 적힌 원본 src 값을 확인 (비어있으면 차단)
-        const rawSrc = img.getAttribute('src');
+        rawSrc = img.getAttribute('src');
         if (!rawSrc || rawSrc.trim() === "" || rawSrc === window.location.href) {
             return false;
         }
@@ -422,13 +495,14 @@
 
     window.addEventListener("DOMContentLoaded", () => {
         cleanOldBadLinks();
-        document.querySelectorAll('img').forEach(img => {            
+        document.querySelectorAll('img').forEach(img => {
             if (isValidExternalImage(img)) {
                 img.setAttribute('loading', 'lazy');
                 img.setAttribute('decoding', 'async');
                 lazyImageQueue.enqueue(img);
+                addErrorListenerToImages(img);
             }
-            addErrorListenerToImages(img);
+            
         });
         startLazyWorkers();
 
