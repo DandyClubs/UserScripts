@@ -450,7 +450,7 @@
         // 현재는 깨진 상태이므로 검사 로직상 false 반환
 
         if (img.src.startsWith('http://')) {
-            const targetDomains = [/imagebam\.com/i, /fastpic\.(org|ru|net)/i, /static-file\.com/i];
+            const targetDomains = [/imagebam\.com/i, /fastpic\.(org|ru|net)/i, /static-file\.com/i, /dmm\.co\.jp/i, /faleno\.jp/i];
             const isTarget = targetDomains.some(regex => regex.test(img.src));
 
             if (isTarget) {
