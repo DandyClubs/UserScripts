@@ -216,7 +216,7 @@
         imgElement.dataset.retryCount = imgElement.dataset.retryCount ? parseInt(imgElement.dataset.retryCount) : 0;
 
         retryQueue.push({ imgElement });
-        retrySet.add(pureSrc);        
+        retrySet.add(pureSrc);
         console.log(`[ImageRetry] 큐에 이미지 추가됨: `, imgElement);
         startRetryWorkers();
     }
@@ -236,7 +236,7 @@
         }
         retryWorkers++;
 
-        const item = retryQueue.shift();        
+        const item = retryQueue.shift();
         retrySet.delete(getPureUrl(item.imgElement.src));
 
         try {
@@ -363,15 +363,15 @@
      */
     function isValidExternalImage(img) {
         if (!img) return false;
-        if (/^http:\/\/.*\.static-file\.com:8000/.test(img.src)){
+        if (/^http:\/\/.*\.static-file\.com:8000/.test(img.src)) {
             img.src = img.src.replace('http:', 'https:');
         }
 
         if (isBadLink(img.src)) {
-            console.warn(`[Skip] 이미 404로 기록된 링크입니다: ${img.src}`);            
+            console.warn(`[Skip] 이미 404로 기록된 링크입니다: ${img.src}`);
             return false;
         }
-        
+
         if (img.closest('.image-masonry')) return false;
 
         // getAttribute를 사용하여 HTML에 적힌 원본 src 값을 확인 (비어있으면 차단)
@@ -392,7 +392,7 @@
 
     function saveBadLink(url) {
         const now = Date.now();
-        GM_setValue(getPureUrl(url), now);        
+        GM_setValue(getPureUrl(url), now);
     }
 
     function isBadLink(url) {
@@ -405,12 +405,10 @@
         const keys = GM_listValues();
 
         keys.forEach(key => {
-            if (key.startsWith(BAD_LINKS_KEY_PREFIX)) {
-                const savedTime = GM_getValue(key);
-                if (now - savedTime > oneDayLimit) {
-                    GM_deleteValue(key);
-                    console.log(`[Storage] 24시간 경과 데이터 삭제: ${key}`);
-                }
+            const savedTime = GM_getValue(key);
+            if (now - savedTime > oneDayLimit) {
+                GM_deleteValue(key);
+                console.log(`[Storage] 24시간 경과 데이터 삭제: ${key}`);
             }
         });
     }
