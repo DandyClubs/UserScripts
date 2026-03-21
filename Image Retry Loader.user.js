@@ -254,7 +254,7 @@
                 return;
             }
             const { exists, reason, status = null } = await checkImageExistenceWithGM(imgElement.getAttribute('src'));
-            if (!exists) {
+            if (!exists && (reason === 'client_error' || reason === 'server_error')) {
                 console.log(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
                 failedImagesSet.add(getPureUrl(imgElement.src));
                 saveBadLink(imgElement.src);
