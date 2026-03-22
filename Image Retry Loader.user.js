@@ -95,8 +95,7 @@
             function onError() {
                 cleanup();
                 resolve('error');
-            }
-            img.onerror = null;
+            }            
             img.addEventListener('load', onLoad);
             img.addEventListener('error', onError);
 
@@ -127,8 +126,8 @@
 
                 if (result === 'error' || result === 'timeout' || result === 'corrupted') {
                     img.onerror = null;
-                    if (retrySet.has(getPureUrl(img.src))) {
-                        enqueueFailedImage(img);
+                    if (!retrySet.has(getPureUrl(img.src))) {
+                        enqueueFailedImage(img, result);
                     }
                 }
             }
@@ -202,7 +201,7 @@
     const RETRY_CONCURRENCY = 3;
     let retryWorkers = 0;
 
-    function enqueueFailedImage(imgElement) {
+    function enqueueFailedImage(imgElement, reason = '') {
         const pureSrc = getPureUrl(imgElement.src);
 
         if (pureSrc.startsWith('blob:') || pureSrc.startsWith('data:')) {
@@ -217,7 +216,7 @@
 
         retryQueue.push({ imgElement });
         retrySet.add(pureSrc);
-        console.log(`[ImageRetry] 큐에 이미지 추가됨: `, imgElement);
+        console.log(`[ImageRetry] 큐에 이미지 추가됨: `, imgElement, reason);
         startRetryWorkers();
     }
 
@@ -287,40 +286,6 @@
         }
     }
 
-    function addErrorListenerToImages(element) {
-        const realSrc = element.getAttribute('src');
-        if (element.tagName === 'IMG' && realSrc) {
-            const onLoad = () => {
-                element.removeEventListener('load', onLoad); // 메모리 누수 방지
-                element.decode().catch(() => {
-                    console.warn('[ImageRetry] decode 실패');
-                    // 무한 루프 방지를 위해 한 번만 재시도하도록 태그 추가
-                    if (!element.dataset.decodeRetried) {
-                        element.dataset.decodeRetried = "true";
-                        element.src = realSrc;
-                    }
-                });
-            };
-
-            const onError = () => {
-                element.removeEventListener('error', onError); // 메모리 누수 방지                
-                const pureSrc = getPureUrl(element.src);
-                if (!element.src.startsWith('https://wsrv.nl')) {
-                    if (!retrySet.has(pureSrc) && !failedImagesSet.has(pureSrc)) {
-                        enqueueFailedImage(element);
-                    }
-                }
-            };
-
-            // onload, onerror 덮어쓰기 대신 addEventListener 사용 (충돌 방지)
-            element.addEventListener('load', onLoad);
-
-            if (!element.complete || realSrc.startsWith('blob:') || (element.naturalWidth === 0 && element.naturalHeight === 0)) {
-                element.addEventListener('error', onError);
-            }
-        }
-    }
-
     // MutationObserver 설정
     const observer = new MutationObserver((mutationsList) => {
         for (const mutation of mutationsList) {
@@ -332,8 +297,7 @@
                                 node.setAttribute('loading', 'lazy');
                                 node.setAttribute('decoding', 'async');
                                 lazyImageQueue.enqueue(node);
-                                startLazyWorkers();
-                                addErrorListenerToImages(node);
+                                startLazyWorkers();                                
                             }
 
                         }
@@ -342,8 +306,7 @@
                                 img.setAttribute('loading', 'lazy');
                                 img.setAttribute('decoding', 'async');
                                 lazyImageQueue.enqueue(img);
-                                startLazyWorkers();
-                                addErrorListenerToImages(img);
+                                startLazyWorkers();                                
                             }
 
                         });
@@ -449,8 +412,7 @@
                         img.src = realUrl;
                         // 성공 후 로딩 대기열에 다시 추가 (선택 사항)                        
                         lazyImageQueue.enqueue(img);
-                        startLazyWorkers();
-                        addErrorListenerToImages(img);
+                        startLazyWorkers();                        
                     })
                     .catch(err => console.warn(`[Fix-Error] ${err}`))
                     .finally(() => {
@@ -470,8 +432,8 @@
                 console.log(`[HTTPS-Upgrade] 프로토콜 변경 완료: ${img.src}`);
             }
         }
-        if (!isRealDomain(img.src)){
-            console.warn(`정상적인 도메인이 아닙니다. ${img.src}`)
+        if (!isRealDomain(img.src)) {
+            console.warn(`정상적인 도메인이 아닙니다. ${img.src}`);
             return false;
         }
 
@@ -527,8 +489,7 @@
             if (isValidExternalImage(img)) {
                 img.setAttribute('loading', 'lazy');
                 img.setAttribute('decoding', 'async');
-                lazyImageQueue.enqueue(img);
-                addErrorListenerToImages(img);
+                lazyImageQueue.enqueue(img);                
             }
 
         });
