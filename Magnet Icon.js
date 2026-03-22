@@ -744,7 +744,7 @@ async function Main() {
                       style="cursor:pointer;color: dodgerblue !important;font-size:16px;"></i>
 
                 ${total > 1
-                    ? `<i class="prev-icon fa-solid fa-circle-chevron-left"
+                ? `<i>&nbsp;</i><i class="prev-icon fa-solid fa-circle-chevron-left"
                              title="Prev"
                              style="cursor:pointer;color: dodgerblue !important;font-size:16px;"></i>
                              <i class="next-icon fa-solid fa-circle-chevron-right"

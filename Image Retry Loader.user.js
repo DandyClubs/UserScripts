@@ -353,6 +353,19 @@
         }
     });
 
+
+    function isRealDomain(url) {
+        try {
+            const u = new URL(url);
+            const hostname = u.hostname;
+
+            const regex = /^(?!-)([a-zA-Z0-9-]{1,63}\.)+[a-zA-Z]{2,}$/;
+            return regex.test(hostname);
+        } catch {
+            return false;
+        }
+    }
+
     function getPureUrl(url) {
         if (!url) return '';
 
@@ -360,7 +373,6 @@
         if (url.startsWith('https://wsrv.nl')) {
             return url;
         }
-
         try {
             let absoluteUrl = url;
 
@@ -375,8 +387,8 @@
             // 4. 상대 경로 (./ 또는 / 또는 그냥 파일명) 처리
             // new URL(상대경로, 기준경로)를 사용하면 브라우저가 알아서 합쳐줍니다.
             const u = new URL(absoluteUrl, window.location.href);
-
             return u.origin + u.pathname;
+
         } catch (e) {
             console.error(`[Error] URL 파싱 실패: ${url}`, e);
             return url;
@@ -425,7 +437,7 @@
         if (img.dataset.isFixing) return false;
         let rawSrc = img.getAttribute('src') || "";
 
-        if (/\/e\/attach/.test(rawSrc)) {
+        if (rawSrc.startsWith('https:///e/attach')) {
             const videoLink = img.closest('a[href*="video.php"]');
             if (videoLink) {
                 // 🔥 [변경] 복구 시작 기록
@@ -435,10 +447,10 @@
                 getFixUrl(videoLink.href, rawSrc)
                     .then(realUrl => {
                         img.src = realUrl;
-                        // 성공 후 로딩 대기열에 다시 추가 (선택 사항)
-                        addErrorListenerToImages(img);
+                        // 성공 후 로딩 대기열에 다시 추가 (선택 사항)                        
                         lazyImageQueue.enqueue(img);
                         startLazyWorkers();
+                        addErrorListenerToImages(img);
                     })
                     .catch(err => console.warn(`[Fix-Error] ${err}`))
                     .finally(() => {
@@ -457,6 +469,10 @@
                 img.src = img.src.replace('http://', 'https://');
                 console.log(`[HTTPS-Upgrade] 프로토콜 변경 완료: ${img.src}`);
             }
+        }
+        if (!isRealDomain(img.src)){
+            console.warn(`정상적인 도메인이 아닙니다. ${img.src}`)
+            return false;
         }
 
         if (isBadLink(img.src)) {
