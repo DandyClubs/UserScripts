@@ -93,7 +93,7 @@
             }
 
             function onError() {
-                cleanup();
+                cleanup();                
                 resolve('error');
             }            
             img.addEventListener('load', onLoad);
