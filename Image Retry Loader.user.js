@@ -126,9 +126,6 @@
                     if (!retrySet.has(getPureUrl(img.src))) {
                         enqueueFailedImage(img, result);
                     }
-                }else if(result === 'timeout'){
-                    console.log('타임아웃으로 인해 wsrv.nl 프록시 서비스 사용', img);
-                    img.src = `https://wsrv.nl/?url=${encodeURIComponent(getPureUrl(img.src))}`;
                 }
                 activeWorkers--;
                 startLazyWorkers(); // 🔥 끝나자마자 다음 작업
