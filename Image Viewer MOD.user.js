@@ -281,7 +281,7 @@ const siteModules = [
         name: 'imgtraffic.com',
         enabled: true,
         linkRegExp: /imgtraffic\.com/,
-        async getURL(link) { return link.thumbnailURL.replace('/1s/', '/1/'); },
+        async getURL(link) { return link.thumbnailURL.replace('/1s/', '/1/').replace('/i-1/', '/1/'); },
     },
     {
         id: 'javstore',
@@ -1363,9 +1363,23 @@ async function Start() {
         convertImages([el]);
     });
 
+    if (PageURL.startsWith('https://rargb.to/torrent/')) {
+        let Links = document.querySelectorAll('td#description.lista a[href^="https://imgtraffic.com"]:not(:has(img)');
+        Array.from(Links).forEach(async (el) => {
+            el.textContent = '';            
+            const ImageTag = document.createElement('img');
+            ImageTag.src = el.href.replace('/i-1/', '/1/').replace('.html', '');
+            el.appendChild(ImageTag);
+        });
+        let images = document.querySelectorAll('img[src*="https://imgtraffic.com/1s/"]');
+        Array.from(images).forEach(async (el) => {
+            el.src = el.src.replace('/1s/', '/1/');
+        });
+    }
+
     if (/javarchive\.com\/.*\.html/.test(PageURL)) {
-        ImageLinks = document.querySelectorAll('a[href*="https://pixhost.to/show"]');
-        Array.from(ImageLinks).forEach(async (el) => {
+        let Links = document.querySelectorAll('a[href*="https://pixhost.to/show"]');
+        Array.from(Links).forEach(async (el) => {
             if (el.innerText === 'CLICK HERE!') {
                 el.children[0].remove();
                 const ImageTag = document.createElement('img');
@@ -1373,8 +1387,8 @@ async function Start() {
                 el.appendChild(ImageTag);
             }
         });
-        ImageLinks = document.querySelectorAll('a[href*="javstore.net/images"]');
-        Array.from(ImageLinks).forEach(el => {
+        Links = document.querySelectorAll('a[href*="javstore.net/images"]');
+        Array.from(Links).forEach(el => {
             if (el.innerText === 'CLICK HERE!') {
                 el.children[0].remove();
                 const ImageTag = document.createElement('img');

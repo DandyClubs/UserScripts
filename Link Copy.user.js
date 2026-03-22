@@ -701,14 +701,10 @@ function makeSearch() {
 
     const ICONS = [
         {
-            class: 'TheRarBG',
-            domain: 'therarbg.com',
-            onClick: () => openInNewTab(`https://therarbg.com/get-posts/keywords:${searchTitle}/`)
-        },
-        {
-            class: 'Zeroxxx',
-            domain: '0xxx.ws',
-            onClick: () => openInNewTab(`https://0xxx.ws/index.php?s="${searchTitle}"`)
+            class: 'RarBG',
+            domain: 'rarbg.to',
+            favicon: 'https://rargb.to/favicon.ico',
+            onClick: () => openInNewTab(`https://rargb.to/search/?search=${searchTitle}/`)
         },
         {
             class: 'PornBB',
@@ -730,17 +726,21 @@ function makeSearch() {
         }
     ];
 
-    for (const { class: className, domain, onClick } of ICONS) {
+    for (const { class: className, domain, favicon = null, onClick } of ICONS) {
         const img = document.createElement('img');
-        img.className = `Favicon ${className}`;
-        img.src = `https://www.google.com/s2/favicons?sz=32&domain=${domain}`;
+        img.className = `favicon ${className}`;
+        if (favicon) {
+            img.src = favicon;
+        } else {
+            img.src = `https://www.google.com/s2/favicons?sz=32&domain=${domain}`;
+        }
         img.addEventListener('click', (e) => {
             e.preventDefault();
             onClick();
         });
         SearchBox.appendChild(img);
     }
-    
+
 
     window.addEventListener('load', function () {
         const searchBoxStyle = SearchBox.style;
@@ -2002,7 +2002,7 @@ async function processCopyTitle(currentConfig) {
 
     // 공통 제목 정리 로직
     CopyTitle = CopyTitle
-        .replace('–', '-')    
+        .replace('–', '-')
         .replace(/\s+/g, ' ')
         .replace(/(?!^)\[(UltraHD|FullHD|HD).+\].*/, '')
         .replace(/^\[(UltraHD|FullHD|HD).+\]/, '')

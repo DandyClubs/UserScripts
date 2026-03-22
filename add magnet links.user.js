@@ -7,6 +7,7 @@
 // @license     MIT
 // @include     https://xxxclub.to/torrents/*
 // @include     https://rargb.to/*
+// @exclude     https://rargb.to/torrent/*
 // @grant       GM_addStyle
 // @grant       GM_setClipboard
 // @grant       GM_xmlhttpRequest
@@ -68,6 +69,9 @@ const rarbgStyle = `
 	.GetMagnet, .GetTitle {
 		font-size: 14px;
 		color: #38a1f3 !important;
+        padding: 2px;
+        cursor: pointer;
+	}
 	}
     .visited {
         color: Orange !important;
@@ -76,12 +80,10 @@ const rarbgStyle = `
 		text-align: center !important;
 		position: relative;
 		width: 40px;
-	}
-	td.dl-buttons > a {
-		cursor: pointer;
-		display: inline-block !important;
-	}
-
+	}	
+    body> table {	
+	width: 70% !important;
+    }
 `;
 
 
@@ -428,7 +430,6 @@ async function appendColumn() {
             let MagnetLink = '';
             let url = config.getHref(headersCellsNew[index]);
             let Key = config.getKey(headersCellsNew[index], url, RootDomain);
-            console.log(url, Key, index);
             const stored = await magnetManager.get(Key);
             if (stored) {
                 if (stored?.M && typeof stored.M === "object" && Object.keys(stored.M).length === 0) {
