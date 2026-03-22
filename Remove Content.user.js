@@ -411,7 +411,7 @@ async function processContent(node, selector, isExtra = false) {
                 if (Title.split(' ').length < 2 || Title.length < 10) continue;
                 const CheckDB = (text, DB) => DB.some(s => s.K.toLowerCase().includes(text.toLowerCase()));
                 if (resolution >= 1080 && !CheckDB(Title, contentCache)) {
-                    console.log('Title:', Title, '\nResolution:', resolution);
+                    //console.log('Title:', Title, '\nResolution:', resolution);
                     await contentManager.add(Title, AddDate);
                     contentCache = await contentDBUpdate();
                 }

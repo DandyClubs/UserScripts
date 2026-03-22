@@ -26,7 +26,7 @@
     // 재시도 간격 및 횟수
     const RETRY_INTERVAL = 10000;
     const MAX_RETRY_COUNT = 1;
-    const LOAD_TIMEOUT = 60000; // 5초 타임아웃
+    const LOAD_TIMEOUT = 30000; // 5초 타임아웃
 
     class Queue {
         constructor() {
@@ -122,11 +122,13 @@
 
         if (img && img.isConnected) {
             waitForImage(img, LOAD_TIMEOUT).then(result => {
-                if (result === 'error' || result === 'timeout' || result === 'corrupted') {
-                    img.onerror = null;
+                if (result === 'error' || result === 'corrupted') {                    
                     if (!retrySet.has(getPureUrl(img.src))) {
                         enqueueFailedImage(img, result);
                     }
+                }else if(result === 'timeout'){
+                    console.log('타임아웃으로 인해 wsrv.nl 프록시 서비스 사용', img);
+                    img.src = `https://wsrv.nl/?url=${encodeURIComponent(getPureUrl(img.src))}`;
                 }
                 activeWorkers--;
                 startLazyWorkers(); // 🔥 끝나자마자 다음 작업
@@ -270,15 +272,16 @@
                 */
             }
 
-            imgElement.dataset.retryCount = ++retryCount;
-            imgElement.onerror = null;
+            imgElement.dataset.retryCount = ++retryCount;            
             imgElement.setAttribute('src', imgElementSrc);
             console.log(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement);
-            imgElement.onerror = function () {
-                if (!retrySet.has(getPureUrl(this.src))) {
+            function retryError() {                
+                imgElement.removeEventListener('error', retryError);
+                if (!retrySet.has(getPureUrl(this.src))) {                    
                     enqueueFailedImage(this, 'retry_error');
                 }
-            };
+            }
+            imgElement.addEventListener('error', retryError);
 
         } finally {
             retryWorkers--;
@@ -397,7 +400,10 @@
      */
     function isValidExternalImage(img) {
         if (!img) return false;
-
+        
+        if (img.src && img.src.startsWith('http://data:image')){
+            img.src = img.src.replace('http://', '');
+        }
         if (!img.src || img.src.startsWith('blob:') || img.src.startsWith('data:')) {
             return false;
         }
@@ -429,7 +435,7 @@
         // 현재는 깨진 상태이므로 검사 로직상 false 반환
 
         if (img.src.startsWith('http://')) {
-            const targetDomains = [/imagebam\.com/i, /fastpic\.(org|ru|net)/i, /static-file\.com/i, /dmm\.co\.jp/i, /faleno\.jp/i];
+            const targetDomains = [/imagebam\.com/i, /fastpic\.(org|ru|net)/i, /static-file\.com/i, /dmm\.co\.jp/i, /faleno\.jp/i, /eleggp\.com/i];
             const isTarget = targetDomains.some(regex => regex.test(img.src));
 
             if (isTarget) {
@@ -439,12 +445,13 @@
         }
 
         if (!isRealDomain(img.src)) {
-            console.warn(`정상적인 도메인이 아닙니다. ${img.src}`);
+            console.warn(`정상적인 도메인이 아닙니다. ${img.src} ${img}`);
             return false;
         }
 
         if (isBadLink(img.src)) {
             console.warn(`[Skip] 이미 404로 기록된 링크입니다: ${img.src}`);
+            img.dataset.isBadImage = "true";
             return false;
         }        
 
@@ -465,7 +472,7 @@
         GM_setValue(getPureUrl(url), now);
     }
 
-    function isBadLink(url) {
+    function isBadLink(url) {        
         return GM_getValue(getPureUrl(url)) !== undefined;
     }
 

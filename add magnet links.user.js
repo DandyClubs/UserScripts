@@ -6,7 +6,7 @@
 // @author      DandyClubs
 // @license     MIT
 // @include     https://xxxclub.to/torrents/*
-// @include     https://therarbg.com/get-posts/*
+// @include     https://rargb.to/*
 // @grant       GM_addStyle
 // @grant       GM_setClipboard
 // @grant       GM_xmlhttpRequest
@@ -19,11 +19,11 @@
 
 const commonStyle = `
 .DBCenterBox {
-    top: 5px;     
+    top: 5px;
     position: absolute;
-    max-width: max-content;    
+    max-width: max-content;
     font-style: initial !important;
-    text-align: center;    
+    text-align: center;
     border-radius: .25em !important;
     -webkit-box-sizing: border-box !important;
     box-sizing: border-box !important;
@@ -46,7 +46,7 @@ const commonStyle = `
 }
 
 .DBCenterBox .State {
-    display: inline-block;    
+    display: inline-block;
     transform: scale(0.5);
     font-weight: bold;
     text-align: right;
@@ -59,54 +59,33 @@ const commonStyle = `
     text-shadow: 2px 4px 4px rgba(0,0,0,0.2),
                  0px -5px 10px rgba(255,255,255,0.15);
 }
-`
+`;
 
-const therarbgStyle = `
-	main.container, div.container {
-		max-width: 1600px;		
-	}
-
-    .container, .container-lg, .container-md, .container-sm, .container-xl, .container-xxl {
-	    max-width: 1600px;
+const rarbgStyle = `
+	.lista2t {
+        width: 100% !important;
     }
-	.GetMagnet {
-		font-size: 13px;
-		color: dodgerblue !important;
+	.GetMagnet, .GetTitle {
+		font-size: 14px;
+		color: #38a1f3 !important;
 	}
     .visited {
         color: Orange !important;
     }
-	table td.dl-buttons {
-		padding-left: 2.5px;
-		padding-right: 2.5px;
+	table.lista2t td.dl-buttons {
 		text-align: center !important;
 		position: relative;
-		display: table-cell !important; /* proper height of cell on multiple row torrent name */
-		width: 3%;
+		width: 40px;
 	}
-
-	td.dl-buttons > a,
-	td.dl-buttons > a:hover,	
-	td.dl-buttons > a:link,
-	td.dl-buttons > a:active {
-		color: inherit;
-		text-decoration: none;
+	td.dl-buttons > a {
 		cursor: pointer;
 		display: inline-block !important;
-		/* margin: 0 1.5px; */
-		margin: 0 2px;
-	}
-
-	table > thead > tr > th:nth-child(3),
-	table > thead > tr > td:nth-child(3) {
-		text-align: center;
 	}
 
 `;
 
 
 const xxxclubStyle = `
-
 	main.container, div.container {
 		max-width: 1600px;
 	}
@@ -319,40 +298,49 @@ const siteConfigs = {
         style: xxxclubStyle,
         makeIconSelector: "div.page-header",
     },
-    "therarbg.com": {
-        tableSelector: "div.row.p-1",
-        cellSelectorInitial: `table > thead > tr:not(.blank) > th:nth-child(2),
-                          table > tbody > tr:not(.blank) > td:nth-child(2)`,
-        cellSelectorNew: `table > thead > tr:not(.blank) > th:nth-child(3),
-                      table > tbody > tr:not(.blank) > td:nth-child(3)`,
-        insertHeadersCellsInitial: (cell, index, title) => cell.insertAdjacentHTML('afterend', (index === 0 ? `<th>${title}</th>` : `<td>${title}</td>`)),
+    "rargb.to": {
+        tableSelector: "table.lista2t",
+        cellSelectorInitial: "tr > td:nth-child(2)",
+        cellSelectorNew: "tr.lista2 > td:nth-child(3)",
+        insertHeadersCellsInitial: (cell, index, title) => {
+            // 부모 tr에 'lista2' 클래스가 없으면 헤더 행으로 판단
+            if (!cell.parentElement.classList.contains('lista2')) {
+                cell.insertAdjacentHTML('afterend', `<td align="center" class="header6 header40" style="width:50px;">${title}</td>`);
+            } else {
+                // 데이터 행(lista2)인 경우 아이콘이 들어갈 빈 셀 추가
+                cell.insertAdjacentHTML('afterend', `<td align="center" class="lista dl-buttons"></td>`);
+            }
+        },
+        // URL에서 고유 식별자 추출 (예: /torrent/abc-123 -> abc-123)
         getKey: (cell, href, RootDomain) => href.match(new RegExp(RootDomain + '(.*)')).pop(),
-        getHref: (cell) => cell.querySelector('a').href,
-        extractMagnet: (doc) => doc.querySelector('div.table-responsive a[href^="magnet:"]'),
-        hasTitleCopy: false,
-        style: therarbgStyle,
-        makeIconSelector: "body.postBody",
+        getHref: (cell) => cell.parentElement.querySelector('a[href*="/torrent/"]').href,
+        getTitle: (cell) => cell.parentElement.querySelector('a[href*="/torrent/"]').textContent.trim(),
+        // 상세 페이지 내 마그넷 링크 선택자
+        extractMagnet: (doc) => doc.querySelector('a[href^="magnet:?xt="]'),
 
+        hasTitleCopy: true,
+        style: rarbgStyle,
+        makeIconSelector: "table.lista2t",
     }
-}
+};
 
 /* ----------------------------
    Common Utilities
 ----------------------------- */
 function FontAwesomeCSS() {
-    let css = document.createElement('link')
-    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css'
-    css.rel = 'stylesheet'
-    css.type = 'text/css'
-    document.head.appendChild(css)
+    let css = document.createElement('link');
+    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css';
+    css.rel = 'stylesheet';
+    css.type = 'text/css';
+    document.head.appendChild(css);
 }
 
 
 function AddStyles(CSS, ID) {
-    let styleSheet = document.createElement("style")
-    styleSheet.textContent = CSS
-    styleSheet.id = ID
-    document.head.appendChild(styleSheet)
+    let styleSheet = document.createElement("style");
+    styleSheet.textContent = CSS;
+    styleSheet.id = ID;
+    document.head.appendChild(styleSheet);
 }
 
 function sleep(ms) {
@@ -361,23 +349,22 @@ function sleep(ms) {
 
 function updateClipboard(CopyData) {
     try {
-        navigator.clipboard.writeText(CopyData)
+        navigator.clipboard.writeText(CopyData);
     } catch {
-        GM_setClipboard(CopyData)
+        GM_setClipboard(CopyData);
     }
 }
 
 /* ----------------------------
    Main Script
 ----------------------------- */
-const PageURL = location.href
-const RootDomain = extractRootDomain(PageURL)
-const config = siteConfigs[RootDomain]
+const PageURL = location.href;
+const RootDomain = extractRootDomain(PageURL);
+const config = siteConfigs[RootDomain];
+if (!config) return;  // not supported site
 
-if (!config) return  // not supported site
 
-
-let JobList = []
+let JobList = [];
 let isProcessing = false;
 let stateCounter;
 
@@ -391,8 +378,8 @@ function setClearList(name, value) {
     // 현재 시간과 내일 00:00:00 사이의 차이를 초 단위로 계산
     const diffInSeconds = Math.floor((tomorrow - now) / 1000);
 
-    // Max-Age를 사용하여 쿠키 생성    
-    document.cookie = `${name}=${value}; max-age=${diffInSeconds}; domain=${RootDomain}; path=/;`
+    // Max-Age를 사용하여 쿠키 생성
+    document.cookie = `${name}=${value}; max-age=${diffInSeconds}; domain=${RootDomain}; path=/;`;
 }
 
 function getCookie(name) {
@@ -400,7 +387,7 @@ function getCookie(name) {
     if (document.cookie != "") {
         let cookie_array = cookie.split("; ");
         for (var index in cookie_array) {
-            var cookie_name = cookie_array[index].split("=")
+            var cookie_name = cookie_array[index].split("=");
             if (cookie_name[0] == name) {
                 return cookie_name[1];
             }
@@ -431,52 +418,53 @@ async function appendColumn() {
     const title = 'ML';
 
     for (const table of tables) {
-        const headersCellsInitial = table.querySelectorAll(config.cellSelectorInitial)
+        const headersCellsInitial = table.querySelectorAll(config.cellSelectorInitial);
         for (const [index, cell] of headersCellsInitial.entries()) {
             config.insertHeadersCellsInitial(cell, index, title);
         };
 
-        const headersCellsNew = table.querySelectorAll(config.cellSelectorNew)
+        const headersCellsNew = table.querySelectorAll(config.cellSelectorNew);
         for (const [index, cell] of headersCellsNew.entries()) {
-            cell.classList.add('hideCell');
             let MagnetLink = '';
-            if (index === 0) {
-                cell.innerHTML = title;
-            } else {
-                let url = config.getHref(headersCellsInitial[index]);
-                let Key = config.getKey(headersCellsInitial[index], url, RootDomain);
-                const stored = await magnetManager.get(Key);
-                if (stored) {
-                    if (stored?.M && typeof stored.M === "object" && Object.keys(stored.M).length === 0) {
-                        await magnetManager.remove(Key);
-                        magnetManager.getAllKeys().then(keys => stateCounter.textContent = keys.length);
-                        continue;
-                    }
-                    MagnetLink = stored.M;
+            let url = config.getHref(headersCellsNew[index]);
+            let Key = config.getKey(headersCellsNew[index], url, RootDomain);
+            console.log(url, Key, index);
+            const stored = await magnetManager.get(Key);
+            if (stored) {
+                if (stored?.M && typeof stored.M === "object" && Object.keys(stored.M).length === 0) {
+                    await magnetManager.remove(Key);
+                    magnetManager.getAllKeys().then(keys => stateCounter.textContent = keys.length);
+                    continue;
                 }
+                MagnetLink = stored.M;
+            }
 
-                cell.classList.add('dl-buttons');
-                cell.innerHTML = `
+            cell.classList.add('dl-buttons');
+            cell.innerHTML = `
           ${config.hasTitleCopy ? `<span><i class="GetTitle fa-solid fa-paste" data-key="${Key}"></i></span>` : ""}
           <span><a class="GetMagnet fa-solid fa-magnet ${MagnetLink ? 'visited' : 'not-processed'}" data-key="${Key}" data-url="${url}" href="${MagnetLink ? MagnetLink : '#unprocessed'}" title="ML"></a></span>`;
 
-                const link = cell.querySelector('.GetMagnet');
-                if (MagnetLink) {
-                    link.style.setProperty('color', 'Orange', 'important');
-                }else{
-                    addClickListeners(link);
-                }
-
-                if (config.hasTitleCopy) {
-                    cell.querySelector('.GetTitle').addEventListener('click', (event) => {
-                        link.click();                       
-                        updateClipboard(Key.replace(/(\[|\(|\d+p).*/i, '').trim());
-                        event.target.style.setProperty('color', 'Orange', 'important');                         
-                    })
-                }
+            const link = cell.querySelector('.GetMagnet');
+            if (MagnetLink) {
+                link.style.setProperty('color', 'Orange', 'important');
+            } else {
+                addClickListeners(link);
             }
-        };
-    }
+
+            if (config.hasTitleCopy) {
+                cell.querySelector('.GetTitle').addEventListener('click', (event) => {
+                    link.click();
+                    const getTitle = config.getTitle(headersCellsNew[index]);
+                    if (getTitle) {
+                        updateClipboard(getTitle.replace(/((\[.+)?\d+p.*).*?/, '').trim());
+                    } else {
+                        updateClipboard(Key.replace(/(\[|\(|\d+p).*/i, '').trim());
+                    }
+                    event.target.style.setProperty('color', 'Orange', 'important');
+                });
+            }
+        }
+    };
 }
 
 /* ----------------------------
@@ -485,9 +473,9 @@ async function appendColumn() {
 async function requestPage(tLink) {
     try {
         return await fetch(tLink).then(r => {
-            if (!r.ok) throw new Error("fetch failed")
-            return r.text()
-        })
+            if (!r.ok) throw new Error("fetch failed");
+            return r.text();
+        });
     } catch {
         return new Promise((resolve, reject) => {
             GM_xmlhttpRequest({
@@ -496,8 +484,8 @@ async function requestPage(tLink) {
                 responseType: "text",
                 onload: (resp) => resp.status === 200 ? resolve(resp.responseText) : reject(resp),
                 onerror: reject
-            })
-        })
+            });
+        });
     }
 }
 
@@ -529,7 +517,7 @@ async function processJob(el) {
         el.classList.remove('not-processed');
         el.style.setProperty('color', 'Orange', 'important');
         el.removeEventListener('click', GetMagnet, false);
-        el.click()
+        el.click();
         JobList = JobList.filter(job => job.el !== el);   // ✅ 정상 응답일 때만 제거
     }
 }
@@ -547,7 +535,7 @@ const beforeUnloadHandler = (event) => {
     }
 };
 
-window.addEventListener("beforeunload", beforeUnloadHandler)
+window.addEventListener("beforeunload", beforeUnloadHandler);
 
 async function jobWorker() {
     if (isProcessing) return;
@@ -555,7 +543,7 @@ async function jobWorker() {
 
     while (true) {
         // Find the first pending job that hasn't exceeded its retry limit
-        const jobIndex = JobList.findIndex(job => job.status === 'pending' && job.retries < 1)
+        const jobIndex = JobList.findIndex(job => job.status === 'pending' && job.retries < 1);
         const failedJobIndex = JobList.findIndex(job => job.status === 'failed' && job.retries === 1);
 
         if (jobIndex === -1 && failedJobIndex === -1) {
@@ -602,8 +590,8 @@ function GetMagnet(event) {
 }
 
 
-function addClickListeners(link) {    
-        link.addEventListener('click', GetMagnet, false)    
+function addClickListeners(link) {
+    link.addEventListener('click', GetMagnet, false);
 }
 
 function getDefaultFontSize() {
@@ -654,7 +642,7 @@ async function MakeIcon() {
         // Create wrapper
         const boxHTML = `
             <div class="DBCenterBox" style="max-width: max-content; visibility:hidden;">
-                <i class="DownButton fa-solid fa-file-arrow-down"></i>                
+                <i class="DownButton fa-solid fa-file-arrow-down"></i>
                 <i class="UpButton fa-solid fa-file-arrow-up"></i>
                 <i class="State"></i>
             </div>`;
