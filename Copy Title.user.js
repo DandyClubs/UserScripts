@@ -624,8 +624,8 @@ const SiteParsers = {
 
 
             // 리마스터 및 BTS 플래그 추출
-            const remastered = /Remastered/.test(rawTitleText)  || /Remastered/.test(cleanTextitleText);
-            const bts = /Behind\s?The\s?Scenes/.test(rawTitleText)  || /Behind\s?The\s?Scenes/.test(cleanTextitleText);
+            const remastered = /Remastered/.test(rawTitleText) || /Remastered/.test(cleanTextitleText);
+            const bts = /Behind\s?The\s?Scenes/.test(rawTitleText) || /Behind\s?The\s?Scenes/.test(cleanTextitleText);
 
             if (remastered) {
                 cleanTextitleText = cleanTextitleText.replace('[Remastered]', '').replace(' - Remastered', '');
@@ -1116,7 +1116,14 @@ function assembleFinalTitle(data) {
     }
 
     // 이중 공백 제거, 선행 하이픈 제거 후 트림
-    finalTitle = finalTitle.replace(/^\s?-\s/, '').replace(/\((\s+)?\)/g, '').replace(/\[(\s+)?\]/g, '').replace(/\.(\s+)?$/, '').replace(/\s+/g, ' ').trim();
+    finalTitle = finalTitle.replace('manyvids', 'ManyVids')
+        .replace('onlyfans', 'OnlyFans')
+        .replace(/^\s?-\s/, '')
+        .replace(/\((\s+)?\)/g, '')
+        .replace(/\[(\s+)?\]/g, '')
+        .replace(/\.(\s+)?$/, '')
+        .replace(/\s+/g, ' ')
+        .trim();
     // 최종 길이 제한 및 추가 태그
 
 
