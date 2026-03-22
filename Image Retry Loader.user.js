@@ -256,6 +256,7 @@
                 console.log(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
                 failedImagesSet.add(getPureUrl(imgElement.src));
                 saveBadLink(imgElement.src);
+                imgElement.dataset.isBadImage = "true";
                 return;
             }
 
@@ -281,7 +282,7 @@
 
         } finally {
             retryWorkers--;
-            setTimeout(startRetryWorkers, RETRY_INTERVAL);
+            setTimeout(startRetryWorkers, RETRY_INTERVAL);            
         }
     }
 
@@ -445,9 +446,7 @@
         if (isBadLink(img.src)) {
             console.warn(`[Skip] 이미 404로 기록된 링크입니다: ${img.src}`);
             return false;
-        }
-
-        if (img.closest('.image-masonry')) return false;
+        }        
 
         // getAttribute를 사용하여 HTML에 적힌 원본 src 값을 확인 (비어있으면 차단)
         rawSrc = img.getAttribute('src');
