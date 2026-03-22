@@ -93,9 +93,9 @@
             }
 
             function onError() {
-                cleanup();                
+                cleanup();
                 resolve('error');
-            }            
+            }
             img.addEventListener('load', onLoad);
             img.addEventListener('error', onError);
 
@@ -120,20 +120,17 @@
 
         const img = lazyImageQueue.dequeue();
 
-        try {
-            if (img && img.isConnected) {
-                const result = await waitForImage(img, LOAD_TIMEOUT);
-
+        if (img && img.isConnected) {
+            waitForImage(img, LOAD_TIMEOUT).then(result => {
                 if (result === 'error' || result === 'timeout' || result === 'corrupted') {
                     img.onerror = null;
                     if (!retrySet.has(getPureUrl(img.src))) {
                         enqueueFailedImage(img, result);
                     }
                 }
-            }
-        } finally {
-            activeWorkers--;
-            startLazyWorkers(); // 🔥 끝나자마자 다음 작업
+                activeWorkers--;
+                startLazyWorkers(); // 🔥 끝나자마자 다음 작업
+            });
         }
     }
 
@@ -299,7 +296,7 @@
                                 node.setAttribute('loading', 'lazy');
                                 node.setAttribute('decoding', 'async');
                                 lazyImageQueue.enqueue(node);
-                                startLazyWorkers();                                
+                                startLazyWorkers();
                             }
 
                         }
@@ -308,7 +305,7 @@
                                 img.setAttribute('loading', 'lazy');
                                 img.setAttribute('decoding', 'async');
                                 lazyImageQueue.enqueue(img);
-                                startLazyWorkers();                                
+                                startLazyWorkers();
                             }
 
                         });
@@ -414,7 +411,7 @@
                         img.src = realUrl;
                         // 성공 후 로딩 대기열에 다시 추가 (선택 사항)                        
                         lazyImageQueue.enqueue(img);
-                        startLazyWorkers();                        
+                        startLazyWorkers();
                     })
                     .catch(err => console.warn(`[Fix-Error] ${err}`))
                     .finally(() => {
@@ -491,7 +488,7 @@
             if (isValidExternalImage(img)) {
                 img.setAttribute('loading', 'lazy');
                 img.setAttribute('decoding', 'async');
-                lazyImageQueue.enqueue(img);                
+                lazyImageQueue.enqueue(img);
             }
 
         });
