@@ -242,7 +242,7 @@
             if (retryCount >= MAX_RETRY_COUNT) {
                 console.warn(`[ImageRetry] 최대 재시도 횟수 초과: `, imgElement);
                 console.log('wsrv.nl 프록시 서비스 사용', imgElement);
-                imgElement.src = `https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`;
+                imgElement.src = `https://wsrv.nl/?url=${encodeURIComponent(getPureUrl(imgElement.src))}`;
                 return;
             }
 
@@ -316,7 +316,7 @@
     });
 
 
-    function isRealDomain(url) {
+    function isRealDomain(url) {        
         try {
             const u = new URL(url);
             const hostname = u.hostname;
@@ -396,6 +396,11 @@
      */
     function isValidExternalImage(img) {
         if (!img) return false;
+
+        if (!img.src || img.src.startsWith('blob:') || img.src.startsWith('data:')) {
+            return false;
+        }
+
         if (img.dataset.isFixing) return false;
         let rawSrc = img.getAttribute('src') || "";
 
@@ -431,6 +436,7 @@
                 console.log(`[HTTPS-Upgrade] 프로토콜 변경 완료: ${img.src}`);
             }
         }
+
         if (!isRealDomain(img.src)) {
             console.warn(`정상적인 도메인이 아닙니다. ${img.src}`);
             return false;
@@ -447,11 +453,7 @@
         rawSrc = img.getAttribute('src');
         if (!rawSrc || rawSrc.trim() === "" || rawSrc === window.location.href) {
             return false;
-        }
-
-        if (img.src.startsWith('blob:') || img.src.startsWith('data:') || /faleno\.jp/.test(img.src)) {
-            return false;
-        }
+        }       
 
         // 이미 잘 로드된 경우 제외
         if (img.complete && img.naturalWidth > 0) return false;
