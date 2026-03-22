@@ -104,7 +104,7 @@
         });
     }
 
-    const CONCURRENCY = 5;
+    const CONCURRENCY = 3;
     let activeWorkers = 0;
 
     function startLazyWorkers() {
@@ -244,6 +244,8 @@
 
             if (retryCount >= MAX_RETRY_COUNT) {
                 console.warn(`[ImageRetry] 최대 재시도 횟수 초과: `, imgElement);
+                console.log('wsrv.nl 프록시 서비스 사용', imgElement);
+                imgElement.src = `https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`;
                 return;
             }
 
@@ -276,7 +278,7 @@
             console.log(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement);
             imgElement.onerror = function () {
                 if (!retrySet.has(getPureUrl(this.src))) {
-                    enqueueFailedImage(this);
+                    enqueueFailedImage(this, 'retry_error');
                 }
             };
 
