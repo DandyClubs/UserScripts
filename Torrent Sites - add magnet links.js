@@ -3,8 +3,8 @@
 // @namespace   DandyClubs
 // @version     2026.02.16
 // @author      DandyClubs
-// @match       *://xxxclub.to/*
-// @match       *://rarbg.to/*
+// @match       https://xxxclub.to/*
+// @match       https://rargb.to/*
 // @grant       GM_addStyle
 // @grant       GM_setClipboard
 // @grant       GM_xmlhttpRequest
