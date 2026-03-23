@@ -80,8 +80,8 @@ const rarbgStyle = `
 		text-align: center !important;
 		position: relative;
 		width: 40px;
-	}	
-    body> table {	
+	}
+    body> table {
 	width: 70% !important;
     }
 `;
@@ -290,11 +290,11 @@ const magnetManager = new MagnetManagerDB();
 const siteConfigs = {
     "xxxclub.to": {
         tableSelector: "div.browsetableinside",
-        cellSelectorInitial: "ul > li > span:nth-child(2)",
-        cellSelectorNew: "ul > li > span:nth-child(3)",
-        insertHeadersCellsInitial: (cell, index, title) => cell.insertAdjacentHTML('afterend', (index === 0 ? `<span>${title}</span>` : `<span>${title}</span>`)),
-        getKey: (cell) => cell.querySelector('a[href*="/torrents/details/"]').textContent,
-        getHref: (cell) => cell.querySelector('a[href*="/torrents/details/"]').href,
+        cellSelectorInitial: "ul > li:first-child > span:nth-child(2)",
+        cellSelectorNew: "ul > li:not(:first-child) > span:nth-child(3)",
+        insertHeadersCellsInitial: (cell, index, title) => cell.insertAdjacentHTML('afterend', `<span>${title}</span>`),
+        getKey: (cell) => cell.parentElement.querySelector('a[href*="/torrents/details/"]').textContent,
+        getHref: (cell) => cell.parentElement.querySelector('a[href*="/torrents/details/"]').href,
         extractMagnet: (doc) => doc.querySelector('div.detailsdescr ul li.downloadboxlist span a.mg-link[href^="magnet:"]'),
         hasTitleCopy: true,
         style: xxxclubStyle,
