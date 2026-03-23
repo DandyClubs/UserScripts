@@ -290,11 +290,19 @@ const magnetManager = new MagnetManagerDB();
 const siteConfigs = {
     "xxxclub.to": {
         tableSelector: "div.browsetableinside",
-        cellSelectorInitial: "ul > li:first-child > span:nth-child(2)",
+        cellSelectorInitial: "ul > li > span:nth-child(2)",
         cellSelectorNew: "ul > li:not(:first-child) > span:nth-child(3)",
-        insertHeadersCellsInitial: (cell, index, title) => cell.insertAdjacentHTML('afterend', `<span>${title}</span>`),
-        getKey: (cell) => cell.previousElementSibling.textContent,
-        getHref: (cell) => cell.previousElementSibling.href,
+        insertHeadersCellsInitial: (cell, index, title = null) => {
+            if (index === 0) {
+                cell.insertAdjacentHTML('afterend', `<span>${title}</span>`);
+            } else {
+                // 데이터 행(lista2)인 경우 아이콘이 들어갈 빈 셀 추가
+                cell.insertAdjacentHTML('afterend', `<span class="dl-buttons"></span>`);
+            }
+        },
+        getKey: (cell) => cell.parentElement.querySelector('a[href*="/torrents/details"]').id,
+        getHref: (cell) => cell.parentElement.querySelector('a[href*="/torrents/details"]').href,
+        getTitle: (cell) => cell.parentElement.querySelector('a[href*="/torrents/details"]').textContent,
         extractMagnet: (doc) => doc.querySelector('div.detailsdescr ul li.downloadboxlist span a.mg-link[href^="magnet:"]'),
         hasTitleCopy: true,
         style: xxxclubStyle,
@@ -304,22 +312,19 @@ const siteConfigs = {
         tableSelector: "table.lista2t",
         cellSelectorInitial: "tr > td:nth-child(2)",
         cellSelectorNew: "tr.lista2 > td:nth-child(3)",
-        insertHeadersCellsInitial: (cell, index, title) => {
-            // 부모 tr에 'lista2' 클래스가 없으면 헤더 행으로 판단
-            if (!cell.parentElement.classList.contains('lista2')) {
+        insertHeadersCellsInitial: (cell, index, title = null) => {
+            if (index === 0) {
                 cell.insertAdjacentHTML('afterend', `<td align="center" class="header6 header40" style="width:50px;">${title}</td>`);
             } else {
-                // 데이터 행(lista2)인 경우 아이콘이 들어갈 빈 셀 추가
-                cell.insertAdjacentHTML('afterend', `<td align="center" class="lista dl-buttons"></td>`);
+                cell.insertAdjacentHTML('afterend', `<td align="center" class="lista"></td>`);
             }
         },
         // URL에서 고유 식별자 추출 (예: /torrent/abc-123 -> abc-123)
         getKey: (cell, href, RootDomain) => href.match(new RegExp(RootDomain + '(.*)')).pop(),
-        getHref: (cell) => cell.previousElementSibling.href,
-        getTitle: (cell) => cell.previousElementSibling.textContent,
+        getHref: (cell) => cell.parentElement.querySelector('a[href*="/torrent/"]').href,
+        getTitle: (cell) => cell.parentElement.querySelector('a[href*="/torrent/"]').textContent,
         // 상세 페이지 내 마그넷 링크 선택자
         extractMagnet: (doc) => doc.querySelector('a[href^="magnet:?xt="]'),
-
         hasTitleCopy: true,
         style: rarbgStyle,
         makeIconSelector: "table.lista2t",
@@ -421,6 +426,7 @@ async function appendColumn() {
 
     for (const table of tables) {
         const headersCellsInitial = table.querySelectorAll(config.cellSelectorInitial);
+
         for (const [index, cell] of headersCellsInitial.entries()) {
             config.insertHeadersCellsInitial(cell, index, title);
         };
@@ -428,8 +434,8 @@ async function appendColumn() {
         const headersCellsNew = table.querySelectorAll(config.cellSelectorNew);
         for (const [index, cell] of headersCellsNew.entries()) {
             let MagnetLink = '';
-            let url = config.getHref(headersCellsNew[index]);
-            let Key = config.getKey(headersCellsNew[index], url, RootDomain);
+            let url = config.getHref(cell);
+            let Key = config.getKey(cell, url, RootDomain);
             const stored = await magnetManager.get(Key);
             if (stored) {
                 if (stored?.M && typeof stored.M === "object" && Object.keys(stored.M).length === 0) {
@@ -455,11 +461,9 @@ async function appendColumn() {
             if (config.hasTitleCopy) {
                 cell.querySelector('.GetTitle').addEventListener('click', (event) => {
                     link.click();
-                    const getTitle = config.getTitle(headersCellsNew[index]);
+                    const getTitle = config.getTitle(cell);
                     if (getTitle) {
-                        updateClipboard(getTitle.replace(/((\[.+)?\d+p.*).*?/, '').trim());
-                    } else {
-                        updateClipboard(Key.replace(/(\[|\(|\d+p).*/i, '').trim());
+                        updateClipboard(getTitle.replace(/^(.*?\d+p).*/, '$1').trim());
                     }
                     event.target.style.setProperty('color', 'Orange', 'important');
                 });

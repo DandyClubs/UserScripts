@@ -1368,12 +1368,12 @@ async function Start() {
         Array.from(Links).forEach(async (el) => {
             el.textContent = '';            
             const ImageTag = document.createElement('img');
-            ImageTag.src = el.href.replace('/i-1/', '/1/').replace('.html', '');
+            ImageTag.src = el.href.replace('/i-1|z-1/', '/1/').replace('.html', '');
             el.appendChild(ImageTag);
         });
         let images = document.querySelectorAll('img[src*="https://imgtraffic.com/1s/"]');
         Array.from(images).forEach(async (el) => {
-            el.src = el.src.replace('/1s/', '/1/');
+            el.src = el.src.replace('/1s|z-1/', '/1/');
         });
     }
 
