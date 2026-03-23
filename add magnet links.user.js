@@ -294,7 +294,7 @@ const siteConfigs = {
         cellSelectorNew: "ul > li:not(:first-child) > span:nth-child(3)",
         observerColumn: "span:nth-child(2)",
         observerSelector: "span:nth-child(3)",
-        observerTagName: "li",
+        observerTagName: "LI",
         insertHeadersCellsInitial: (cell, index, title = null) => {
             if (index === 0) {
                 cell.insertAdjacentHTML('afterend', `<span>${title}</span>`);
@@ -324,7 +324,7 @@ const siteConfigs = {
         cellSelectorNew: "tr.lista2 > td:nth-child(3)",
         observerColumn: "td:nth-child(2)",
         observerSelector: "td:nth-child(3)",
-        observerTagName: "tr",
+        observerTagName: "TR",
         insertHeadersCellsInitial: (cell, index, title = null) => {
             if (index === 0) {
                 cell.insertAdjacentHTML('afterend', `<td align="center" class="header6 header40" style="width:50px;">${title}</td>`);
