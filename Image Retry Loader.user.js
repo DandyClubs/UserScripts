@@ -459,7 +459,7 @@
             
             // 3. RegExp 객체 생성 (Case Insensitive: i 플래그 권장)
             const domainRegex = new RegExp(`(${domainpattern})`, 'i');
-            console.log(domainRegex)
+            
             // 4. 도메인 검사
             const isTarget = domainRegex.test(img.src);
 
