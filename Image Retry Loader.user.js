@@ -438,8 +438,30 @@
         // 현재는 깨진 상태이므로 검사 로직상 false 반환
 
         if (img.src.startsWith('http://')) {
-            const targetDomains = [/imagebam\.com/i, /fastpic\.(org|ru|net)/i, /static-file\.com/i, /dmm\.co\.jp/i, /faleno\.jp/i, /eleggp\.com/i];
-            const isTarget = targetDomains.some(regex => regex.test(img.src));
+            const targetDomains = `
+                imagebam.com
+                fastpic.(org|ru|net)
+                static-file.com
+                dmm.co.jp
+                faleno.jp
+                eleggp.com
+                javstore.net
+                `;
+
+            // 1. 문자열 정리 및 배열화
+            const domainpattern = targetDomains
+                .trim()                     // 앞뒤 공백 제거
+                .split('\n')                // 줄바꿈으로 분리
+                .map(d => d.replace(/\./g, '\\.').trim())         // 각 라인별 공백 제거
+                .filter(Boolean)
+                .join('|');     // 빈 줄 제외
+            
+            
+            // 3. RegExp 객체 생성 (Case Insensitive: i 플래그 권장)
+            const domainRegex = new RegExp(`(${domainpattern})`, 'i');
+            console.log(domainRegex)
+            // 4. 도메인 검사
+            const isTarget = domainRegex.test(img.src);
 
             if (isTarget) {
                 img.src = img.src.replace('http://', 'https://');
