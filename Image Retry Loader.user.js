@@ -59,7 +59,10 @@
             // 🔥 기존 조건 제거하고 decode 기반으로 변경
             if (img.complete && img.naturalWidth > 0) {
                 img.decode()
-                    .then(() => resolve('loaded'))
+                    .then(() => {
+                        img.dataset.isImageState = "true";
+                        resolve('loaded');
+                    })
                     .catch(() => {
                         console.warn('[ImageRetry] decode 실패 → 깨진 이미지 감지:', img.src);
                         resolve('corrupted');
@@ -85,7 +88,10 @@
                 cleanup();
                 // 🔥 여기 추가
                 img.decode()
-                    .then(() => resolve('loaded'))
+                    .then(() => {
+                        img.dataset.isImageState = "true";
+                        resolve('loaded');
+                    })
                     .catch(() => {
                         console.warn('[ImageRetry] decode 실패 (onLoad 이후)');
                         resolve('corrupted');
@@ -122,7 +128,7 @@
 
         if (img && img.isConnected) {
             waitForImage(img, LOAD_TIMEOUT).then(result => {
-                if (result === 'error' || result === 'corrupted') {                    
+                if (result === 'error' || result === 'corrupted' || result === 'timeout') {
                     if (!retrySet.has(getPureUrl(img.src))) {
                         enqueueFailedImage(img, result);
                     }
@@ -255,7 +261,7 @@
                 console.log(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
                 failedImagesSet.add(getPureUrl(imgElement.src));
                 saveBadLink(imgElement.src);
-                imgElement.dataset.isBadImage = "true";
+                imgElement.dataset.isImageState = "false";
                 return;
             }
 
@@ -269,12 +275,12 @@
                 */
             }
 
-            imgElement.dataset.retryCount = ++retryCount;            
+            imgElement.dataset.retryCount = ++retryCount;
             imgElement.setAttribute('src', imgElementSrc);
             console.log(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement);
-            function retryError() {                
+            function retryError() {
                 imgElement.removeEventListener('error', retryError);
-                if (!retrySet.has(getPureUrl(this.src))) {                    
+                if (!retrySet.has(getPureUrl(this.src))) {
                     enqueueFailedImage(this, 'retry_error');
                 }
             }
@@ -282,7 +288,7 @@
 
         } finally {
             retryWorkers--;
-            setTimeout(startRetryWorkers, RETRY_INTERVAL);            
+            setTimeout(startRetryWorkers, RETRY_INTERVAL);
         }
     }
 
@@ -317,7 +323,7 @@
     });
 
 
-    function isRealDomain(url) {        
+    function isRealDomain(url) {
         try {
             const u = new URL(url);
             const hostname = u.hostname;
@@ -397,8 +403,8 @@
      */
     function isValidExternalImage(img) {
         if (!img) return false;
-        
-        if (img.src && img.src.startsWith('http://data:image')){
+
+        if (img.src && img.src.startsWith('http://data:image')) {
             img.src = img.src.replace('http://', '');
         }
         if (!img.src || img.src.startsWith('blob:') || img.src.startsWith('data:')) {
@@ -450,13 +456,13 @@
             console.warn(`[Skip] 이미 404로 기록된 링크입니다: ${img.src}`);
             img.dataset.isBadImage = "true";
             return false;
-        }        
+        }
 
         // getAttribute를 사용하여 HTML에 적힌 원본 src 값을 확인 (비어있으면 차단)
         rawSrc = img.getAttribute('src');
         if (!rawSrc || rawSrc.trim() === "" || rawSrc === window.location.href) {
             return false;
-        }       
+        }
 
         // 이미 잘 로드된 경우 제외
         if (img.complete && img.naturalWidth > 0) return false;
@@ -469,7 +475,7 @@
         GM_setValue(getPureUrl(url), now);
     }
 
-    function isBadLink(url) {        
+    function isBadLink(url) {
         return GM_getValue(getPureUrl(url)) !== undefined;
     }
 
