@@ -292,6 +292,9 @@ const siteConfigs = {
         tableSelector: "div.browsetableinside",
         cellSelectorInitial: "ul > li > span:nth-child(2)",
         cellSelectorNew: "ul > li:not(:first-child) > span:nth-child(3)",
+        observerColumn: "span:nth-child(2)",
+        observerSelector: "span:nth-child(3)",
+        observerTagName: "li",
         insertHeadersCellsInitial: (cell, index, title = null) => {
             if (index === 0) {
                 cell.insertAdjacentHTML('afterend', `<span>${title}</span>`);
@@ -307,11 +310,21 @@ const siteConfigs = {
         hasTitleCopy: true,
         style: xxxclubStyle,
         makeIconSelector: "div.page-header",
+        deleteElements: true,
+        deleteExtra: (doc = document) => {
+            const deleteElements = doc.querySelectorAll("div.browsetableinside ul li span a.page-link:not([data-no-instant]), div.browsepagination a.page-link:not([data-no-instant])");
+            for (const [index, el] of deleteElements.entries()) {
+                el.remove();
+            }
+        },
     },
     "rargb.to": {
         tableSelector: "table.lista2t",
         cellSelectorInitial: "tr > td:nth-child(2)",
         cellSelectorNew: "tr.lista2 > td:nth-child(3)",
+        observerColumn: "td:nth-child(2)",
+        observerSelector: "td:nth-child(3)",
+        observerTagName: "tr",
         insertHeadersCellsInitial: (cell, index, title = null) => {
             if (index === 0) {
                 cell.insertAdjacentHTML('afterend', `<td align="center" class="header6 header40" style="width:50px;">${title}</td>`);
@@ -420,8 +433,8 @@ async function checkClear() {
 }
 
 
-async function appendColumn() {
-    const tables = document.querySelectorAll(config.tableSelector);
+async function appendColumn(root = document) {
+    const tables = root.querySelectorAll(config.tableSelector);
     const title = 'ML';
 
     for (const table of tables) {
@@ -433,43 +446,48 @@ async function appendColumn() {
 
         const headersCellsNew = table.querySelectorAll(config.cellSelectorNew);
         for (const [index, cell] of headersCellsNew.entries()) {
-            let MagnetLink = '';
-            let url = config.getHref(cell);
-            let Key = config.getKey(cell, url, RootDomain);
-            const stored = await magnetManager.get(Key);
-            if (stored) {
-                if (stored?.M && typeof stored.M === "object" && Object.keys(stored.M).length === 0) {
-                    await magnetManager.remove(Key);
-                    magnetManager.getAllKeys().then(keys => stateCounter.textContent = keys.length);
-                    continue;
-                }
-                MagnetLink = stored.M;
-            }
+            modCell(cell);
+        }
+    };
+}
 
-            cell.classList.add('dl-buttons');
-            cell.innerHTML = `
+
+async function modCell(cell) {
+    let MagnetLink = '';
+    let url = config.getHref(cell);
+    let Key = config.getKey(cell, url, RootDomain);
+    const stored = await magnetManager.get(Key);
+    if (stored) {
+        if (stored?.M && typeof stored.M === "object" && Object.keys(stored.M).length === 0) {
+            await magnetManager.remove(Key);
+            magnetManager.getAllKeys().then(keys => stateCounter.textContent = keys.length);
+            return;
+        }
+        MagnetLink = stored.M;
+    }
+
+    cell.classList.add('dl-buttons');
+    cell.innerHTML = `
           ${config.hasTitleCopy ? `<span><i class="GetTitle fa-solid fa-paste" data-key="${Key}"></i></span>` : ""}
           <span><a class="GetMagnet fa-solid fa-magnet ${MagnetLink ? 'visited' : 'not-processed'}" data-key="${Key}" data-url="${url}" href="${MagnetLink ? MagnetLink : '#unprocessed'}" title="ML"></a></span>`;
 
-            const link = cell.querySelector('.GetMagnet');
-            if (MagnetLink) {
-                link.style.setProperty('color', 'Orange', 'important');
-            } else {
-                addClickListeners(link);
-            }
+    const link = cell.querySelector('.GetMagnet');
+    if (MagnetLink) {
+        link.style.setProperty('color', 'Orange', 'important');
+    } else {
+        addClickListeners(link);
+    }
 
-            if (config.hasTitleCopy) {
-                cell.querySelector('.GetTitle').addEventListener('click', (event) => {
-                    link.click();
-                    const getTitle = config.getTitle(cell);
-                    if (getTitle) {
-                        updateClipboard(getTitle.replace(/^(.*?\d+p).*/, '$1').trim());
-                    }
-                    event.target.style.setProperty('color', 'Orange', 'important');
-                });
+    if (config.hasTitleCopy) {
+        cell.querySelector('.GetTitle').addEventListener('click', (event) => {
+            link.click();
+            const getTitle = config.getTitle(cell);
+            if (getTitle) {
+                updateClipboard(getTitle.replace(/^(.*?\d+p).*/, '$1').trim());
             }
-        }
-    };
+            event.target.style.setProperty('color', 'Orange', 'important');
+        });
+    }
 }
 
 /* ----------------------------
@@ -716,6 +734,26 @@ async function MakeIcon() {
     AddStyles(commonStyle, commonStyle);
     AddStyles(config.style, config.style);
     MakeIcon();
-    appendColumn();
+    if (config.deleteElements) {
+        config.deleteExtra();
+    };
+    appendColumn(document);
+    function callback(mutations, observer) {
+        for (const mutation of mutations) {
+            // 새로 추가된 노드들이 있는 addedNodes를 확인합니다.
+            mutation.addedNodes.forEach(node => {
+                // 1. 노드가 엘리먼트(태그) 형태인지 확인 (텍스트 노드 제외)
+                if (node.nodeType === Node.ELEMENT_NODE) {                    
+                    if (node.matches(config.observerTagName) && (node.id === '' || node.id !== 'infy-scroll-bottom')) {
+                        config.insertHeadersCellsInitial(node.querySelector(config.observerColumn), '9999', 'ML');
+                        modCell(node.querySelector(config.observerSelector));
+                    }
+                }
+            });
+        }
+    }
+
+    const observer = new MutationObserver(callback);
+    observer.observe(document.body, { childList: true, subtree: true });
 })();
 

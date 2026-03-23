@@ -105,8 +105,7 @@
             img.addEventListener('load', onLoad);
             img.addEventListener('error', onError);
 
-            img.removeAttribute('loading');
-            img.src = currentSrc;
+            img.removeAttribute('loading');            
         });
     }
 
@@ -435,8 +434,7 @@
             }
             return false;
         }
-        // 현재는 깨진 상태이므로 검사 로직상 false 반환
-
+        
         if (img.src.startsWith('http://')) {
             const targetDomains = `
                 imagebam.com

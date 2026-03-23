@@ -1363,20 +1363,6 @@ async function Start() {
         convertImages([el]);
     });
 
-    if (PageURL.startsWith('https://rargb.to/torrent/')) {
-        let Links = document.querySelectorAll('td#description.lista a[href^="https://imgtraffic.com"]:not(:has(img)');
-        Array.from(Links).forEach(async (el) => {
-            el.textContent = '';            
-            const ImageTag = document.createElement('img');
-            ImageTag.src = el.href.replace('/i-1|z-1/', '/1/').replace('.html', '');
-            el.appendChild(ImageTag);
-        });
-        let images = document.querySelectorAll('img[src*="https://imgtraffic.com/1s/"]');
-        Array.from(images).forEach(async (el) => {
-            el.src = el.src.replace('/1s|z-1/', '/1/');
-        });
-    }
-
     if (/javarchive\.com\/.*\.html/.test(PageURL)) {
         let Links = document.querySelectorAll('a[href*="https://pixhost.to/show"]');
         Array.from(Links).forEach(async (el) => {
