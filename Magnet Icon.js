@@ -56,7 +56,7 @@ GM_addStyle(`
 
 .image-masonry {
     position: relative;
-    width: 100%;    
+    width: 100%;
     background: rgba(0, 0, 0, 0.03);
     border-radius: 10px;
     transition: opacity 0.6s ease, height 0.3s ease;
@@ -429,7 +429,13 @@ function linkifyNodes(root) {
     while (walker.nextNode()) {
         const node = walker.currentNode;
         // 이미 <a> 태그 안에 있는 텍스트는 건너뜁니다.
-        if (node.parentNode.tagName === 'A' || node.parentNode.closest('a')) continue;
+        if (node.parentNode.tagName === 'A' || node.parentNode.closest('a')) {
+            if (node.textContent.startsWith('[url]http')) {
+                nodes.push(node);
+            } else {
+                continue;
+            }
+        }
         nodes.push(node);
     }
 
@@ -437,39 +443,65 @@ function linkifyNodes(root) {
     const urlRegex = /(https?:\/\/[^\s()<>]+\b)/gi;
 
     nodes.forEach(node => {
-        const text = node.textContent;
-        if (urlRegex.test(text)) {
-            const fragment = document.createDocumentFragment();
-            let lastIndex = 0;
+        const text = node.textContent.replace(/\[\/?url\]/gi, '');
+        const parentA = node.parentNode?.closest('a');
+        if (parentA) {
+            /**
+             * CASE 1: 기존 <a> 태그 내부에 URL 텍스트가 중첩된 경우
+             * 기존 <a>의 텍스트를 청소하고, 새 <a>를 형제로 삽입합니다.
+             */
+            const matches = text.match(urlRegex);
+            if (matches) {
+                matches.forEach(url => {
+                    // (1) 기존 노드에서 [url], [/url] 및 해당 URL 주소 텍스트 제거
+                    node.textContent = node.textContent
+                        .replace(/\[\/?url\]/gi, '')
+                        .replace(url, '')
+                        .trim();
 
-            // 정규식을 초기화하고 매칭되는 모든 URL 처리
-            urlRegex.lastIndex = 0;
-            let match;
-            while ((match = urlRegex.exec(text)) !== null) {
-                // URL 이전의 일반 텍스트 추가
-                if (match.index > lastIndex) {
-                    fragment.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
+                    // (2) 새로운 <a> 태그 생성
+                    const newA = document.createElement('a');
+                    newA.href = url;
+                    newA.textContent = url;
+                    newA.target = "_blank";
+                    newA.rel = "noopener noreferrer";
+
+                    // (3) 기존 <a> 태그의 바로 뒤에 삽입 (이웃 노드화)
+                    parentA.parentNode.insertBefore(newA, parentA.nextSibling);
+                });
+            }
+        } else {
+            if (urlRegex.test(text)) {
+                const fragment = document.createDocumentFragment();
+                let lastIndex = 0;
+
+                // 정규식을 초기화하고 매칭되는 모든 URL 처리
+                urlRegex.lastIndex = 0;
+                let match;
+                while ((match = urlRegex.exec(text)) !== null) {
+                    // URL 이전의 일반 텍스트 추가
+                    if (match.index > lastIndex) {
+                        fragment.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
+                    }
+
+                    // <a> 태그 생성 및 추가
+                    const url = match[0];
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.textContent = url;
+                    a.target = "_blank"; // 새창 열기
+                    a.rel = "noopener noreferrer";
+                    fragment.appendChild(a);
+
+                    lastIndex = urlRegex.lastIndex;
                 }
 
-                // <a> 태그 생성 및 추가
-                const url = match[0];
-                const a = document.createElement('a');
-                a.href = url;
-                a.textContent = url;
-                a.target = "_blank"; // 새창 열기
-                a.rel = "noopener noreferrer";
-                fragment.appendChild(a);
-
-                lastIndex = urlRegex.lastIndex;
+                // 남은 뒷부분 텍스트 추가
+                if (lastIndex < text.length) {
+                    fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
+                }
+                node.parentNode.replaceChild(fragment, node);
             }
-
-            // 남은 뒷부분 텍스트 추가
-            if (lastIndex < text.length) {
-                fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
-            }
-
-            // 기존 텍스트 노드를 새로운 fragment(텍스트+링크)로 교체
-            node.parentNode.replaceChild(fragment, node);
         }
     });
 }
@@ -728,7 +760,7 @@ async function Main() {
                          color: dodgerblue !important;
                          align-items:center;
                          gap:10px;
-                         font-size:12px;">                
+                         font-size:12px;">
 
                 <a href="${item.magnet}"
                    class="magnet-link fa-solid fa-magnet"
@@ -744,7 +776,7 @@ async function Main() {
                       style="cursor:pointer;color: dodgerblue !important;font-size:16px;"></i>
 
                 ${total > 1
-                ? `<i>&nbsp;</i><i class="prev-icon fa-solid fa-circle-chevron-left"
+                    ? `<i>&nbsp;</i><i class="prev-icon fa-solid fa-circle-chevron-left"
                              title="Prev"
                              style="cursor:pointer;color: dodgerblue !important;font-size:16px;"></i>
                              <i class="next-icon fa-solid fa-circle-chevron-right"
@@ -793,8 +825,6 @@ async function Main() {
 
 
         });
-
-        scrollToTitlePx(firstScrollPos.element, 80);
         return;
     }
 
