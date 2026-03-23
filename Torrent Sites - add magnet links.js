@@ -381,7 +381,11 @@ const config = siteConfigs[RootDomain];
 if (config) {
     (async () => {
         await magnetManager.init();
-
+        const fa = Object.assign(document.createElement('link'), {
+            href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css',
+            rel: 'stylesheet'
+        });
+        document.head.appendChild(fa);
         const lastCleanup = localStorage.getItem('lastMagnetCleanup');
         const today = new Date().toISOString().slice(0, 10);
         if (lastCleanup !== today) {
@@ -433,12 +437,6 @@ if (config) {
             if (config.deleteExtra) config.deleteExtra();
         });
         observer.observe(document.body, { childList: true, subtree: true });
-
-        const fa = Object.assign(document.createElement('link'), {
-            href: 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css',
-            rel: 'stylesheet'
-        });
-        document.head.appendChild(fa);
 
         window.addEventListener("beforeunload", (e) => {
             if (JobList.length) { e.preventDefault(); e.returnValue = true; }
