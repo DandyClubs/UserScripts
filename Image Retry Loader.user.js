@@ -246,7 +246,7 @@
 
             if (retryCount >= MAX_RETRY_COUNT) {
                 console.warn(`[ImageRetry] 최대 재시도 횟수 초과: `, imgElement);
-                console.log('wsrv.nl 프록시 서비스 사용', imgElement);
+                console.log('wsrv.nl 프록시 서비스 사용', imgElement, retryCount);
                 imgElement.src = `https://wsrv.nl/?url=${encodeURIComponent(getPureUrl(imgElement.src))}`;
                 return;
             }
@@ -266,8 +266,8 @@
             }
 
             if (!exists && !imgElementSrc.startsWith('https://wsrv.nl')) {
-                console.log('wsrv.nl 프록시 서비스 사용', imgElement);
-                imgElement.src = `https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`;
+                console.log('wsrv.nl 프록시 서비스 사용', imgElement, reason);
+                imgElement.setAttribute('src', `https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`);
                 /*
                 만약 weserv.nl이 느리다면 아래 주소로 교체해서 테스트해 보세요:;
                 https://wsrv.nl/?url=${encodeURIComponent(realSrc)} (같은 서비스의 짧은 도메인)
@@ -278,11 +278,11 @@
             imgElement.dataset.retryCount = ++retryCount;
             imgElement.setAttribute('src', imgElementSrc);
             console.log(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement);
-            function retryError() {
-                imgElement.removeEventListener('error', retryError);
+            function retryError() {                
                 if (!retrySet.has(getPureUrl(this.src))) {
                     enqueueFailedImage(this, 'retry_error');
                 }
+                imgElement.removeEventListener('error', retryError);
             }
             imgElement.addEventListener('error', retryError);
 
