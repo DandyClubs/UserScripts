@@ -454,7 +454,7 @@
 
         if (isBadLink(img.src)) {
             console.warn(`[Skip] 이미 404로 기록된 링크입니다: ${img.src}`);
-            img.dataset.isBadImage = "true";
+            img.dataset.isImageState = "false";
             return false;
         }
 
