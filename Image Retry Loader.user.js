@@ -498,7 +498,8 @@
     }
 
     function isBadLink(url) {
-        return GM_getValue(getPureUrl(url)) !== undefined;
+        const cleanUrl = getPureUrl(url);
+        return GM_getValue(cleanUrl) !== undefined;
     }
 
     function cleanOldBadLinks() {

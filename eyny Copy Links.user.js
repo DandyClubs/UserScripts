@@ -44,7 +44,7 @@ GM_addStyle(viewerCss);
 GM_addStyle(`
     @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c&family=Nanum+Gothic&family=ZCOOL+KuaiLe&display=swap');
 
-    .CopyItemIcon, .CopyKatIcon, .CloseIcon, .ThanksReply {
+    .CopyItemIcon, .CloseIcon, .ThanksReply {
         cursor: pointer !important;
         color: dodgerblue !important;
         vertical-align: middle;
@@ -484,7 +484,7 @@ async function init() {
             // 1. 이미지 프리로딩
             await preloadImageSizes(wrapper, currentLoader);
             // 2. 레이아웃 최적화 (scaleMap 및 minHeightMap 적용)
-            optimizeSingleLayout(wrapper);
+            optimizeSingleLayout(wrapper, 2, 800);
 
 
             // 3. UI 정리
@@ -660,8 +660,7 @@ if (!document.querySelector('.CopyItemIcon') && document.querySelector('.pg_view
 
     const copyItemHTML = `
         <div class="CopyItemBox">
-            <i class="CopyItemIcon fa-regular fa-clipboard"></i>
-            <i class="CopyKatIcon fa-brands fa-kickstarter"></i>
+            <i class="CopyItemIcon fa-regular fa-clipboard"></i>            
             <i class="CloseIcon fa-regular fa-circle-xmark"></i>
             <i class="ThanksReply fa-solid fa-heart"></i>
         </div>
@@ -674,8 +673,7 @@ if (!document.querySelector('.CopyItemIcon') && document.querySelector('.pg_view
 
 
     const copyItemBox = document.querySelector('.CopyItemBox');
-    const copyItemIcon = copyItemBox.querySelector('.CopyItemIcon');
-    const copyKatIcon = copyItemBox.querySelector('.CopyKatIcon');
+    const copyItemIcon = copyItemBox.querySelector('.CopyItemIcon');    
     const closeIcon = copyItemBox.querySelector('.CloseIcon');
     const thanksReplyIcon = copyItemBox.querySelector('.ThanksReply');
 
@@ -691,12 +689,6 @@ if (!document.querySelector('.CopyItemIcon') && document.querySelector('.pg_view
         e.preventDefault();
         copyItemIcon.style.setProperty('color', 'Orange', 'important');
         CopyProcess();
-    });
-
-    copyKatIcon.addEventListener("click", function (e) {
-        e.preventDefault();
-        copyKatIcon.style.setProperty('color', 'Orange', 'important');
-        KatCopyProcess();
     });
 
     closeIcon.addEventListener("click", function (e) {
