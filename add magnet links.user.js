@@ -293,8 +293,8 @@ const siteConfigs = {
         cellSelectorInitial: "ul > li:first-child > span:nth-child(2)",
         cellSelectorNew: "ul > li:not(:first-child) > span:nth-child(3)",
         insertHeadersCellsInitial: (cell, index, title) => cell.insertAdjacentHTML('afterend', `<span>${title}</span>`),
-        getKey: (cell) => cell.parentElement.querySelector('a[href*="/torrents/details/"]').textContent,
-        getHref: (cell) => cell.parentElement.querySelector('a[href*="/torrents/details/"]').href,
+        getKey: (cell) => cell.previousElementSibling.textContent,
+        getHref: (cell) => cell.previousElementSibling.href,
         extractMagnet: (doc) => doc.querySelector('div.detailsdescr ul li.downloadboxlist span a.mg-link[href^="magnet:"]'),
         hasTitleCopy: true,
         style: xxxclubStyle,
@@ -315,8 +315,8 @@ const siteConfigs = {
         },
         // URL에서 고유 식별자 추출 (예: /torrent/abc-123 -> abc-123)
         getKey: (cell, href, RootDomain) => href.match(new RegExp(RootDomain + '(.*)')).pop(),
-        getHref: (cell) => cell.parentElement.querySelector('a[href*="/torrent/"]').href,
-        getTitle: (cell) => cell.parentElement.querySelector('a[href*="/torrent/"]').textContent.trim(),
+        getHref: (cell) => cell.previousElementSibling.href,
+        getTitle: (cell) => cell.previousElementSibling.textContent,
         // 상세 페이지 내 마그넷 링크 선택자
         extractMagnet: (doc) => doc.querySelector('a[href^="magnet:?xt="]'),
 
