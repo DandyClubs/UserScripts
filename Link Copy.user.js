@@ -502,6 +502,77 @@ const ID3D = /(MCB3DBD-\d+)(.*)$/i;
 
 
 
+/**
+ * 이미지 URL 생성을 위한 설정 데이터
+ */
+const BASE_URLS = {
+    "NORMAL": "https://awsimgsrc.dmm.co.jp/pics_dig/digital/video",
+    "4K": "https://awsimgsrc.dmm.com/dig/mono/movie",
+    "800": "https://pics.dmm.co.jp/mono/movie/adult"
+};
+
+const RULES = {
+    "START": ["4K", "1", "raw"],
+    "ABF": ["4K", "118", "raw"],
+    "ABS": ["800", "118", "zero3"],
+    "ABP": ["800", "118", "zero3"],
+    "ABW": ["800", "118", "zero3"],
+    "EZD": ["800", "118", "zero3"],
+    "CHN": ["800", "118", "zero3"],
+    "FTN": ["800", "118", "zero3"],
+    "ABY": ["800", "118", "zero3"],
+    "DOM": ["800", "118", "zero3"],
+    "GVH": ["800", "13", "zero3"],
+    "GVG": ["800", "13", "zero3"],
+    "GG": ["800", "13", "zero3"],
+};
+
+function generateDmmUrl(code, imageSrc) {
+    // 1. 코드 분리 (영문-숫자) - 규칙을 알아내기 위해 먼저 실행
+    const pattern = /([A-Za-z]{2,6})-(\d{2,5})/;
+    const match = code.match(pattern);
+
+    if (!match) return null;
+
+    let [_, prefix, numStr] = match;
+    const upperPrefix = prefix.toUpperCase();
+    const lowerPrefix = prefix.toLowerCase();
+
+    // 2. 이 코드가 가져야 할 "정답" 규칙 찾기
+    let targetCategory, extraNum, format;
+
+    if (RULES[upperPrefix]) {
+        [targetCategory, extraNum, format] = RULES[upperPrefix];
+    } else {
+        targetCategory = "NORMAL";
+        extraNum = "";
+        format = "zero5"; // 규칙 외 기본값
+    }
+
+    const targetBaseUrl = BASE_URLS[targetCategory];
+
+    // 3. 기존 imageSrc가 "이 코드의 규칙(targetBaseUrl)"과 일치하는지 확인
+    if (imageSrc && imageSrc.startsWith(targetBaseUrl)) {
+        console.log(`✅ [${upperPrefix}] 규칙과 일치하는 URL입니다. 유지합니다.`);
+        return imageSrc;
+    }
+
+    // 4. 규칙이 다르거나 URL이 없으면 새로 생성
+    console.log(`🔄 [${upperPrefix}] 규칙에 맞지 않거나 URL이 없어 새로 생성합니다.`);
+
+    let formattedNum;
+    if (format === "zero3") {
+        formattedNum = numStr.padStart(3, '0');
+    } else if (format === "raw") {
+        formattedNum = numStr;
+    } else {
+        formattedNum = numStr.padStart(5, '0'); // NORMAL 등
+    }
+
+    const fileNameChunk = `${extraNum}${lowerPrefix}${formattedNum}`;
+    return `${targetBaseUrl}/${fileNameChunk}/${fileNameChunk}pl.jpg`;
+}
+
 let GetDirect, AllCollectionLinks = [];
 
 const DirectLink = (url) => {
@@ -522,6 +593,23 @@ const DirectLink = (url) => {
         });
     });
 };
+
+
+function checkImageExistence(link) {
+    return new Promise((resolve) => {
+        GM_xmlhttpRequest({
+            method: 'HEAD',
+            url: link,
+            timeout: 5000,
+            onload: function (response) {
+                // 상태 코드가 200일 때만 true 반환
+                resolve(response.status === 200);
+            },
+            onerror: () => resolve(false),
+            ontimeout: () => resolve(false)
+        });
+    });
+}
 
 const GetDirectLink = (url, data) => {
     //let match = /window\.location='(?<url>http[^']+)/?.exec(data)
@@ -2782,7 +2870,6 @@ function MatchRegexElement(Taget, regex, attributeToSearch) {
 
 async function CollectionCoverImage(CoverImage) {
     let result = [];
-
     CoverImage = /vpdmm\.cc/.test(CoverImage) ? CoverImage.replace('vpdmm.cc', 'dmm.co.jp') : CoverImage;
     if (CoverImage && !/imagetwist\.com/.test(CoverImage)) {
         await UpdateDB(CoverImage, FilenameConvert(`${CopyTitle}${Resolution || ''}`));
@@ -3129,32 +3216,57 @@ async function CopyLink() {
 
     console.log('CopyLink: ', { pageLinksDB });
     // 1) If no temporary links waiting, gather fresh links
+    // 1) If no temporary links waiting, gather fresh links
     if (pageLinksDB.length === 0) {
         let collected = await CollectionLinks(DownloadArea) || [];
-        if (collected.length > 0) {
-            // Optionally add cover image link
-            if (CoverImage && !/imagetwist\.com/.test(CoverImage)) {
-                const coverLink = await CollectionCoverImage(CoverImage);
-                //console.log(coverLink, collected.concat(coverLink))
-                if (coverLink) {
-                    collected = collected.concat(coverLink);
-                }
-            }
-            //console.log('collected : ', collected)
-            allLinks = collected;
 
-            // Fire off JDownloader if allowed
-            const directOK = DirectCopy.test(PageURL) || AllowDirect;
-            if (directOK) {
-                JDownloader(collected.join('\n'), `${CopyTitle}${Resolution || ''}`, PageURL);
+        if (collected.length > 0) {
+            const pattern = /([A-Za-z]{2,6})-(\d{2,5})/;
+            const match = CopyTitle.match(pattern);
+
+            if (match) {
+                const code = match[0];
+                const newImageUrl = generateDmmUrl(code, CoverImage || '');
+                let finalCoverImage = null;
+
+                // --- 이미지 존재 여부 확인 로직 개선 ---
+                if (newImageUrl && CoverImage !== newImageUrl) {
+                    // 신규 URL이 존재하면 해당 URL 사용
+                    const exists = await checkImageExistence(newImageUrl);
+                    if (exists) {
+                        finalCoverImage = newImageUrl;
+                    }
+                }
+
+                // 신규 URL이 없거나 존재하지 않을 경우, 기존 CoverImage 검토
+                if (!finalCoverImage && CoverImage && !/imagetwist\.com/.test(CoverImage)) {
+                    finalCoverUrl = CoverImage;
+                }
+
+                // 최종 결정된 커버 이미지가 있다면 수집 목록에 추가
+                if (finalCoverImage) {
+                    const coverLink = await CollectionCoverImage(finalCoverImage);
+                    if (coverLink) {
+                        collected = collected.concat(coverLink);
+                    }
+                }
+                // --------------------------------------
+
+                allLinks = collected;
+
+                const directOK = DirectCopy.test(PageURL) || AllowDirect;
+                if (directOK) {
+                    JDownloader(collected.join('\n'), `${CopyTitle}${Resolution || ''}`, PageURL);
+                }
+                noticeLines.push(`${CopyTitle}${Resolution || ''}`);
+                noticeLines.push(collected.join('\n'));
             }
-            noticeLines.push(`${CopyTitle}${Resolution || ''}`);
-            noticeLines.push(collected.join('\n'));
         } else {
             noticeLines.push('Empty Links');
             userClose = false;
         }
     }
+
     // 2) Otherwise replay from pageLinksDB
     else {
         // Group by title, then push URLs under each
@@ -3800,3 +3912,5 @@ function openInNewTab(href) {
         href: href,
     }).click();
 }
+
+
