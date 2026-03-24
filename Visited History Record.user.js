@@ -700,6 +700,8 @@ function MatchRegexElement(Taget, regex, attributeToSearch, ClassName) {
 
 
 const GetTitle = el => el.textContent.trim()
+    .replace(/^Nude\sLeaked\s-/i, '')
+    .replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD|2K].+$/i, '')
     .replace(/\(\d+P\)$/, '')
     .replace(/\[\d.+\]$/, '')
     .replace('(MP4@RF@無碼)', '')
@@ -709,8 +711,7 @@ const GetTitle = el => el.textContent.trim()
     .replace(/\s-\s/g, ' ')
     .replace(/^.+\.(com|net)(:|\s-)\s/, '')
     .replace(/\s+/, ' ')
-    .replace(/^Nude\sLeaked\s-/i, '')
-    .replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD|2K].+$/i, '')
+    .replace(/[,':|]/g, '')    
     .trim();
 
 const GetID = el => {
