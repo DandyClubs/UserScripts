@@ -169,6 +169,10 @@
                         // GM_xmlhttpRequest는 리다이렉트를 따라가므로 이 경우는 거의 없음
                         resolve({ exists: true, reason: 'redirect' });
                     }
+                    else if (status === 403) {
+                        console.warn(`[ImageRetry] 국가제한 (HTTP ${status}): ${url}`);                        
+                        resolve({ exists: true, reason: 'Region restrictions' });
+                    }
                     else if (status >= 400 && status < 500) {
                         console.warn(`[ImageRetry] 클라이언트 오류 (HTTP ${status}) → 이미지 없음: ${url}`);
                         resolve({ exists: false, reason: 'client_error' });
@@ -272,6 +276,10 @@
                 https://wsrv.nl/?url=${encodeURIComponent(realSrc)} (같은 서비스의 짧은 도메인)
                 https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(realSrc)} (구글 프록시)
                 */
+            }
+            if (exists && reason === 'Region restrictions' && !imgElementSrc.startsWith('https://wsrv.nl')){
+                console.log('지역 제한 wsrv.nl 프록시 서비스 사용', imgElement, reason);
+                imgElement.setAttribute('src', `https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`);
             }
 
             imgElement.dataset.retryCount = ++retryCount;

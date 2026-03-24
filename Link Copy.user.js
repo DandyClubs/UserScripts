@@ -59,6 +59,7 @@
 // @exclude      https://www.google.com/search*
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
+// @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/HQImages.js
 // @require      https://raw.githubusercontent.com/DandyClubs/keyvent.js/master/keyvent.js
 // @require      https://raw.githubusercontent.com/DandyClubs/Filter/main/Filters.js
 // @grant		 GM_addStyle
@@ -504,161 +505,6 @@ const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|
 const extractID = /(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})|T\d{2}-\d{3})(?!(C_\d+|file\d+))/;
 const ID3D = /(MCB3DBD-\d+)(.*)$/i;
 
-
-const BASE_URLS = {
-    "FANZA_DIGITAL": "https://awsimgsrc.dmm.co.jp/pics_dig/digital/video",
-    "FANZA_MONO": "https://awsimgsrc.dmm.com/dig/mono/movie",
-    "PRESTIGE": "https://www.prestige-av.com/api/media/goods/prestige/",
-    "DMM_MONO": "https://pics.dmm.co.jp/mono/movie/adult",
-};
-
-const DB_PREFIX_RULES = {
-    // [SOD 계열] - awsimgsrc.dmm.com
-    "HYPN": ["FANZA_MONO", "1", "raw"], "KIRE": ["FANZA_MONO", "1", "raw"], "KUSE": ["FANZA_MONO", "1", "raw"],
-    "MASD": ["FANZA_MONO", "1", "raw"], "MMGH": ["FANZA_MONO", "1", "raw"], "MOGI": ["FANZA_MONO", "1", "raw"],
-    "SCDA": ["FANZA_MONO", "1", "raw"], "SCDE": ["FANZA_MONO", "1", "raw"], "SDAB": ["FANZA_MONO", "1", "raw"],
-    "SDAM": ["FANZA_MONO", "1", "raw"], "SDDE": ["FANZA_MONO", "1", "raw"], "SDDL": ["FANZA_MONO", "1", "raw"],
-    "SDDM": ["FANZA_MONO", "1", "raw"], "SDEN": ["FANZA_MONO", "1", "raw"], "SDHS": ["FANZA_MONO", "1", "raw"],
-    "SDJS": ["FANZA_MONO", "1", "raw"], "SDMF": ["FANZA_MONO", "1", "raw"], "SDMM": ["FANZA_MONO", "1", "raw"],
-    "SDMS": ["FANZA_MONO", "1", "raw"], "SDMT": ["FANZA_MONO", "1", "raw"], "SDMU": ["FANZA_MONO", "1", "raw"],
-    "SDMUA": ["FANZA_MONO", "1", "raw"], "SDNM": ["FANZA_MONO", "1", "raw"], "SDSI": ["FANZA_MONO", "1", "raw"],
-    "SHYN": ["FANZA_MONO", "1", "raw"], "STAR": ["FANZA_MONO", "1", "raw"], "STARS": ["FANZA_MONO", "1", "raw"],
-    "START": ["FANZA_MONO", "1", "raw"], "STKO": ["FANZA_MONO", "1", "raw"], "TIGR": ["FANZA_MONO", "1", "raw"],
-    "ABF": ["FANZA_MONO", "118", "raw"],
-
-    // [Prestige 계열] - pics.dmm.co.jp (3자리 패딩)
-    "ABS": ["DMM_MONO", "118", "zero3"], "ABP": ["DMM_MONO", "118", "zero3"], "ABW": ["DMM_MONO", "118", "zero3"],
-    "EZD": ["DMM_MONO", "118", "zero3"], "CHN": ["DMM_MONO", "118", "zero3"], "FTN": ["DMM_MONO", "118", "zero3"],
-    "ABY": ["DMM_MONO", "118", "zero3"], "DOM": ["DMM_MONO", "118", "zero3"], "GVH": ["DMM_MONO", "13", "zero3"],
-    "GVG": ["DMM_MONO", "13", "zero3"], "GG": ["DMM_MONO", "13", "zero3"],
-
-    // [DIGITAL 계열 - h_, n_] - awsimgsrc.dmm.co.jp (5자리 패딩)
-    "AMBI": ["FANZA_DIGITAL", "h_237", "zero5"], "AMBS": ["FANZA_DIGITAL", "h_237", "zero5"],
-    "CLOT": ["FANZA_DIGITAL", "h_237", "zero5"], "NACR": ["FANZA_DIGITAL", "h_237", "zero5"],
-    "ZMAR": ["FANZA_DIGITAL", "h_237", "zero5"], "BANK": ["FANZA_DIGITAL", "h_1495", "zero5"],
-    "BUZ": ["FANZA_DIGITAL", "h_1340", "zero5"], "CHUC": ["FANZA_DIGITAL", "h_491", "zero5"],
-    "CIEL": ["FANZA_DIGITAL", "h_491", "zero5"], "NNNC": ["FANZA_DIGITAL", "h_491", "zero5"],
-    "DOCD": ["FANZA_DIGITAL", "h_1711", "zero5"], "FCP": ["FANZA_DIGITAL", "h_1711", "zero5"],
-    "MFCT": ["FANZA_DIGITAL", "h_1711", "zero5"], "EUUD": ["FANZA_DIGITAL", "h_086", "zero5"],
-    "JRZE": ["FANZA_DIGITAL", "h_086", "zero5"], "JURA": ["FANZA_DIGITAL", "h_086", "zero5"],
-    "NUKA": ["FANZA_DIGITAL", "h_086", "zero5"], "XMOM": ["FANZA_DIGITAL", "h_086", "zero5"],
-    "HZGD": ["FANZA_DIGITAL", "h_1100", "zero5"], "JUKF": ["FANZA_DIGITAL", "h_227", "zero5"],
-    "MBDD": ["FANZA_DIGITAL", "n_707", "zero5"], "MILK": ["FANZA_DIGITAL", "h_1240", "zero5"],
-    "ONEX": ["FANZA_DIGITAL", "h_1674", "zero5"], "PJAB": ["FANZA_DIGITAL", "h_1604", "zero5"],
-    "REBD": ["FANZA_DIGITAL", "h_346", "zero5"], "REBDB": ["FANZA_DIGITAL", "h_346", "zero5"],
-    "SKMJ": ["FANZA_DIGITAL", "h_1324", "zero5"], "SS": ["FANZA_DIGITAL", "h_1231", "zero5"],
-    "STSK": ["FANZA_DIGITAL", "h_1605", "zero5"], "HMRK": ["FANZA_DIGITAL", "h_1711", "zero5"],
-    "BEAF": ["FANZA_DIGITAL", "h_1615", "zero5"], "GINAV": ["FANZA_DIGITAL", "h_1350", "zero5"],
-
-    // [기타 숫자형]
-    "AD": ["FANZA_DIGITAL", "24", "zero5"], "AKB": ["FANZA_DIGITAL", "55", "zero5"],
-    "ASEX": ["FANZA_DIGITAL", "1", "zero5"], "BLD": ["FANZA_DIGITAL", "24", "zero5"],
-    "BOKO": ["FANZA_DIGITAL", "1", "zero5"], "CAD": ["FANZA_DIGITAL", "24", "zero5"],
-    "CADV": ["FANZA_DIGITAL", "49", "zero5"], "CPDE": ["FANZA_DIGITAL", "188", "zero5"],
-    "DFDM": ["FANZA_DIGITAL", "2", "zero5"], "DLDSS": ["FANZA_DIGITAL", "1", "zero5"],
-    "DOCP": ["FANZA_DIGITAL", "188", "zero5"], "ECB": ["FANZA_DIGITAL", "2", "zero5"],
-    "EKDV": ["FANZA_DIGITAL", "49", "zero5"], "FNS": ["FANZA_DIGITAL", "1", "zero5"],
-    "FSDSS": ["FANZA_DIGITAL", "1", "zero5"], "FSET": ["FANZA_DIGITAL", "1", "zero5"],
-    "GN": ["FANZA_DIGITAL", "188", "zero5"], "HAWA": ["FANZA_DIGITAL", "1", "zero5"],
-    "HN": ["FANZA_DIGITAL", "188", "zero5"], "IENE": ["FANZA_DIGITAL", "1", "zero5"],
-    "IENF": ["FANZA_DIGITAL", "1", "zero5"], "IESP": ["FANZA_DIGITAL", "1", "zero5"],
-    "JERA": ["FANZA_DIGITAL", "1", "zero5"], "KMHRS": ["FANZA_DIGITAL", "1", "zero5"],
-    "MGOLD": ["FANZA_DIGITAL", "1", "zero5"], "MIST": ["FANZA_DIGITAL", "1", "zero5"],
-    "MTABS": ["FANZA_DIGITAL", "1", "zero5"], "MTALL": ["FANZA_DIGITAL", "1", "zero5"],
-    "NAMH": ["FANZA_DIGITAL", "1", "zero5"], "NEO": ["FANZA_DIGITAL", "433", "zero5"],
-    "NEZ": ["FANZA_DIGITAL", "188", "zero5"], "NHDTA": ["FANZA_DIGITAL", "1", "zero5"],
-    "NHDTB": ["FANZA_DIGITAL", "1", "zero5"], "NHDTC": ["FANZA_DIGITAL", "1", "zero5"],
-    "NOSKN": ["FANZA_DIGITAL", "1", "zero5"], "NSBB": ["FANZA_DIGITAL", "1", "zero5"],
-    "NTR": ["FANZA_DIGITAL", "1", "zero5"], "OFSD": ["FANZA_DIGITAL", "1", "zero5"],
-    "OKB": ["FANZA_DIGITAL", "1", "zero5"], "OKK": ["FANZA_DIGITAL", "1", "zero5"],
-    "OKS": ["FANZA_DIGITAL", "1", "zero5"], "OKV": ["FANZA_DIGITAL", "1", "zero5"],
-    "OKX": ["FANZA_DIGITAL", "1", "zero5"], "PIYO": ["FANZA_DIGITAL", "1", "zero5"],
-    "PRIAN": ["FANZA_DIGITAL", "5389", "zero5"], "SGKI": ["FANZA_DIGITAL", "1", "zero5"],
-    "SUN": ["FANZA_DIGITAL", "1", "zero5"], "SVDVD": ["FANZA_DIGITAL", "1", "zero5"],
-    "SVFLA": ["FANZA_DIGITAL", "1", "zero5"], "SVSHA": ["FANZA_DIGITAL", "1", "zero5"],
-    "SW": ["FANZA_DIGITAL", "1", "zero5"], "WAWA": ["FANZA_DIGITAL", "1", "zero5"],
-    "WFR": ["FANZA_DIGITAL", "2", "zero5"], "WO": ["FANZA_DIGITAL", "1", "zero5"],
-    "3DSVR": ["FANZA_DIGITAL", "1", "zero5"], "AEGE": ["FANZA_DIGITAL", "1", "zero5"],
-    "AKDL": ["FANZA_DIGITAL", "1", "zero5"],
-};
-
-function getMergedRules() {
-    const merged = { ...DB_PREFIX_RULES };
-
-    // 저장된 모든 키 목록을 가져와 "RULE_"로 시작하는 것만 필터링
-    const allKeys = GM_listValues();
-    allKeys.forEach(key => {
-        if (DB_PREFIX_RULES[key]) {
-            GM_deleteValue(key);
-        } else {
-            merged[key] = GM_getValue(key);
-        }
-    });
-
-    return merged;
-}
-
-async function generateUrlCandidates(code, imageSrc = '') {
-    const codePattern = /([A-Z]{2,6})-?(\d+)([a-z]*)?/i;
-    const match = code.match(codePattern);
-    if (!match) return [];
-
-    const prefix = match[1].toUpperCase();
-    const pureNum = match[2];
-    const extraSuffix = (match[3] || "").toLowerCase();
-
-    const candidates = [];
-    const metaData = {};
-    const CURRENT_RULES = getMergedRules();
-
-    // A. 기존 규칙(정적+학습된 개별 규칙) 적용
-    if (CURRENT_RULES[prefix]) {
-        const [category, extraNum, format] = CURRENT_RULES[prefix];
-        const targetBaseUrl = BASE_URLS[category] || BASE_URLS["FANZA_DIGITAL"];
-        const formattedNum = (format === "zero3") ? pureNum.padStart(3, '0') : pureNum.padStart(5, '0');
-        const fileName = `${extraNum}${prefix.toLowerCase()}${formattedNum}${extraSuffix}`;
-        candidates.push(`${targetBaseUrl}/${fileName}/${fileName}pl.jpg`);
-    }
-
-    // B. 미등록 브랜드 추론
-    if (imageSrc && imageSrc.includes('dmm')) {
-        const fileNamePart = imageSrc.split('/').pop().replace(/\..*$/, '').replace(/p[ls]$|jp$/, '');
-        const flexRegex = new RegExp(`(.*?)${prefix}0*${pureNum}`, 'i');
-        const fileMatch = fileNamePart.match(flexRegex);
-
-        if (fileMatch) {
-            const extractedExtra = fileMatch[1];
-            const paddedNum = pureNum.padStart(5, '0');
-            const testFile = `${extractedExtra}${prefix.toLowerCase()}${paddedNum}${extraSuffix}`;
-
-            // 여러 도메인 시도
-            ["FANZA_DIGITAL", "FANZA_MONO"].forEach(cat => {
-                const url = `${BASE_URLS[cat]}/${testFile}/${testFile}pl.jpg`;
-                candidates.push(url);
-                metaData[url] = [cat, extractedExtra, "zero5"];
-            });
-        }
-    }
-
-    const uniqueCandidates = [...new Set(candidates)];
-    uniqueCandidates._meta = metaData;
-    uniqueCandidates._prefix = prefix; // 저장을 위해 prefix 전달
-    return uniqueCandidates;
-}
-
-function saveRuleFromUrl(url, prefix, pureNum) {
-    try {
-        const urlObj = new URL(url);
-        const fileName = urlObj.pathname.split('/').pop().replace(/\..*$/, '').replace(/p[ls]$|jp$/, '');
-        const flexRegex = new RegExp(`(.*?)${prefix}0*${pureNum}`, 'i');
-        const match = fileName.match(flexRegex);
-        if (match) {
-            const category = url.includes('digital') ? "FANZA_DIGITAL" : "FANZA_MONO";
-            GM_setValue(prefix, [category, match[1], "zero5"]);
-        }
-    } catch (e) { }
-}
-
 let GetDirect, AllCollectionLinks = [];
 
 const DirectLink = (url) => {
@@ -680,22 +526,6 @@ const DirectLink = (url) => {
     });
 };
 
-
-function checkImageExistence(link) {
-    return new Promise((resolve) => {
-        GM_xmlhttpRequest({
-            method: 'HEAD',
-            url: link,
-            timeout: 5000,
-            onload: function (response) {
-                // 상태 코드가 200일 때만 true 반환
-                resolve(response.status === 200);
-            },
-            onerror: () => resolve(false),
-            ontimeout: () => resolve(false)
-        });
-    });
-}
 
 const GetDirectLink = (url, data) => {
     //let match = /window\.location='(?<url>http[^']+)/?.exec(data)
@@ -3345,22 +3175,32 @@ async function CopyLink() {
                     const candidates = await generateUrlCandidates(code, CoverImage || '');
 
                     for (const url of candidates) {
-                        if (await checkImageExistence(url)) {
-                            finalCoverImage = url;
-                            // 성공한 패턴 학습 및 저장
+                        const result = await checkImageExistence(url);
+
+                        if (result.exists) {
+                            finalCoverImage = url;                            
+                            // 학습 로직 (프록시 사용 여부와 상관없이 원본 URL의 메타데이터로 저장)
                             const learnedRule = candidates._meta?.[url];
                             if (learnedRule && !DB_PREFIX_RULES[prefix]) {
-                                GM_setValue(prefix, learnedRule);
-                                console.log(`%c[신규 학습 완료] ${prefix} 저장됨`, "color: cyan; font-weight: bold;");
+                                if (!GM_getValue(prefix)) {
+                                    GM_setValue(prefix, learnedRule);
+                                    console.log(`%c[학습 완료] ${prefix} 저장됨`, "color: cyan;");
+                                }
                             }
                             break;
                         }
+                        // [추가] 403 국가 제한이나 특정 사유로 차단된 경우 프록시 적용
+                        else if (result.reason === 'Region restrictions' || result.status === 403) {
+                            console.log(`%c[지역 제한 감지] ${url}`, "color: #FF5722;");
+                        }else{
+                            console.log(`%c[이미지 주소 오류] ${url}`, "color: #FF5722;");
+                        }                                                
                     }
                 }
 
                 // --- 최종 처리: 수집 목록 추가 ---
                 if (!finalCoverImage && CoverImage && !/imagetwist\.com/.test(CoverImage)) {
-                    finalCoverImage = CoverImage;                    
+                    finalCoverImage = CoverImage;
                 }
 
                 if (finalCoverImage) {
@@ -4028,5 +3868,4 @@ function openInNewTab(href) {
         href: href,
     }).click();
 }
-
 
