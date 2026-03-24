@@ -548,7 +548,7 @@ const DB_PREFIX_RULES = {
     "REBD": ["FANZA_DIGITAL", "h_346", "zero5"], "REBDB": ["FANZA_DIGITAL", "h_346", "zero5"],
     "SKMJ": ["FANZA_DIGITAL", "h_1324", "zero5"], "SS": ["FANZA_DIGITAL", "h_1231", "zero5"],
     "STSK": ["FANZA_DIGITAL", "h_1605", "zero5"], "HMRK": ["FANZA_DIGITAL", "h_1711", "zero5"],
-    "BEAF": ["FANZA_DIGITAL", "h_1615", "zero5"],
+    "BEAF": ["FANZA_DIGITAL", "h_1615", "zero5"], "GINAV": ["FANZA_DIGITAL", "h_1350", "zero5"],
 
     // [기타 숫자형]
     "AD": ["FANZA_DIGITAL", "24", "zero5"], "AKB": ["FANZA_DIGITAL", "55", "zero5"],
@@ -588,13 +588,10 @@ function getMergedRules() {
     // 저장된 모든 키 목록을 가져와 "RULE_"로 시작하는 것만 필터링
     const allKeys = GM_listValues();
     allKeys.forEach(key => {
-        if (key.startsWith("RULE_")) {
-            const prefix = key.replace("RULE_", "");
-            if (DB_PREFIX_RULES[prefix]) {
-                GM_deleteValue(key);
-            } else {
-                merged[prefix] = GM_getValue(key);
-            }
+        if (DB_PREFIX_RULES[key]) {
+            GM_deleteValue(key);
+        } else {
+            merged[key] = GM_getValue(key);
         }
     });
 
@@ -647,6 +644,19 @@ async function generateUrlCandidates(code, imageSrc = '') {
     uniqueCandidates._meta = metaData;
     uniqueCandidates._prefix = prefix; // 저장을 위해 prefix 전달
     return uniqueCandidates;
+}
+
+function saveRuleFromUrl(url, prefix, pureNum) {
+    try {
+        const urlObj = new URL(url);
+        const fileName = urlObj.pathname.split('/').pop().replace(/\..*$/, '').replace(/p[ls]$|jp$/, '');
+        const flexRegex = new RegExp(`(.*?)${prefix}0*${pureNum}`, 'i');
+        const match = fileName.match(flexRegex);
+        if (match) {
+            const category = url.includes('digital') ? "FANZA_DIGITAL" : "FANZA_MONO";
+            GM_setValue(prefix, [category, match[1], "zero5"]);
+        }
+    } catch (e) { }
 }
 
 let GetDirect, AllCollectionLinks = [];
@@ -3302,41 +3312,60 @@ async function CopyLink() {
 
             if (match) {
                 const code = match[0];
-                const candidates = await generateUrlCandidates(code, CoverImage || '');
-
+                const prefix = match[1].toUpperCase();
+                const pureNum = match[2];
+                const extraSuffix = (match[3] || "").toLowerCase();
                 let finalCoverImage = null;
 
-                for (const url of candidates) {
-                    const exists = await checkImageExistence(url);
-                    if (exists) {
-                        finalCoverImage = url;
-
-                        const learnedRule = candidates._meta?.[url];
-                        const prefix = candidates._prefix;
-
-                        // DB_PREFIX_RULES에 없고, 아직 저장되지 않은 경우에만 개별 저장
-                        if (learnedRule && !DB_PREFIX_RULES[prefix]) {
-                            const storageKey = `RULE_${prefix}`;
-                            if (!GM_getValue(storageKey)) {
-                                // 개별 키로 저장 (예: "RULE_STSK": ["FANZA_DIGITAL", "h_1605", "zero5"])
-                                GM_setValue(storageKey, learnedRule);
-                                console.log(`%c[개별 학습 성공] ${prefix} 패턴이 ${storageKey}에 저장되었습니다.`, "color: cyan; font-weight: bold;");
-                            }
-                        }
-                        break;
+                // --- 1단계: 이미 고화질 주소(awsimgsrc)를 가지고 있는 경우 (즉시 학습 및 확정) ---
+                if (CoverImage && CoverImage.includes('awsimgsrc.dmm')) {
+                    finalCoverImage = CoverImage;
+                    if (!DB_PREFIX_RULES[prefix] && !GM_getValue(prefix)) {
+                        saveRuleFromUrl(CoverImage, prefix, pureNum); // URL 파싱 저장 함수 (아래 별도 정의)
                     }
                 }
-                // 신규 URL이 없거나 존재하지 않을 경우, 기존 CoverImage 검토
-                if (!finalCoverImage && CoverImage && !/imagetwist\.com/.test(CoverImage)) {
-                    finalCoverUrl = CoverImage;
+
+                // --- 2단계: 고화질 주소는 없지만, 이미 "규칙"을 알고 있는 브랜드인 경우 (즉시 생성) ---
+                if (!finalCoverImage) {
+                    const CURRENT_RULES = getMergedRules(); // 정적 + 학습된 규칙 병합 함수
+                    if (CURRENT_RULES[prefix]) {
+                        const [category, extraNum, format] = CURRENT_RULES[prefix];
+                        const targetBaseUrl = BASE_URLS[category] || BASE_URLS["FANZA_DIGITAL"];
+                        const formattedNum = (format === "zero3") ? pureNum.padStart(3, '0') : pureNum.padStart(5, '0');
+                        const fileName = `${extraNum}${prefix.toLowerCase()}${formattedNum}${extraSuffix}`;
+
+                        finalCoverImage = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
+                        console.log(`%c[규칙 기반 확정] ${prefix}는 이미 아는 규칙이라 즉시 생성함`, "color: #9E9E9E;");
+                    }
                 }
 
-                // 최종 결정된 커버 이미지가 있다면 수집 목록에 추가
+                // --- 3단계: 규칙도 없는 생소한 브랜드인 경우 (후보군 생성 및 이미지 체크) ---
+                if (!finalCoverImage) {
+                    console.log(`%c[미등록 브랜드 탐색] ${prefix} 패턴 추론 시작...`, "color: #FF9800;");
+                    const candidates = await generateUrlCandidates(code, CoverImage || '');
+
+                    for (const url of candidates) {
+                        if (await checkImageExistence(url)) {
+                            finalCoverImage = url;
+                            // 성공한 패턴 학습 및 저장
+                            const learnedRule = candidates._meta?.[url];
+                            if (learnedRule && !DB_PREFIX_RULES[prefix]) {
+                                GM_setValue(prefix, learnedRule);
+                                console.log(`%c[신규 학습 완료] ${prefix} 저장됨`, "color: cyan; font-weight: bold;");
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // --- 최종 처리: 수집 목록 추가 ---
+                if (!finalCoverImage && CoverImage && !/imagetwist\.com/.test(CoverImage)) {
+                    finalCoverImage = CoverImage;                    
+                }
+
                 if (finalCoverImage) {
                     const coverLink = await CollectionCoverImage(finalCoverImage);
-                    if (coverLink) {
-                        collected = collected.concat(coverLink);
-                    }
+                    if (coverLink) collected = collected.concat(coverLink);
                 }
 
                 allLinks = collected;
