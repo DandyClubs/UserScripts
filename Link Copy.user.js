@@ -66,6 +66,10 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_openInTab
 // @grant        GM_getResourceText
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_deleteValue
+// @grant        GM_listValues
 // @run-at       document-start
 // @connect      *
 // @noframes
@@ -501,76 +505,148 @@ const extractID = /(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{
 const ID3D = /(MCB3DBD-\d+)(.*)$/i;
 
 
-
-/**
- * 이미지 URL 생성을 위한 설정 데이터
- */
 const BASE_URLS = {
-    "NORMAL": "https://awsimgsrc.dmm.co.jp/pics_dig/digital/video",
-    "4K": "https://awsimgsrc.dmm.com/dig/mono/movie",
-    "800": "https://pics.dmm.co.jp/mono/movie/adult"
+    "FANZA_DIGITAL": "https://awsimgsrc.dmm.co.jp/pics_dig/digital/video",
+    "FANZA_MONO": "https://awsimgsrc.dmm.com/dig/mono/movie",
+    "PRESTIGE": "https://www.prestige-av.com/api/media/goods/prestige/",
+    "DMM_MONO": "https://pics.dmm.co.jp/mono/movie/adult",
 };
 
-const RULES = {
-    "START": ["4K", "1", "raw"],
-    "ABF": ["4K", "118", "raw"],
-    "ABS": ["800", "118", "zero3"],
-    "ABP": ["800", "118", "zero3"],
-    "ABW": ["800", "118", "zero3"],
-    "EZD": ["800", "118", "zero3"],
-    "CHN": ["800", "118", "zero3"],
-    "FTN": ["800", "118", "zero3"],
-    "ABY": ["800", "118", "zero3"],
-    "DOM": ["800", "118", "zero3"],
-    "GVH": ["800", "13", "zero3"],
-    "GVG": ["800", "13", "zero3"],
-    "GG": ["800", "13", "zero3"],
+const DB_PREFIX_RULES = {
+    // [SOD/MONO 계열] - awsimgsrc.dmm.com
+    "HYPN": ["FANZA_MONO", "1", "raw"], "KIRE": ["FANZA_MONO", "1", "raw"], "KUSE": ["FANZA_MONO", "1", "raw"],
+    "MASD": ["FANZA_MONO", "1", "raw"], "MMGH": ["FANZA_MONO", "1", "raw"], "MOGI": ["FANZA_MONO", "1", "raw"],
+    "SCDA": ["FANZA_MONO", "1", "raw"], "SCDE": ["FANZA_MONO", "1", "raw"], "SDAB": ["FANZA_MONO", "1", "raw"],
+    "SDAM": ["FANZA_MONO", "1", "raw"], "SDDE": ["FANZA_MONO", "1", "raw"], "SDDL": ["FANZA_MONO", "1", "raw"],
+    "SDDM": ["FANZA_MONO", "1", "raw"], "SDEN": ["FANZA_MONO", "1", "raw"], "SDHS": ["FANZA_MONO", "1", "raw"],
+    "SDJS": ["FANZA_MONO", "1", "raw"], "SDMF": ["FANZA_MONO", "1", "raw"], "SDMM": ["FANZA_MONO", "1", "raw"],
+    "SDMS": ["FANZA_MONO", "1", "raw"], "SDMT": ["FANZA_MONO", "1", "raw"], "SDMU": ["FANZA_MONO", "1", "raw"],
+    "SDMUA": ["FANZA_MONO", "1", "raw"], "SDNM": ["FANZA_MONO", "1", "raw"], "SDSI": ["FANZA_MONO", "1", "raw"],
+    "SHYN": ["FANZA_MONO", "1", "raw"], "STAR": ["FANZA_MONO", "1", "raw"], "STARS": ["FANZA_MONO", "1", "raw"],
+    "START": ["FANZA_MONO", "1", "raw"], "STKO": ["FANZA_MONO", "1", "raw"], "TIGR": ["FANZA_MONO", "1", "raw"],
+    "ABF": ["FANZA_MONO", "118", "raw"],
+
+    // [800/Prestige 계열] - pics.dmm.co.jp (3자리 패딩)
+    "ABS": ["DMM_MONO", "118", "zero3"], "ABP": ["DMM_MONO", "118", "zero3"], "ABW": ["DMM_MONO", "118", "zero3"],
+    "EZD": ["DMM_MONO", "118", "zero3"], "CHN": ["DMM_MONO", "118", "zero3"], "FTN": ["DMM_MONO", "118", "zero3"],
+    "ABY": ["DMM_MONO", "118", "zero3"], "DOM": ["DMM_MONO", "118", "zero3"], "GVH": ["DMM_MONO", "13", "zero3"],
+    "GVG": ["DMM_MONO", "13", "zero3"], "GG": ["DMM_MONO", "13", "zero3"],
+
+    // [NORMAL/DIGITAL 계열 - h_, n_] - awsimgsrc.dmm.co.jp (5자리 패딩)
+    "AMBI": ["FANZA_DIGITAL", "h_237", "zero5"], "AMBS": ["FANZA_DIGITAL", "h_237", "zero5"],
+    "CLOT": ["FANZA_DIGITAL", "h_237", "zero5"], "NACR": ["FANZA_DIGITAL", "h_237", "zero5"],
+    "ZMAR": ["FANZA_DIGITAL", "h_237", "zero5"], "BANK": ["FANZA_DIGITAL", "h_1495", "zero5"],
+    "BUZ": ["FANZA_DIGITAL", "h_1340", "zero5"], "CHUC": ["FANZA_DIGITAL", "h_491", "zero5"],
+    "CIEL": ["FANZA_DIGITAL", "h_491", "zero5"], "NNNC": ["FANZA_DIGITAL", "h_491", "zero5"],
+    "DOCD": ["FANZA_DIGITAL", "h_1711", "zero5"], "FCP": ["FANZA_DIGITAL", "h_1711", "zero5"],
+    "MFCT": ["FANZA_DIGITAL", "h_1711", "zero5"], "EUUD": ["FANZA_DIGITAL", "h_086", "zero5"],
+    "JRZE": ["FANZA_DIGITAL", "h_086", "zero5"], "JURA": ["FANZA_DIGITAL", "h_086", "zero5"],
+    "NUKA": ["FANZA_DIGITAL", "h_086", "zero5"], "XMOM": ["FANZA_DIGITAL", "h_086", "zero5"],
+    "HZGD": ["FANZA_DIGITAL", "h_1100", "zero5"], "JUKF": ["FANZA_DIGITAL", "h_227", "zero5"],
+    "MBDD": ["FANZA_DIGITAL", "n_707", "zero5"], "MILK": ["FANZA_DIGITAL", "h_1240", "zero5"],
+    "ONEX": ["FANZA_DIGITAL", "h_1674", "zero5"], "PJAB": ["FANZA_DIGITAL", "h_1604", "zero5"],
+    "REBD": ["FANZA_DIGITAL", "h_346", "zero5"], "REBDB": ["FANZA_DIGITAL", "h_346", "zero5"],
+    "SKMJ": ["FANZA_DIGITAL", "h_1324", "zero5"], "SS": ["FANZA_DIGITAL", "h_1231", "zero5"],
+    "STSK": ["FANZA_DIGITAL", "h_1605", "zero5"], "HMRK": ["FANZA_DIGITAL", "h_1711", "zero5"],
+    "BEAF": ["FANZA_DIGITAL", "h_1615", "zero5"],
+
+    // [기타 NORMAL 숫자형]
+    "AD": ["FANZA_DIGITAL", "24", "zero5"], "AKB": ["FANZA_DIGITAL", "55", "zero5"],
+    "ASEX": ["FANZA_DIGITAL", "1", "zero5"], "BLD": ["FANZA_DIGITAL", "24", "zero5"],
+    "BOKO": ["FANZA_DIGITAL", "1", "zero5"], "CAD": ["FANZA_DIGITAL", "24", "zero5"],
+    "CADV": ["FANZA_DIGITAL", "49", "zero5"], "CPDE": ["FANZA_DIGITAL", "188", "zero5"],
+    "DFDM": ["FANZA_DIGITAL", "2", "zero5"], "DLDSS": ["FANZA_DIGITAL", "1", "zero5"],
+    "DOCP": ["FANZA_DIGITAL", "188", "zero5"], "ECB": ["FANZA_DIGITAL", "2", "zero5"],
+    "EKDV": ["FANZA_DIGITAL", "49", "zero5"], "FNS": ["FANZA_DIGITAL", "1", "zero5"],
+    "FSDSS": ["FANZA_DIGITAL", "1", "zero5"], "FSET": ["FANZA_DIGITAL", "1", "zero5"],
+    "GN": ["FANZA_DIGITAL", "188", "zero5"], "HAWA": ["FANZA_DIGITAL", "1", "zero5"],
+    "HN": ["FANZA_DIGITAL", "188", "zero5"], "IENE": ["FANZA_DIGITAL", "1", "zero5"],
+    "IENF": ["FANZA_DIGITAL", "1", "zero5"], "IESP": ["FANZA_DIGITAL", "1", "zero5"],
+    "JERA": ["FANZA_DIGITAL", "1", "zero5"], "KMHRS": ["FANZA_DIGITAL", "1", "zero5"],
+    "MGOLD": ["FANZA_DIGITAL", "1", "zero5"], "MIST": ["FANZA_DIGITAL", "1", "zero5"],
+    "MTABS": ["FANZA_DIGITAL", "1", "zero5"], "MTALL": ["FANZA_DIGITAL", "1", "zero5"],
+    "NAMH": ["FANZA_DIGITAL", "1", "zero5"], "NEO": ["FANZA_DIGITAL", "433", "zero5"],
+    "NEZ": ["FANZA_DIGITAL", "188", "zero5"], "NHDTA": ["FANZA_DIGITAL", "1", "zero5"],
+    "NHDTB": ["FANZA_DIGITAL", "1", "zero5"], "NHDTC": ["FANZA_DIGITAL", "1", "zero5"],
+    "NOSKN": ["FANZA_DIGITAL", "1", "zero5"], "NSBB": ["FANZA_DIGITAL", "1", "zero5"],
+    "NTR": ["FANZA_DIGITAL", "1", "zero5"], "OFSD": ["FANZA_DIGITAL", "1", "zero5"],
+    "OKB": ["FANZA_DIGITAL", "1", "zero5"], "OKK": ["FANZA_DIGITAL", "1", "zero5"],
+    "OKS": ["FANZA_DIGITAL", "1", "zero5"], "OKV": ["FANZA_DIGITAL", "1", "zero5"],
+    "OKX": ["FANZA_DIGITAL", "1", "zero5"], "PIYO": ["FANZA_DIGITAL", "1", "zero5"],
+    "PRIAN": ["FANZA_DIGITAL", "5389", "zero5"], "SGKI": ["FANZA_DIGITAL", "1", "zero5"],
+    "SUN": ["FANZA_DIGITAL", "1", "zero5"], "SVDVD": ["FANZA_DIGITAL", "1", "zero5"],
+    "SVFLA": ["FANZA_DIGITAL", "1", "zero5"], "SVSHA": ["FANZA_DIGITAL", "1", "zero5"],
+    "SW": ["FANZA_DIGITAL", "1", "zero5"], "WAWA": ["FANZA_DIGITAL", "1", "zero5"],
+    "WFR": ["FANZA_DIGITAL", "2", "zero5"], "WO": ["FANZA_DIGITAL", "1", "zero5"],
+    "3DSVR": ["FANZA_DIGITAL", "1", "zero5"], "AEGE": ["FANZA_DIGITAL", "1", "zero5"],
+    "AKDL": ["FANZA_DIGITAL", "1", "zero5"],
 };
 
-function generateDmmUrl(code, imageSrc) {
-    // 1. 코드 분리 (영문-숫자) - 규칙을 알아내기 위해 먼저 실행
-    const pattern = /([A-Za-z]{2,6})-(\d{2,5})/;
-    const match = code.match(pattern);
+function getMergedRules() {
+    const merged = { ...DB_PREFIX_RULES };
 
-    if (!match) return null;
+    // 저장된 모든 키 목록을 가져와 "RULE_"로 시작하는 것만 필터링
+    const allKeys = GM_listValues();
+    allKeys.forEach(key => {
+        if (key.startsWith("RULE_")) {
+            const prefix = key.replace("RULE_", "");
+            if (DB_PREFIX_RULES[prefix]) {
+                GM_deleteValue(key);
+            } else {
+                merged[prefix] = GM_getValue(key);
+            }
+        }
+    });
 
-    let [_, prefix, numStr] = match;
-    const upperPrefix = prefix.toUpperCase();
-    const lowerPrefix = prefix.toLowerCase();
+    return merged;
+}
 
-    // 2. 이 코드가 가져야 할 "정답" 규칙 찾기
-    let targetCategory, extraNum, format;
+async function generateUrlCandidates(code, imageSrc = '') {
+    const codePattern = /([A-Z]{2,6})-?(\d+)([a-z]*)?/i;
+    const match = code.match(codePattern);
+    if (!match) return [];
 
-    if (RULES[upperPrefix]) {
-        [targetCategory, extraNum, format] = RULES[upperPrefix];
-    } else {
-        targetCategory = "NORMAL";
-        extraNum = "";
-        format = "zero5"; // 규칙 외 기본값
+    const prefix = match[1].toUpperCase();
+    const pureNum = match[2];
+    const extraSuffix = (match[3] || "").toLowerCase();
+
+    const candidates = [];
+    const metaData = {};
+    const CURRENT_RULES = getMergedRules();
+
+    // A. 기존 규칙(정적+학습된 개별 규칙) 적용
+    if (CURRENT_RULES[prefix]) {
+        const [category, extraNum, format] = CURRENT_RULES[prefix];
+        const targetBaseUrl = BASE_URLS[category] || BASE_URLS["FANZA_DIGITAL"];
+        const formattedNum = (format === "zero3") ? pureNum.padStart(3, '0') : pureNum.padStart(5, '0');
+        const fileName = `${extraNum}${prefix.toLowerCase()}${formattedNum}${extraSuffix}`;
+        candidates.push(`${targetBaseUrl}/${fileName}/${fileName}pl.jpg`);
     }
 
-    const targetBaseUrl = BASE_URLS[targetCategory];
+    // B. 미등록 브랜드 추론
+    if (imageSrc && imageSrc.includes('dmm')) {
+        const fileNamePart = imageSrc.split('/').pop().replace(/\..*$/, '').replace(/p[ls]$|jp$/, '');
+        const flexRegex = new RegExp(`(.*?)${prefix}0*${pureNum}`, 'i');
+        const fileMatch = fileNamePart.match(flexRegex);
 
-    // 3. 기존 imageSrc가 "이 코드의 규칙(targetBaseUrl)"과 일치하는지 확인
-    if (imageSrc && imageSrc.startsWith(targetBaseUrl)) {
-        console.log(`✅ [${upperPrefix}] 규칙과 일치하는 URL입니다. 유지합니다.`);
-        return imageSrc;
+        if (fileMatch) {
+            const extractedExtra = fileMatch[1];
+            const paddedNum = pureNum.padStart(5, '0');
+            const testFile = `${extractedExtra}${prefix.toLowerCase()}${paddedNum}${extraSuffix}`;
+
+            // 여러 도메인 시도
+            ["FANZA_DIGITAL", "FANZA_MONO"].forEach(cat => {
+                const url = `${BASE_URLS[cat]}/${testFile}/${testFile}pl.jpg`;
+                candidates.push(url);
+                metaData[url] = [cat, extractedExtra, "zero5"];
+            });
+        }
     }
 
-    // 4. 규칙이 다르거나 URL이 없으면 새로 생성
-    console.log(`🔄 [${upperPrefix}] 규칙에 맞지 않거나 URL이 없어 새로 생성합니다.`);
-
-    let formattedNum;
-    if (format === "zero3") {
-        formattedNum = numStr.padStart(3, '0');
-    } else if (format === "raw") {
-        formattedNum = numStr;
-    } else {
-        formattedNum = numStr.padStart(5, '0'); // NORMAL 등
-    }
-
-    const fileNameChunk = `${extraNum}${lowerPrefix}${formattedNum}`;
-    return `${targetBaseUrl}/${fileNameChunk}/${fileNameChunk}pl.jpg`;
+    const uniqueCandidates = [...new Set(candidates)];
+    uniqueCandidates._meta = metaData;
+    uniqueCandidates._prefix = prefix; // 저장을 위해 prefix 전달
+    return uniqueCandidates;
 }
 
 let GetDirect, AllCollectionLinks = [];
@@ -3221,23 +3297,35 @@ async function CopyLink() {
         let collected = await CollectionLinks(DownloadArea) || [];
 
         if (collected.length > 0) {
-            const pattern = /([A-Za-z]{2,6})-(\d{2,5})/;
-            const match = CopyTitle.match(pattern);
+            const codePattern = /([A-Z]{2,6})-?(\d+)([a-z]*)?/i;
+            const match = CopyTitle.match(codePattern);
 
             if (match) {
                 const code = match[0];
-                const newImageUrl = generateDmmUrl(code, CoverImage || '');
+                const candidates = await generateUrlCandidates(code, CoverImage || '');
+
                 let finalCoverImage = null;
 
-                // --- 이미지 존재 여부 확인 로직 개선 ---
-                if (newImageUrl && CoverImage !== newImageUrl) {
-                    // 신규 URL이 존재하면 해당 URL 사용
-                    const exists = await checkImageExistence(newImageUrl);
+                for (const url of candidates) {
+                    const exists = await checkImageExistence(url);
                     if (exists) {
-                        finalCoverImage = newImageUrl;
+                        finalCoverImage = url;
+
+                        const learnedRule = candidates._meta?.[url];
+                        const prefix = candidates._prefix;
+
+                        // DB_PREFIX_RULES에 없고, 아직 저장되지 않은 경우에만 개별 저장
+                        if (learnedRule && !DB_PREFIX_RULES[prefix]) {
+                            const storageKey = `RULE_${prefix}`;
+                            if (!GM_getValue(storageKey)) {
+                                // 개별 키로 저장 (예: "RULE_STSK": ["FANZA_DIGITAL", "h_1605", "zero5"])
+                                GM_setValue(storageKey, learnedRule);
+                                console.log(`%c[개별 학습 성공] ${prefix} 패턴이 ${storageKey}에 저장되었습니다.`, "color: cyan; font-weight: bold;");
+                            }
+                        }
+                        break;
                     }
                 }
-
                 // 신규 URL이 없거나 존재하지 않을 경우, 기존 CoverImage 검토
                 if (!finalCoverImage && CoverImage && !/imagetwist\.com/.test(CoverImage)) {
                     finalCoverUrl = CoverImage;
@@ -3250,7 +3338,6 @@ async function CopyLink() {
                         collected = collected.concat(coverLink);
                     }
                 }
-                // --------------------------------------
 
                 allLinks = collected;
 
