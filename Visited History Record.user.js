@@ -412,6 +412,9 @@ const hidefporn = {
     MatchUrl: 'hidefporn.ws',
     root: document.querySelector('div.side_main'),
     exlink: 'div.story-head h2.title a',
+    extraLink: 'div.story-cont a.shortstory-img img',
+    closestTag: 'div.shortstory',
+    SearchATag: 'div.story-head h2.title a',
     Class: null,
     RegexElement: /\/\d{3,}.*.html/,
     OpenTab: false,
@@ -709,9 +712,11 @@ const GetTitle = el => el.textContent.trim()
     .replace(/\[.+?\]\s?$/, '')
     .replace(/\.mp4-\w+/i, '')
     .replace(/\s-\s/g, ' ')
-    .replace(/^.+\.(com|net)(:|\s-)\s/, '')
-    .replace(/\s+/, ' ')
-    .replace(/[,':|]/g, '')    
+    .replace(/^.+\.(com|net)(:|\s-)\s/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/,(?!\s)/g, ' ')
+    .replace(/\ss\s/gi, '')
+    .replace(/[,':|]/g, '')
     .trim();
 
 const GetID = el => {
@@ -753,10 +758,10 @@ function checkVisited(node = Active.root) {
         for (let el of checkLists) {
             let linkInfo;
             el.classList.add('RecordHistory');
-            if (authorEX.test(el.closest('tr')?.querySelector('td.author cite a')?.textContent)){
+            if (authorEX.test(el.closest('tr')?.querySelector('td.author cite a')?.textContent)) {
                 el.classList.add('Skip');
                 continue;
-            } 
+            }
             if (SkipWorld.test(el.textContent) || SkipModelEX.test(el.textContent) || WarningEX.test(el.textContent)) {
                 el.classList.add('Skip');
                 continue;
@@ -769,7 +774,7 @@ function checkVisited(node = Active.root) {
                 linkInfo = GetTitle(el);
             }
             const linkInfoLower = linkInfo.toLowerCase();
-            let T = visited.find(e => e.toLowerCase().includes(linkInfoLower));
+            let T = visited.filter(e => e !== 'NewItem').find(e => e.toLowerCase().includes(linkInfoLower));
 
             if (T) {
                 let X;
@@ -983,8 +988,8 @@ async function Start() {
 
         let target = e.target;
 
-        if (!target.classList.contains('RecordHistory')) {
-            if (Active.extraLink && target.nodeName === 'IMG') {
+        if (!target.classList.contains('RecordHistory') && Active.extraLink) {
+            if (target.nodeName === 'IMG' || target.nodeName === 'A') {
                 target = e.target.closest(Active.closestTag).querySelector(Active.SearchATag);
             } else {
                 switch (Active.MatchUrl) {
