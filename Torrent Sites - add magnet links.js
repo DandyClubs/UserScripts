@@ -188,7 +188,7 @@ let cachedFontSize = null;
 
 const siteConfigs = {
     "xxxclub.to": {
-        tableSelector: "div.browsetableinside",
+        tableSelector: "div.browsetableinside, div.similarinside, div.divtableinside",
         cellSelectorInitial: "ul > li > span:nth-child(2)",
         cellSelectorNew: "ul > li:not(:first-child) > span:nth-child(3)",
         observerTagName: "LI",
@@ -245,7 +245,17 @@ async function modCell(cell) {
     const url = config.getHref(cell);
     const Key = config.getKey(cell, url);
     const stored = await magnetManager.get(Key);
-    let magnet = stored?.M || '';
+    let magnet;
+    if (stored) {
+        if (stored?.M && typeof stored.M === "object" && Object.keys(stored.M).length === 0) {
+            await magnetManager.remove(Key);
+            magnetManager.getAllKeys().then(keys => stateCounter.textContent = keys.length);            
+            magnet = '';
+        }else{
+            magnet = stored?.M;
+        }                
+    }
+    
 
     cell.classList.add('dl-buttons');
     cell.innerHTML = `
