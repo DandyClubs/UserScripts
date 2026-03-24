@@ -513,7 +513,7 @@ const BASE_URLS = {
 };
 
 const DB_PREFIX_RULES = {
-    // [SOD/MONO 계열] - awsimgsrc.dmm.com
+    // [SOD 계열] - awsimgsrc.dmm.com
     "HYPN": ["FANZA_MONO", "1", "raw"], "KIRE": ["FANZA_MONO", "1", "raw"], "KUSE": ["FANZA_MONO", "1", "raw"],
     "MASD": ["FANZA_MONO", "1", "raw"], "MMGH": ["FANZA_MONO", "1", "raw"], "MOGI": ["FANZA_MONO", "1", "raw"],
     "SCDA": ["FANZA_MONO", "1", "raw"], "SCDE": ["FANZA_MONO", "1", "raw"], "SDAB": ["FANZA_MONO", "1", "raw"],
@@ -526,13 +526,13 @@ const DB_PREFIX_RULES = {
     "START": ["FANZA_MONO", "1", "raw"], "STKO": ["FANZA_MONO", "1", "raw"], "TIGR": ["FANZA_MONO", "1", "raw"],
     "ABF": ["FANZA_MONO", "118", "raw"],
 
-    // [800/Prestige 계열] - pics.dmm.co.jp (3자리 패딩)
+    // [Prestige 계열] - pics.dmm.co.jp (3자리 패딩)
     "ABS": ["DMM_MONO", "118", "zero3"], "ABP": ["DMM_MONO", "118", "zero3"], "ABW": ["DMM_MONO", "118", "zero3"],
     "EZD": ["DMM_MONO", "118", "zero3"], "CHN": ["DMM_MONO", "118", "zero3"], "FTN": ["DMM_MONO", "118", "zero3"],
     "ABY": ["DMM_MONO", "118", "zero3"], "DOM": ["DMM_MONO", "118", "zero3"], "GVH": ["DMM_MONO", "13", "zero3"],
     "GVG": ["DMM_MONO", "13", "zero3"], "GG": ["DMM_MONO", "13", "zero3"],
 
-    // [NORMAL/DIGITAL 계열 - h_, n_] - awsimgsrc.dmm.co.jp (5자리 패딩)
+    // [DIGITAL 계열 - h_, n_] - awsimgsrc.dmm.co.jp (5자리 패딩)
     "AMBI": ["FANZA_DIGITAL", "h_237", "zero5"], "AMBS": ["FANZA_DIGITAL", "h_237", "zero5"],
     "CLOT": ["FANZA_DIGITAL", "h_237", "zero5"], "NACR": ["FANZA_DIGITAL", "h_237", "zero5"],
     "ZMAR": ["FANZA_DIGITAL", "h_237", "zero5"], "BANK": ["FANZA_DIGITAL", "h_1495", "zero5"],
@@ -550,7 +550,7 @@ const DB_PREFIX_RULES = {
     "STSK": ["FANZA_DIGITAL", "h_1605", "zero5"], "HMRK": ["FANZA_DIGITAL", "h_1711", "zero5"],
     "BEAF": ["FANZA_DIGITAL", "h_1615", "zero5"],
 
-    // [기타 NORMAL 숫자형]
+    // [기타 숫자형]
     "AD": ["FANZA_DIGITAL", "24", "zero5"], "AKB": ["FANZA_DIGITAL", "55", "zero5"],
     "ASEX": ["FANZA_DIGITAL", "1", "zero5"], "BLD": ["FANZA_DIGITAL", "24", "zero5"],
     "BOKO": ["FANZA_DIGITAL", "1", "zero5"], "CAD": ["FANZA_DIGITAL", "24", "zero5"],
