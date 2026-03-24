@@ -774,7 +774,7 @@ function checkVisited(node = Active.root) {
                 linkInfo = GetTitle(el);
             }
             const linkInfoLower = linkInfo.toLowerCase();
-            let T = visited.filter(e => e !== 'NewItem').find(e => e.toLowerCase().includes(linkInfoLower));
+            let T = visited.find(e => e.toLowerCase().includes(linkInfoLower));
 
             if (T) {
                 let X;
@@ -947,12 +947,7 @@ async function SaveVisited(el) {
         if (Active.SaveMode === 'indexedDB') {
             await VisitedManager.add(linkInfo, AddDate);
         } else if (Active.SaveMode === 'ScriptStorage') {
-            GM_setValue(linkInfo, AddDate);
-            // 불필요한 중복 설정 방지 (옵션)
-            const currentNewItem = GM_getValue('NewItem');
-            if (currentNewItem !== linkInfo) {
-                GM_setValue('NewItem', linkInfo);
-            }
+            GM_setValue(linkInfo, AddDate);            
         }
         console.log('linkInfo:', linkInfo, '\nAddDate:', AddDate);
         VisitedCSS(el, AddDate);
