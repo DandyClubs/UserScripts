@@ -715,7 +715,7 @@ const GetTitle = el => el.textContent.trim()
     .replace(/^.+\.(com|net)(:|\s-)\s/g, '')
     .replace(/\s+/g, ' ')
     .replace(/,(?!\s)/g, ' ')
-    .replace(/\ss\s/gi, ''s ')
+    .replace(/\ss\s/gi, "'s ")
     .replace(/[,:|]/g, '')
     .trim();
 

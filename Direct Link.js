@@ -383,8 +383,10 @@ function removeUriWithParam(baseUrl, key) {
     try {
         const Url = new URL(baseUrl);
         const urlParams = new URLSearchParams(Url.search);
-        urlParams.delete(key);
-        Url.search = urlParams.toString();
+        const keys = Array.isArray(key) ? key : [key];
+
+        keys.forEach(k => urlParams.delete(k));
+        Url.search = urlParams.toString() ? `?${urlParams.toString()}` : '';
         return Url.toString();
     } catch (err) {
         console.error(err);
@@ -573,14 +575,17 @@ const genericHandlers = {
         run: (link) => { link.href = link.href.replace(/turb\.(cc|pw)/, 'turbobit.net'); }
     },
     'dmm': {
-        selector: 'a[href*="al.dmm.co.jp/"]',
-        run: (link) => { link.href = getRedirectUrl(link.href, "lurl"); }
+        selector: 'a[href*="al.dmm.co.jp/"], a[href*="al.fanza.co.jp/"]',
+        run: (link) => {
+            const url = getRedirectUrl(link.href, "lurl");
+            link.href = removeUriWithParam(url, ['ch', 'ch_id', 'af_id']);
+        }
     },
     'affiliate_clean': {
         selector: 'a[href*="?aff"], a[href*="?ref="], a[href*="&affuid="]',
         run: (link) => {
             link.href = link.href.replace(/(\?ref=|\&affuid=).*/, '');
-            if (link.href.includes('aff')) link.href = removeUriWithParam(link.href, link.href.includes('affi') ? 'affi' : 'aff');
+            if (link.href.includes('aff')) link.href = removeUriWithParam(link.href, ['affi', 'aff']);
         }
     },
     'duga': {
@@ -691,7 +696,7 @@ async function startQueueProcessor() {
         const item = requestQueue.shift();
         try {
             await item.handler.run(item.link);
-            item.link.setAttribute('Direct', 'true');            
+            item.link.setAttribute('Direct', 'true');
         } catch (e) {
             console.error('Async task failed:', e);
         }
@@ -717,7 +722,7 @@ function processLink(link) {
 
     if (!handler) return;
 
-    if (handler.isAsync) {        
+    if (handler.isAsync) {
         requestQueue.push({ link, handler });
         startQueueProcessor();
     } else {
