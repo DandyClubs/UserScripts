@@ -3150,9 +3150,9 @@ async function CopyLink() {
 
                 // --- 1단계: 이미 고화질 주소(awsimgsrc)를 가지고 있는 경우 (즉시 학습 및 확정) ---
                 if (CoverImage && CoverImage.includes('awsimgsrc.dmm')) {
-                    finalCoverImage = CoverImage;
+                    finalCoverImage = CoverImage;                    
                     if (!DB_PREFIX_RULES[prefix] && !GM_getValue(prefix)) {
-                        saveRuleFromUrl(CoverImage, prefix, pureNum); // URL 파싱 저장 함수 (아래 별도 정의)
+                        saveRuleFromUrl(CoverImage, prefix); // URL 파싱 저장 함수 (아래 별도 정의)
                     }
                 }
 
@@ -3160,19 +3160,17 @@ async function CopyLink() {
                 if (!finalCoverImage) {
                     const CURRENT_RULES = getMergedRules(); // 정적 + 학습된 규칙 병합 함수
                     if (CURRENT_RULES[prefix]) {
-                        const [category, extraNum, format] = CURRENT_RULES[prefix];
+                        const [category, extraPrefix] = CURRENT_RULES[prefix];
                         const targetBaseUrl = BASE_URLS[category] || BASE_URLS["FANZA_DIGITAL"];
-                        let formattedNum;
-                        if (format.startsWith('zero')) {
-                            const len = parseInt(format.slice(4), 10);
-                            formattedNum = pureNum.padStart(len, '0');                            
-                        } else {
-                            formattedNum = pureNum; // raw
-                        }
-                        const fileName = `${extraNum}${prefix.toLowerCase()}${formattedNum}${extraSuffix}`;
 
+                        // 현재 코드의 대전제: DIGITAL은 5자리, 그 외는 원본
+                        const formattedNum = (category === "FANZA_DIGITAL")
+                            ? pureNum.padStart(5, '0')
+                            : pureNum;
+
+                        const fileName = `${extraPrefix}${prefix.toLowerCase()}${formattedNum}${extraSuffix}`;
                         finalCoverImage = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
-                        console.log(`%c[규칙 기반 확정] ${prefix}는 이미 아는 규칙이라 즉시 생성함`, "color: #9E9E9E;");
+                        console.log(`%c[규칙 기반 확정] ${prefix} → ${category}`, "color: #9E9E9E;");
                     }
                 }
 
@@ -3192,7 +3190,7 @@ async function CopyLink() {
                             if (learnedRule && !DB_PREFIX_RULES[prefix]) {
                                 if (!GM_getValue(prefix)) {
                                     GM_setValue(prefix, learnedRule);
-                                    console.log(`%c[학습 완료] ${prefix} 저장됨`, "color: cyan;");
+                                    console.log(`%c[학습 완료] ${prefix} ${learnedRule} 저장됨`, "color: cyan;");
                                 }
                             }
                             break;
