@@ -1077,9 +1077,10 @@ const siteConfigs = [
                 else DownloadArea = document.querySelectorAll('.entry-content > p');
 
                 if (is8kcosplay) CoverImage = '';
-                else if (!isJavfree) {
-                    const imgTag = DownloadArea[0]?.querySelector('p > img');
-                    CoverImage = imgTag?.getAttribute('data-lazy-src') ?? imgTag?.src ?? '';
+                else if (isBlogjav) {
+                    const imgTag = DownloadArea[0]?.parentElement.querySelector('p > img');
+                    console.log('imgTag:', imgTag);
+                    CoverImage = imgTag?.getAttribute('data-src') ?? imgTag?.src ?? '';
                 }
 
                 let rawTitle = copyOffsetArea?.textContent.trim() ?? '';
@@ -3176,11 +3177,12 @@ async function CopyLink() {
 
                 // --- 3단계: 규칙도 없는 생소한 브랜드인 경우 (후보군 생성 및 이미지 체크) ---
                 if (!finalCoverImage) {
-                    console.log(`%c[미등록 브랜드 탐색] ${prefix} 패턴 추론 시작...`, "color: #FF9800;");
+                    console.log(`%c[미등록 브랜드 탐색] ${prefix} 패턴 추론 시작...${CoverImage || ''}`, "color: #FF9800;");
                     const candidates = await generateUrlCandidates(code, CoverImage || '');
 
                     for (const url of candidates) {
                         const result = await checkImageExistence(url);
+                        console.log(`%c[미등록 브랜드 탐색 결과] ${prefix} ${CoverImage || ''} ${result}`, "color: #FF9800;");
 
                         if (result.exists) {
                             finalCoverImage = url;                            
