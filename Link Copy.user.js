@@ -498,7 +498,7 @@ const JapaneseChar = /[ぁ-んァ-ン一-龯]/;
 const ThaiChar = /[ๅภถุึคตจขชๆไำพะัีรนยบลฃฟหกดเ้่าสวงผปแอิืทมใฝ๑๒๓๔ู฿๕๖๗๘๙๐ฎฑธํ๊ณฯญฐฅฤฆฏโฌ็๋ษศซฉฮฺ์ฒฬฦ]/;
 const SearchID = /([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2,3}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})(.*)/;
 const MatchID = /^([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2,3}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}|FC2.+\d{6.8})(.*)/;
-const SearchFC2ID = /(^FC2.+\d{6,7})(.*)/;
+const SearchFC2ID = /(^FC2.+\d{6,7})(.*)/i;
 const SearchIDRegExp = /^(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})|T\d{2}-\d{3})(?!(C_\d+|file\d+))(.*)$/;
 const K2SRegExp = /(.*k2s\.cc\/file\/)(.*\/?)/;
 const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/;
@@ -3137,7 +3137,7 @@ async function CopyLink() {
 
         if (collected.length > 0) {
             const codePattern = /([A-Z]{2,6})-?(\d+)([a-z]*)?/i;
-            const match = CopyTitle.match(codePattern);
+            const match = SearchFC2ID.test(CopyTitle) ? null : CopyTitle.match(codePattern);
 
             if (match) {
                 const code = match[0];
@@ -3162,8 +3162,8 @@ async function CopyLink() {
                         const targetBaseUrl = BASE_URLS[category] || BASE_URLS["FANZA_DIGITAL"];
                         let formattedNum;
                         if (format.startsWith('zero')) {
-                            const len = parseInt(format.replace('zero', ''), 10);
-                            formattedNum = pureNum.padStart(len, '0');
+                            const len = parseInt(format.slice(4), 10);
+                            formattedNum = pureNum.padStart(len, '0');                            
                         } else {
                             formattedNum = pureNum; // raw
                         }
