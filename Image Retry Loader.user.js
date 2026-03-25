@@ -268,7 +268,7 @@
                 return;
             }
 
-            if (!exists && !imgElementSrc.startsWith('https://wsrv.nl')) {
+            else if (!exists && !imgElementSrc.startsWith('https://wsrv.nl')) {
                 console.log('wsrv.nl 프록시 서비스 사용', imgElement, reason);
                 imgElement.setAttribute('src', `https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`);
                 /*

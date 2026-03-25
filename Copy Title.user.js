@@ -1116,8 +1116,9 @@ function assembleFinalTitle(data) {
     }
 
     // 이중 공백 제거, 선행 하이픈 제거 후 트림
-    finalTitle = finalTitle.replace('manyvids', 'ManyVids')
-        .replace('onlyfans', 'OnlyFans')
+    finalTitle = finalTitle.replace(/manyvids/gi, 'ManyVids')
+        .replace(/onlyfans/gi, 'OnlyFans')
+        .replace(/pornhub/gi, 'PornHub')
         .replace(/^\s?-\s/, '')
         .replace(/\((\s+)?\)/g, '')
         .replace(/\[(\s+)?\]/g, '')
