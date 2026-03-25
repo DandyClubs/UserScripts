@@ -248,7 +248,7 @@
             let retryCount = parseInt(imgElement.dataset.retryCount);
 
             if (retryCount >= MAX_RETRY_COUNT) {                
-                console.warn(`[ImageRetry] 재시도 횟수 ${retryCount} 초과 → wsrv.nl 프록시 서비스 사용 ${imgElement}`);
+                console.warn(`[ImageRetry] 재시도 횟수 ${retryCount} 초과 → wsrv.nl 프록시 서비스 사용 https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`);
                 imgElement.src = `https://wsrv.nl/?url=${encodeURIComponent(getPureUrl(imgElement.src))}`;
                 return;
             }
@@ -268,7 +268,7 @@
             }
 
             else if (!exists && !imgElementSrc.startsWith('https://wsrv.nl')) {
-                console.warn(`${reason} → wsrv.nl 프록시 서비스 사용 ${imgElement}`);
+                console.warn(`${reason} → wsrv.nl 프록시 서비스 사용 https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`);
                 imgElement.setAttribute('src', `https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`);
                 /*
                 만약 weserv.nl이 느리다면 아래 주소로 교체해서 테스트해 보세요:;
