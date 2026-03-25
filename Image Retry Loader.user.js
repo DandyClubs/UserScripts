@@ -247,9 +247,8 @@
             const imgElement = item.imgElement;
             let retryCount = parseInt(imgElement.dataset.retryCount);
 
-            if (retryCount >= MAX_RETRY_COUNT) {
-                console.warn(`[ImageRetry] 최대 재시도 횟수 초과: `, imgElement);
-                console.log('wsrv.nl 프록시 서비스 사용', imgElement, retryCount);
+            if (retryCount >= MAX_RETRY_COUNT) {                
+                console.warn(`[ImageRetry] 재시도 횟수 ${retryCount} 초과 → wsrv.nl 프록시 서비스 사용 ${imgElement}`);
                 imgElement.src = `https://wsrv.nl/?url=${encodeURIComponent(getPureUrl(imgElement.src))}`;
                 return;
             }
@@ -261,7 +260,7 @@
             }
             const { exists, reason, status = null } = await checkImageExistenceWithGM(imgElement.getAttribute('src'));
             if (!exists && (reason === 'client_error' || reason === 'server_error')) {
-                console.log(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
+                console.warn(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
                 failedImagesSet.add(getPureUrl(imgElement.src));
                 saveBadLink(imgElement.src);
                 imgElement.dataset.isImageState = "false";
@@ -269,7 +268,7 @@
             }
 
             else if (!exists && !imgElementSrc.startsWith('https://wsrv.nl')) {
-                console.log('wsrv.nl 프록시 서비스 사용', imgElement, reason);
+                console.warn(`${reason} → wsrv.nl 프록시 서비스 사용 ${imgElement}`);
                 imgElement.setAttribute('src', `https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`);
                 /*
                 만약 weserv.nl이 느리다면 아래 주소로 교체해서 테스트해 보세요:;
@@ -284,7 +283,7 @@
 
             imgElement.dataset.retryCount = ++retryCount;
             imgElement.setAttribute('src', imgElementSrc);
-            console.log(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement);
+            console.warn(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement);
             function retryError() {                
                 if (!retrySet.has(getPureUrl(this.src))) {
                     enqueueFailedImage(this, 'retry_error');
