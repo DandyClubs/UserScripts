@@ -3130,9 +3130,8 @@ async function CopyLink() {
     SkipTitle = [];
 
 
-    console.log('CopyLink: ', { pageLinksDB });
-    // 1) If no temporary links waiting, gather fresh links
-    // 1) If no temporary links waiting, gather fresh links
+    console.log('CopyLink Step: ', { pageLinksDB });
+    // 1) If no temporary links waiting, gather fresh links    
     if (pageLinksDB.length === 0) {
         let collected = await CollectionLinks(DownloadArea) || [];
 
@@ -3161,7 +3160,13 @@ async function CopyLink() {
                     if (CURRENT_RULES[prefix]) {
                         const [category, extraNum, format] = CURRENT_RULES[prefix];
                         const targetBaseUrl = BASE_URLS[category] || BASE_URLS["FANZA_DIGITAL"];
-                        const formattedNum = (format === "zero3") ? pureNum.padStart(3, '0') : pureNum.padStart(5, '0');
+                        let formattedNum;
+                        if (format.startsWith('zero')) {
+                            const len = parseInt(format.replace('zero', ''), 10);
+                            formattedNum = pureNum.padStart(len, '0');
+                        } else {
+                            formattedNum = pureNum; // raw
+                        }
                         const fileName = `${extraNum}${prefix.toLowerCase()}${formattedNum}${extraSuffix}`;
 
                         finalCoverImage = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
@@ -3195,6 +3200,9 @@ async function CopyLink() {
                         }else{
                             console.log(`%c[이미지 주소 오류] ${url}`, "color: #FF5722;");
                         }                                                
+                    }
+                    if (!finalCoverImage){
+                        console.log(`%c[미등록 브랜드 탐색 실패] ${prefix} ${CoverImage || ''}`, "color: #FF9800;");
                     }
                 }
 
