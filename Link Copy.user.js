@@ -993,7 +993,7 @@ const siteConfigs = [
                 )];
 
                 let SearchDB = [];
-                const CheckDB = (url, DB) => DB.some(s => s.href.includes(url));
+                const TestDB = (url, DB) => DB.some(s => s.href.includes(url));
 
 
                 for (const x of uniqueTitle) {
@@ -1031,7 +1031,7 @@ const siteConfigs = [
                         if (linkGroups[groupName].length > 0) {
                             // 해당 그룹의 모든 링크를 추가합니다.
                             for (const foundLink of linkGroups[groupName]) {
-                                if (!CheckDB(foundLink.href, SearchDB)) {
+                                if (!TestDB(foundLink.href, SearchDB)) {
                                     SearchDB.push(foundLink);
                                 }
                             }
@@ -2421,7 +2421,7 @@ async function mainIcon(Run) {
             localStorage.setItem('AutoClose', JSON.stringify(true));
             localStorage.setItem('AutoCopy', JSON.stringify(true));
             if (DownloadArea?.length > 0) {
-                const hasCopied = await CheckDB(listToDo(DownloadArea), 'click');
+                const hasCopied = await CheckDB(listToDo(DownloadArea), 'AutoCloseIcon Click');
                 if (hasCopied.length === 0) {
                     CopyGo(SkipTitle);
                 }
@@ -2440,7 +2440,7 @@ async function mainIcon(Run) {
             AutoCopyIcon.classList.add('On');
             localStorage.setItem('AutoCopy', JSON.stringify(true));
             if (DownloadArea?.length > 0) {
-                const hasCopied = await CheckDB(listToDo(DownloadArea), 'click');
+                const hasCopied = await CheckDB(listToDo(DownloadArea), 'AutoCopyIcon Click');
                 if (hasCopied.length === 0) {
                     CopyGo(SkipTitle);
                 }
@@ -3030,6 +3030,7 @@ async function RemoveDB(listToDelete) {
 
 async function CheckDB(listTo, fromStep) {
     console.log(`CheckDB:`, listTo, fromStep);
+    indexedDBCache = await indexedDBUpdate();
     let isMatchFound = [];
 
     const minusElement = document.querySelector('.Minus');
@@ -3263,7 +3264,7 @@ async function CopyLink() {
     const noticeEl = document.querySelector('.CopyNotice .copyText');
     noticeEl.textContent = noticeLines.join("\n");
 
-    console.log('CopyLink: ', { indexedDBCache });
+    console.log('CopyLink Step: ', { indexedDBCache });
 
     await sleep(100);
 
