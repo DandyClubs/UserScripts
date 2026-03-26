@@ -6,7 +6,6 @@
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
 // @match        https://video.dmm.co.jp/av/maker/*
-// @require      https://cdn.jsdelivr.net/npm/inko@1.1.1/inko.min.js
 // @resource     MAKER_MAP https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/DMM_MakerMap_2026-03-26.json
 // @grant        GM_getResourceText
 // @grant        GM_addStyle
@@ -50,6 +49,7 @@
     const mutCallback = () => {
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             let hasNew = false;
+            pauseState = true;
             makerLabelCode = GetParam(PageURL(), 'maker');
             makerLabel = getMakerLabel(makerLabelCode);
             rawMediaType = GetParam(PageURL(), 'media_type');
@@ -425,7 +425,7 @@
                 <button id="delSelected" style="background:#444; color:#ff4d4d; border:none; padding:4px 8px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; white-space:nowrap; flex-shrink:0;">선택 삭제</button>
             </div>
             <div style="display:flex; gap:5px; width:100%;">
-                <input type="text" id="filterInput" placeholder="예: abc or /abc/" style="flex:1; min-width:0; background:#111; color:#00FF41; border:1px solid #444; padding:5px; font-size:12px; border-radius:3px; outline:none; font-family:monospace; ime-mode:disabled;">
+                <input type="text" id="filterInput" placeholder="예: abc or /abc/" style="flex:1; min-width:0; background:#111; color:#00FF41; border:1px solid #444; padding:5px; font-size:12px; border-radius:3px; outline:none; font-family:monospace;">
                 <button id="clearBtn" style="background:#666; color:#fff; border:none; padding:0 8px; font-size:11px; cursor:pointer; border-radius:3px; white-space:nowrap;">X</button>
                 <button id="searchBtn" style="background:#00FF41; color:#000; border:none; padding:0 12px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; white-space:nowrap;">찾기</button>
             </div>
@@ -442,23 +442,11 @@
 
         const filterInput = controlBar.querySelector('#filterInput');
         const searchBtn = controlBar.querySelector('#searchBtn');
-        const inko = new Inko();
+        
         searchBtn.onclick = () => { filterText = filterInput.value.trim(); controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
 
-        filterInput.onkeydown = (e) => { if (e.key === 'Enter') searchBtn.click(); };
+        filterInput.onkeydown = (e) => { if (e.key === 'Enter') searchBtn.click(); };        
 
-        filterInput.addEventListener('keydown', function (e) {
-            const v = this.value;
-            //const originalValue = e.target.value;
-
-            // 1. 한글을 영문으로 변환 (예: "ㅁㅠㅊ" -> "abc", "가나" -> "rksk")
-            let charEN = inko.ko2en(v);
-
-            // 값이 바뀌었을 때만 업데이트
-            if (v !== charEN) {
-                e.target.value = charEN;
-            }
-        });
         controlBar.querySelector('#clearBtn').onclick = () => { filterInput.value = ""; filterText = ""; controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
 
         controlBar.querySelector('#selectAll').onclick = (e) => {
