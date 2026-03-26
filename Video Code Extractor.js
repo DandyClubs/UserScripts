@@ -1,24 +1,50 @@
 // ==UserScript==
 // @name         Video Code Extractor
 // @namespace    http://tampermonkey.net/
-// @version      2.4.3
+// @version      2.5
 // @description  개수 표시 기능 추가 (선택/리스트/전체)
-// @author       코딩 파트너
-// @match        https://video.dmm.co.jp/*
-// @exclude      https://video.dmm.co.jp/anime/*
+// @author       DancyClubs
+// @match        https://video.dmm.co.jp/av/list/?maker*
 // @require      https://cdn.jsdelivr.net/npm/inko@1.1.1/inko.min.js
-// @grant        none
+// @grant        GM_addStyle
+// @run-at       document-body
+// @noframes
 // ==/UserScript==
 
 (function () {
     'use strict';
 
+    GM_addStyle(`
+    .videocodeextractor {
+        display: flex !important;
+    }
+    .videocodeextractor div::-webkit-scrollbar { width: 6px; }
+    .videocodeextractor div::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
+    `);
+
+    const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
     const KEY_PREFIX = "DMM_";
+    const imageSelector = 'main ul li a[href*="/av/content/?id="] picture source[srcset^="https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/"]';
+    const makerSelector = 'main a[href*="/av/list/?maker"]';
+    const makerLabel = document.querySelector(makerSelector)?.innerText.trim();
+    const makerLabelCode = GetParam(PageURL, 'maker');
+    const rawMediaType = GetParam(PageURL, 'media_type');
     let listContainer = null;
     let countStatus = null; // 개수를 표시할 엘리먼트
     let currentSessionCodes = new Set();
     let isShowAllMode = false;
     let filterText = "";
+
+
+    function GetParam(url, paramName) {
+        // 1. URL 객체를 사용하여 파라미터를 추출 (현대적인 방식)
+        const urlObj = new URL(url);
+        const params = new URLSearchParams(urlObj.search);
+        const result = params.get(paramName);
+
+        // 2. 결과값이 있으면 디코딩하여 반환
+        return result?.toUpperCase() || '';
+    }
 
     // --- 유틸리티: 개수 업데이트 함수 ---
     function updateCounts() {
@@ -57,7 +83,7 @@
         if (!majorsLabel.test(cleanUrl)) return false;
 
         const skipPatterns = [
-            /digital\/video\/(h_[0-9]*?)([vpj])(\d{3,})([a-z]*?)\//,
+            /digital\/video\/(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)\//,
             /digital\/video\/\d+jdxa\d+/i, // 예: jdxa 관련 패턴 스킵
         ];
 
@@ -67,11 +93,12 @@
 
         // --- 추출 패턴 (예제 주석 복구) ---
         const extractPatterns = [
-            /digital\/video\/([a-z]*?)(dvaj|dvajbx)(\d{5,})(.*?)\//i,                // DVAJ 패턴
-            /digital\/video\/(\d{2})([t]\d{1})(\d{5,})(.*?)\//i,                     // 55t3800059 대응 (T+숫자2자리 고정)
-            /digital\/video\/(h_[h0-9]*?)(ss)(\d{3,})([a-z]*?)\//i,                  // h_113h113 + ss + 00003 + rai 대응
-            /digital\/video\/(h_[h0-9]*?)([a-z]{3,})(\d{3,})([a-z]*?)\//i,           // h_1515bggb00008 대응
-            /digital\/video\/([0-9]*?)([a-z]+)(\d+)(.*?)\//i                         // 패턴 B: it001 또는 snos00136 형태
+            /digital\/video\/([a-z]*?)(dvaj|dvajbx)(\d{5,})(.*?)\//,                // DVAJ 패턴
+            /digital\/video\/(\d{2})(kt)(\d{5,})(.*?)\//,              // 47kt00308
+            /digital\/video\/(\d{2})([t]\d{1})(\d{5,})(.*?)\//,                           // 55t3800059 대응 (T+숫자2자리 고정)
+            /digital\/video\/(h_[h0-9]*?)(ss)(\d{3,})([a-z]*?)\//,                  // h_113h113 + ss + 00003 + rai 대응
+            /digital\/video\/(h_[h0-9]*?)([a-z]{3,})(\d{3,})([a-z]*?)\//,           // h_1515bggb00008 대응
+            /digital\/video\/([0-9]*?)([a-z]+)(\d+)(.*?)\//,                         // 패턴 B: it001 또는 snos00136 형태
         ];
 
         let match = null;
@@ -82,13 +109,13 @@
             const padLen = `zero${match[3].length}`;
             const suffix = match[4];
             const displayCode = code;
-            const uniqueKey = `${KEY_PREFIX}${displayCode}_${prefixMatch}_${padLen}_${suffix}`;
+            const uniqueKey = `${KEY_PREFIX}${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
 
             if (!localStorage.getItem(uniqueKey)) {
                 currentSessionCodes.add(uniqueKey);
                 localStorage.setItem(uniqueKey, JSON.stringify({
                     displayCode: displayCode,
-                    data: ["FANZA_DIGITAL", prefixMatch, padLen, suffix],
+                    data: ["FANZA_DIGITAL", prefixMatch, padLen, suffix, makerLabel, rawMediaType],
                     origin: cleanUrl
                 }));
                 return true;
@@ -136,7 +163,7 @@
             row.innerHTML = `
                 <input type="checkbox" class="item-check" data-key="${key}" style="margin-left:5px; width:15px; height:15px; cursor:pointer; accent-color:#00FF41; appearance:auto;">
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; cursor:help;" title="${itemData.origin}">
-                <a href="${itemPageUrl}" target="_blank"><span style="color:#00FF41; font-family:monospace; font-size:12px;">${itemData.displayCode}</span></a>                    
+                <a href="${itemPageUrl}" target="_blank"><span style="color:#00FF41; font-family:monospace; font-size:12px;">${itemData.displayCode}</span></a>
                     ${detailLabel ? `<span style="color:white; font-size:10px; margin-left:5px;">[</span><span style="color:#00FF41; font-size:10px;">${detailLabel}</span><span style="color:white; font-size:10px;">]</span>` : ''}
                 </div>
                 <button class="del-btn" style="background:none; border:none; color:#ff4d4d; cursor:pointer; font-weight:bold; font-size:16px; padding:0 5px;">×</button>
@@ -161,6 +188,7 @@
 
     function createUI() {
         const panel = document.createElement('div');
+        panel.classList.add('videocodeextractor');
         panel.style = "position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; background:rgba(15,15,15,0.95); padding:12px; border-radius:12px; width:260px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif;";
         panel.innerHTML = `<div style='font-weight:bold; font-size:13px; margin-bottom:5px; text-align:center; color:#2196F3;'>DMM CODE TRACKER</div>`;
 
@@ -190,17 +218,19 @@
         const searchBtn = controlBar.querySelector('#searchBtn');
         const inko = new Inko();
         searchBtn.onclick = () => { filterText = filterInput.value.trim(); controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
-        
+
         filterInput.onkeydown = (e) => { if (e.key === 'Enter') searchBtn.click(); };
 
-        filterInput.addEventListener('input', (e) => {
-            const originalValue = e.target.value;
+        filterInput.addEventListener('input', function (e) {
+            const v = this.value;
+            //const originalValue = e.target.value;
 
             // 1. 한글을 영문으로 변환 (예: "ㅁㅠㅊ" -> "abc", "가나" -> "rksk")
-            let convertedValue = inko.ko2en(originalValue);
+            let charEN = inko.ko2en(v);
+
             // 값이 바뀌었을 때만 업데이트
-            if (originalValue !== convertedValue) {
-                e.target.value = convertedValue;
+            if (v !== charEN) {
+                e.target.value = charEN;
             }
         });
         controlBar.querySelector('#clearBtn').onclick = () => { filterInput.value = ""; filterText = ""; controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
@@ -251,7 +281,13 @@
             });
             if (!output) return alert("데이터가 없습니다.");
             const blob = new Blob([output], { type: "text/plain" });
-            saveAs(blob, `DMM_List_${new Date().toISOString().slice(0, 10)}.txt`);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `DMM_List_${new Date().toISOString().slice(0, 10)}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+
         };
         const clBtn = document.createElement('button'); clBtn.innerText = "초기화"; clBtn.style = "flex:1; padding:8px; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
         clBtn.onclick = () => { if (confirm("모든 데이터를 삭제하시겠습니까?")) { Object.keys(localStorage).filter(k => k.startsWith(KEY_PREFIX)).forEach(k => localStorage.removeItem(k)); currentSessionCodes.clear(); updateDisplayList(); } };
@@ -259,6 +295,7 @@
         panel.appendChild(btnContainer);
         document.body.appendChild(panel);
         updateDisplayList();
+        console.log('createUI Done!');
     }
 
     const mutCallback = (mutationsList) => {
@@ -266,17 +303,16 @@
         for (const { addedNodes } of mutationsList) {
             for (const node of addedNodes) {
                 if (!(node instanceof HTMLElement)) continue;
-                const sources = node.tagName === 'SOURCE' ? [node] : node.querySelectorAll('source');
-                sources.forEach(s => { if (processUrl(s.getAttribute('srcset'))) hasNew = true; });
+                const sources = node.tagName === 'source' ? [node] : node.querySelectorAll(source);
+                sources.forEach(s => { if (processUrl(s.getAttribute('srcset')?.split(' ')[0])) hasNew = true; });
             }
         }
         if (hasNew) updateDisplayList();
     };
 
     window.addEventListener('load', () => {
+        console.log('Start Video Code Extractor');
         createUI();
-        document.querySelectorAll('source').forEach(s => processUrl(s.getAttribute('srcset')));
-        updateDisplayList();
         const observer = new MutationObserver(mutCallback);
         observer.observe(document.body, { childList: true, subtree: true });
     });
