@@ -25,12 +25,14 @@
     const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
     const KEY_PREFIX = "DMM_";
     const imageSelector = 'main ul li a[href*="/av/content/?id="] picture source[srcset^="https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/"]';
-    const makerSelector = 'main a[href*="/av/list/?maker"]';
-    const makerLabel = document.querySelector(makerSelector)?.innerText.trim();
+    const makerSelector = 'main a[href*="/av/list/?maker"]';    
     const makerLabelCode = GetParam(PageURL, 'maker');
     const rawMediaType = GetParam(PageURL, 'media_type');
 
     const PROCESSED_CLASS = 'processed-marker';
+    const patternMemoryDB = new Set();
+
+    let makerLabel = ""; // 전역 변수로 관리
 
     let listContainer = null;
     let countStatus = null; // 개수를 표시할 엘리먼트
@@ -79,6 +81,25 @@
     const originalReplace = history.replaceState;
     history.replaceState = function () { originalReplace.apply(this, arguments); resetSessionCodes(); };
 
+
+    function initializeMakerLabel(retryCount = 0) {
+        const el = document.querySelector(makerSelector);
+        const label = el?.innerText.trim();
+
+        if (label) {
+            makerLabel = label;
+            console.log(`[VCE] 메이커 확인 완료: ${makerLabel}`);
+            // 라벨이 확보되었으므로, 초기 1회 스캔 실행
+            scanImages();
+        } else if (retryCount < 10) { // 최대 10초(10회) 동안 재시도
+            console.log(`[VCE] 메이커 라벨 대기 중... (${retryCount + 1}/10)`);
+            setTimeout(() => initializeMakerLabel(retryCount + 1), 2000);
+        } else {
+            makerLabel = "Unknown"; // 결국 못 찾으면 기본값
+            scanImages();
+        }
+    }
+
     function processUrl(srcset) {
         if (!srcset || !srcset.includes('https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/')) return false;
         const cleanUrl = srcset.split('?')[0];
@@ -94,6 +115,15 @@
             if (skipRegex.test(cleanUrl)) return false;
         }
 
+        const pathSegments = cleanUrl.split('/');
+        const contentId = pathSegments[pathSegments.length - 2];
+        if (!contentId) return false;
+
+        const maskedId = contentId.replace(/\d/g, '0');
+        const currentPattern = `${maskedId}_${makerLabelCode}_${rawMediaType}`;
+        if (patternMemoryDB.has(currentPattern)) return false;
+        
+        
         // --- 추출 패턴 (예제 주석 복구) ---
         const extractPatterns = [
             /digital\/video\/([a-z]*?)(dvaj|dvajbx)(\d{5,})(.*?)\//,                // DVAJ 패턴
@@ -113,6 +143,11 @@
             const suffix = match[4];
             const displayCode = code;
             const uniqueKey = `${KEY_PREFIX}${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
+            if (!makerLabel) {
+                setTimeout(() => processUrl(srcset), 1000);
+                return false;
+            }
+
 
             if (!localStorage.getItem(uniqueKey)) {
                 currentSessionCodes.add(uniqueKey);
@@ -120,9 +155,13 @@
                     displayCode: displayCode,
                     data: ["FANZA_DIGITAL", prefixMatch, padLen, suffix, makerLabel, rawMediaType],
                     origin: cleanUrl
-                }));
-                return true;
+                }));               
+                if (typeof currentPattern !== 'undefined') {
+                    patternMemoryDB.add(currentPattern);
+                }
+                return true;               
             }
+            
         }
         return false;
     }
