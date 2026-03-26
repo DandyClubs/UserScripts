@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Video Code Extractor
 // @namespace    http://tampermonkey.net/
-// @version      2.5
+// @version      3.0
 // @description  개수 표시 기능 추가 (선택/리스트/전체)
 // @author       DancyClubs
-// @match        https://video.dmm.co.jp/av/list/?maker=*&media_type=*
+// @match        https://video.dmm.co.jp/av/list/?maker=*
 // @require      https://cdn.jsdelivr.net/npm/inko@1.1.1/inko.min.js
 // @grant        GM_addStyle
 // @run-at       document-body
@@ -22,15 +22,18 @@
     .videocodeextractor div::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
     `);
 
-    const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+    const PageURL = () => window.location !== window.parent.location ? document.referrer : document.location.href;
     const KEY_PREFIX = "DMM_";
     const imageSelector = 'main ul li a[href*="/av/content/?id="] picture source[srcset^="https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/"]';
-    const makerLabelCode = GetParam(PageURL, 'maker');
+    const makerLabelCode = GetParam(PageURL(), 'maker');
     const makerSelector = `body div main a[href="/av/list/?maker=${makerLabelCode}"]`;
-    const rawMediaType = GetParam(PageURL, 'media_type');
+    const rawMediaType = GetParam(PageURL(), 'media_type');
 
     const PROCESSED_CLASS = 'processed-marker';
     const patternMemoryDB = new Set();
+
+    let alertStatus = null; // 상태 메시지용 엘리먼트
+    let pauseState = false; // 일시정지 상태
 
     let makerLabel = ""; // 전역 변수로 관리
 
@@ -40,6 +43,34 @@
     let isShowAllMode = false;
     let filterText = "";
 
+
+    const mutCallback = () => {
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=2d/.test(PageURL())) {
+            let hasNew = false;
+
+            // 1. selector에 해당하면서 아직 처리되지 않은(:not) 요소들만 한 번에 가져옴
+            // imageSelector가 img를 가리킨다면 해당 img들을, source를 가리킨다면 source들을 가져옵니다.
+            const targets = document.querySelectorAll(`${imageSelector}:not(.${PROCESSED_CLASS})`);
+
+            if (targets.length === 0) return;
+
+            targets.forEach(el => {
+                // 2. 즉시 마킹하여 다음 루프에서 중복 처리 방지
+                el.classList.add(PROCESSED_CLASS);
+
+                // 3. URL 추출 (img 태그는 src, source 태그는 srcset 우선)
+                const targetUrl = el.getAttribute('srcset') || el.getAttribute('src');
+
+                if (targetUrl && processUrl(targetUrl)) {
+                    hasNew = true;
+                }
+            });
+            // 4. 새로운 코드가 발견된 경우에만 UI 업데이트
+            if (hasNew) {
+                updateDisplayList();
+            }
+        }
+    };
 
     function GetParam(url, paramName) {
         // 1. URL 객체를 사용하여 파라미터를 추출 (현대적인 방식)
@@ -64,6 +95,16 @@
             <span>목록: ${currentListCount}</span> |
             <span style="color:#2196F3">전체: ${totalCount}</span>
         `;
+
+        if (alertStatus) {
+            if (!rawMediaType) {
+                alertStatus.innerHTML = `<div style="color:#FF9800; margin-bottom:5px; font-weight:bold;">⚠️ 2D를 선택하세요!</div>`;
+            } else if (!makerLabelCode || makerLabel === "Unknown") {
+                alertStatus.innerHTML = `<div style="color:#F44336; margin-bottom:5px; font-weight:bold;">❌ 페이지 주소가 맞지 않아 수집이 중단되었습니다.</div>`;
+            } else {
+                alertStatus.innerHTML = ""; // 정상일 경우 메시지 숨김
+            }
+        }
     }
 
     const resetSessionCodes = () => {
@@ -71,15 +112,27 @@
             currentSessionCodes.clear();
             updateDisplayList();
         }
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=2d/.test(PageURL())) {
+            pauseState = true;
+            const observer = new MutationObserver(mutCallback);
+        } else {
+            pauseState = false;
+        }
     };
 
     window.addEventListener('popstate', resetSessionCodes);
     window.addEventListener('hashchange', resetSessionCodes);
 
     const originalPush = history.pushState;
-    history.pushState = function () { originalPush.apply(this, arguments); resetSessionCodes(); };
+    history.pushState = function () {
+        originalPush.apply(this, arguments);
+        resetSessionCodes();        
+    };
     const originalReplace = history.replaceState;
-    history.replaceState = function () { originalReplace.apply(this, arguments); resetSessionCodes(); };
+    history.replaceState = function () { 
+        originalReplace.apply(this, arguments); 
+        resetSessionCodes(); 
+    };
 
 
     function initializeMakerLabel(retryCount = 0) {
@@ -231,6 +284,11 @@
         panel.style = "position:fixed; bottom:20px; right:20px; z-index:9999; display:flex !important; flex-direction:column; background:rgba(15,15,15,0.95); padding:12px; border-radius:12px; width:260px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif;";
         panel.innerHTML = `<div style='font-weight:bold; font-size:13px; margin-bottom:5px; text-align:center; color:#2196F3;'>DMM CODE TRACKER</div>`;
 
+        // --- 상태 메시지 알림 영역 추가 ---
+        alertStatus = document.createElement('div');
+        alertStatus.style = "font-size:11px; text-align:center; line-height:1.4;";
+        panel.appendChild(alertStatus);
+
         // --- 개수 표시용 상태바 추가 ---
         countStatus = document.createElement('div');
         countStatus.style = "font-size:10px; color:#aaa; text-align:center; margin-bottom:8px; padding:4px; background:#222; border-radius:4px;";
@@ -337,32 +395,6 @@
         console.log('createUI Done!');
     }
 
-    const mutCallback = () => {
-        let hasNew = false;
-
-        // 1. selector에 해당하면서 아직 처리되지 않은(:not) 요소들만 한 번에 가져옴
-        // imageSelector가 img를 가리킨다면 해당 img들을, source를 가리킨다면 source들을 가져옵니다.
-        const targets = document.querySelectorAll(`${imageSelector}:not(.${PROCESSED_CLASS})`);
-
-        if (targets.length === 0) return;
-
-        targets.forEach(el => {
-            // 2. 즉시 마킹하여 다음 루프에서 중복 처리 방지
-            el.classList.add(PROCESSED_CLASS);
-
-            // 3. URL 추출 (img 태그는 src, source 태그는 srcset 우선)
-            const targetUrl = el.getAttribute('srcset') || el.getAttribute('src');
-
-            if (targetUrl && processUrl(targetUrl)) {
-                hasNew = true;
-            }
-        });
-        // 4. 새로운 코드가 발견된 경우에만 UI 업데이트
-        if (hasNew) {
-            updateDisplayList();
-        }
-    };
-    
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
@@ -370,10 +402,11 @@
         await sleep(2000);
         createUI();
         initializeMakerLabel();
-        mutCallback();
-        const observer = new MutationObserver(mutCallback);
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=2d/.test(PageURL())) {
+            pauseState = true;
+            mutCallback();
+            const observer = new MutationObserver(mutCallback);
+        }
         observer.observe(document.body, { childList: true, subtree: true });
-    
-
     });
 })();
