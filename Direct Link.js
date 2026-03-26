@@ -505,10 +505,6 @@ const urlHandlers = {
             if (m) link.href = m[1] + m[2];
         }
     },
-    'av-wiki\\.net': {
-        selector: 'a[href*="?aff"]',
-        run: (link) => { link.href = removeUriWithParam(link.href, 'aff'); }
-    },
     'trupornolabs\\.org': {
         selector: 'a[href^="magnet:?xt=urn:btih"]',
         run: (link) => {
@@ -551,14 +547,7 @@ const urlHandlers = {
                 link.href = link.href.replace(num, Math.ceil(num));
             }
         }
-    },
-    'base64_jump': {
-        selector: 'a[href*="/aHR0c"], a[href*="=aHR0c"]',
-        run: (link) => {
-            const m = link.href.match(/(\/|=)(aHR0c[a-zA-z0-9]+={0,2})($|\/|\?|&|-?-?;?)/);
-            if (m) link.href = atob(m[2]).replace(/\?site=.+/, '');
-        }
-    }
+    },    
 };
 
 // B. 범용 링크 핸들러 (Generic-link)
@@ -658,6 +647,13 @@ const genericHandlers = {
         selector: 'a[href*="refer.ccbill.com/cgi-bin/clicks.cgi?CA="]',
         isAsync: true,
         run: async (link) => { const f = await getFinalUrl(link.href); if (f) link.href = f; }
+    },
+    'base64_jump': {
+        selector: 'a[href*="/aHR0c"], a[href*="=aHR0c"]',
+        run: (link) => {
+            const m = link.href.match(/(\/|=)(aHR0c[a-zA-z0-9]+={0,2})($|\/|\?|&|-?-?;?)/);
+            if (m) link.href = atob(m[2]).replace(/\?site=.+/, '');
+        }
     }
 };
 /**
