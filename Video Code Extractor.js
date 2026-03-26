@@ -4,10 +4,10 @@
 // @version      2.5
 // @description  개수 표시 기능 추가 (선택/리스트/전체)
 // @author       DancyClubs
-// @match        https://video.dmm.co.jp/av/list/?maker*
+// @match        https://video.dmm.co.jp/av/list/?maker=*&media_type=*
 // @require      https://cdn.jsdelivr.net/npm/inko@1.1.1/inko.min.js
 // @grant        GM_addStyle
-// @run-at       document-end
+// @run-at       document-body
 // @noframes
 // ==/UserScript==
 
@@ -362,38 +362,18 @@
             updateDisplayList();
         }
     };
-    function waitElement(selector, targetNode = document.body) {
-        return new Promise((resolve, reject) => {
-            const element = targetNode.querySelector(selector);
-            console.log('waitElement: ', selector, 'TargetNode: ', targetNode, element);
-            if (element) {
-                resolve(element);
-            }
-            const observer = new MutationObserver((mutations, obs) => {
-                const found = targetNode.querySelector(selector);
-                if (found) {
-                    obs.disconnect();
-                    resolve(found);
-                }
-            });
-
-            observer.observe(targetNode, {
-                childList: true,
-                subtree: true
-            });
-        });
-    }
+    
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
     window.addEventListener('load', async () => {
         await sleep(2000);
         createUI();
-
+        initializeMakerLabel();
         mutCallback();
         const observer = new MutationObserver(mutCallback);
         observer.observe(document.body, { childList: true, subtree: true });
-        initializeMakerLabel();
+    
 
     });
 })();
