@@ -29,6 +29,9 @@
     const makerLabel = document.querySelector(makerSelector)?.innerText.trim();
     const makerLabelCode = GetParam(PageURL, 'maker');
     const rawMediaType = GetParam(PageURL, 'media_type');
+
+    const PROCESSED_CLASS = 'processed-marker';
+
     let listContainer = null;
     let countStatus = null; // 개수를 표시할 엘리먼트
     let currentSessionCodes = new Set();
@@ -298,22 +301,49 @@
         console.log('createUI Done!');
     }
 
-    const mutCallback = (mutationsList) => {
+    const mutCallback = () => {
         let hasNew = false;
-        for (const { addedNodes } of mutationsList) {
-            for (const node of addedNodes) {
-                if (!(node instanceof HTMLElement)) continue;
-                const sources = node.tagName === 'source' ? [node] : node.querySelectorAll(source);
-                sources.forEach(s => { if (processUrl(s.getAttribute('srcset')?.split(' ')[0])) hasNew = true; });
+
+        // 1. selector에 해당하면서 아직 처리되지 않은(:not) 요소들만 한 번에 가져옴
+        // imageSelector가 img를 가리킨다면 해당 img들을, source를 가리킨다면 source들을 가져옵니다.
+        const targets = document.querySelectorAll(`${imageSelector}:not(.${PROCESSED_CLASS})`);
+
+        if (targets.length === 0) return;
+
+        targets.forEach(el => {
+            // 2. 즉시 마킹하여 다음 루프에서 중복 처리 방지
+            el.classList.add(PROCESSED_CLASS);
+
+            // 3. URL 추출 (img 태그는 src, source 태그는 srcset 우선)
+            const targetUrl = el.getAttribute('srcset') || el.getAttribute('src');
+
+            if (targetUrl && processUrl(targetUrl)) {
+                hasNew = true;
             }
+        });
+
+        // 4. 새로운 코드가 발견된 경우에만 UI 업데이트
+        if (hasNew) {
+            updateDisplayList();
         }
-        if (hasNew) updateDisplayList();
+    };
+
+    let timer = null;
+    const throttledCallback = () => {
+        if (timer) return;
+        timer = setTimeout(() => {
+            mutCallback();
+            timer = null;
+        }, 1000);
     };
 
     window.addEventListener('load', () => {
-        console.log('Start Video Code Extractor');
         createUI();
-        const observer = new MutationObserver(mutCallback);
+        // 초기 로드 시 한 번 실행
+        mutCallback();
+
+        // Observer 등록 (throttledCallback 사용 권장)
+        const observer = new MutationObserver(throttledCallback);
         observer.observe(document.body, { childList: true, subtree: true });
     });
 })();
