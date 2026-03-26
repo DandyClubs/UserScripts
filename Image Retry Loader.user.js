@@ -248,7 +248,7 @@
             let retryCount = parseInt(imgElement.dataset.retryCount);
 
             if (retryCount >= MAX_RETRY_COUNT) {                
-                console.warn(`[ImageRetry] 재시도 횟수 ${retryCount} 초과 → wsrv.nl 프록시 서비스 사용 https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`);
+                console.warn(`[ImageRetry] 재시도 횟수 ${retryCount} 초과 → wsrv.nl 프록시 서비스 사용 https://wsrv.nl/?url=${encodeURIComponent(imgElement.src)}`);
                 imgElement.src = `https://wsrv.nl/?url=${encodeURIComponent(getPureUrl(imgElement.src))}`;
                 return;
             }
@@ -413,7 +413,7 @@
         if (img.src && img.src.startsWith('http://data:image')) {
             img.src = img.src.replace('http://', '');
         }
-        if (!img.src || img.src.startsWith('blob:') || img.src.startsWith('data:')) {
+        if (!img.src || img.src.startsWith('blob:') || img.src.startsWith('data:') || img.src.startsWith('https://cm-exchange.toast.com/pixel')) {
             return false;
         }
 

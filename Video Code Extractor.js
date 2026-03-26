@@ -7,7 +7,7 @@
 // @match        https://video.dmm.co.jp/av/list/?maker*
 // @require      https://cdn.jsdelivr.net/npm/inko@1.1.1/inko.min.js
 // @grant        GM_addStyle
-// @run-at       document-body
+// @run-at       document-end
 // @noframes
 // ==/UserScript==
 
@@ -25,8 +25,8 @@
     const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
     const KEY_PREFIX = "DMM_";
     const imageSelector = 'main ul li a[href*="/av/content/?id="] picture source[srcset^="https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/"]';
-    const makerSelector = 'main a[href*="/av/list/?maker"]';    
     const makerLabelCode = GetParam(PageURL, 'maker');
+    const makerSelector = `body div main a[href="/av/list/?maker=${makerLabelCode}"]`;
     const rawMediaType = GetParam(PageURL, 'media_type');
 
     const PROCESSED_CLASS = 'processed-marker';
@@ -89,14 +89,11 @@
         if (label) {
             makerLabel = label;
             console.log(`[VCE] 메이커 확인 완료: ${makerLabel}`);
-            // 라벨이 확보되었으므로, 초기 1회 스캔 실행
-            scanImages();
-        } else if (retryCount < 10) { // 최대 10초(10회) 동안 재시도
+        } else if (retryCount < 2) {
             console.log(`[VCE] 메이커 라벨 대기 중... (${retryCount + 1}/10)`);
-            setTimeout(() => initializeMakerLabel(retryCount + 1), 2000);
+            setTimeout(() => initializeMakerLabel(retryCount + 1), 3000);
         } else {
-            makerLabel = "Unknown"; // 결국 못 찾으면 기본값
-            scanImages();
+            makerLabel = "Unknown"; // 결국 못 찾으면 기본값                        
         }
     }
 
@@ -122,8 +119,8 @@
         const maskedId = contentId.replace(/\d/g, '0');
         const currentPattern = `${maskedId}_${makerLabelCode}_${rawMediaType}`;
         if (patternMemoryDB.has(currentPattern)) return false;
-        
-        
+
+
         // --- 추출 패턴 (예제 주석 복구) ---
         const extractPatterns = [
             /digital\/video\/([a-z]*?)(dvaj|dvajbx)(\d{5,})(.*?)\//,                // DVAJ 패턴
@@ -155,13 +152,13 @@
                     displayCode: displayCode,
                     data: ["FANZA_DIGITAL", prefixMatch, padLen, suffix, makerLabel, rawMediaType],
                     origin: cleanUrl
-                }));               
+                }));
                 if (typeof currentPattern !== 'undefined') {
                     patternMemoryDB.add(currentPattern);
                 }
-                return true;               
+                return true;
             }
-            
+
         }
         return false;
     }
@@ -231,7 +228,7 @@
     function createUI() {
         const panel = document.createElement('div');
         panel.classList.add('videocodeextractor');
-        panel.style = "position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; background:rgba(15,15,15,0.95); padding:12px; border-radius:12px; width:260px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif;";
+        panel.style = "position:fixed; bottom:20px; right:20px; z-index:9999; display:flex !important; flex-direction:column; background:rgba(15,15,15,0.95); padding:12px; border-radius:12px; width:260px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif;";
         panel.innerHTML = `<div style='font-weight:bold; font-size:13px; margin-bottom:5px; text-align:center; color:#2196F3;'>DMM CODE TRACKER</div>`;
 
         // --- 개수 표시용 상태바 추가 ---
@@ -240,18 +237,18 @@
         panel.appendChild(countStatus);
 
         const controlBar = document.createElement('div');
-        controlBar.style = "display:flex; flex-direction:column; padding:8px; background:#222; border-bottom:1px solid #444; gap:8px; margin-bottom:10px; border-radius:4px;";
+        controlBar.style = "display:flex; flex-direction:column; padding:8px; background:#222; border-bottom:1px solid #444; gap:8px; margin-bottom:10px; border-radius:4px; box-sizing:border-box;"; // box-sizing 추가
         controlBar.innerHTML = `
-            <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
-                <label style="color:#ccc; font-size:11px; cursor:pointer; display:flex; align-items:center; user-select:none;">
+            <div style="display:flex; align-items:center; justify-content:space-between; width:100%; gap:5px;">
+                <label style="color:#ccc; font-size:11px; cursor:pointer; display:flex; align-items:center; user-select:none; white-space:nowrap; flex-shrink:0;">
                     <input type="checkbox" id="selectAll" style="margin-right:5px; width:14px; height:14px; accent-color:#00FF41; cursor:pointer;"> 전체 선택
                 </label>
-                <button id="delSelected" style="background:#444; color:#ff4d4d; border:none; padding:3px 10px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">선택 삭제</button>
+                <button id="delSelected" style="background:#444; color:#ff4d4d; border:none; padding:4px 8px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; white-space:nowrap; flex-shrink:0;">선택 삭제</button>
             </div>
-            <div style="display:flex; gap:5px;">
-                <input type="text" id="filterInput" placeholder="예: abc or /abc/" style="flex:1; background:#111; color:#00FF41; border:1px solid #444; padding:5px; font-size:12px; border-radius:3px; outline:none; font-family:monospace;">
-                <button id="clearBtn" style="background:#666; color:#fff; border:none; padding:0 8px; font-size:11px; cursor:pointer; border-radius:3px;">X</button>
-                <button id="searchBtn" style="background:#00FF41; color:#000; border:none; padding:0 12px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">찾기</button>
+            <div style="display:flex; gap:5px; width:100%;">
+                <input type="text" id="filterInput" placeholder="예: abc or /abc/" style="flex:1; min-width:0; background:#111; color:#00FF41; border:1px solid #444; padding:5px; font-size:12px; border-radius:3px; outline:none; font-family:monospace;">
+                <button id="clearBtn" style="background:#666; color:#fff; border:none; padding:0 8px; font-size:11px; cursor:pointer; border-radius:3px; white-space:nowrap;">X</button>
+                <button id="searchBtn" style="background:#00FF41; color:#000; border:none; padding:0 12px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; white-space:nowrap;">찾기</button>
             </div>
         `;
         panel.appendChild(controlBar);
@@ -360,29 +357,43 @@
                 hasNew = true;
             }
         });
-
         // 4. 새로운 코드가 발견된 경우에만 UI 업데이트
         if (hasNew) {
             updateDisplayList();
         }
     };
+    function waitElement(selector, targetNode = document.body) {
+        return new Promise((resolve, reject) => {
+            const element = targetNode.querySelector(selector);
+            console.log('waitElement: ', selector, 'TargetNode: ', targetNode, element);
+            if (element) {
+                resolve(element);
+            }
+            const observer = new MutationObserver((mutations, obs) => {
+                const found = targetNode.querySelector(selector);
+                if (found) {
+                    obs.disconnect();
+                    resolve(found);
+                }
+            });
 
-    let timer = null;
-    const throttledCallback = () => {
-        if (timer) return;
-        timer = setTimeout(() => {
-            mutCallback();
-            timer = null;
-        }, 1000);
-    };
-
-    window.addEventListener('load', () => {
+            observer.observe(targetNode, {
+                childList: true,
+                subtree: true
+            });
+        });
+    }
+    function sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+    window.addEventListener('load', async () => {
+        await sleep(2000);
         createUI();
-        // 초기 로드 시 한 번 실행
-        mutCallback();
 
-        // Observer 등록 (throttledCallback 사용 권장)
-        const observer = new MutationObserver(throttledCallback);
+        mutCallback();
+        const observer = new MutationObserver(mutCallback);
         observer.observe(document.body, { childList: true, subtree: true });
+        initializeMakerLabel();
+
     });
 })();
