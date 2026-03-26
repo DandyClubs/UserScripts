@@ -188,19 +188,21 @@
 
         const filterInput = controlBar.querySelector('#filterInput');
         const searchBtn = controlBar.querySelector('#searchBtn');
+        const inko = new Inko();
         searchBtn.onclick = () => { filterText = filterInput.value.trim(); controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
+        
         filterInput.onkeydown = (e) => { if (e.key === 'Enter') searchBtn.click(); };
-        filterInput.addEventListener('input', function (e) {
-            var v = this.value;
-            console.log(v, this.value);
-            if (v.match(regexpKor)) {
-                v = inko.ko2en(v);
+
+        filterInput.addEventListener('input', (e) => {
+            const originalValue = e.target.value;
+
+            // 1. 한글을 영문으로 변환 (예: "ㅁㅠㅊ" -> "abc", "가나" -> "rksk")
+            let convertedValue = inko.ko2en(originalValue);
+            // 값이 바뀌었을 때만 업데이트
+            if (originalValue !== convertedValue) {
+                e.target.value = convertedValue;
             }
-            else if (v.match(regexpEngDit)) {
-                v = v;
-            }
-            this.value = v;
-        })
+        });
         controlBar.querySelector('#clearBtn').onclick = () => { filterInput.value = ""; filterText = ""; controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
 
         controlBar.querySelector('#selectAll').onclick = (e) => {
