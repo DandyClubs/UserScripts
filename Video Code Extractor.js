@@ -7,6 +7,8 @@
 // @match        https://video.dmm.co.jp/av/list/?maker=*
 // @match        https://video.dmm.co.jp/av/maker/*
 // @require      https://cdn.jsdelivr.net/npm/inko@1.1.1/inko.min.js
+// @resource     MAKER_MAP https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/DMM_MakerMap_2026-03-26.json
+// @grant        GM_getResourceText
 // @grant        GM_addStyle
 // @run-at       document-body
 // @noframes
@@ -119,13 +121,17 @@
             pauseState = true;
             observer.observe(document.body, { childList: true, subtree: true });
             makerLabelCode = GetParam(PageURL(), 'maker');
-        } else if (/video\.dmm\.co\.jp\/av\/maker\//.test(PageURL())) {
-            buildMakerMap();
-            pauseState = false;            
-        }else {
+            makerLabel = getMakerLabel(makerLabelCode);
+        } else {
             observer.disconnect();
-            pauseState = false;            
-        } 
+            pauseState = false;
+        }
+        /*
+        if (/video\.dmm\.co\.jp\/av\/maker\//.test(PageURL())) {
+            buildMakerMap();
+            pauseState = false;
+        }
+            */
     };
 
     window.addEventListener('popstate', resetSessionCodes);
@@ -134,29 +140,13 @@
     const originalPush = history.pushState;
     history.pushState = function () {
         originalPush.apply(this, arguments);
-        resetSessionCodes();        
+        resetSessionCodes();
     };
     const originalReplace = history.replaceState;
-    history.replaceState = function () { 
-        originalReplace.apply(this, arguments); 
-        resetSessionCodes(); 
+    history.replaceState = function () {
+        originalReplace.apply(this, arguments);
+        resetSessionCodes();
     };
-
-
-    function initializeMakerLabel(retryCount = 0) {
-        const el = document.querySelector(makerSelector);
-        const label = el?.innerText.trim();
-
-        if (label) {
-            makerLabel = label;
-            console.log(`[VCE] 메이커 확인 완료: ${makerLabel}`);
-        } else if (retryCount < 2) {
-            console.log(`[VCE] 메이커 라벨 대기 중... (${retryCount + 1}/10)`);
-            setTimeout(() => initializeMakerLabel(retryCount + 1), 3000);
-        } else {
-            makerLabel = "Unknown"; // 결국 못 찾으면 기본값                        
-        }
-    }
 
     function processUrl(srcset) {
         if (!srcset || !srcset.includes('https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/')) return false;
@@ -180,7 +170,7 @@
         const maskedId = contentId.replace(/\d/g, '0');
         const currentPattern = `${maskedId}_${makerLabelCode}_${rawMediaType}`;
         if (patternMemoryDB.has(currentPattern)) return false;
-        
+
 
         // --- 추출 패턴 (예제 주석 복구) ---
         const extractPatterns = [
@@ -200,13 +190,7 @@
             const padLen = `zero${match[3].length}`;
             const suffix = match[4];
             const displayCode = code;
-            const uniqueKey = `${KEY_PREFIX}${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
-            if (!makerLabel) {
-                initializeMakerLabel();
-                setTimeout(() => processUrl(srcset), 1000);
-                return false;
-            }
-
+            const uniqueKey = `${KEY_PREFIX}${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;            
 
             if (!localStorage.getItem(uniqueKey)) {
                 currentSessionCodes.add(uniqueKey);
@@ -289,6 +273,43 @@
 
     const makerMap = new Map();
 
+    function initializeMakerMap() {
+        try {
+            if (typeof GM_getResourceText !== "undefined") {
+                const resourceText = GM_getResourceText("MAKER_MAP");
+                if (resourceText) {
+                    const externalData = JSON.parse(resourceText);
+                    Object.entries(externalData).forEach(([id, name]) => {
+                        makerMap.set(id, name); // 重複時は外部ファイルが優先される
+                    });
+                }
+            }
+        } catch (e) {
+            console.warn("[VCE] 外部リソースのロードに失敗しました:", e);
+        }
+    }
+
+
+    function getMakerLabel(id) {
+        // 1. メモリマップ(Map)を最優先で検索
+        if (makerMap.has(id)) {
+            return makerMap.get(id);
+        }
+
+        // 2. 맵에 없을 경우에만 DOM에서 직접 추출 시도
+        const el = document.querySelector(makerSelector);
+        const label = el?.innerText.trim();
+
+        if (label) {
+            // 次回のためにメモリにキャッシュしておく
+            makerMap.set(id, label);
+            return label;
+        }
+
+        return "Unknown";
+    }
+
+    /**
     let currentMakerLabel = ""; // 전역 변수
     function buildMakerMap() {
         const makerNodes = document.querySelectorAll('a[href*="maker="]');
@@ -312,17 +333,6 @@
     }
 
     /**
-     * 현재 URL의 maker ID를 기반으로 이름을 반환합니다.
-     */
-    function getMakerNameById(currentMakerId) {
-        if (makerMap.has(currentMakerId)) {
-            return makerMap.get(currentMakerId);
-        }
-
-        // 만약 맵에 없다면 (리스트 페이지인 경우) 기존 selector로 시도
-        return document.querySelector('.line-clamp-2.text-ellipsis')?.innerText.trim() || "Unknown";
-    }
-    
     function findMakerLabel(retryCount = 0) {
         // 1. 먼저 페이지 내 모든 메이커 정보를 맵으로 빌드
         buildMakerMap();
@@ -370,6 +380,7 @@
 
         console.log(`[VCE] ${makerMap.size}개의 메이커 정보가 파일로 저장되었습니다.`);
     }
+    */
 
     function createUI() {
         const panel = document.createElement('div');
@@ -403,13 +414,14 @@
             </div>
         `;
         panel.appendChild(controlBar);
-
-        const saveBtn = document.createElement('button');
-        saveBtn.innerText = "메이커 맵 저장";
-        saveBtn.style = "margin-top:5px; padding:5px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;";
-        saveBtn.onclick = saveMakerMapToFile;
-
-        panel.appendChild(saveBtn);
+        /**
+                const saveBtn = document.createElement('button');
+                saveBtn.innerText = "메이커 맵 저장";
+                saveBtn.style = "margin-top:5px; padding:5px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;";
+                saveBtn.onclick = saveMakerMapToFile;
+        
+                panel.appendChild(saveBtn);
+                */
 
         const filterInput = controlBar.querySelector('#filterInput');
         const searchBtn = controlBar.querySelector('#searchBtn');
@@ -491,22 +503,22 @@
         btnContainer.append(dlBtn, clBtn);
         panel.appendChild(btnContainer);
         document.body.appendChild(panel);
-        updateDisplayList();        
+        updateDisplayList();
     }
 
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
     window.addEventListener('load', async () => {
+        initializeMakerMap();
         await sleep(2000);
         createUI();
-        
+
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=2d/.test(PageURL())) {
-            initializeMakerLabel();
-            pauseState = true;
-            mutCallback();            
+            pauseState = true;            
+            mutCallback();
             observer.observe(document.body, { childList: true, subtree: true });
         }
-        
+
     });
 })();
