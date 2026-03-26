@@ -22,6 +22,17 @@
     }
     .videocodeextractor div::-webkit-scrollbar { width: 6px; }
     .videocodeextractor div::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
+    @keyframes blink { /* 요소가 깜빡거리는 */
+    0% {opacity:0}
+    50% {opacity:1}
+    100% {opacity:0}
+}
+@keyframes blinkC { /* 색이 깜빡거리는 */ 
+    50% {color:yellow}
+}
+#choicetype {
+	animation:blink 1s infinite ease;	
+}
     `);
 
     const PageURL = () => window.location !== window.parent.location ? document.referrer : document.location.href;
@@ -34,8 +45,7 @@
     const PROCESSED_CLASS = 'processed-marker';
     const patternMemoryDB = new Set();
 
-    let alertStatus = null; // 상태 메시지용 엘리먼트
-    let pauseState = false; // 일시정지 상태
+    let alertStatus = null; // 상태 메시지용 엘리먼트    
 
     let makerLabel = ""; // 전역 변수로 관리
 
@@ -48,12 +58,8 @@
 
     const mutCallback = () => {
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
-            let hasNew = false;
-            pauseState = true;
-            makerLabelCode = GetParam(PageURL(), 'maker');
-            makerLabel = getMakerLabel(makerLabelCode);
-            rawMediaType = GetParam(PageURL(), 'media_type');
-
+            let hasNew = false;            
+            
             // 1. selector에 해당하면서 아직 처리되지 않은(:not) 요소들만 한 번에 가져옴
             // imageSelector가 img를 가리킨다면 해당 img들을, source를 가리킨다면 source들을 가져옵니다.
             const targets = document.querySelectorAll(`${imageSelector}:not(.${PROCESSED_CLASS})`);
@@ -76,6 +82,9 @@
                 updateDisplayList();
             }
         }
+        makerLabelCode = GetParam(PageURL(), 'maker');
+        makerLabel = getMakerLabel(makerLabelCode);
+        rawMediaType = GetParam(PageURL(), 'media_type');
     };
 
     const observer = new MutationObserver(mutCallback);
@@ -105,14 +114,17 @@
         `;
 
         if (alertStatus) {
-            if (!rawMediaType && pauseState) {
-                alertStatus.innerHTML = `<div style="color:#FF9800; margin-bottom:5px; font-weight:bold;">⚠️ 2D를 선택하세요!<br>❌ 페이지 주소가 맞지 않아 수집 중단.</div>`;
+            if (!rawMediaType) {
+                alertStatus.innerHTML = `<div style="color:#FF9800; margin-bottom:5px; font-weight:bold;">⚠️ <a id="choicetype" href="https://video.dmm.co.jp/av/list/?maker=${makerLabelCode}&media_type=2d">2D</a>를 선택하세요!<br>❌ 페이지 주소가 맞지 않아 수집 중단.</div>`;
             } else if (!makerLabelCode || makerLabel === "Unknown") {
                 alertStatus.innerHTML = `<div style="color:#F44336; margin-bottom:5px; font-weight:bold;">❌ 제작사 정보를 가져오지 못했습니다.</div>`;
             } else {
                 alertStatus.innerHTML = ""; // 정상일 경우 메시지 숨김
             }
         }
+        makerLabelCode = GetParam(PageURL(), 'maker');
+        makerLabel = getMakerLabel(makerLabelCode);
+        rawMediaType = GetParam(PageURL(), 'media_type');
     }
 
     const resetSessionCodes = () => {
@@ -120,20 +132,15 @@
             currentSessionCodes.clear();
             updateDisplayList();
         }
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
-            pauseState = true;
-            observer.observe(document.body, { childList: true, subtree: true });
-            makerLabelCode = GetParam(PageURL(), 'maker');
-            makerLabel = getMakerLabel(makerLabelCode);
-            rawMediaType = GetParam(PageURL(), 'media_type');
-        } else {
-            observer.disconnect();
-            pauseState = false;
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {            
+            observer.observe(document.body, { childList: true, subtree: true });            
         }
+        makerLabelCode = GetParam(PageURL(), 'maker');
+        makerLabel = getMakerLabel(makerLabelCode);
+        rawMediaType = GetParam(PageURL(), 'media_type');
         /*
         if (/video\.dmm\.co\.jp\/av\/maker\//.test(PageURL())) {
-            buildMakerMap();
-            pauseState = false;
+            buildMakerMap();            
         }
             */
     };
@@ -156,7 +163,10 @@
         if (!srcset || !srcset.includes('https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/')) return false;
         const cleanUrl = srcset.split('?')[0];
         const majorsLabel = /digital\/video\/(.*?)([a-z]{3,7}\d{4,7}|[ts]{1,2}\d{2,7})[v]?(ps|pl|rai)/i;
-        if (!majorsLabel.test(cleanUrl)) return false;
+        if (!majorsLabel.test(cleanUrl)) {
+            console.warn('Not majorsLabel', majorsLabel.test(cleanUrl), cleanUrl);
+            return false;
+        } 
 
         const skipPatterns = [
             /digital\/video\/(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)\//,
@@ -164,7 +174,10 @@
         ];
 
         for (const skipRegex of skipPatterns) {
-            if (skipRegex.test(cleanUrl)) return false;
+            if (skipRegex.test(cleanUrl)) {
+                console.warn('SKIP', skipRegex.test(cleanUrl), cleanUrl);
+                return false;
+            } 
         }
 
         const pathSegments = cleanUrl.split('/');
@@ -189,6 +202,7 @@
         let match = null;
         for (const regex of extractPatterns) { match = cleanUrl.match(regex); if (match) break; }
         if (match) {
+            //console.log('Match', match);
             const prefixMatch = match[1];
             const code = match[2].toUpperCase();
             const padLen = `zero${match[3].length}`;
@@ -257,8 +271,9 @@
                 <input type="checkbox" class="item-check" data-key="${key}" style="margin-left:5px; width:15px; height:15px; cursor:pointer; accent-color:#00FF41; appearance:auto;">
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; cursor:help;" title="${itemData.origin}">
                 <a href="${itemPageUrl}" target="_blank"><span style="color:#00FF41; font-family:monospace; font-size:12px;">${itemData.displayCode}</span></a>
-                    ${detailLabel ? `<span style="color:white; font-size:10px; margin-left:5px;">[</span><span style="color:#00FF41; font-size:10px;">${detailLabel} ${rawMediaType || ''}</span><span style="color:white; font-size:10px;">]</span>` : ''}
+                    ${detailLabel ? `<span style="color:white; font-size:10px; margin-left:5px;">[</span><span style="color:#00FF41; font-size:10px;">${detailLabel}</span><span style="color:white; font-size:10px;">]</span>` : ''}                    
                 </div>
+                <span style="color:white; font-size:10px;padding-left:5px;">[ ${itemData.data[5]} ]</span>
                 <button class="del-btn" style="background:none; border:none; color:#ff4d4d; cursor:pointer; font-weight:bold; font-size:16px; padding:0 5px;">×</button>
             `;
 
@@ -296,14 +311,12 @@
             console.warn("[VCE] 外部リソースのロードに失敗しました:", e);
         }
         console.log(`메이커 맵 구성: ${makerMap.size}개 항목`, makerMap);
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
-            pauseState = true;
-            observer.observe(document.body, { childList: true, subtree: true });
-            makerLabelCode = GetParam(PageURL(), 'maker');
-            makerLabel = getMakerLabel(makerLabelCode);
-            rawMediaType = GetParam(PageURL(), 'media_type');
-        }
-        
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {            
+            observer.observe(document.body, { childList: true, subtree: true });            
+        }            
+        makerLabelCode = GetParam(PageURL(), 'maker');
+        makerLabel = getMakerLabel(makerLabelCode);
+        rawMediaType = GetParam(PageURL(), 'media_type');        
     }
 
 
@@ -445,7 +458,10 @@
         
         searchBtn.onclick = () => { filterText = filterInput.value.trim(); controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
 
-        filterInput.onkeydown = (e) => { if (e.key === 'Enter') searchBtn.click(); };        
+        filterInput.onkeydown = (e) => { 
+            if (e.key === 'Enter') searchBtn.click(); 
+            else if (e.key === 'Escape') filterInput.value = '';
+        };        
 
         controlBar.querySelector('#clearBtn').onclick = () => { filterInput.value = ""; filterText = ""; controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
 
@@ -519,14 +535,14 @@
         await sleep(2000);
         createUI();
 
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
-            pauseState = true;            
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {            
             mutCallback();
             observer.observe(document.body, { childList: true, subtree: true });
-            makerLabelCode = GetParam(PageURL(), 'maker');
-            makerLabel = getMakerLabel(makerLabelCode);
-            rawMediaType = GetParam(PageURL(), 'media_type');
         }
+
+        makerLabelCode = GetParam(PageURL(), 'maker');
+        makerLabel = getMakerLabel(makerLabelCode);
+        rawMediaType = GetParam(PageURL(), 'media_type');
 
     });
 })();
