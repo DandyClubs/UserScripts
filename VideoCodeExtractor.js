@@ -30,7 +30,7 @@
     const imageSelector = 'main ul li a[href*="/av/content/?id="] picture source[srcset^="https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/"]';
     let makerLabelCode = GetParam(PageURL(), 'maker');
     const makerSelector = `body div main a[href="/av/list/?maker=${makerLabelCode}"]`;
-    const rawMediaType = GetParam(PageURL(), 'media_type');
+    let rawMediaType = GetParam(PageURL(), 'media_type');
 
     const PROCESSED_CLASS = 'processed-marker';
     const patternMemoryDB = new Set();
@@ -48,8 +48,11 @@
 
 
     const mutCallback = () => {
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=2d/.test(PageURL())) {
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             let hasNew = false;
+            makerLabelCode = GetParam(PageURL(), 'maker');
+            makerLabel = getMakerLabel(makerLabelCode);
+            rawMediaType = GetParam(PageURL(), 'media_type');
 
             // 1. selector에 해당하면서 아직 처리되지 않은(:not) 요소들만 한 번에 가져옴
             // imageSelector가 img를 가리킨다면 해당 img들을, source를 가리킨다면 source들을 가져옵니다.
@@ -117,11 +120,12 @@
             currentSessionCodes.clear();
             updateDisplayList();
         }
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=2d/.test(PageURL())) {
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             pauseState = true;
             observer.observe(document.body, { childList: true, subtree: true });
             makerLabelCode = GetParam(PageURL(), 'maker');
             makerLabel = getMakerLabel(makerLabelCode);
+            rawMediaType = GetParam(PageURL(), 'media_type');
         } else {
             observer.disconnect();
             pauseState = false;
@@ -190,7 +194,8 @@
             const padLen = `zero${match[3].length}`;
             const suffix = match[4];
             const displayCode = code;
-            const uniqueKey = `${KEY_PREFIX}${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;            
+            const uniqueKey = `${KEY_PREFIX}${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;       
+            if (!makerLabelCode || !rawMediaType || !makerLabel) return false;
 
             if (!localStorage.getItem(uniqueKey)) {
                 currentSessionCodes.add(uniqueKey);
@@ -287,6 +292,15 @@
         } catch (e) {
             console.warn("[VCE] 外部リソースのロードに失敗しました:", e);
         }
+        console.log(`메이커 맵 구성: ${makerMap.size}개 항목`, makerMap);
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+            pauseState = true;
+            observer.observe(document.body, { childList: true, subtree: true });
+            makerLabelCode = GetParam(PageURL(), 'maker');
+            makerLabel = getMakerLabel(makerLabelCode);
+            rawMediaType = GetParam(PageURL(), 'media_type');
+        }
+        
     }
 
 
@@ -408,7 +422,7 @@
                 <button id="delSelected" style="background:#444; color:#ff4d4d; border:none; padding:4px 8px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; white-space:nowrap; flex-shrink:0;">선택 삭제</button>
             </div>
             <div style="display:flex; gap:5px; width:100%;">
-                <input type="text" id="filterInput" placeholder="예: abc or /abc/" style="flex:1; min-width:0; background:#111; color:#00FF41; border:1px solid #444; padding:5px; font-size:12px; border-radius:3px; outline:none; font-family:monospace;">
+                <input type="text" id="filterInput" placeholder="예: abc or /abc/" style="flex:1; min-width:0; background:#111; color:#00FF41; border:1px solid #444; padding:5px; font-size:12px; border-radius:3px; outline:none; font-family:monospace;ime-mode:disabled;>
                 <button id="clearBtn" style="background:#666; color:#fff; border:none; padding:0 8px; font-size:11px; cursor:pointer; border-radius:3px; white-space:nowrap;">X</button>
                 <button id="searchBtn" style="background:#00FF41; color:#000; border:none; padding:0 12px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; white-space:nowrap;">찾기</button>
             </div>
@@ -430,7 +444,7 @@
 
         filterInput.onkeydown = (e) => { if (e.key === 'Enter') searchBtn.click(); };
 
-        filterInput.addEventListener('input', function (e) {
+        filterInput.addEventListener('keydown', function (e) {
             const v = this.value;
             //const originalValue = e.target.value;
 
@@ -514,10 +528,13 @@
         await sleep(2000);
         createUI();
 
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=2d/.test(PageURL())) {
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             pauseState = true;            
             mutCallback();
             observer.observe(document.body, { childList: true, subtree: true });
+            makerLabelCode = GetParam(PageURL(), 'maker');
+            makerLabel = getMakerLabel(makerLabelCode);
+            rawMediaType = GetParam(PageURL(), 'media_type');
         }
 
     });
