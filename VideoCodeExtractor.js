@@ -195,7 +195,10 @@
             const suffix = match[4];
             const displayCode = code;
             const uniqueKey = `${KEY_PREFIX}${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;       
-            if (!makerLabelCode || !rawMediaType || !makerLabel) return false;
+            if (!makerLabelCode || !rawMediaType || !makerLabel){
+                alert(`${makerLabelCode || 'No makerLabelCode'}, ${rawMediaType || 'No rawMediaType'}, ${makerLabel || 'No makerLabel'}`);                
+                return false;
+            } 
 
             if (!localStorage.getItem(uniqueKey)) {
                 currentSessionCodes.add(uniqueKey);
@@ -254,7 +257,7 @@
                 <input type="checkbox" class="item-check" data-key="${key}" style="margin-left:5px; width:15px; height:15px; cursor:pointer; accent-color:#00FF41; appearance:auto;">
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; cursor:help;" title="${itemData.origin}">
                 <a href="${itemPageUrl}" target="_blank"><span style="color:#00FF41; font-family:monospace; font-size:12px;">${itemData.displayCode}</span></a>
-                    ${detailLabel ? `<span style="color:white; font-size:10px; margin-left:5px;">[</span><span style="color:#00FF41; font-size:10px;">${detailLabel}</span><span style="color:white; font-size:10px;">]</span>` : ''}
+                    ${detailLabel ? `<span style="color:white; font-size:10px; margin-left:5px;">[</span><span style="color:#00FF41; font-size:10px;">${detailLabel} ${rawMediaType || ''}</span><span style="color:white; font-size:10px;">]</span>` : ''}
                 </div>
                 <button class="del-btn" style="background:none; border:none; color:#ff4d4d; cursor:pointer; font-weight:bold; font-size:16px; padding:0 5px;">×</button>
             `;
