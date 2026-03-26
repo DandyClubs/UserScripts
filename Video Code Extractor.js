@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         Video Code Extractor
 // @namespace    http://tampermonkey.net/
-// @version      2.4.2
+// @version      2.4.3
 // @description  개수 표시 기능 추가 (선택/리스트/전체)
 // @author       코딩 파트너
 // @match        https://video.dmm.co.jp/*
 // @exclude      https://video.dmm.co.jp/anime/*
-// @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
+// @require      https://cdn.jsdelivr.net/npm/inko@1.1.1/inko.min.js
 // @grant        none
 // ==/UserScript==
 
@@ -190,6 +190,17 @@
         const searchBtn = controlBar.querySelector('#searchBtn');
         searchBtn.onclick = () => { filterText = filterInput.value.trim(); controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
         filterInput.onkeydown = (e) => { if (e.key === 'Enter') searchBtn.click(); };
+        filterInput.addEventListener('input', function (e) {
+            var v = this.value;
+            console.log(v, this.value);
+            if (v.match(regexpKor)) {
+                v = inko.ko2en(v);
+            }
+            else if (v.match(regexpEngDit)) {
+                v = v;
+            }
+            this.value = v;
+        })
         controlBar.querySelector('#clearBtn').onclick = () => { filterInput.value = ""; filterText = ""; controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
 
         controlBar.querySelector('#selectAll').onclick = (e) => {
