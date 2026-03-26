@@ -5,6 +5,7 @@
 // @description  개수 표시 기능 추가 (선택/리스트/전체)
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
+// @match        https://video.dmm.co.jp/av/maker/*
 // @require      https://cdn.jsdelivr.net/npm/inko@1.1.1/inko.min.js
 // @grant        GM_addStyle
 // @run-at       document-body
@@ -25,7 +26,7 @@
     const PageURL = () => window.location !== window.parent.location ? document.referrer : document.location.href;
     const KEY_PREFIX = "DMM_";
     const imageSelector = 'main ul li a[href*="/av/content/?id="] picture source[srcset^="https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/"]';
-    const makerLabelCode = GetParam(PageURL(), 'maker');
+    let makerLabelCode = GetParam(PageURL(), 'maker');
     const makerSelector = `body div main a[href="/av/list/?maker=${makerLabelCode}"]`;
     const rawMediaType = GetParam(PageURL(), 'media_type');
 
@@ -72,6 +73,8 @@
         }
     };
 
+    const observer = new MutationObserver(mutCallback);
+
     function GetParam(url, paramName) {
         // 1. URL 객체를 사용하여 파라미터를 추출 (현대적인 방식)
         const urlObj = new URL(url);
@@ -97,10 +100,10 @@
         `;
 
         if (alertStatus) {
-            if (!rawMediaType) {
-                alertStatus.innerHTML = `<div style="color:#FF9800; margin-bottom:5px; font-weight:bold;">⚠️ 2D를 선택하세요!</div>`;
+            if (!rawMediaType && pauseState) {
+                alertStatus.innerHTML = `<div style="color:#FF9800; margin-bottom:5px; font-weight:bold;">⚠️ 2D를 선택하세요!<br>❌ 페이지 주소가 맞지 않아 수집 중단.</div>`;
             } else if (!makerLabelCode || makerLabel === "Unknown") {
-                alertStatus.innerHTML = `<div style="color:#F44336; margin-bottom:5px; font-weight:bold;">❌ 페이지 주소가 맞지 않아 수집이 중단되었습니다.</div>`;
+                alertStatus.innerHTML = `<div style="color:#F44336; margin-bottom:5px; font-weight:bold;">❌ 제작사 정보를 가져오지 못했습니다.</div>`;
             } else {
                 alertStatus.innerHTML = ""; // 정상일 경우 메시지 숨김
             }
@@ -114,10 +117,15 @@
         }
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=2d/.test(PageURL())) {
             pauseState = true;
-            const observer = new MutationObserver(mutCallback);
-        } else {
-            pauseState = false;
-        }
+            observer.observe(document.body, { childList: true, subtree: true });
+            makerLabelCode = GetParam(PageURL(), 'maker');
+        } else if (/video\.dmm\.co\.jp\/av\/maker\//.test(PageURL())) {
+            buildMakerMap();
+            pauseState = false;            
+        }else {
+            observer.disconnect();
+            pauseState = false;            
+        } 
     };
 
     window.addEventListener('popstate', resetSessionCodes);
@@ -172,7 +180,7 @@
         const maskedId = contentId.replace(/\d/g, '0');
         const currentPattern = `${maskedId}_${makerLabelCode}_${rawMediaType}`;
         if (patternMemoryDB.has(currentPattern)) return false;
-
+        
 
         // --- 추출 패턴 (예제 주석 복구) ---
         const extractPatterns = [
@@ -194,6 +202,7 @@
             const displayCode = code;
             const uniqueKey = `${KEY_PREFIX}${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
             if (!makerLabel) {
+                initializeMakerLabel();
                 setTimeout(() => processUrl(srcset), 1000);
                 return false;
             }
@@ -278,10 +287,94 @@
         updateCounts(); // 리스트 생성 후 개수 업데이트
     }
 
+    const makerMap = new Map();
+
+    let currentMakerLabel = ""; // 전역 변수
+    function buildMakerMap() {
+        const makerNodes = document.querySelectorAll('a[href*="maker="]');
+
+        makerNodes.forEach(node => {
+            try {
+                const url = new URL(node.href, window.location.origin);
+                const makerId = url.searchParams.get('maker');
+                // .line-clamp-2.text-ellipsis 클래스를 가진 텍스트 추출
+                const makerName = node.querySelector('.line-clamp-2.text-ellipsis')?.innerText.trim();
+
+                if (makerId && makerName) {
+                    makerMap.set(makerId, makerName);
+                }
+            } catch (e) {
+                // URL 파싱 에러 등 예외 처리
+            }
+        });
+
+        console.log(`[VCE] 메이커 맵 구성 완료: ${makerMap.size}개 항목`);
+    }
+
+    /**
+     * 현재 URL의 maker ID를 기반으로 이름을 반환합니다.
+     */
+    function getMakerNameById(currentMakerId) {
+        if (makerMap.has(currentMakerId)) {
+            return makerMap.get(currentMakerId);
+        }
+
+        // 만약 맵에 없다면 (리스트 페이지인 경우) 기존 selector로 시도
+        return document.querySelector('.line-clamp-2.text-ellipsis')?.innerText.trim() || "Unknown";
+    }
+    
+    function findMakerLabel(retryCount = 0) {
+        // 1. 먼저 페이지 내 모든 메이커 정보를 맵으로 빌드
+        buildMakerMap();
+
+        // 2. 현재 페이지의 파라미터에서 maker ID 가져오기
+        const urlParams = new URLSearchParams(window.location.search);
+        const makerId = urlParams.get('maker');
+
+        // 3. 맵에서 찾거나, 직접 셀렉터로 찾기
+        const label = getMakerNameById(makerId);
+
+        if (label && label !== "Unknown") {
+            currentMakerLabel = label;
+            console.log(`[VCE] 매칭된 메이커: ${currentMakerLabel}`);
+        } else if (retryCount < 10) {
+            console.log(`[VCE] 메이커 텍스트 추출 재시도 중... (${retryCount + 1}/10)`);
+            setTimeout(() => findMakerLabel(retryCount + 1), 1000);
+        }
+    }
+
+    function saveMakerMapToFile() {
+        if (makerMap.size === 0) {
+            alert("저장할 메이커 데이터가 없습니다. 먼저 맵을 빌드하세요.");
+            return;
+        }
+
+        // 1. Map을 일반 Object로 변환 후 JSON 문자열화
+        const obj = Object.fromEntries(makerMap);
+        const jsonString = JSON.stringify(obj, null, 2); // 보기 좋게 들여쓰기 포함
+
+        // 2. Blob 객체 생성
+        const blob = new Blob([jsonString], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+
+        // 3. 가상 링크를 만들어 다운로드 실행
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `DMM_MakerMap_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+
+        // 4. 리소스 정리
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        console.log(`[VCE] ${makerMap.size}개의 메이커 정보가 파일로 저장되었습니다.`);
+    }
+
     function createUI() {
         const panel = document.createElement('div');
         panel.classList.add('videocodeextractor');
-        panel.style = "position:fixed; bottom:20px; right:20px; z-index:9999; display:flex !important; flex-direction:column; background:rgba(15,15,15,0.95); padding:12px; border-radius:12px; width:260px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif;";
+        panel.style = "position:fixed; bottom:20px; right:20px; z-index:9999; display:flex !important; flex-direction:column; background:rgba(15,15,15,0.95); padding:12px; border-radius:12px; width:260px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif; box-sizing:border-box;";
         panel.innerHTML = `<div style='font-weight:bold; font-size:13px; margin-bottom:5px; text-align:center; color:#2196F3;'>DMM CODE TRACKER</div>`;
 
         // --- 상태 메시지 알림 영역 추가 ---
@@ -310,6 +403,13 @@
             </div>
         `;
         panel.appendChild(controlBar);
+
+        const saveBtn = document.createElement('button');
+        saveBtn.innerText = "메이커 맵 저장";
+        saveBtn.style = "margin-top:5px; padding:5px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;";
+        saveBtn.onclick = saveMakerMapToFile;
+
+        panel.appendChild(saveBtn);
 
         const filterInput = controlBar.querySelector('#filterInput');
         const searchBtn = controlBar.querySelector('#searchBtn');
@@ -391,8 +491,7 @@
         btnContainer.append(dlBtn, clBtn);
         panel.appendChild(btnContainer);
         document.body.appendChild(panel);
-        updateDisplayList();
-        console.log('createUI Done!');
+        updateDisplayList();        
     }
 
     function sleep(ms) {
@@ -401,12 +500,13 @@
     window.addEventListener('load', async () => {
         await sleep(2000);
         createUI();
-        initializeMakerLabel();
+        
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=2d/.test(PageURL())) {
+            initializeMakerLabel();
             pauseState = true;
-            mutCallback();
-            const observer = new MutationObserver(mutCallback);
+            mutCallback();            
+            observer.observe(document.body, { childList: true, subtree: true });
         }
-        observer.observe(document.body, { childList: true, subtree: true });
+        
     });
 })();
