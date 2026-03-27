@@ -55,7 +55,7 @@
         'prestige-av.com': 'PRESTIGE',
     };
 
-    const makerLabelReplaceMap ={
+    const makerLabelReplaceMap = {
         "SODクリエイト": "SOD",
         "アイデアポケット": "IdeaPocket",
         "アタッカーズ": "Attackers",
@@ -66,7 +66,7 @@
         "ケイ・エム・プロデュース": "KMP",
         "ナチュラルハイ": "NaturalHigh",
         "プレステージ": "Prestige",
-        "マックスエー":	"MAX-A",
+        "マックスエー": "MAX-A",
         "マドンナ": "Madonna",
         "ムーディーズ": "MOODYZ",
         "メディアブランド": "MediaBrand",
@@ -108,7 +108,7 @@
     let rawMediaType = GetParam(PageURL(), 'media_type');
 
     const PROCESSED_CLASS = 'processed-marker';
-    
+
     let alertStatus = null; // 상태 메시지용 엘리먼트    
     let makerLabel = ""; // 전역 변수로 관리
     let listContainer = null;
@@ -117,27 +117,80 @@
     let isShowAllMode = false;
     let filterText = "";
 
-    
-    // =====================================================================
-    // [신규 코드 추가] IndexedDB 매니저 및 유휴 상태 해상도 추출 큐 시스템
-    // =====================================================================
-    const DB_CONFIG = { name: "VideoCodeExtractorDB", version: 8, stores: { codes: "id", imageMeta: "url" } };
 
-    class VceDB {
+    const DB_CONFIG = { name: "VideoCodeExtractorDB", version: 8, stores: { codes: "id", imageMeta: "url" } };
+    const DB_VERSION_KEY = "VideoCodeExtractorDB_LAST_DB_VERSION"; // GM에 저장할 키 이름
+
+    class VceDB {      
+
         static async open() {
-            return new Promise((resolve) => {
-                const request = indexedDB.open(DB_CONFIG.name, DB_CONFIG.version);
+            // 1. GM 저장소에서 마지막 기록된 버전을 가져옵니다. (없으면 기본값 1)
+            let currentVersion = GM_getValue(DB_VERSION_KEY, 1);
+
+            const tryOpen = (version) => new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_CONFIG.name, version);
+
                 request.onupgradeneeded = (e) => {
                     const db = e.target.result;
-                    if (!db.objectStoreNames.contains("codes")) db.createObjectStore("codes", { keyPath: "id" });
+                    const tx = e.currentTarget.transaction;
+
+                    // --- [구조 점검 및 자동 복구 로직] ---
+                    // codes 스토어
+                    if (!db.objectStoreNames.contains("codes")) {
+                        const store = db.createObjectStore("codes", { keyPath: "id" });
+                        store.createIndex("patternKey", "patternKey", { unique: false });
+                    } else {
+                        const store = tx.objectStore("codes");
+                        if (!store.indexNames.contains("patternKey")) {
+                            store.createIndex("patternKey", "patternKey", { unique: false });
+                        }
+                    }
+
+                    // imageMeta 스토어
                     if (!db.objectStoreNames.contains("imageMeta")) {
                         const store = db.createObjectStore("imageMeta", { keyPath: "url" });
                         store.createIndex("patternKey", "patternKey", { unique: false });
                         store.createIndex("status", "status", { unique: false });
+                    } else {
+                        const store = tx.objectStore("imageMeta");
+                        if (!store.indexNames.contains("patternKey")) {
+                            store.createIndex("patternKey", "patternKey", { unique: false });
+                        }
                     }
+                    console.log(`[DB Upgrade] 버전 ${version}으로 구조 업데이트 완료`);
                 };
-                request.onsuccess = () => resolve(request.result);
+
+                request.onsuccess = (e) => {
+                    const db = e.target.result;
+                    // 오픈 성공 시 현재 버전을 GM에 최신화
+                    GM_setValue(DB_VERSION_KEY, db.version);
+                    resolve(db);
+                };
+
+                request.onerror = (e) => reject(e);
             });
+
+            try {
+                // 2. 먼저 GM에 저장된 버전으로 오픈을 시도합니다.
+                let db = await tryOpen(currentVersion);
+
+                // 3. [핵심] 오픈은 성공했지만, 코드 실행 전에 인덱스가 정말 있는지 최종 확인
+                // 만약 인덱스가 없다면 (코드는 업데이트됐는데 DB 버전은 그대로인 경우)
+                if (!db.objectStoreNames.contains("codes") ||
+                    !db.transaction("codes").objectStore("codes").indexNames.contains("patternKey")) {
+
+                    db.close(); // 기존 연결 닫기
+                    console.warn("인덱스 누락 감지! 버전을 올려 재구성합니다.");
+                    return await tryOpen(currentVersion + 1); // 버전 +1 하여 강제 업그레이드 유도
+                }
+                return db;
+            } catch (err) {
+                // 버전 충돌(VersionError) 등이 발생하면 무조건 +1 해서 재시도
+                if (err.target?.error?.name === "VersionError") {
+                    return await tryOpen(currentVersion + 1);
+                }
+                throw err;
+            }
         }
         static async getCode(id) {
             const db = await this.open();
@@ -424,7 +477,7 @@
                 const targetUrl = el.getAttribute('srcset') || el.getAttribute('src');
                 if (targetUrl) await processWork(targetUrl); // await 처리를 위해 변경됨
             }
-        }        
+        }
     };
 
     const observer = new MutationObserver(mutCallback);
@@ -467,18 +520,18 @@
     const resetSessionCodes = () => {
         const newUrl = PageURL();
         makerLabelCode = GetParam(newUrl, 'maker');
-        rawMediaType = GetParam(newUrl, 'media_type');        
-        makerLabel = getMakerLabel(makerLabelCode);        
-        
+        rawMediaType = GetParam(newUrl, 'media_type');
+        makerLabel = getMakerLabel(makerLabelCode);
+
         if (currentSessionCodes.size > 0) {
             currentSessionCodes.clear();
             updateDisplayList();
         }
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(newUrl)) {
             observer.disconnect(); // 기존 감시 중단 후 재시작
-            observer.observe(document.body, { childList: true, subtree: true });            
+            observer.observe(document.body, { childList: true, subtree: true });
             mutCallback(); // 즉시 한 번 실행
-        }     
+        }
     };
 
     // History API 가로채기
@@ -500,7 +553,7 @@
     window.addEventListener('pushstate', resetSessionCodes);
     window.addEventListener('popstate', resetSessionCodes);
     window.addEventListener('hashchange', resetSessionCodes);
-    
+
     const originalPush = history.pushState;
     history.pushState = function () { originalPush.apply(this, arguments); resetSessionCodes(); };
     const originalReplace = history.replaceState;
@@ -570,7 +623,7 @@
             const suffix = match[4];
             const displayCode = code;
             const uniqueKey = `${KEY_PREFIX(originalImage)}_${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
-            
+
             if (!currentSessionCodes.has(uniqueKey)) {
                 currentSessionCodes.add(uniqueKey);
                 const imageSourceKey = Object.keys(imageUrlsMap).find(key =>
@@ -709,9 +762,9 @@
         }
         makerLabelCode = GetParam(PageURL(), 'maker');
         rawMediaType = GetParam(PageURL(), 'media_type');
-        makerLabel = getMakerLabel(makerLabelCode);                
+        makerLabel = getMakerLabel(makerLabelCode);
     }
-    
+
     function getMakerLabel(id) {
         if (!id) return "Unknown";
 
@@ -857,7 +910,7 @@
             else if (e.key === 'Escape') filterInput.value = '';
         };
         controlBar.querySelector('#clearBtn').onclick = () => { filterInput.value = ""; filterText = ""; controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
-        
+
         // 전체 선택 버튼
         controlBar.querySelector('#btnSelectAll').onclick = () => {
             const checkboxes = listContainer.querySelectorAll('.item-check');
@@ -965,6 +1018,6 @@
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             mutCallback();
             observer.observe(document.body, { childList: true, subtree: true });
-        }        
+        }
     });
 })();
