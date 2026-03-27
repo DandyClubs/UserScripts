@@ -114,7 +114,9 @@
         `;
 
         if (alertStatus) {
-            if (!rawMediaType) {
+            if (/^https:\/\/video\.dmm\.co\.jp\/av\/maker\/$/.test(PageURL())) {
+                alertStatus.innerHTML = `<div style="color:#F44336; margin-bottom:5px; font-weight:bold;">❌ 추출할 메이커 페이지로 이동하세요!</div>`;
+            } else if (!rawMediaType) {
                 alertStatus.innerHTML = `<div style="color:#FF9800; margin-bottom:5px; font-weight:bold;">⚠️ <a id="choicetype" href="https://video.dmm.co.jp/av/list/?maker=${makerLabelCode}&media_type=2d">2D</a>를 선택하세요!<br>❌ 페이지 주소가 맞지 않아 수집 중단.</div>`;
             } else if (!makerLabelCode || makerLabel === "Unknown") {
                 alertStatus.innerHTML = `<div style="color:#F44336; margin-bottom:5px; font-weight:bold;">❌ 제작사 정보를 가져오지 못했습니다.</div>`;
@@ -485,7 +487,7 @@
                 selected.forEach(cb => {
                     const key = cb.dataset.key;
                     localStorage.removeItem(key);
-                    currentSessionCodes.delete(key);                    
+                    currentSessionCodes.delete(key);
                 });
                 updateDisplayList(false);
                 controlBar.querySelector('#selectAll').checked = false;
