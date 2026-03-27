@@ -808,7 +808,10 @@
     // --- [사용자 보존 요청: 활용을 위해 남겨둔 함수들 삭제 금지] ---
 
     let currentMakerLabel = ""; // 전역 변수    
-    const buildMakerMap = new Map();
+
+    const addMakerMap = new Map();
+    const saveMakerMap = new Map();
+
     function findMakerLabel(retryCount = 0) {
         // 1. 먼저 페이지 내 모든 메이커 정보를 맵으로 빌드
         extraMakerMap();
@@ -828,64 +831,61 @@
             setTimeout(() => findMakerLabel(retryCount + 1), 1000);
         }
     }
-    function extraMakerMap() {        
-        const makerNodes = document.querySelectorAll('li a[href*="/av/list/?maker="] .line-clamp-2.text-ellipsis');
+    function extraMakerMap() {
+        const makerNodes = document.querySelectorAll('li a[href*="/av/list/?maker="] p.line-clamp-2.text-ellipsis');
         if (makerNodes.length === 0) {
             alert("저장할 메이커 데이터가 없습니다.");
             return;
         }
         makerNodes.forEach(node => {
             try {
-                const link = node.closest('li a[href*="/av/list/?maker]');
+                const link = node.closest('li a');
+                console.log(link);
                 const url = new URL(link.href, window.location.origin);
                 const makerId = url.searchParams.get('maker');
                 // .line-clamp-2.text-ellipsis 클래스를 가진 텍스트 추출
-                const makerName = link.querySelector('.line-clamp-2.text-ellipsis')?.innerText.trim();
+                const makerName = link.querySelector('p.line-clamp-2.text-ellipsis')?.innerText.trim();
 
                 if (makerId && makerName) {
-                    buildmakerMap.set(makerId, makerName);
+                    addMakerMap.set(makerId, makerName);
                 }
             } catch (e) {
-                // URL 파싱 에러 등 예외 처리
+                console.warn(e);
             }
         });
 
-        console.log(`[extraMakerMap] 메이커 맵 구성 완료: ${buildMakerMap.size}개 항목`);
+        console.log(`[extraMakerMap] 메이커 맵 구성 완료: ${addMakerMap.size}개 항목`);
     }
     function saveMakerMapToFile() {
-        if (buildMakerMap.size === 0) {
-            alert("저장할 메이커 데이터가 없습니다. 먼저 맵데이타를 수집하세요.");
+        if (addMakerMap.size === 0) {
+            alert("저장할 데이터가 없습니다. 먼저 수집하세요.");
             return;
         }
 
-        buildmakerMap.forEach(([id, originalName]) => {
-            // 변경 이름이 있으면 가져오고, 없으면 null 혹은 원래 이름을 넣습니다.
-            const makerName = makerLabelReplaceMap[originalName] || originalName;
+        // 초기화 (기존 데이터 중첩 방지)
+        saveMakerMap.clear();
 
-            // Map에 객체 형태로 저장: [ID, { 원래이름, 변경이름 }]
-            buildmakerMap.set(id, makerName || originalName);
+        // 수정 전: addMakerMap.forEach(([id, originalName]) => { ... })
+        // 수정 후: value(이름)가 먼저, key(ID)가 두 번째 인자입니다.
+        addMakerMap.forEach((originalName, id) => {
+            // 치환 맵(makerLabelReplaceMap)에 있으면 치환된 이름을, 없으면 원래 이름을 사용
+            const makerName = (typeof makerLabelReplaceMap !== 'undefined' && makerLabelReplaceMap[originalName])
+                || originalName;
+
+            saveMakerMap.set(id, makerName);
         });
 
-        // 1. Map을 일반 Object로 변환 후 JSON 문자열화
-        const obj = Object.fromEntries(buildmakerMap);
-        const jsonString = JSON.stringify(obj, null, 2); // 보기 좋게 들여쓰기 포함
+        // 이하 JSON 변환 및 다운로드 로직은 동일
+        const obj = Object.fromEntries(saveMakerMap);
+        const jsonString = JSON.stringify(obj, null, 2);
 
-        // 2. Blob 객체 생성
         const blob = new Blob([jsonString], { type: "application/json" });
         const url = URL.createObjectURL(blob);
-
-        // 3. 가상 링크를 만들어 다운로드 실행
         const a = document.createElement('a');
         a.href = url;
         a.download = `DMM_MakerMap_${new Date().toISOString().slice(0, 10)}.json`;
-        document.body.appendChild(a);
         a.click();
-
-        // 4. 리소스 정리
-        document.body.removeChild(a);
         URL.revokeObjectURL(url);
-
-        console.log(`[extraMakerMap] ${buildMakerMap.size}개의 메이커 정보가 파일로 저장되었습니다.`);
     }
 
     // -------------------------------------------------------------
