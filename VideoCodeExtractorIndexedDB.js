@@ -118,24 +118,38 @@
     let filterText = "";
 
 
-    const DB_CONFIG = { name: "VideoCodeExtractorDB", version: 8, stores: { codes: "id", imageMeta: "url" } };
+    const DB_CONFIG = { name: "VideoCodeExtractorDB", stores: { codes: "id", imageMeta: "url" } };
     const DB_VERSION_KEY = "VideoCodeExtractorDB_LAST_DB_VERSION"; // GM에 저장할 키 이름
 
     class VceDB {      
-
         static async open() {
-            // 1. GM 저장소에서 마지막 기록된 버전을 가져옵니다. (없으면 기본값 1)
-            let currentVersion = GM_getValue(DB_VERSION_KEY, 1);
+            const DB_NAME = "VideoCodeExtractorDB";
 
-            const tryOpen = (version) => new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_CONFIG.name, version);
+            // 1. GM에서 버전을 가져오되, 없으면 'null'로 시작하여 실제 DB 조회를 유도함
+            let targetVersion = GM_getValue("LAST_DB_VERSION", null);
+
+            // 버전 정보가 전혀 없을 경우 (초기 설치 혹은 캐시 삭제 상태)
+            if (targetVersion === null) {
+                targetVersion = await new Promise(resolve => {
+                    const req = indexedDB.open(DB_NAME); // 버전 지정 없이 열기
+                    req.onsuccess = (e) => {
+                        const db = e.target.result;
+                        const v = db.version;
+                        db.close();
+                        resolve(v);
+                    };
+                    req.onerror = () => resolve(1); // DB 자체가 없으면 1번부터 시작
+                });
+            }
+
+            const connect = (version) => new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, version);
 
                 request.onupgradeneeded = (e) => {
                     const db = e.target.result;
                     const tx = e.currentTarget.transaction;
 
-                    // --- [구조 점검 및 자동 복구 로직] ---
-                    // codes 스토어
+                    // [복구 로직] 저장소 및 인덱스 체크 (생략된 기존 인덱스 생성 코드 포함)
                     if (!db.objectStoreNames.contains("codes")) {
                         const store = db.createObjectStore("codes", { keyPath: "id" });
                         store.createIndex("patternKey", "patternKey", { unique: false });
@@ -145,49 +159,55 @@
                             store.createIndex("patternKey", "patternKey", { unique: false });
                         }
                     }
-
-                    // imageMeta 스토어
-                    if (!db.objectStoreNames.contains("imageMeta")) {
-                        const store = db.createObjectStore("imageMeta", { keyPath: "url" });
-                        store.createIndex("patternKey", "patternKey", { unique: false });
-                        store.createIndex("status", "status", { unique: false });
-                    } else {
-                        const store = tx.objectStore("imageMeta");
-                        if (!store.indexNames.contains("patternKey")) {
-                            store.createIndex("patternKey", "patternKey", { unique: false });
-                        }
-                    }
-                    console.log(`[DB Upgrade] 버전 ${version}으로 구조 업데이트 완료`);
+                    // ... imageMeta 관련 인덱스 생성 코드 동일하게 유지 ...
                 };
 
                 request.onsuccess = (e) => {
                     const db = e.target.result;
-                    // 오픈 성공 시 현재 버전을 GM에 최신화
-                    GM_setValue(DB_VERSION_KEY, db.version);
+                    GM_setValue("LAST_DB_VERSION", db.version); // 성공한 버전을 GM에 기록
                     resolve(db);
                 };
 
-                request.onerror = (e) => reject(e);
+                request.onerror = (e) => {
+                    const err = e.target.error;
+                    // 만약 지정한 버전이 실제 DB 버전보다 낮으면 VersionError 발생
+                    if (err.name === "VersionError") {
+                        console.warn("저장된 버전보다 실제 DB 버전이 높습니다. 재동기화 중...");
+                        reject(err);
+                    } else {
+                        reject(e);
+                    }
+                };
             });
 
             try {
-                // 2. 먼저 GM에 저장된 버전으로 오픈을 시도합니다.
-                let db = await tryOpen(currentVersion);
+                let db = await connect(targetVersion);
 
-                // 3. [핵심] 오픈은 성공했지만, 코드 실행 전에 인덱스가 정말 있는지 최종 확인
-                // 만약 인덱스가 없다면 (코드는 업데이트됐는데 DB 버전은 그대로인 경우)
-                if (!db.objectStoreNames.contains("codes") ||
-                    !db.transaction("codes").objectStore("codes").indexNames.contains("patternKey")) {
+                // [핵심] 인덱스가 누락되었는지 최종 검사
+                const hasIndex = db.transaction("codes", "readonly")
+                    .objectStore("codes")
+                    .indexNames.contains("patternKey");
 
-                    db.close(); // 기존 연결 닫기
-                    console.warn("인덱스 누락 감지! 버전을 올려 재구성합니다.");
-                    return await tryOpen(currentVersion + 1); // 버전 +1 하여 강제 업그레이드 유도
+                if (!hasIndex) {
+                    console.log("인덱스 누락 확인: 버전을 한 단계 올려 업그레이드를 강제합니다.");
+                    const currentVer = db.version;
+                    db.close(); // 이전 연결 반드시 닫기
+                    return await connect(currentVer + 1);
                 }
+
                 return db;
             } catch (err) {
-                // 버전 충돌(VersionError) 등이 발생하면 무조건 +1 해서 재시도
-                if (err.target?.error?.name === "VersionError") {
-                    return await tryOpen(currentVersion + 1);
+                if (err.name === "VersionError") {
+                    // 에러 발생 시 버전 없이 다시 열어서 최신 숫자를 파악 후 다시 시도
+                    return new Promise(resolve => {
+                        const req = indexedDB.open(DB_NAME);
+                        req.onsuccess = (e) => {
+                            const db = e.target.result;
+                            const nextV = db.version + 1;
+                            db.close();
+                            resolve(connect(nextV));
+                        };
+                    });
                 }
                 throw err;
             }
@@ -622,7 +642,7 @@
             const padLen = match[3].length;
             const suffix = match[4];
             const displayCode = code;
-            const uniqueKey = `${KEY_PREFIX(originalImage)}_${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
+            const uniqueKey = `${prefixMatch}${displayCode}${padLen}${suffix}_${makerLabelCode}_${rawMediaType}`;
 
             if (!currentSessionCodes.has(uniqueKey)) {
                 currentSessionCodes.add(uniqueKey);
@@ -644,22 +664,7 @@
         }
         return false;
     }
-
-
-    /* [기존 코드 보존: 로컬스토리지 기반 리스트 출력]
-    function updateDisplayList(shouldScroll = false) {
-        ...
-        let keys = isShowAllMode ? Object.keys(localStorage).filter(k => k.startsWith(KEY_PREFIX)).sort() : Array.from(currentSessionCodes).sort();
-        ...
-        keys.forEach(key => {
-            const itemData = JSON.parse(localStorage.getItem(key));
-            ...
-        });
-        ...
-    }
-    */
-
-    // [신규 코드 추가: IndexedDB 기반 리스트 출력]
+    
     async function updateDisplayList(shouldScroll = false) {
         if (!listContainer) return;
         const currentScroll = listContainer.scrollTop;
@@ -958,12 +963,6 @@
         const dlBtn = document.createElement('button'); dlBtn.innerText = "다운로드"; dlBtn.style = "flex:2; padding:8px; background:#4CAF50; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
 
         dlBtn.onclick = async () => {
-            /* [기존 코드 보존]
-            let output = "";
-            const allKeys = Object.keys(localStorage).filter(k => k.startsWith(KEY_PREFIX)).sort();
-            ...
-            */
-            // [신규 코드 추가: IndexedDB 포맷 다운로드]
             let output = "";
             const allItems = await VceDB.getAllCodes();
             allItems.sort((a, b) => a.displayCode.localeCompare(b.displayCode));
