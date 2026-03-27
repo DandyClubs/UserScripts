@@ -7,10 +7,16 @@
 // @match        https://video.dmm.co.jp/av/list/?maker=*
 // @match        https://video.dmm.co.jp/av/maker/*
 // @resource     MAKER_MAP https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/DMM_MakerMap_2026-03-26.json
+// @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @grant        GM_getResourceText
 // @grant        GM_addStyle
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_getResourceText
 // @grant        GM_xmlhttpRequest
 // @run-at       document-body
+// @connect      dmm.co.jp
+// @connect      prestige-av.com
 // @noframes
 // ==/UserScript==
 
@@ -36,15 +42,73 @@
     }
     `);
 
+    const imageUrlsMap = {
+        'FANZA_DIGITAL': "https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/",
+        'FANZA_MONO_DVD': "https://awsimgsrc.dmm.com/dig/mono/movie/",
+        'PRESTIGE': "https://www.prestige-av.com/api/media/goods/prestige/", // BGN045~072, CHN156~217, ABP398~999번, ABW001~279번
+        'DMM': "https://pics.dmm.co.jp/mono/movie/adult/",
+    };
+
+    const selectKeyPreFixMap = {
+        'dmm.co.jp': 'FANZA_DIGITAL',
+        'dmm.com': 'FANZA_MONO_DVD',
+        'prestige-av.com': 'PRESTIGE',
+    };
+
+    const makerLabelReplaceMap ={
+        "SODクリエイト": "SOD",
+        "アイデアポケット": "IdeaPocket",
+        "アタッカーズ": "Attackers",
+        "エスワン ナンバーワンスタイル": "S1 NO.1 STYLE",
+        "エムズビデオグループ": "M’s video Group",
+        "オーロラプロジェクト・アネックス": "AuroraProjectAnnex",
+        "グローリークエスト": "GloryQuest",
+        "ケイ・エム・プロデュース": "KMP",
+        "ナチュラルハイ": "NaturalHigh",
+        "プレステージ": "Prestige",
+        "マックスエー":	"MAX-A",
+        "マドンナ": "Madonna",
+        "ムーディーズ": "MOODYZ",
+        "メディアブランド": "MediaBrand",
+        "ワンズファクトリー": "WanzFactory",
+        "ワープエンタテインメント": "Waap",
+    };
+
     const PageURL = () => window.location !== window.parent.location ? document.referrer : document.location.href;
-    const KEY_PREFIX = "DMM_";
-    const imageSelector = 'main ul li a[href*="/av/content/?id="] picture source[srcset^="https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/"]';
+    const KEY_PREFIX = (url) => selectKeyPreFixMap[extractRootDomain(url)];
+
+    const imageSelectorMap = {
+        'video.dmm.co.jp': 'main ul li a[href*="/av/content/?id="] picture source[srcset^="https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/"]',
+    };
+    const getImageSelector = () => {
+        try {
+            const urlObj = new URL(PageURL());
+            let hostname = urlObj.hostname;
+
+            // 정규식 설명:
+            // ^www     : 문자열이 'www'로 시작하고
+            // \d* : 그 뒤에 숫자가 0개 이상(있어도 되고 없어도 됨) 붙으며
+            // \.       : 그 뒤에 마침표(.)가 오는 패턴을 찾습니다.
+            hostname = hostname.replace(/^www\d*\./, '');
+
+            return imageSelectorMap[hostname];
+        } catch (e) {
+            // URL 생성 실패 시 현재 창의 호스트네임에서 숫자 포함 www 제거
+            console.warn('[작업에 맞는 사이트가 아닙니다]');
+            return null;
+        }
+    };
+
+    const LOCAL_MAKER_KEY = "CUSTOM_MAKER_DATA"; // 로컬 저장 키
+
+    let imageSelector = getImageSelector();
+
     let makerLabelCode = GetParam(PageURL(), 'maker');
-    const makerSelector = `body div main a[href="/av/list/?maker=${makerLabelCode}"]`;
+    let makerSelector = `body div main a[href="/av/list/?maker=${makerLabelCode}"]`;
     let rawMediaType = GetParam(PageURL(), 'media_type');
 
     const PROCESSED_CLASS = 'processed-marker';
-    
+
     /* [기존 코드 보존] 메모리 기반 중복 방지 (이제 IndexedDB imageMeta가 대신함) */
     // const patternMemoryDB = new Set();
 
@@ -117,32 +181,106 @@
             const db = await this.open();
             return new Promise(r => db.transaction("imageMeta").objectStore("imageMeta").index("status").getAll("pending").onsuccess = e => r(e.target.result));
         }
+        static async getSchedulableTasks() {
+            const db = await this.open();
+            return new Promise(r => {
+                const store = db.transaction("imageMeta").objectStore("imageMeta");
+                const index = store.index("status");
+                const request = index.getAll("pending"); // 우선 'pending'인 것들 모두 가져옴
+
+                request.onsuccess = (e) => {
+                    const now = Date.now();
+                    const allPending = e.target.result;
+                    // 시간이 되었거나, 재시도 설정(nextRetryAt)이 없는 신규 항목만 필터링
+                    const executable = allPending.filter(task =>
+                        !task.nextRetryAt || task.nextRetryAt <= now
+                    );
+                    r(executable);
+                };
+            });
+        }
     }
 
     const requestQueue = [];
     let isIdleProcessing = false;
 
     async function fetchImageResolution(url) {
+        // 1. URL 확장자를 통해 필요한 바이트 크기 미리 계산
+        const getExpectedRange = (url) => {
+            const lowerUrl = url.toLowerCase();
+            if (lowerUrl.endsWith('.png') || lowerUrl.endsWith('.gif')) {
+                return "0-1000"; // PNG/GIF는 1KB면 충분함
+            } else if (lowerUrl.endsWith('.webp')) {
+                return "0-5000"; // WebP는 약 5KB 정도
+            } else {
+                return "0-20000"; // JPEG나 알 수 없는 경우 20KB
+            }
+        };
+
+        const targetRange = getExpectedRange(url);
+
         return new Promise((resolve) => {
             GM_xmlhttpRequest({
-                method: "GET", url: url, headers: { "Range": "bytes=0-30000" }, responseType: "arraybuffer",
+                method: "GET",
+                url: url,
+                headers: { "Range": `bytes=${targetRange}` },
+                responseType: "arraybuffer",
                 onload: (res) => {
+                    let result = { width: 0, height: 0, status: res.status, errorReason: "", type: "Unknown" };
+
+                    // 1. HTTP 오류 체크
+                    if (res.status < 200 || res.status >= 300) {
+                        result.errorReason = `HTTP ${res.status} 오류`;
+                        return resolve(result);
+                    }
+
                     const bytes = new Uint8Array(res.response);
-                    let result = { width: 0, height: 0 };
-                    if (bytes[0] === 0xFF && bytes[1] === 0xD8) {
+
+                    // 2. 포맷 판별 및 해상도 추출
+                    // PNG (89 50 4E 47 ...)
+                    if (bytes[0] === 0x89 && bytes[1] === 0x50) {
+                        result.type = "PNG";
+                        result.width = (bytes[16] << 24) | (bytes[17] << 16) | (bytes[18] << 8) | bytes[19];
+                        result.height = (bytes[20] << 24) | (bytes[21] << 16) | (bytes[22] << 8) | bytes[23];
+                    }
+                    // GIF (47 49 46 38 ...)
+                    else if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) {
+                        result.type = "GIF";
+                        result.width = bytes[6] | (bytes[7] << 8); // Little-endian
+                        result.height = bytes[8] | (bytes[9] << 8);
+                    }
+                    // JPEG (FF D8 ...)
+                    else if (bytes[0] === 0xFF && bytes[1] === 0xD8) {
+                        result.type = "JPEG";
                         let i = 2;
-                        while (i < bytes.length) {
+                        while (i < bytes.length - 8) {
                             const marker = (bytes[i] << 8) | bytes[i + 1];
                             const len = (bytes[i + 2] << 8) | bytes[i + 3];
+                            // SOF 마커 확인 (0xFFC0 ~ 0xFFCF 중 일부 제외)
                             if (marker >= 0xFFC0 && marker <= 0xFFCF && ![0xFFC4, 0xFFC8, 0xFFCC].includes(marker)) {
-                                result.height = (bytes[i + 5] << 8) | bytes[i + 6]; result.width = (bytes[i + 7] << 8) | bytes[i + 8]; break;
+                                result.height = (bytes[i + 5] << 8) | bytes[i + 6];
+                                result.width = (bytes[i + 7] << 8) | bytes[i + 8];
+                                break;
                             }
                             i += len + 2;
                         }
                     }
+                    // WebP (52 49 46 46 ... 57 45 42 50)
+                    else if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
+                        result.type = "WebP";
+                        // WebP는 내부 청크(VP8/VP8L/VP8X)에 따라 위치가 달라 더 복잡하지만, 
+                        // 간단하게 24-30바이트 사이에서 기초 해상도를 읽을 수 있습니다.
+                        if (bytes[12] === 0x56 && bytes[13] === 0x50 && bytes[14] === 0x38) {
+                            result.width = (bytes[26] | (bytes[27] << 8)) & 0x3FFF;
+                            result.height = (bytes[28] | (bytes[29] << 8)) & 0x3FFF;
+                        }
+                    }
+
+                    if (!result.width) result.errorReason = "해상도 정보 추출 불가";
                     resolve(result);
                 },
-                onerror: () => resolve({ width: 0, height: 0 })
+                onerror: () => resolve({ width: 0, height: 0, status: 0, errorReason: "네트워크 오류" }),
+                ontimeout: () => resolve({ width: 0, height: 0, status: 0, errorReason: "시간 초과" })
             });
         });
     }
@@ -163,59 +301,91 @@
     async function doIdleWork(deadline) {
         while (requestQueue.length > 0 && (deadline.timeRemaining() > 0 || deadline.didTimeout)) {
             const task = requestQueue.shift();
+
+            // 1. 상태 표시 업데이트 (대기량 알림)
+            updateProcessingStatus(true, requestQueue.length);
+
             const res = await fetchImageResolution(task.url);
-            const resText = res.width ? `${res.width}x${res.height}` : "";
-
             const existingMeta = await VceDB.getImageMeta(task.url);
-            if (existingMeta) await VceDB.setImageMeta({ ...existingMeta, status: "completed", width: res.width, height: res.height, resText });
+            if (!existingMeta) continue;
 
-            if (task.uniqueKey) {
-                const existingCode = await VceDB.getCode(task.uniqueKey);
-                if (existingCode) {
-                    await VceDB.saveCode(task.uniqueKey, { resText: resText });
-                    updateDisplayList(); 
+            let updateData = { ...existingMeta };
+
+            if (res.width > 0) {
+                // 성공 시
+                updateData.status = "completed";
+                updateData.width = res.width;
+                updateData.height = res.height;
+                updateData.resText = `${res.width}x${res.height}`;
+                updateData.retryCount = 0; // 초기화
+            } else {
+                // 실패 시 재시도 로직 계산
+                const retryCount = (existingMeta.retryCount || 0) + 1;
+                const now = Date.now();
+
+                updateData.lastError = res.errorReason;
+                updateData.retryCount = retryCount;
+
+                if (res.status === 404) {
+                    // 404: 24시간 뒤 재시도, 2회 실패 시 포기
+                    if (retryCount >= 2) {
+                        updateData.status = "failed_permanently";
+                    } else {
+                        updateData.status = "pending";
+                        updateData.nextRetryAt = now + (24 * 60 * 60 * 1000);
+                    }
+                } else {
+                    // 403, 500, 451, 0 등: 12시간 뒤 무한 재시도
+                    updateData.status = "pending";
+                    updateData.nextRetryAt = now + (12 * 60 * 60 * 1000);
                 }
             }
+
+            await VceDB.setImageMeta(updateData);
         }
-        if (requestQueue.length > 0) scheduleIdleWork();
-        else isIdleProcessing = false;
+
+        // 작업 완료 후 상태 업데이트
+        if (requestQueue.length > 0) {
+            scheduleIdleWork();
+        } else {
+            isIdleProcessing = false;
+            updateProcessingStatus(false, 0);
+        }
     }
-    // =====================================================================
 
-
-    /* [기존 코드 보존: 일반 동기식 mutCallback] 
-    const mutCallback = () => {
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
-            let hasNew = false;
-            const targets = document.querySelectorAll(`${imageSelector}:not(.${PROCESSED_CLASS})`);
-            if (targets.length === 0) return;
-            targets.forEach(el => {
-                el.classList.add(PROCESSED_CLASS);
-                const targetUrl = el.getAttribute('srcset') || el.getAttribute('src');
-                if (targetUrl && processUrl(targetUrl)) { hasNew = true; }
+    function updateProcessingStatus(isWorking, count) {
+        let statusEl = document.getElementById('vce-status-indicator');
+        if (!statusEl) {
+            statusEl = document.createElement('div');
+            statusEl.id = 'vce-status-indicator';
+            Object.assign(statusEl.style, {
+                position: 'fixed', bottom: '10px', right: '10px',
+                padding: '5px 10px', background: 'rgba(0,0,0,0.7)',
+                color: 'white', fontSize: '12px', borderRadius: '5px', zIndex: '9999'
             });
-            if (hasNew) { updateDisplayList(); }
+            document.body.appendChild(statusEl);
         }
-        makerLabelCode = GetParam(PageURL(), 'maker');
-        makerLabel = getMakerLabel(makerLabelCode);
-        rawMediaType = GetParam(PageURL(), 'media_type');
-    };
-    */
 
-    // [신규 코드 추가: 비동기 지원 mutCallback]
+        if (isWorking) {
+            statusEl.innerHTML = `⚙️ 처리 중... (대기: ${count})`;
+            statusEl.style.display = 'block';
+        } else {
+            statusEl.style.display = 'none';
+        }
+    }
+
     const mutCallback = async () => {
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+            imageSelector = getImageSelector();
+            if (!imageSelector) return;
             const targets = document.querySelectorAll(`${imageSelector}:not(.${PROCESSED_CLASS})`);
             if (targets.length === 0) return;
             for (const el of targets) {
                 el.classList.add(PROCESSED_CLASS);
                 const targetUrl = el.getAttribute('srcset') || el.getAttribute('src');
-                if (targetUrl) await processUrl(targetUrl); // await 처리를 위해 변경됨
+                if (targetUrl) await processWork(targetUrl); // await 처리를 위해 변경됨
             }
-        }
-        makerLabelCode = GetParam(PageURL(), 'maker');
-        makerLabel = getMakerLabel(makerLabelCode);
-        rawMediaType = GetParam(PageURL(), 'media_type');
+        }        
     };
 
     const observer = new MutationObserver(mutCallback);
@@ -236,7 +406,7 @@
         if (!countStatus || !listContainer) return;
         const selectedCount = listContainer.querySelectorAll('.item-check:checked').length;
         const currentListCount = listContainer.querySelectorAll('.item-check').length;
-        
+
         const allCodes = await VceDB.getAllCodes();
         const totalCount = allCodes.length; // 로컬스토리지 대신 DB 갯수로 대체
 
@@ -247,32 +417,32 @@
         `;
 
         if (alertStatus) {
-            if (/^https:\/\/video\.dmm\.co\.jp\/av\/maker\/$/.test(PageURL())) {
+            console.log({ rawMediaType, makerLabelCode, makerLabel });
+            if (!rawMediaType && !makerLabelCode) {
                 alertStatus.innerHTML = `<div style="color:#F44336; margin-bottom:5px; font-weight:bold;">❌ 추출할 메이커 페이지로 이동하세요!</div>`;
             } else if (!rawMediaType) {
-                alertStatus.innerHTML = `<div style="color:#FF9800; margin-bottom:5px; font-weight:bold;">⚠️ <a id="choicetype" href="https://video.dmm.co.jp/av/list/?maker=${makerLabelCode}&media_type=2d">2D</a>를 선택하세요!<br>❌ 페이지 주소가 맞지 않아 수집 중단.</div>`;
+                alertStatus.innerHTML = `<div style="color:#FF9800; margin-bottom:5px; font-weight:bold;">⚠️ ${makerLabelCode ? `<a id="choicetype" href="https://video.dmm.co.jp/av/list/?maker=${makerLabelCode}&media_type=2d">2D</a>를 선택하세요!</a>` : `제조사 리스트 페이지로 이동하세요!`}<br>❌ 페이지 주소가 맞지 않아 수집 중단.</div>`;
             } else if (!makerLabelCode || makerLabel === "Unknown") {
                 alertStatus.innerHTML = `<div style="color:#F44336; margin-bottom:5px; font-weight:bold;">❌ 제작사 정보를 가져오지 못했습니다.</div>`;
             } else {
                 alertStatus.innerHTML = "";
             }
         }
-        makerLabelCode = GetParam(PageURL(), 'maker');
-        makerLabel = getMakerLabel(makerLabelCode);
-        rawMediaType = GetParam(PageURL(), 'media_type');
     }
 
     const resetSessionCodes = () => {
+        const newUrl = PageURL();
+        makerLabelCode = GetParam(newUrl, 'maker');
+        rawMediaType = GetParam(newUrl, 'media_type');        
+        makerLabel = getMakerLabel(makerLabelCode);        
+        
         if (currentSessionCodes.size > 0) {
             currentSessionCodes.clear();
             updateDisplayList();
         }
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             observer.observe(document.body, { childList: true, subtree: true });
-        }
-        makerLabelCode = GetParam(PageURL(), 'maker');
-        makerLabel = getMakerLabel(makerLabelCode);
-        rawMediaType = GetParam(PageURL(), 'media_type');
+        }        
     };
 
     window.addEventListener('popstate', resetSessionCodes);
@@ -284,37 +454,37 @@
     history.replaceState = function () { originalReplace.apply(this, arguments); resetSessionCodes(); };
 
 
-    /* [기존 코드 보존: 로컬스토리지 방식 processUrl]
-    function processUrl(srcset) {
-        ... (중략) ...
-        const maskedId = contentId.replace(/\d/g, '0');
-        const currentPattern = `${maskedId}_${makerLabelCode}_${rawMediaType}`;
-        if (patternMemoryDB.has(currentPattern)) return false;
+    async function processWork(srcset) {
 
-        // ... 매칭 후 로컬스토리지 저장 로직
-        if (!localStorage.getItem(uniqueKey)) {
-            currentSessionCodes.add(uniqueKey);
-            localStorage.setItem(uniqueKey, JSON.stringify({ ... }));
-            if (typeof currentPattern !== 'undefined') patternMemoryDB.add(currentPattern);
-            return true;
-        }
-        return false;
-    }
-    */
-
-    // [신규 코드 추가: DB 저장 + 해상도 큐 추가 비동기 processUrl]
-    async function processUrl(srcset) {
         if (!srcset || !srcset.includes('https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/')) return false;
         const cleanUrl = srcset.split('?')[0];
-        
+
         const majorsLabel = /digital\/video\/(.*?)([a-z]{3,7}\d{4,7}|[ts]{1,2}\d{2,7})[v]?/i;
         if (!majorsLabel.test(cleanUrl)) return false;
+
 
         const skipPatterns = [
             /digital\/video\/(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)\//,
             /digital\/video\/\d+jdxa\d+/i,
         ];
+
         for (const skipRegex of skipPatterns) if (skipRegex.test(cleanUrl)) return false;
+
+        const pathSegments = cleanUrl.split('/');
+        const contentId = pathSegments[pathSegments.length - 2];
+        const fileName = pathSegments.pop();
+        const fileExtension = fileName.split('.').pop();
+        const newImageUrl = cleanUrl.replace(fileName, `${contentId}pl.${fileExtension}`);
+        const maskedId = contentId.replace(/\d/g, '0');
+        const patternKey = `${maskedId}_${makerLabelCode}_${rawMediaType}`;
+
+        // 2. 해상도/패턴 캐시 확인 및 큐 추가
+        const meta = await VceDB.getImageMeta(cleanUrl);
+
+        if (!meta) await VceDB.setImageMeta({ url: newImageUrl, patternKey, status: "pending" });
+        addToQueue({ url: newImageUrl });
+
+        if (await VceDB.getImageByPattern(patternKey)) return true;
 
         const extractPatterns = [
             /digital\/video\/(.*)(d1clymax)(\d{5,})(.*?)\//,
@@ -329,16 +499,16 @@
 
         let match = null;
         for (const regex of extractPatterns) { match = cleanUrl.match(regex); if (match) break; }
-        
+
         if (match) {
             if (!makerLabelCode || !rawMediaType || !makerLabel) return false;
 
             const prefixMatch = match[1];
             const code = match[2].toUpperCase();
-            const padLen = `zero${match[3].length}`;
+            const padLen = match[3].length;
             const suffix = match[4];
             const displayCode = code;
-            const uniqueKey = `${KEY_PREFIX}${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
+            const uniqueKey = `${KEY_PREFIX(cleanUrl)}_${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
 
             // 1. 화면 표시 및 DB 코드 저장 (기존 로컬스토리지 대체)
             if (!currentSessionCodes.has(uniqueKey)) {
@@ -348,24 +518,9 @@
                     displayCode: displayCode,
                     data: ["FANZA_DIGITAL", prefixMatch, padLen, suffix, makerLabel, rawMediaType],
                     origin: cleanUrl,
-                    resText: existingCode ? existingCode.resText : "" 
                 });
-                updateDisplayList(); 
+                updateDisplayList();
             }
-
-            // 2. 해상도/패턴 캐시 확인 및 큐 추가 (기존 patternMemoryDB 대체)
-            const meta = await VceDB.getImageMeta(cleanUrl);
-            if (meta && meta.status === "completed") return true;
-
-            const pathSegments = cleanUrl.split('/');
-            const contentId = pathSegments[pathSegments.length - 2];
-            const maskedId = contentId.replace(/\d/g, '0');
-            const patternKey = `${maskedId}_${makerLabelCode}_${rawMediaType}`;
-            
-            if (await VceDB.getImageByPattern(patternKey)) return true;
-
-            if (!meta) await VceDB.setImageMeta({ url: cleanUrl, patternKey, status: "pending" });
-            addToQueue({ url: cleanUrl, uniqueKey: uniqueKey });
 
             return true;
         }
@@ -428,8 +583,8 @@
                 <input type="checkbox" class="item-check" data-key="${key}" style="margin-left:5px; width:15px; height:15px; cursor:pointer; accent-color:#00FF41; appearance:auto;">
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; cursor:help;" title="${itemData.origin}">
                 <a href="${itemPageUrl}" target="_blank"><span style="color:#00FF41; font-family:monospace; font-size:12px;">${itemData.displayCode}</span></a>
-                    ${detailLabel ? `<span style="color:white; font-size:10px; margin-left:5px;">[</span><span style="color:#00FF41; font-size:10px;">${detailLabel}</span><span style="color:white; font-size:10px;">]</span>` : ''}                    
-                    ${itemData.resText ? `<span style="color:#FF9800; font-size:10px; margin-left:5px;">(${itemData.resText})</span>` : ''} </div>
+                    ${detailLabel ? `<span style="color:white; font-size:10px; margin-left:5px;">[</span><span style="color:#00FF41; font-size:10px;">${detailLabel}</span><span style="color:white; font-size:10px;">]</span>` : ''}
+                </div>                                        
                 <span style="color:white; font-size:10px;padding-left:5px;">[ ${itemData.data[5]} ]</span>
                 <button class="del-btn" style="background:none; border:none; color:#ff4d4d; cursor:pointer; font-weight:bold; font-size:16px; padding:0 5px;">×</button>
             `;
@@ -437,12 +592,11 @@
             row.querySelector('.item-check').onchange = updateCounts;
 
             row.querySelector('.del-btn').onclick = async (e) => {
-                // [기존: localStorage.removeItem] -> [신규: VceDB.deleteCode]
                 await VceDB.deleteCode(key);
                 currentSessionCodes.delete(key);
                 const getS = e.target.parentElement.getAttribute('title');
                 if (getS) {
-                    processUrl(getS);
+                    processWork(getS);
                 }
                 updateDisplayList(false);
             };
@@ -463,37 +617,64 @@
                 const resourceText = GM_getResourceText("MAKER_MAP");
                 if (resourceText) {
                     const externalData = JSON.parse(resourceText);
-                    Object.entries(externalData).forEach(([id, name]) => {
-                        makerMap.set(id, name);
+
+                    Object.entries(externalData).forEach(([id, originalName]) => {
+                        // 변경 이름이 있으면 가져오고, 없으면 null 혹은 원래 이름을 넣습니다.
+                        const finalName = makerLabelReplaceMap[originalName] || originalName;
+
+                        // Map에 객체 형태로 저장: [ID, { 원래이름, 변경이름 }]
+                        makerMap.set(id, {
+                            original: originalName,
+                            final: finalName
+                        });
                     });
                 }
             }
+            // 2. GM_getValue로 저장된 로컬 데이터 로드 및 병합
+            const localData = GM_getValue(LOCAL_MAKER_KEY, {});
+            Object.entries(localData).forEach(([id, data]) => {
+                makerMap.set(id, data); // 외부 리소스보다 로컬 데이터(수정본)를 우선함
+            });
         } catch (e) {
-            console.warn("[VCE] 外部リソースのロードに失敗しました:", e);
+            console.warn("[initializeMakerMap] 외부리소스 로딩 실패", e);
         }
         console.log(`메이커 맵 구성: ${makerMap.size}개 항목`, makerMap);
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             observer.observe(document.body, { childList: true, subtree: true });
-        }
-        makerLabelCode = GetParam(PageURL(), 'maker');
-        makerLabel = getMakerLabel(makerLabelCode);
-        rawMediaType = GetParam(PageURL(), 'media_type');
+        }        
     }
-
+    
     function getMakerLabel(id) {
+        if (!id) return "Unknown";
+
+        // 1. 이미 맵(메모리+로컬저장소)에 존재하면 즉시 반환
         if (makerMap.has(id)) {
-            return makerMap.get(id);
+            const entry = makerMap.get(id);
+            return entry.final || entry.original;
         }
-        const el = document.querySelector(makerSelector);
+
+        // 2. 맵에 없을 경우 페이지에서 직접 추출
+        const el = document.querySelector(`a[href*="maker=${id}"]`) || document.querySelector(makerSelector);
         const label = el?.innerText.trim();
 
         if (label) {
-            makerMap.set(id, label);
-            return label;
+            const makerlName = makerLabelReplaceMap[label] || label;
+            const newData = { original: label, final: makerlName };
+
+            // 메모리에 저장
+            makerMap.set(id, newData);
+
+            // [핵심] GM_setValue를 이용해 영구 저장소 업데이트
+            const currentLocal = GM_getValue(LOCAL_MAKER_KEY, {});
+            currentLocal[id] = newData;
+            GM_setValue(LOCAL_MAKER_KEY, currentLocal);
+
+            console.log(`[신규 메이커 저장] ${id}: ${makerlName}`);
+            return makerlName;
         }
+
         return "Unknown";
     }
-
     // --- [사용자 보존 요청: 활용을 위해 남겨둔 함수들 삭제 금지] ---
     /**
     let currentMakerLabel = ""; // 전역 변수
@@ -584,7 +765,7 @@
         panel.appendChild(countStatus);
 
         const controlBar = document.createElement('div');
-        controlBar.style = "display:flex; flex-direction:column; padding:8px; background:#222; border-bottom:1px solid #444; gap:8px; margin-bottom:10px; border-radius:4px; box-sizing:border-box;"; 
+        controlBar.style = "display:flex; flex-direction:column; padding:8px; background:#222; border-bottom:1px solid #444; gap:8px; margin-bottom:10px; border-radius:4px; box-sizing:border-box;";
         controlBar.innerHTML = `
             <div style="display:flex; align-items:center; justify-content:space-between; width:100%; gap:5px;">
                 <label style="color:#ccc; font-size:11px; cursor:pointer; display:flex; align-items:center; user-select:none; white-space:nowrap; flex-shrink:0;">
@@ -613,21 +794,13 @@
         controlBar.querySelector('#selectAll').onclick = (e) => {
             const checkboxes = listContainer.querySelectorAll('.item-check');
             checkboxes.forEach(cb => cb.checked = e.target.checked);
-            updateCounts(); 
+            updateCounts();
         };
 
         controlBar.querySelector('#delSelected').onclick = async () => {
             const selected = listContainer.querySelectorAll('.item-check:checked');
             if (selected.length === 0) return alert("삭제할 항목을 선택해주세요.");
             if (confirm(`${selected.length}개의 항목을 삭제하시겠습니까?`)) {
-                /* [기존 코드 보존] 
-                selected.forEach(cb => {
-                    const key = cb.dataset.key;
-                    localStorage.removeItem(key);
-                    currentSessionCodes.delete(key);
-                });
-                */
-                // [신규 코드 추가: DB 멀티 삭제]
                 for (const cb of selected) {
                     const key = cb.dataset.key;
                     await VceDB.deleteCode(key);
@@ -655,7 +828,7 @@
         const btnContainer = document.createElement('div');
         btnContainer.style = "display:flex; gap:5px;";
         const dlBtn = document.createElement('button'); dlBtn.innerText = "다운로드"; dlBtn.style = "flex:2; padding:8px; background:#4CAF50; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
-        
+
         dlBtn.onclick = async () => {
             /* [기존 코드 보존]
             let output = "";
@@ -665,8 +838,8 @@
             // [신규 코드 추가: IndexedDB 포맷 다운로드]
             let output = "";
             const allItems = await VceDB.getAllCodes();
-            allItems.sort((a,b) => a.displayCode.localeCompare(b.displayCode));
-            
+            allItems.sort((a, b) => a.displayCode.localeCompare(b.displayCode));
+
             allItems.forEach(obj => {
                 output += `"${obj.displayCode}": ${JSON.stringify(obj.data)}, // 해상도: ${obj.resText || 'N/A'}, 원본: ${obj.origin}\n`;
             });
@@ -682,18 +855,13 @@
         };
 
         const clBtn = document.createElement('button'); clBtn.innerText = "초기화"; clBtn.style = "flex:1; padding:8px; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
-        clBtn.onclick = async () => { 
-            if (confirm("모든 데이터를 삭제하시겠습니까?")) { 
-                /* [기존 코드 보존]
-                Object.keys(localStorage).filter(k => k.startsWith(KEY_PREFIX)).forEach(k => localStorage.removeItem(k)); 
-                currentSessionCodes.clear(); updateDisplayList(); 
-                */
-                // [신규 코드 추가]
+        clBtn.onclick = async () => {
+            if (confirm("모든 데이터를 삭제하시겠습니까?")) {
                 const db = await VceDB.open();
                 db.transaction("codes", "readwrite").objectStore("codes").clear();
-                currentSessionCodes.clear(); 
-                updateDisplayList(); 
-            } 
+                currentSessionCodes.clear();
+                updateDisplayList();
+            }
         };
         btnContainer.append(dlBtn, clBtn);
         panel.appendChild(btnContainer);
@@ -704,38 +872,26 @@
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
-    
+
     window.addEventListener('load', async () => {
         initializeMakerMap();
+        createUI();
         await sleep(2000);
 
-        // =========================================================
-        // [신규 코드 추가: 데이터 이관(Migration) 및 복구]
-        // =========================================================
-        const keys = Object.keys(localStorage).filter(k => k.startsWith(KEY_PREFIX));
-        if (keys.length > 0) {
-            console.log(`[VCE] ${keys.length}개의 구형 데이터를 마이그레이션 합니다...`);
-            for (const key of keys) {
-                try {
-                    const data = JSON.parse(localStorage.getItem(key));
-                    await VceDB.saveCode(key, data);
-                    localStorage.removeItem(key);
-                } catch(e) {}
-            }
-        }
-        const pendingTasks = await VceDB.getPendingTasks();
-        if (pendingTasks.length > 0) pendingTasks.forEach(task => addToQueue({ url: task.url, uniqueKey: null }));
-        // =========================================================
+        const tasksToRun = await VceDB.getSchedulableTasks();
 
-        createUI();
+        if (tasksToRun.length > 0) {
+            console.log(`${tasksToRun.length}개의 재시도 작업을 큐에 추가합니다.`);
+            tasksToRun.forEach(task => addToQueue({ url: task.url }));
+        }
 
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             mutCallback();
             observer.observe(document.body, { childList: true, subtree: true });
         }
 
-        makerLabelCode = GetParam(PageURL(), 'maker');
+        makerLabelCode = GetParam(newUrl, 'maker');
+        rawMediaType = GetParam(newUrl, 'media_type');
         makerLabel = getMakerLabel(makerLabelCode);
-        rawMediaType = GetParam(PageURL(), 'media_type');
     });
 })();
