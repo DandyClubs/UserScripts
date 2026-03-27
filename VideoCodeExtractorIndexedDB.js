@@ -808,7 +808,7 @@
     // --- [사용자 보존 요청: 활용을 위해 남겨둔 함수들 삭제 금지] ---
 
     let currentMakerLabel = ""; // 전역 변수    
-    const buildmakerMap = new Map();
+    const buildMakerMap = new Map();
     function findMakerLabel(retryCount = 0) {
         // 1. 먼저 페이지 내 모든 메이커 정보를 맵으로 빌드
         extraMakerMap();
@@ -828,15 +828,19 @@
             setTimeout(() => findMakerLabel(retryCount + 1), 1000);
         }
     }
-    function extraMakerMap() {
-        const makerNodes = document.querySelectorAll('a[href*="maker="]');
-
+    function extraMakerMap() {        
+        const makerNodes = document.querySelectorAll('li a[href*="/av/list/?maker="] .line-clamp-2.text-ellipsis');
+        if (makerNodes.length === 0) {
+            alert("저장할 메이커 데이터가 없습니다.");
+            return;
+        }
         makerNodes.forEach(node => {
             try {
-                const url = new URL(node.href, window.location.origin);
+                const link = node.closest('li a[href*="/av/list/?maker]');
+                const url = new URL(link.href, window.location.origin);
                 const makerId = url.searchParams.get('maker');
                 // .line-clamp-2.text-ellipsis 클래스를 가진 텍스트 추출
-                const makerName = node.querySelector('.line-clamp-2.text-ellipsis')?.innerText.trim();
+                const makerName = link.querySelector('.line-clamp-2.text-ellipsis')?.innerText.trim();
 
                 if (makerId && makerName) {
                     buildmakerMap.set(makerId, makerName);
@@ -846,11 +850,12 @@
             }
         });
 
-        console.log(`[VCE] 메이커 맵 구성 완료: ${makerMap.size}개 항목`);
+        console.log(`[extraMakerMap] 메이커 맵 구성 완료: ${buildMakerMap.size}개 항목`);
     }
     function saveMakerMapToFile() {
-        if (buildmakerMap.size === 0) {            
-            return extraMakerMap();
+        if (buildMakerMap.size === 0) {
+            alert("저장할 메이커 데이터가 없습니다. 먼저 맵데이타를 수집하세요.");
+            return;
         }
 
         buildmakerMap.forEach(([id, originalName]) => {
@@ -862,7 +867,7 @@
         });
 
         // 1. Map을 일반 Object로 변환 후 JSON 문자열화
-        const obj = Object.fromEntries(buildmakerMap);        
+        const obj = Object.fromEntries(buildmakerMap);
         const jsonString = JSON.stringify(obj, null, 2); // 보기 좋게 들여쓰기 포함
 
         // 2. Blob 객체 생성
@@ -880,7 +885,7 @@
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
 
-        console.log(`[VCE] ${makerMap.size}개의 메이커 정보가 파일로 저장되었습니다.`);
+        console.log(`[extraMakerMap] ${buildMakerMap.size}개의 메이커 정보가 파일로 저장되었습니다.`);
     }
 
     // -------------------------------------------------------------
@@ -1066,7 +1071,9 @@
         btnContainer.appendChild(dlBtn);
         btnContainer.appendChild(metaDlBtn);
 
-        const clBtn = document.createElement('button'); clBtn.innerText = "초기화"; clBtn.style = "flex:1; padding:8px; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
+        const clBtn = document.createElement('button');
+        clBtn.innerText = "초기화";
+        clBtn.style = "flex:1; padding:8px; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
         clBtn.onclick = async () => {
             if (confirm("모든 데이터를 삭제하시겠습니까?")) {
                 const db = await VceDB.open();
@@ -1077,16 +1084,26 @@
         };
         btnContainer.append(dlBtn, clBtn);
         panel.appendChild(btnContainer);
-        document.body.appendChild(panel);
 
-       // 페이지에서 수집
+        // 페이지에서 수집
+
+        const mapContainer = document.createElement('div');
+        mapContainer.style = "display:flex; gap:5px;";
+
+        const extraBtn = document.createElement('button');
+        extraBtn.innerText = "메이커 맵 수집";
+        extraBtn.style = "margin-top:5px; padding:5px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;";
+        extraBtn.onclick = extraMakerMap;
+
         const saveBtn = document.createElement('button');
         saveBtn.innerText = "메이커 맵 저장";
         saveBtn.style = "margin-top:5px; padding:5px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;";
         saveBtn.onclick = saveMakerMapToFile;
 
-        panel.appendChild(saveBtn);
+        mapContainer.append(extraBtn, saveBtn);
+        panel.appendChild(mapContainer);
 
+        document.body.appendChild(panel);
 
         updateDisplayList();
 
