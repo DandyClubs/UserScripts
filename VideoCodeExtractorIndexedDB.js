@@ -1232,8 +1232,7 @@
 
     window.addEventListener('load', async () => {
         initializeMakerMap();
-        createUI();
-        pendingTry();
+        createUI();        
         await sleep(2000);
         refreshQueueButton();
         
