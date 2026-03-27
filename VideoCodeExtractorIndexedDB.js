@@ -807,90 +807,90 @@
     }
     // --- [사용자 보존 요청: 활용을 위해 남겨둔 함수들 삭제 금지] ---
     // ================================================================================
-/** 
-    let currentMakerLabel = ""; // 전역 변수    
-
-    const addMakerMap = new Map();
-    const saveMakerMap = new Map();
-
-    function findMakerLabel(retryCount = 0) {
-        // 1. 먼저 페이지 내 모든 메이커 정보를 맵으로 빌드
-        extraMakerMap();
-
-        // 2. 현재 페이지의 파라미터에서 maker ID 가져오기
-        const urlParams = new URLSearchParams(window.location.search);
-        const makerId = urlParams.get('maker');
-
-        // 3. 맵에서 찾거나, 직접 셀렉터로 찾기
-        const label = getMakerNameById(makerId);
-
-        if (label && label !== "Unknown") {
-            currentMakerLabel = label;
-            console.log(`[VCE] 매칭된 메이커: ${currentMakerLabel}`);
-        } else if (retryCount < 10) {
-            console.log(`[VCE] 메이커 텍스트 추출 재시도 중... (${retryCount + 1}/10)`);
-            setTimeout(() => findMakerLabel(retryCount + 1), 1000);
-        }
-    }
-    function extraMakerMap() {
-        const makerNodes = document.querySelectorAll('li a[href*="/av/list/?maker="] p.line-clamp-2.text-ellipsis');
-        if (makerNodes.length === 0) {
-            alert("저장할 메이커 데이터가 없습니다.");
-            return;
-        }
-        makerNodes.forEach(node => {
-            try {
-                const link = node.closest('li a');
-                console.log(link);
-                const url = new URL(link.href, window.location.origin);
-                const makerId = url.searchParams.get('maker');
-                // .line-clamp-2.text-ellipsis 클래스를 가진 텍스트 추출
-                const makerName = link.querySelector('p.line-clamp-2.text-ellipsis')?.innerText.trim();
-
-                if (makerId && makerName) {
-                    addMakerMap.set(makerId, makerName);
-                }
-            } catch (e) {
-                console.warn(e);
+    /** 
+        let currentMakerLabel = ""; // 전역 변수    
+    
+        const addMakerMap = new Map();
+        const saveMakerMap = new Map();
+    
+        function findMakerLabel(retryCount = 0) {
+            // 1. 먼저 페이지 내 모든 메이커 정보를 맵으로 빌드
+            extraMakerMap();
+    
+            // 2. 현재 페이지의 파라미터에서 maker ID 가져오기
+            const urlParams = new URLSearchParams(window.location.search);
+            const makerId = urlParams.get('maker');
+    
+            // 3. 맵에서 찾거나, 직접 셀렉터로 찾기
+            const label = getMakerNameById(makerId);
+    
+            if (label && label !== "Unknown") {
+                currentMakerLabel = label;
+                console.log(`[VCE] 매칭된 메이커: ${currentMakerLabel}`);
+            } else if (retryCount < 10) {
+                console.log(`[VCE] 메이커 텍스트 추출 재시도 중... (${retryCount + 1}/10)`);
+                setTimeout(() => findMakerLabel(retryCount + 1), 1000);
             }
-        });
-
-        console.log(`[extraMakerMap] 메이커 맵 구성 완료: ${addMakerMap.size}개 항목`);
-    }
-    function saveMakerMapToFile() {
-        if (addMakerMap.size === 0) {
-            alert("저장할 데이터가 없습니다. 먼저 수집하세요.");
-            return;
         }
-
-        // 초기화 (기존 데이터 중첩 방지)
-        saveMakerMap.clear();
-
-        // 수정 전: addMakerMap.forEach(([id, originalName]) => { ... })
-        // 수정 후: value(이름)가 먼저, key(ID)가 두 번째 인자입니다.
-        addMakerMap.forEach((originalName, id) => {
-            // 치환 맵(makerLabelReplaceMap)에 있으면 치환된 이름을, 없으면 원래 이름을 사용
-            const makerName = (typeof makerLabelReplaceMap !== 'undefined' && makerLabelReplaceMap[originalName])
-                || originalName;
-
-            saveMakerMap.set(id, makerName);
-        });
-
-        // 이하 JSON 변환 및 다운로드 로직은 동일
-        const obj = Object.fromEntries(saveMakerMap);
-        const jsonString = JSON.stringify(obj, null, 2);
-
-        const blob = new Blob([jsonString], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `DMM_MakerMap_${new Date().toISOString().slice(0, 10)}.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-    }
-
-    */
-// ================================================================================
+        function extraMakerMap() {
+            const makerNodes = document.querySelectorAll('li a[href*="/av/list/?maker="] p.line-clamp-2.text-ellipsis');
+            if (makerNodes.length === 0) {
+                alert("저장할 메이커 데이터가 없습니다.");
+                return;
+            }
+            makerNodes.forEach(node => {
+                try {
+                    const link = node.closest('li a');
+                    console.log(link);
+                    const url = new URL(link.href, window.location.origin);
+                    const makerId = url.searchParams.get('maker');
+                    // .line-clamp-2.text-ellipsis 클래스를 가진 텍스트 추출
+                    const makerName = link.querySelector('p.line-clamp-2.text-ellipsis')?.innerText.trim();
+    
+                    if (makerId && makerName) {
+                        addMakerMap.set(makerId, makerName);
+                    }
+                } catch (e) {
+                    console.warn(e);
+                }
+            });
+    
+            console.log(`[extraMakerMap] 메이커 맵 구성 완료: ${addMakerMap.size}개 항목`);
+        }
+        function saveMakerMapToFile() {
+            if (addMakerMap.size === 0) {
+                alert("저장할 데이터가 없습니다. 먼저 수집하세요.");
+                return;
+            }
+    
+            // 초기화 (기존 데이터 중첩 방지)
+            saveMakerMap.clear();
+    
+            // 수정 전: addMakerMap.forEach(([id, originalName]) => { ... })
+            // 수정 후: value(이름)가 먼저, key(ID)가 두 번째 인자입니다.
+            addMakerMap.forEach((originalName, id) => {
+                // 치환 맵(makerLabelReplaceMap)에 있으면 치환된 이름을, 없으면 원래 이름을 사용
+                const makerName = (typeof makerLabelReplaceMap !== 'undefined' && makerLabelReplaceMap[originalName])
+                    || originalName;
+    
+                saveMakerMap.set(id, makerName);
+            });
+    
+            // 이하 JSON 변환 및 다운로드 로직은 동일
+            const obj = Object.fromEntries(saveMakerMap);
+            const jsonString = JSON.stringify(obj, null, 2);
+    
+            const blob = new Blob([jsonString], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `DMM_MakerMap_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    
+        */
+    // ================================================================================
 
     function createUI() {
         const panel = document.createElement('div');
@@ -906,60 +906,74 @@
         countStatus.style = "font-size:10px; color:#aaa; text-align:center; margin-bottom:8px; padding:4px; background:#222; border-radius:4px;";
         panel.appendChild(countStatus);
 
+        // controlBar 생성
         const controlBar = document.createElement('div');
         controlBar.style = "display:flex; flex-direction:column; padding:8px; background:#222; border-bottom:1px solid #444; gap:8px; margin-bottom:10px; border-radius:4px; box-sizing:border-box;";
         controlBar.innerHTML = `      
-            <div style="display:flex; align-items:center; justify-content:flex-start; width:100%; gap:8px;">
-                <button id="btnSelectAll" style="background:#2196F3; color:white; border:none; padding:4px 8px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 선택</button>
-                <button id="btnUnselectAll" style="background:#666; color:white; border:none; padding:4px 8px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 해제</button>
-                <div style="flex:1"></div> <button id="delSelected" style="background:#444; color:#ff4d4d; border:none; padding:4px 8px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">선택 삭제</button>
-            </div>
-            <div style="display:flex; gap:5px; width:100%;">
-                <input type="text" id="filterInput" placeholder="예: abc or /abc/" style="flex:1; min-width:0; background:#111; color:#00FF41; border:1px solid #444; padding:5px; font-size:12px; border-radius:3px; outline:none; font-family:monospace;">
-                <button id="clearBtn" style="background:#666; color:#fff; border:none; padding:0 8px; font-size:11px; cursor:pointer; border-radius:3px; white-space:nowrap;">X</button>
-                <button id="searchBtn" style="background:#00FF41; color:#000; border:none; padding:0 12px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; white-space:nowrap;">찾기</button>
-            </div>
-        `;
+    <div style="display:flex; align-items:center; justify-content:flex-start; width:100%; gap:8px;">
+        <button id="btnSelectAll" style="background:#2196F3; color:white; border:none; padding:4px 8px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 선택</button>
+        <button id="btnUnselectAll" style="background:#666; color:white; border:none; padding:4px 8px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 해제</button>
+        <div style="flex:1"></div> 
+        <button id="delSelected" style="background:#444; color:#ff4d4d; border:none; padding:4px 8px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">선택 삭제</button>
+    </div>
+    <div style="display:flex; gap:5px; width:100%;">
+        <input type="text" id="filterInput" placeholder="예: abc or /abc/" style="flex:1; min-width:0; background:#111; color:#00FF41; border:1px solid #444; padding:5px; font-size:12px; border-radius:3px; outline:none; font-family:monospace;">
+        <button id="clearBtn" style="background:#666; color:#fff; border:none; padding:0 8px; font-size:11px; cursor:pointer; border-radius:3px; white-space:nowrap;">X</button>
+        <button id="searchBtn" style="background:#00FF41; color:#000; border:none; padding:0 12px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; white-space:nowrap;">찾기</button>
+    </div>
+`;
         panel.appendChild(controlBar);
 
         const filterInput = controlBar.querySelector('#filterInput');
         const searchBtn = controlBar.querySelector('#searchBtn');
 
-        searchBtn.onclick = () => { filterText = filterInput.value.trim(); controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
+        // [찾기] 버튼: #selectAll 참조 제거
+        searchBtn.onclick = () => {
+            filterText = filterInput.value.trim();
+            updateDisplayList(false);
+        };
+
         filterInput.onkeydown = (e) => {
             if (e.key === 'Enter') searchBtn.click();
-            else if (e.key === 'Escape') filterInput.value = '';
+            else if (e.key === 'Escape') { filterInput.value = ''; searchBtn.click(); }
         };
-        controlBar.querySelector('#clearBtn').onclick = () => { filterInput.value = ""; filterText = ""; controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
 
-        // 전체 선택 버튼
+        // [X] 버튼: #selectAll 참조 제거
+        controlBar.querySelector('#clearBtn').onclick = () => {
+            filterInput.value = "";
+            filterText = "";
+            updateDisplayList(false);
+        };
+
+        // [전체 선택] 버튼
         controlBar.querySelector('#btnSelectAll').onclick = () => {
             const checkboxes = listContainer.querySelectorAll('.item-check');
             checkboxes.forEach(cb => cb.checked = true);
-            updateCounts(); // 상단 개수 표시 갱신
+            if (typeof updateCounts === 'function') updateCounts();
         };
 
-        // 전체 해제 버튼
+        // [전체 해제] 버튼
         controlBar.querySelector('#btnUnselectAll').onclick = () => {
             const checkboxes = listContainer.querySelectorAll('.item-check');
             checkboxes.forEach(cb => cb.checked = false);
-            updateCounts();
+            if (typeof updateCounts === 'function') updateCounts();
         };
 
+        // [선택 삭제] 버튼: #selectAll 참조 제거 및 VceDB 연동
         controlBar.querySelector('#delSelected').onclick = async () => {
             const selected = listContainer.querySelectorAll('.item-check:checked');
             if (selected.length === 0) return alert("삭제할 항목을 선택해주세요.");
+
             if (confirm(`${selected.length}개의 항목을 삭제하시겠습니까?`)) {
                 for (const cb of selected) {
                     const key = cb.dataset.key;
-                    await VceDB.deleteCode(key);
-                    currentSessionCodes.delete(key);
+                    await VceDB.deleteCode(key); // IndexedDB 삭제
+                    currentSessionCodes.delete(key); // 메모리 셋 갱신
                 }
                 updateDisplayList(false);
-                controlBar.querySelector('#selectAll').checked = false;
             }
         };
-
+        
         const tabBox = document.createElement('div');
         tabBox.style = "display:flex; margin-bottom:10px; border-bottom:1px solid #444; font-size:11px; cursor:pointer;";
         const sTab = document.createElement('div'); sTab.innerText = "현재 페이지"; sTab.style = "flex:1; text-align:center; padding:5px; color:#2196F3; border-bottom:2px solid #2196F3;";
