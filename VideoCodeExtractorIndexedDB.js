@@ -120,6 +120,7 @@
     let isShowAllMode = false;
     let filterText = "";
 
+    
     // =====================================================================
     // [신규 코드 추가] IndexedDB 매니저 및 유휴 상태 해상도 추출 큐 시스템
     // =====================================================================
@@ -397,11 +398,6 @@
         return result?.toUpperCase() || '';
     }
 
-    // --- 유틸리티: 개수 업데이트 함수 ---
-    /* [기존 코드 보존] 
-    function updateCounts() { ... const totalCount = Object.keys(localStorage).filter(k => k.startsWith(KEY_PREFIX)).length; ... }
-    */
-    // [신규 코드 추가: 비동기 DB 지원]
     async function updateCounts() {
         if (!countStatus || !listContainer) return;
         const selectedCount = listContainer.querySelectorAll('.item-check:checked').length;
@@ -440,14 +436,33 @@
             currentSessionCodes.clear();
             updateDisplayList();
         }
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
-            observer.observe(document.body, { childList: true, subtree: true });
-        }        
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(newUrl)) {
+            observer.disconnect(); // 기존 감시 중단 후 재시작
+            observer.observe(document.body, { childList: true, subtree: true });            
+            mutCallback(); // 즉시 한 번 실행
+        }     
     };
 
+    // History API 가로채기
+    const wrapHistory = (type) => {
+        const original = history[type];
+        return function () {
+            const res = original.apply(this, arguments);
+            const event = new Event(type.toLowerCase());
+            event.arguments = arguments;
+            window.dispatchEvent(event);
+            return res;
+        };
+    };
+
+    history.pushState = wrapHistory('pushState');
+    history.replaceState = wrapHistory('replaceState');
+
+    // 모든 주소 변경 이벤트에 대응
+    window.addEventListener('pushstate', resetSessionCodes);
     window.addEventListener('popstate', resetSessionCodes);
     window.addEventListener('hashchange', resetSessionCodes);
-
+    
     const originalPush = history.pushState;
     history.pushState = function () { originalPush.apply(this, arguments); resetSessionCodes(); };
     const originalReplace = history.replaceState;
@@ -766,12 +781,11 @@
 
         const controlBar = document.createElement('div');
         controlBar.style = "display:flex; flex-direction:column; padding:8px; background:#222; border-bottom:1px solid #444; gap:8px; margin-bottom:10px; border-radius:4px; box-sizing:border-box;";
-        controlBar.innerHTML = `
-            <div style="display:flex; align-items:center; justify-content:space-between; width:100%; gap:5px;">
-                <label style="color:#ccc; font-size:11px; cursor:pointer; display:flex; align-items:center; user-select:none; white-space:nowrap; flex-shrink:0;">
-                    <input type="checkbox" id="selectAll" style="margin-right:5px; width:14px; height:14px; accent-color:#00FF41; cursor:pointer;"> 전체 선택
-                </label>
-                <button id="delSelected" style="background:#444; color:#ff4d4d; border:none; padding:4px 8px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; white-space:nowrap; flex-shrink:0;">선택 삭제</button>
+        controlBar.innerHTML = `      
+            <div style="display:flex; align-items:center; justify-content:flex-start; width:100%; gap:8px;">
+                <button id="btnSelectAll" style="background:#2196F3; color:white; border:none; padding:4px 8px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 선택</button>
+                <button id="btnUnselectAll" style="background:#666; color:white; border:none; padding:4px 8px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 해제</button>
+                <div style="flex:1"></div> <button id="delSelected" style="background:#444; color:#ff4d4d; border:none; padding:4px 8px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">선택 삭제</button>
             </div>
             <div style="display:flex; gap:5px; width:100%;">
                 <input type="text" id="filterInput" placeholder="예: abc or /abc/" style="flex:1; min-width:0; background:#111; color:#00FF41; border:1px solid #444; padding:5px; font-size:12px; border-radius:3px; outline:none; font-family:monospace;">
@@ -790,10 +804,18 @@
             else if (e.key === 'Escape') filterInput.value = '';
         };
         controlBar.querySelector('#clearBtn').onclick = () => { filterInput.value = ""; filterText = ""; controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
-
-        controlBar.querySelector('#selectAll').onclick = (e) => {
+        
+        // 전체 선택 버튼
+        controlBar.querySelector('#btnSelectAll').onclick = () => {
             const checkboxes = listContainer.querySelectorAll('.item-check');
-            checkboxes.forEach(cb => cb.checked = e.target.checked);
+            checkboxes.forEach(cb => cb.checked = true);
+            updateCounts(); // 상단 개수 표시 갱신
+        };
+
+        // 전체 해제 버튼
+        controlBar.querySelector('#btnUnselectAll').onclick = () => {
+            const checkboxes = listContainer.querySelectorAll('.item-check');
+            checkboxes.forEach(cb => cb.checked = false);
             updateCounts();
         };
 
@@ -890,8 +912,8 @@
             observer.observe(document.body, { childList: true, subtree: true });
         }
 
-        makerLabelCode = GetParam(newUrl, 'maker');
-        rawMediaType = GetParam(newUrl, 'media_type');
+        makerLabelCode = GetParam(PageURL(), 'maker');
+        rawMediaType = GetParam(PageURL(), 'media_type');
         makerLabel = getMakerLabel(makerLabelCode);
     });
 })();
