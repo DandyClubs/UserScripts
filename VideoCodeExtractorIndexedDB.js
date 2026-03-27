@@ -1,14 +1,15 @@
 // ==UserScript==
-// @name         Video Code Extractor
+// @name         Video Code Extractor IndexedDB 고도화
 // @namespace    http://tampermonkey.net/
-// @version      3.0.1
-// @description  개수 표시 기능 추가 (선택/리스트/전체)
+// @version      4.2
+// @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
 // @match        https://video.dmm.co.jp/av/maker/*
 // @resource     MAKER_MAP https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/DMM_MakerMap_2026-03-26.json
 // @grant        GM_getResourceText
 // @grant        GM_addStyle
+// @grant        GM_xmlhttpRequest
 // @run-at       document-body
 // @noframes
 // ==/UserScript==
@@ -26,13 +27,13 @@
     0% {opacity:0}
     50% {opacity:1}
     100% {opacity:0}
-}
-@keyframes blinkC { /* 색이 깜빡거리는 */ 
-    50% {color:yellow}
-}
-#choicetype {
-	animation:blink 1s infinite ease;	
-}
+    }
+    @keyframes blinkC { /* 색이 깜빡거리는 */ 
+        50% {color:yellow}
+    }
+    #choicetype {
+        animation:blink 1s infinite ease;	
+    }
     `);
 
     const PageURL = () => window.location !== window.parent.location ? document.referrer : document.location.href;
@@ -43,43 +44,173 @@
     let rawMediaType = GetParam(PageURL(), 'media_type');
 
     const PROCESSED_CLASS = 'processed-marker';
-    const patternMemoryDB = new Set();
+    
+    /* [기존 코드 보존] 메모리 기반 중복 방지 (이제 IndexedDB imageMeta가 대신함) */
+    // const patternMemoryDB = new Set();
 
     let alertStatus = null; // 상태 메시지용 엘리먼트    
-
     let makerLabel = ""; // 전역 변수로 관리
-
     let listContainer = null;
     let countStatus = null; // 개수를 표시할 엘리먼트
     let currentSessionCodes = new Set();
     let isShowAllMode = false;
     let filterText = "";
 
+    // =====================================================================
+    // [신규 코드 추가] IndexedDB 매니저 및 유휴 상태 해상도 추출 큐 시스템
+    // =====================================================================
+    const DB_CONFIG = { name: "VideoCodeExtractorDB", version: 8, stores: { codes: "id", imageMeta: "url" } };
 
+    class VceDB {
+        static async open() {
+            return new Promise((resolve) => {
+                const request = indexedDB.open(DB_CONFIG.name, DB_CONFIG.version);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains("codes")) db.createObjectStore("codes", { keyPath: "id" });
+                    if (!db.objectStoreNames.contains("imageMeta")) {
+                        const store = db.createObjectStore("imageMeta", { keyPath: "url" });
+                        store.createIndex("patternKey", "patternKey", { unique: false });
+                        store.createIndex("status", "status", { unique: false });
+                    }
+                };
+                request.onsuccess = () => resolve(request.result);
+            });
+        }
+        static async getCode(id) {
+            const db = await this.open();
+            return new Promise(r => db.transaction("codes").objectStore("codes").get(id).onsuccess = e => r(e.target.result));
+        }
+        static async saveCode(id, payload) {
+            const db = await this.open();
+            const tx = db.transaction("codes", "readwrite");
+            const store = tx.objectStore("codes");
+            const existing = await new Promise(r => store.get(id).onsuccess = e => r(e.target.result));
+            if (existing) return new Promise(r => store.put({ ...existing, ...payload, updatedAt: Date.now() }).onsuccess = () => r());
+
+            const all = await new Promise(r => store.getAll().onsuccess = e => r(e.target.result));
+            const sameCodeCount = all.filter(item => item.displayCode === payload.displayCode).length;
+            const data = { id, ...payload, timestamp: Date.now(), data: [...(payload.data || []), sameCodeCount] };
+            return new Promise(r => store.put(data).onsuccess = () => r());
+        }
+        static async getAllCodes() {
+            const db = await this.open();
+            return new Promise(r => db.transaction("codes").objectStore("codes").getAll().onsuccess = e => r(e.target.result));
+        }
+        static async deleteCode(id) {
+            const db = await this.open();
+            return new Promise(r => db.transaction("codes", "readwrite").objectStore("codes").delete(id).onsuccess = () => r());
+        }
+        static async setImageMeta(meta) {
+            const db = await this.open();
+            return new Promise(r => db.transaction("imageMeta", "readwrite").objectStore("imageMeta").put({ ...meta, updatedAt: Date.now() }).onsuccess = () => r());
+        }
+        static async getImageMeta(url) {
+            const db = await this.open();
+            return new Promise(r => db.transaction("imageMeta").objectStore("imageMeta").get(url).onsuccess = e => r(e.target.result));
+        }
+        static async getImageByPattern(patternKey) {
+            const db = await this.open();
+            return new Promise(r => db.transaction("imageMeta").objectStore("imageMeta").index("patternKey").get(patternKey).onsuccess = e => r(e.target.result));
+        }
+        static async getPendingTasks() {
+            const db = await this.open();
+            return new Promise(r => db.transaction("imageMeta").objectStore("imageMeta").index("status").getAll("pending").onsuccess = e => r(e.target.result));
+        }
+    }
+
+    const requestQueue = [];
+    let isIdleProcessing = false;
+
+    async function fetchImageResolution(url) {
+        return new Promise((resolve) => {
+            GM_xmlhttpRequest({
+                method: "GET", url: url, headers: { "Range": "bytes=0-30000" }, responseType: "arraybuffer",
+                onload: (res) => {
+                    const bytes = new Uint8Array(res.response);
+                    let result = { width: 0, height: 0 };
+                    if (bytes[0] === 0xFF && bytes[1] === 0xD8) {
+                        let i = 2;
+                        while (i < bytes.length) {
+                            const marker = (bytes[i] << 8) | bytes[i + 1];
+                            const len = (bytes[i + 2] << 8) | bytes[i + 3];
+                            if (marker >= 0xFFC0 && marker <= 0xFFCF && ![0xFFC4, 0xFFC8, 0xFFCC].includes(marker)) {
+                                result.height = (bytes[i + 5] << 8) | bytes[i + 6]; result.width = (bytes[i + 7] << 8) | bytes[i + 8]; break;
+                            }
+                            i += len + 2;
+                        }
+                    }
+                    resolve(result);
+                },
+                onerror: () => resolve({ width: 0, height: 0 })
+            });
+        });
+    }
+
+    function addToQueue(task) {
+        if (!requestQueue.find(t => t.url === task.url)) {
+            requestQueue.push(task);
+            if (!isIdleProcessing) scheduleIdleWork();
+        }
+    }
+
+    function scheduleIdleWork() {
+        isIdleProcessing = true;
+        if ('requestIdleCallback' in window) window.requestIdleCallback(doIdleWork, { timeout: 2000 });
+        else setTimeout(doIdleWork, 100);
+    }
+
+    async function doIdleWork(deadline) {
+        while (requestQueue.length > 0 && (deadline.timeRemaining() > 0 || deadline.didTimeout)) {
+            const task = requestQueue.shift();
+            const res = await fetchImageResolution(task.url);
+            const resText = res.width ? `${res.width}x${res.height}` : "";
+
+            const existingMeta = await VceDB.getImageMeta(task.url);
+            if (existingMeta) await VceDB.setImageMeta({ ...existingMeta, status: "completed", width: res.width, height: res.height, resText });
+
+            if (task.uniqueKey) {
+                const existingCode = await VceDB.getCode(task.uniqueKey);
+                if (existingCode) {
+                    await VceDB.saveCode(task.uniqueKey, { resText: resText });
+                    updateDisplayList(); 
+                }
+            }
+        }
+        if (requestQueue.length > 0) scheduleIdleWork();
+        else isIdleProcessing = false;
+    }
+    // =====================================================================
+
+
+    /* [기존 코드 보존: 일반 동기식 mutCallback] 
     const mutCallback = () => {
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             let hasNew = false;
-
-            // 1. selector에 해당하면서 아직 처리되지 않은(:not) 요소들만 한 번에 가져옴
-            // imageSelector가 img를 가리킨다면 해당 img들을, source를 가리킨다면 source들을 가져옵니다.
             const targets = document.querySelectorAll(`${imageSelector}:not(.${PROCESSED_CLASS})`);
-
             if (targets.length === 0) return;
-
             targets.forEach(el => {
-                // 2. 즉시 마킹하여 다음 루프에서 중복 처리 방지
                 el.classList.add(PROCESSED_CLASS);
-
-                // 3. URL 추출 (img 태그는 src, source 태그는 srcset 우선)
                 const targetUrl = el.getAttribute('srcset') || el.getAttribute('src');
-
-                if (targetUrl && processUrl(targetUrl)) {
-                    hasNew = true;
-                }
+                if (targetUrl && processUrl(targetUrl)) { hasNew = true; }
             });
-            // 4. 새로운 코드가 발견된 경우에만 UI 업데이트
-            if (hasNew) {
-                updateDisplayList();
+            if (hasNew) { updateDisplayList(); }
+        }
+        makerLabelCode = GetParam(PageURL(), 'maker');
+        makerLabel = getMakerLabel(makerLabelCode);
+        rawMediaType = GetParam(PageURL(), 'media_type');
+    };
+    */
+
+    // [신규 코드 추가: 비동기 지원 mutCallback]
+    const mutCallback = async () => {
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+            const targets = document.querySelectorAll(`${imageSelector}:not(.${PROCESSED_CLASS})`);
+            if (targets.length === 0) return;
+            for (const el of targets) {
+                el.classList.add(PROCESSED_CLASS);
+                const targetUrl = el.getAttribute('srcset') || el.getAttribute('src');
+                if (targetUrl) await processUrl(targetUrl); // await 처리를 위해 변경됨
             }
         }
         makerLabelCode = GetParam(PageURL(), 'maker');
@@ -90,22 +221,24 @@
     const observer = new MutationObserver(mutCallback);
 
     function GetParam(url, paramName) {
-        // 1. URL 객체를 사용하여 파라미터를 추출 (현대적인 방식)
         const urlObj = new URL(url);
         const params = new URLSearchParams(urlObj.search);
         const result = params.get(paramName);
-
-        // 2. 결과값이 있으면 디코딩하여 반환
         return result?.toUpperCase() || '';
     }
 
     // --- 유틸리티: 개수 업데이트 함수 ---
-    function updateCounts() {
+    /* [기존 코드 보존] 
+    function updateCounts() { ... const totalCount = Object.keys(localStorage).filter(k => k.startsWith(KEY_PREFIX)).length; ... }
+    */
+    // [신규 코드 추가: 비동기 DB 지원]
+    async function updateCounts() {
         if (!countStatus || !listContainer) return;
-
         const selectedCount = listContainer.querySelectorAll('.item-check:checked').length;
         const currentListCount = listContainer.querySelectorAll('.item-check').length;
-        const totalCount = Object.keys(localStorage).filter(k => k.startsWith(KEY_PREFIX)).length;
+        
+        const allCodes = await VceDB.getAllCodes();
+        const totalCount = allCodes.length; // 로컬스토리지 대신 DB 갯수로 대체
 
         countStatus.innerHTML = `
             <span style="color:#00FF41">선택: ${selectedCount}</span> |
@@ -121,7 +254,7 @@
             } else if (!makerLabelCode || makerLabel === "Unknown") {
                 alertStatus.innerHTML = `<div style="color:#F44336; margin-bottom:5px; font-weight:bold;">❌ 제작사 정보를 가져오지 못했습니다.</div>`;
             } else {
-                alertStatus.innerHTML = ""; // 정상일 경우 메시지 숨김
+                alertStatus.innerHTML = "";
             }
         }
         makerLabelCode = GetParam(PageURL(), 'maker');
@@ -140,132 +273,151 @@
         makerLabelCode = GetParam(PageURL(), 'maker');
         makerLabel = getMakerLabel(makerLabelCode);
         rawMediaType = GetParam(PageURL(), 'media_type');
-        /*
-        if (/video\.dmm\.co\.jp\/av\/maker\//.test(PageURL())) {
-            buildMakerMap();            
-        }
-            */
     };
 
     window.addEventListener('popstate', resetSessionCodes);
     window.addEventListener('hashchange', resetSessionCodes);
 
     const originalPush = history.pushState;
-    history.pushState = function () {
-        originalPush.apply(this, arguments);
-        resetSessionCodes();
-    };
+    history.pushState = function () { originalPush.apply(this, arguments); resetSessionCodes(); };
     const originalReplace = history.replaceState;
-    history.replaceState = function () {
-        originalReplace.apply(this, arguments);
-        resetSessionCodes();
-    };
+    history.replaceState = function () { originalReplace.apply(this, arguments); resetSessionCodes(); };
 
+
+    /* [기존 코드 보존: 로컬스토리지 방식 processUrl]
     function processUrl(srcset) {
-        if (!srcset || !srcset.includes('https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/')) return false;
-        const cleanUrl = srcset.split('?')[0];
-        const majorsLabel = /digital\/video\/(.*?)([a-z]{3,7}\d{4,7}|[ts]{1,2}\d{2,7})[v]?/i;
-        if (!majorsLabel.test(cleanUrl)) {
-            console.warn('Not majorsLabel', majorsLabel.test(cleanUrl), cleanUrl);
-            return false;
-        }
-
-        const skipPatterns = [
-            /digital\/video\/(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)\//,
-            /digital\/video\/\d+jdxa\d+/i, // 예: jdxa 관련 패턴 스킵
-        ];
-
-        for (const skipRegex of skipPatterns) {
-            if (skipRegex.test(cleanUrl)) {
-                console.warn('SKIP', skipRegex.test(cleanUrl), cleanUrl);
-                return false;
-            }
-        }
-
-        const pathSegments = cleanUrl.split('/');
-        const contentId = pathSegments[pathSegments.length - 2];
-        if (!contentId) return false;
-
+        ... (중략) ...
         const maskedId = contentId.replace(/\d/g, '0');
         const currentPattern = `${maskedId}_${makerLabelCode}_${rawMediaType}`;
         if (patternMemoryDB.has(currentPattern)) return false;
 
+        // ... 매칭 후 로컬스토리지 저장 로직
+        if (!localStorage.getItem(uniqueKey)) {
+            currentSessionCodes.add(uniqueKey);
+            localStorage.setItem(uniqueKey, JSON.stringify({ ... }));
+            if (typeof currentPattern !== 'undefined') patternMemoryDB.add(currentPattern);
+            return true;
+        }
+        return false;
+    }
+    */
 
-        // --- 추출 패턴 (예제 주석 복구) ---
+    // [신규 코드 추가: DB 저장 + 해상도 큐 추가 비동기 processUrl]
+    async function processUrl(srcset) {
+        if (!srcset || !srcset.includes('https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/')) return false;
+        const cleanUrl = srcset.split('?')[0];
+        
+        const majorsLabel = /digital\/video\/(.*?)([a-z]{3,7}\d{4,7}|[ts]{1,2}\d{2,7})[v]?/i;
+        if (!majorsLabel.test(cleanUrl)) return false;
+
+        const skipPatterns = [
+            /digital\/video\/(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)\//,
+            /digital\/video\/\d+jdxa\d+/i,
+        ];
+        for (const skipRegex of skipPatterns) if (skipRegex.test(cleanUrl)) return false;
+
         const extractPatterns = [
-
-            /digital\/video\/(.*)(d1clymax)(\d{5,})(.*?)\//,                // d1clymax00010 패턴    
-            /digital\/video\/([a-z]*?)(dvaj|dvajbx)(\d{5,})(.*?)\//,                // DVAJ 패턴
-            /digital\/video\/(\d{2})(kt)(\d{5,})(.*?)\//,              // 47kt00308
-            /digital\/video\/(\d{2})([t]\d{1})(\d{5,})(.*?)\//,                           // 55t3800059 대응 (T+숫자2자리 고정)
-            /digital\/video\/(h_[h0-9]*?)(ss)(\d{3,})([a-z]*?)\//,                  // h_113h113 + ss + 00003 + rai 대응
-            /digital\/video\/(h_[h0-9]*?)([a-z]{3,})(\d{3,})([a-z]*?)\//,           // h_1515bggb00008 대응
-            /digital\/video\/(\d*?)(ss)(\d{3,})([a-z]*?)\//,                  // h_113h113 + ss + 00003 + rai 대응
-            /digital\/video\/([0-9]*?)([a-z]+)(\d+)(.*?)\//,                         // 패턴 B: it001 또는 snos00136 형태
+            /digital\/video\/(.*)(d1clymax)(\d{5,})(.*?)\//,
+            /digital\/video\/([a-z]*?)(dvaj|dvajbx)(\d{5,})(.*?)\//,
+            /digital\/video\/(\d{2})(kt)(\d{5,})(.*?)\//,
+            /digital\/video\/(\d{2})([t]\d{1})(\d{5,})(.*?)\//,
+            /digital\/video\/(h_[h0-9]*?)(ss)(\d{3,})([a-z]*?)\//,
+            /digital\/video\/(h_[h0-9]*?)([a-z]{3,})(\d{3,})([a-z]*?)\//,
+            /digital\/video\/(\d*?)(ss)(\d{3,})([a-z]*?)\//,
+            /digital\/video\/([0-9]*?)([a-z]+)(\d+)(.*?)\//,
         ];
 
         let match = null;
         for (const regex of extractPatterns) { match = cleanUrl.match(regex); if (match) break; }
+        
         if (match) {
-            //console.log('Match', match);
+            if (!makerLabelCode || !rawMediaType || !makerLabel) return false;
+
             const prefixMatch = match[1];
             const code = match[2].toUpperCase();
             const padLen = `zero${match[3].length}`;
             const suffix = match[4];
             const displayCode = code;
             const uniqueKey = `${KEY_PREFIX}${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
-            if (!makerLabelCode || !rawMediaType || !makerLabel) {
-                alert(`${makerLabelCode || 'No makerLabelCode'}, ${rawMediaType || 'No rawMediaType'}, ${makerLabel || 'No makerLabel'}`);
-                return false;
-            }
 
-            if (!localStorage.getItem(uniqueKey)) {
+            // 1. 화면 표시 및 DB 코드 저장 (기존 로컬스토리지 대체)
+            if (!currentSessionCodes.has(uniqueKey)) {
                 currentSessionCodes.add(uniqueKey);
-                localStorage.setItem(uniqueKey, JSON.stringify({
+                let existingCode = await VceDB.getCode(uniqueKey);
+                await VceDB.saveCode(uniqueKey, {
                     displayCode: displayCode,
                     data: ["FANZA_DIGITAL", prefixMatch, padLen, suffix, makerLabel, rawMediaType],
-                    origin: cleanUrl
-                }));
-                if (typeof currentPattern !== 'undefined') {
-                    patternMemoryDB.add(currentPattern);
-                }
-                return true;
+                    origin: cleanUrl,
+                    resText: existingCode ? existingCode.resText : "" 
+                });
+                updateDisplayList(); 
             }
 
+            // 2. 해상도/패턴 캐시 확인 및 큐 추가 (기존 patternMemoryDB 대체)
+            const meta = await VceDB.getImageMeta(cleanUrl);
+            if (meta && meta.status === "completed") return true;
+
+            const pathSegments = cleanUrl.split('/');
+            const contentId = pathSegments[pathSegments.length - 2];
+            const maskedId = contentId.replace(/\d/g, '0');
+            const patternKey = `${maskedId}_${makerLabelCode}_${rawMediaType}`;
+            
+            if (await VceDB.getImageByPattern(patternKey)) return true;
+
+            if (!meta) await VceDB.setImageMeta({ url: cleanUrl, patternKey, status: "pending" });
+            addToQueue({ url: cleanUrl, uniqueKey: uniqueKey });
+
+            return true;
         }
         return false;
     }
 
+
+    /* [기존 코드 보존: 로컬스토리지 기반 리스트 출력]
     function updateDisplayList(shouldScroll = false) {
+        ...
+        let keys = isShowAllMode ? Object.keys(localStorage).filter(k => k.startsWith(KEY_PREFIX)).sort() : Array.from(currentSessionCodes).sort();
+        ...
+        keys.forEach(key => {
+            const itemData = JSON.parse(localStorage.getItem(key));
+            ...
+        });
+        ...
+    }
+    */
+
+    // [신규 코드 추가: IndexedDB 기반 리스트 출력]
+    async function updateDisplayList(shouldScroll = false) {
         if (!listContainer) return;
         const currentScroll = listContainer.scrollTop;
         listContainer.innerHTML = "";
 
-        let keys = isShowAllMode ?
-            Object.keys(localStorage).filter(k => k.startsWith(KEY_PREFIX)).sort() :
-            Array.from(currentSessionCodes).sort();
+        let items = await VceDB.getAllCodes();
+        if (!isShowAllMode) {
+            items = items.filter(item => currentSessionCodes.has(item.id));
+        }
 
         if (filterText !== "") {
             let regex = null;
             if (filterText.startsWith('/') && filterText.endsWith('/')) {
                 try { regex = new RegExp(filterText.slice(1, -1), 'i'); } catch (e) { }
             }
-            keys = keys.filter(key => {
-                const itemData = JSON.parse(localStorage.getItem(key));
-                if (!itemData) return false;
-                const code = itemData.displayCode.toUpperCase();
+            items = items.filter(item => {
+                const code = item.displayCode.toUpperCase();
                 return regex ? regex.test(code) : code === filterText.toUpperCase();
             });
         }
 
-        if (keys.length === 0) {
+        if (items.length === 0) {
             listContainer.innerHTML = `<div style='color:#888; font-size:11px; text-align:center; padding:20px 0;'>${isShowAllMode ? "저장된 데이터 없음" : "현재 페이지 추출 없음"}</div>`;
-            updateCounts(); // 개수 업데이트
+            updateCounts();
             return;
         }
 
-        keys.forEach(key => {
-            const itemData = JSON.parse(localStorage.getItem(key));
+        items.sort((a, b) => b.timestamp - a.timestamp);
+
+        items.forEach(itemData => {
+            const key = itemData.id;
             const detailLabel = `${itemData.data[1] && itemData.data[3] ? itemData.data[1] + ', ' + itemData.data[3] : itemData.data[1] || itemData.data[3] || ''}`;
             const idMatch = itemData.origin.match(/digital\/video\/([^\/]+)\//i);
             const contentId = idMatch ? idMatch[1] : "";
@@ -277,16 +429,16 @@
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; cursor:help;" title="${itemData.origin}">
                 <a href="${itemPageUrl}" target="_blank"><span style="color:#00FF41; font-family:monospace; font-size:12px;">${itemData.displayCode}</span></a>
                     ${detailLabel ? `<span style="color:white; font-size:10px; margin-left:5px;">[</span><span style="color:#00FF41; font-size:10px;">${detailLabel}</span><span style="color:white; font-size:10px;">]</span>` : ''}                    
-                </div>
+                    ${itemData.resText ? `<span style="color:#FF9800; font-size:10px; margin-left:5px;">(${itemData.resText})</span>` : ''} </div>
                 <span style="color:white; font-size:10px;padding-left:5px;">[ ${itemData.data[5]} ]</span>
                 <button class="del-btn" style="background:none; border:none; color:#ff4d4d; cursor:pointer; font-weight:bold; font-size:16px; padding:0 5px;">×</button>
             `;
 
-            // 체크박스 클릭 시 선택 개수 실시간 업데이트
             row.querySelector('.item-check').onchange = updateCounts;
 
-            row.querySelector('.del-btn').onclick = (e) => {
-                localStorage.removeItem(key);
+            row.querySelector('.del-btn').onclick = async (e) => {
+                // [기존: localStorage.removeItem] -> [신규: VceDB.deleteCode]
+                await VceDB.deleteCode(key);
                 currentSessionCodes.delete(key);
                 const getS = e.target.parentElement.getAttribute('title');
                 if (getS) {
@@ -300,7 +452,7 @@
         if (shouldScroll) listContainer.scrollTop = listContainer.scrollHeight;
         else listContainer.scrollTop = currentScroll;
 
-        updateCounts(); // 리스트 생성 후 개수 업데이트
+        updateCounts();
     }
 
     const makerMap = new Map();
@@ -312,7 +464,7 @@
                 if (resourceText) {
                     const externalData = JSON.parse(resourceText);
                     Object.entries(externalData).forEach(([id, name]) => {
-                        makerMap.set(id, name); // 重複時は外部ファイルが優先される
+                        makerMap.set(id, name);
                     });
                 }
             }
@@ -328,26 +480,21 @@
         rawMediaType = GetParam(PageURL(), 'media_type');
     }
 
-
     function getMakerLabel(id) {
-        // 1. メモリマップ(Map)を最優先で検索
         if (makerMap.has(id)) {
             return makerMap.get(id);
         }
-
-        // 2. 맵에 없을 경우에만 DOM에서 직접 추출 시도
         const el = document.querySelector(makerSelector);
         const label = el?.innerText.trim();
 
         if (label) {
-            // 次回のためにメモリにキャッシュしておく
             makerMap.set(id, label);
             return label;
         }
-
         return "Unknown";
     }
 
+    // --- [사용자 보존 요청: 활용을 위해 남겨둔 함수들 삭제 금지] ---
     /**
     let currentMakerLabel = ""; // 전역 변수
     function buildMakerMap() {
@@ -420,6 +567,7 @@
         console.log(`[VCE] ${makerMap.size}개의 메이커 정보가 파일로 저장되었습니다.`);
     }
     */
+    // -------------------------------------------------------------
 
     function createUI() {
         const panel = document.createElement('div');
@@ -427,18 +575,16 @@
         panel.style = "position:fixed; bottom:20px; right:20px; z-index:9999; display:flex !important; flex-direction:column; background:rgba(15,15,15,0.95); padding:12px; border-radius:12px; width:260px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif; box-sizing:border-box;";
         panel.innerHTML = `<div style='font-weight:bold; font-size:13px; margin-bottom:5px; text-align:center; color:#2196F3;'>DMM CODE TRACKER</div>`;
 
-        // --- 상태 메시지 알림 영역 추가 ---
         alertStatus = document.createElement('div');
         alertStatus.style = "font-size:11px; text-align:center; line-height:1.4;";
         panel.appendChild(alertStatus);
 
-        // --- 개수 표시용 상태바 추가 ---
         countStatus = document.createElement('div');
         countStatus.style = "font-size:10px; color:#aaa; text-align:center; margin-bottom:8px; padding:4px; background:#222; border-radius:4px;";
         panel.appendChild(countStatus);
 
         const controlBar = document.createElement('div');
-        controlBar.style = "display:flex; flex-direction:column; padding:8px; background:#222; border-bottom:1px solid #444; gap:8px; margin-bottom:10px; border-radius:4px; box-sizing:border-box;"; // box-sizing 추가
+        controlBar.style = "display:flex; flex-direction:column; padding:8px; background:#222; border-bottom:1px solid #444; gap:8px; margin-bottom:10px; border-radius:4px; box-sizing:border-box;"; 
         controlBar.innerHTML = `
             <div style="display:flex; align-items:center; justify-content:space-between; width:100%; gap:5px;">
                 <label style="color:#ccc; font-size:11px; cursor:pointer; display:flex; align-items:center; user-select:none; white-space:nowrap; flex-shrink:0;">
@@ -453,42 +599,40 @@
             </div>
         `;
         panel.appendChild(controlBar);
-        /**
-                const saveBtn = document.createElement('button');
-                saveBtn.innerText = "메이커 맵 저장";
-                saveBtn.style = "margin-top:5px; padding:5px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;";
-                saveBtn.onclick = saveMakerMapToFile;
-        
-                panel.appendChild(saveBtn);
-                */
 
         const filterInput = controlBar.querySelector('#filterInput');
         const searchBtn = controlBar.querySelector('#searchBtn');
 
         searchBtn.onclick = () => { filterText = filterInput.value.trim(); controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
-
         filterInput.onkeydown = (e) => {
             if (e.key === 'Enter') searchBtn.click();
             else if (e.key === 'Escape') filterInput.value = '';
         };
-
         controlBar.querySelector('#clearBtn').onclick = () => { filterInput.value = ""; filterText = ""; controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
 
         controlBar.querySelector('#selectAll').onclick = (e) => {
             const checkboxes = listContainer.querySelectorAll('.item-check');
             checkboxes.forEach(cb => cb.checked = e.target.checked);
-            updateCounts(); // 전체 선택 시 개수 업데이트
+            updateCounts(); 
         };
 
-        controlBar.querySelector('#delSelected').onclick = () => {
+        controlBar.querySelector('#delSelected').onclick = async () => {
             const selected = listContainer.querySelectorAll('.item-check:checked');
             if (selected.length === 0) return alert("삭제할 항목을 선택해주세요.");
             if (confirm(`${selected.length}개의 항목을 삭제하시겠습니까?`)) {
+                /* [기존 코드 보존] 
                 selected.forEach(cb => {
                     const key = cb.dataset.key;
                     localStorage.removeItem(key);
                     currentSessionCodes.delete(key);
                 });
+                */
+                // [신규 코드 추가: DB 멀티 삭제]
+                for (const cb of selected) {
+                    const key = cb.dataset.key;
+                    await VceDB.deleteCode(key);
+                    currentSessionCodes.delete(key);
+                }
                 updateDisplayList(false);
                 controlBar.querySelector('#selectAll').checked = false;
             }
@@ -511,17 +655,22 @@
         const btnContainer = document.createElement('div');
         btnContainer.style = "display:flex; gap:5px;";
         const dlBtn = document.createElement('button'); dlBtn.innerText = "다운로드"; dlBtn.style = "flex:2; padding:8px; background:#4CAF50; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
-        dlBtn.onclick = () => {
+        
+        dlBtn.onclick = async () => {
+            /* [기존 코드 보존]
             let output = "";
             const allKeys = Object.keys(localStorage).filter(k => k.startsWith(KEY_PREFIX)).sort();
-            const codeCounter = {};
-            allKeys.forEach(key => {
-                const obj = JSON.parse(localStorage.getItem(key));
-                const codeOnly = obj.displayCode;
-                codeCounter[codeOnly] = (codeCounter[codeOnly] === undefined) ? 0 : codeCounter[codeOnly] + 1;
-                const finalData = [...obj.data, codeCounter[codeOnly]];
-                output += `"${codeOnly}": ${JSON.stringify(finalData)}, // ${obj.origin}\n`;
+            ...
+            */
+            // [신규 코드 추가: IndexedDB 포맷 다운로드]
+            let output = "";
+            const allItems = await VceDB.getAllCodes();
+            allItems.sort((a,b) => a.displayCode.localeCompare(b.displayCode));
+            
+            allItems.forEach(obj => {
+                output += `"${obj.displayCode}": ${JSON.stringify(obj.data)}, // 해상도: ${obj.resText || 'N/A'}, 원본: ${obj.origin}\n`;
             });
+
             if (!output) return alert("데이터가 없습니다.");
             const blob = new Blob([output], { type: "text/plain" });
             const url = URL.createObjectURL(blob);
@@ -530,10 +679,22 @@
             a.download = `DMM_List_${new Date().toISOString().slice(0, 10)}.txt`;
             a.click();
             URL.revokeObjectURL(url);
-
         };
+
         const clBtn = document.createElement('button'); clBtn.innerText = "초기화"; clBtn.style = "flex:1; padding:8px; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
-        clBtn.onclick = () => { if (confirm("모든 데이터를 삭제하시겠습니까?")) { Object.keys(localStorage).filter(k => k.startsWith(KEY_PREFIX)).forEach(k => localStorage.removeItem(k)); currentSessionCodes.clear(); updateDisplayList(); } };
+        clBtn.onclick = async () => { 
+            if (confirm("모든 데이터를 삭제하시겠습니까?")) { 
+                /* [기존 코드 보존]
+                Object.keys(localStorage).filter(k => k.startsWith(KEY_PREFIX)).forEach(k => localStorage.removeItem(k)); 
+                currentSessionCodes.clear(); updateDisplayList(); 
+                */
+                // [신규 코드 추가]
+                const db = await VceDB.open();
+                db.transaction("codes", "readwrite").objectStore("codes").clear();
+                currentSessionCodes.clear(); 
+                updateDisplayList(); 
+            } 
+        };
         btnContainer.append(dlBtn, clBtn);
         panel.appendChild(btnContainer);
         document.body.appendChild(panel);
@@ -543,9 +704,29 @@
     function sleep(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
+    
     window.addEventListener('load', async () => {
         initializeMakerMap();
         await sleep(2000);
+
+        // =========================================================
+        // [신규 코드 추가: 데이터 이관(Migration) 및 복구]
+        // =========================================================
+        const keys = Object.keys(localStorage).filter(k => k.startsWith(KEY_PREFIX));
+        if (keys.length > 0) {
+            console.log(`[VCE] ${keys.length}개의 구형 데이터를 마이그레이션 합니다...`);
+            for (const key of keys) {
+                try {
+                    const data = JSON.parse(localStorage.getItem(key));
+                    await VceDB.saveCode(key, data);
+                    localStorage.removeItem(key);
+                } catch(e) {}
+            }
+        }
+        const pendingTasks = await VceDB.getPendingTasks();
+        if (pendingTasks.length > 0) pendingTasks.forEach(task => addToQueue({ url: task.url, uniqueKey: null }));
+        // =========================================================
+
         createUI();
 
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
@@ -556,6 +737,5 @@
         makerLabelCode = GetParam(PageURL(), 'maker');
         makerLabel = getMakerLabel(makerLabelCode);
         rawMediaType = GetParam(PageURL(), 'media_type');
-
     });
 })();
