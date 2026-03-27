@@ -453,15 +453,7 @@
             </div>
         `;
         panel.appendChild(controlBar);
-        /**
-                const saveBtn = document.createElement('button');
-                saveBtn.innerText = "메이커 맵 저장";
-                saveBtn.style = "margin-top:5px; padding:5px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;";
-                saveBtn.onclick = saveMakerMapToFile;
         
-                panel.appendChild(saveBtn);
-                */
-
         const filterInput = controlBar.querySelector('#filterInput');
         const searchBtn = controlBar.querySelector('#searchBtn');
 

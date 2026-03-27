@@ -121,7 +121,7 @@
     const DB_CONFIG = { name: "VideoCodeExtractorDB", stores: { codes: "id", imageMeta: "url" } };
     const DB_VERSION_KEY = "VideoCodeExtractorDB_LAST_DB_VERSION"; // GM에 저장할 키 이름
 
-    class VceDB {      
+    class VceDB {
         static async open() {
             const DB_NAME = "VideoCodeExtractorDB";
 
@@ -259,6 +259,10 @@
         static async getImageByPattern(patternKey) {
             const db = await this.open();
             return new Promise(r => db.transaction("imageMeta").objectStore("imageMeta").index("patternKey").get(patternKey).onsuccess = e => r(e.target.result));
+        }
+        static async getAllMeta() {
+            const db = await this.open();
+            return new Promise(r => db.transaction("imageMeta").objectStore("imageMeta").getAll().onsuccess = e => r(e.target.result));
         }
         static async getPendingTasks() {
             const db = await this.open();
@@ -608,7 +612,7 @@
         // 이미지 해상도 체크는 코드 추출 여부와 상관없이 별개로 진행 (중복 시 DB가 알아서 처리)
         const meta = await VceDB.getImageMeta(originalImage);
         if (!meta) {
-            await VceDB.setImageMeta({ url: originalImage, patternKey, status: "pending" });
+            await VceDB.setImageMeta({ url: originalImage, contentId, patternKey, status: "pending" });
             addToQueue({ url: originalImage });
         }
 
@@ -642,19 +646,19 @@
             const padLen = match[3].length;
             const suffix = match[4];
             const displayCode = code;
-            const uniqueKey = `${prefixMatch}${displayCode}${padLen}${suffix}_${makerLabelCode}_${rawMediaType}`;
+            const uniqueKey = `${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
 
             if (!currentSessionCodes.has(uniqueKey)) {
                 currentSessionCodes.add(uniqueKey);
                 const imageSourceKey = Object.keys(imageUrlsMap).find(key =>
-                    cleanUrl.startsWith(imageUrlsMap[key])
+                    originalImage.startsWith(imageUrlsMap[key])
                 ) || "UNKNOWN";
 
                 // 저장할 때 patternKey를 포함시켜서 나중에 위에서 검색 가능하게 함
                 await VceDB.saveCode(uniqueKey, {
                     displayCode: displayCode,
                     data: [imageSourceKey, prefixMatch, padLen, suffix, makerLabel, rawMediaType],
-                    origin: cleanUrl,
+                    origin: originalImage,
                     patternKey: patternKey // 검색용 키 저장
                 });
                 updateDisplayList();
@@ -664,7 +668,7 @@
         }
         return false;
     }
-    
+
     async function updateDisplayList(shouldScroll = false) {
         if (!listContainer) return;
         const currentScroll = listContainer.scrollTop;
@@ -743,12 +747,12 @@
 
                     Object.entries(externalData).forEach(([id, originalName]) => {
                         // 변경 이름이 있으면 가져오고, 없으면 null 혹은 원래 이름을 넣습니다.
-                        const finalName = makerLabelReplaceMap[originalName] || originalName;
+                        const makerName = makerLabelReplaceMap[originalName] || '';
 
                         // Map에 객체 형태로 저장: [ID, { 원래이름, 변경이름 }]
                         makerMap.set(id, {
                             original: originalName,
-                            final: finalName
+                            final: makerName
                         });
                     });
                 }
@@ -802,33 +806,12 @@
         return "Unknown";
     }
     // --- [사용자 보존 요청: 활용을 위해 남겨둔 함수들 삭제 금지] ---
-    /**
-    let currentMakerLabel = ""; // 전역 변수
-    function buildMakerMap() {
-        const makerNodes = document.querySelectorAll('a[href*="maker="]');
 
-        makerNodes.forEach(node => {
-            try {
-                const url = new URL(node.href, window.location.origin);
-                const makerId = url.searchParams.get('maker');
-                // .line-clamp-2.text-ellipsis 클래스를 가진 텍스트 추출
-                const makerName = node.querySelector('.line-clamp-2.text-ellipsis')?.innerText.trim();
-
-                if (makerId && makerName) {
-                    makerMap.set(makerId, makerName);
-                }
-            } catch (e) {
-                // URL 파싱 에러 등 예외 처리
-            }
-        });
-
-        console.log(`[VCE] 메이커 맵 구성 완료: ${makerMap.size}개 항목`);
-    }
-
-    /**
+    let currentMakerLabel = ""; // 전역 변수    
+    const buildmakerMap = new Map();
     function findMakerLabel(retryCount = 0) {
         // 1. 먼저 페이지 내 모든 메이커 정보를 맵으로 빌드
-        buildMakerMap();
+        extraMakerMap();
 
         // 2. 현재 페이지의 파라미터에서 maker ID 가져오기
         const urlParams = new URLSearchParams(window.location.search);
@@ -845,15 +828,41 @@
             setTimeout(() => findMakerLabel(retryCount + 1), 1000);
         }
     }
+    function extraMakerMap() {
+        const makerNodes = document.querySelectorAll('a[href*="maker="]');
 
+        makerNodes.forEach(node => {
+            try {
+                const url = new URL(node.href, window.location.origin);
+                const makerId = url.searchParams.get('maker');
+                // .line-clamp-2.text-ellipsis 클래스를 가진 텍스트 추출
+                const makerName = node.querySelector('.line-clamp-2.text-ellipsis')?.innerText.trim();
+
+                if (makerId && makerName) {
+                    buildmakerMap.set(makerId, makerName);
+                }
+            } catch (e) {
+                // URL 파싱 에러 등 예외 처리
+            }
+        });
+
+        console.log(`[VCE] 메이커 맵 구성 완료: ${makerMap.size}개 항목`);
+    }
     function saveMakerMapToFile() {
-        if (makerMap.size === 0) {
-            alert("저장할 메이커 데이터가 없습니다. 먼저 맵을 빌드하세요.");
-            return;
+        if (buildmakerMap.size === 0) {            
+            return extraMakerMap();
         }
 
+        buildmakerMap.forEach(([id, originalName]) => {
+            // 변경 이름이 있으면 가져오고, 없으면 null 혹은 원래 이름을 넣습니다.
+            const makerName = makerLabelReplaceMap[originalName] || originalName;
+
+            // Map에 객체 형태로 저장: [ID, { 원래이름, 변경이름 }]
+            buildmakerMap.set(id, makerName || originalName);
+        });
+
         // 1. Map을 일반 Object로 변환 후 JSON 문자열화
-        const obj = Object.fromEntries(makerMap);
+        const obj = Object.fromEntries(buildmakerMap);        
         const jsonString = JSON.stringify(obj, null, 2); // 보기 좋게 들여쓰기 포함
 
         // 2. Blob 객체 생성
@@ -873,7 +882,7 @@
 
         console.log(`[VCE] ${makerMap.size}개의 메이커 정보가 파일로 저장되었습니다.`);
     }
-    */
+
     // -------------------------------------------------------------
 
     function createUI() {
@@ -960,26 +969,102 @@
 
         const btnContainer = document.createElement('div');
         btnContainer.style = "display:flex; gap:5px;";
-        const dlBtn = document.createElement('button'); dlBtn.innerText = "다운로드"; dlBtn.style = "flex:2; padding:8px; background:#4CAF50; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
+
+        // 1. 기존 품번(Codes) 다운로드 버튼
+        const dlBtn = document.createElement('button');
+        dlBtn.innerText = "품번 저장";
+        dlBtn.style = "flex:1; padding:8px; background:#4CAF50; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
 
         dlBtn.onclick = async () => {
-            let output = "";
             const allItems = await VceDB.getAllCodes();
-            allItems.sort((a, b) => a.displayCode.localeCompare(b.displayCode));
+            if (allItems.length === 0) return alert("데이터가 없습니다.");
 
-            allItems.forEach(obj => {
-                output += `"${obj.displayCode}": ${JSON.stringify(obj.data)}, // 해상도: ${obj.resText || 'N/A'}, 원본: ${obj.origin}\n`;
+            // [3단계 정렬 수행]
+            allItems.sort((a, b) => {
+                // 1차: 메이커명 (일본어/영어 섞임)
+                const makerA = a.data[4] || "기타";
+                const makerB = b.data[4] || "기타";
+
+                if (makerA !== makerB) {
+                    // 'ja' 옵션을 주면 일본어 정렬 규칙을 더 정확히 따릅니다.
+                    return makerA.localeCompare(makerB, 'ja');
+                }
+
+                // 2차: 품번
+                if (a.displayCode !== b.displayCode) return a.displayCode.localeCompare(b.displayCode);
+
+                // 3차: sameCodeCount (숫자)
+                const seqA = a.data[a.data.length - 1] || 0;
+                const seqB = b.data[b.data.length - 1] || 0;
+                return seqA - seqB;
             });
 
-            if (!output) return alert("데이터가 없습니다.");
+
+            let output = "";
+            let currentMaker = "";
+
+            allItems.forEach(obj => {
+                const maker = obj.data[4] || "기타";
+
+                // 메이커가 바뀌는 지점에 주석 삽입
+                if (maker !== currentMaker) {
+                    if (currentMaker !== "") output += "\n"; // 메이커 간 구분 공백
+                    currentMaker = maker;
+                    output += `// ${currentMaker}\n`;
+                }
+
+                // DB에 저장된 data 배열(sameCodeCount 포함)을 그대로 JSON화하여 출력
+                output += `"${obj.displayCode}": ${JSON.stringify(obj.data)},\n`;
+            });
+
+            // 파일 다운로드 처리
             const blob = new Blob([output], { type: "text/plain" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `DMM_List_${new Date().toISOString().slice(0, 10)}.txt`;
+            a.download = `Codes_Final_${new Date().toISOString().slice(0, 10)}.txt`;
             a.click();
             URL.revokeObjectURL(url);
         };
+
+        // 2. 신규 이미지 메타(ImageMeta) 다운로드 버튼
+        const metaDlBtn = document.createElement('button');
+        metaDlBtn.innerText = "메타 저장";
+        metaDlBtn.style = "flex:1; padding:8px; background:#2196F3; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
+
+        metaDlBtn.onclick = async () => {
+            // 이미지 메타 저장소의 모든 데이터를 가져오기 위해 별도의 메서드(getAllMeta)가 필요할 수 있습니다.
+            const db = await VceDB.open();
+            const allMeta = await new Promise(r => {
+                db.transaction("imageMeta").objectStore("imageMeta").getAll().onsuccess = e => r(e.target.result);
+            });
+
+            if (allMeta.length === 0) return alert("이미지 메타 데이터가 없습니다.");
+
+            // 보기 좋게 정렬 (패턴키 기준)
+            allMeta.sort((a, b) => (a.contentId || "").localeCompare(b.contentId || ""));
+
+            let output = allMeta.map(m =>
+                `${m.contentId} | URL: ${m.url}} | [${m.status}]`
+            ).join("\n");
+
+            downloadFile(output, `Meta_${new Date().toISOString().slice(0, 10)}.txt`);
+        };
+
+        // 공통 다운로드 함수 (중복 코드 방지)
+        function downloadFile(content, fileName) {
+            const blob = new Blob([content], { type: "text/plain" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // 컨테이너에 버튼들 추가
+        btnContainer.appendChild(dlBtn);
+        btnContainer.appendChild(metaDlBtn);
 
         const clBtn = document.createElement('button'); clBtn.innerText = "초기화"; clBtn.style = "flex:1; padding:8px; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
         clBtn.onclick = async () => {
@@ -993,7 +1078,19 @@
         btnContainer.append(dlBtn, clBtn);
         panel.appendChild(btnContainer);
         document.body.appendChild(panel);
+
+       // 페이지에서 수집
+        const saveBtn = document.createElement('button');
+        saveBtn.innerText = "메이커 맵 저장";
+        saveBtn.style = "margin-top:5px; padding:5px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;";
+        saveBtn.onclick = saveMakerMapToFile;
+
+        panel.appendChild(saveBtn);
+
+
         updateDisplayList();
+
+
     }
 
     function sleep(ms) {
