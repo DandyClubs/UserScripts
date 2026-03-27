@@ -583,7 +583,7 @@
     history.replaceState = function () { originalReplace.apply(this, arguments); resetSessionCodes(); };
 
 
-    async function processWork(sourceURL) {
+    async function processWork(sourceURL, rawMediaType, makerLabelCode, makerLabel) {
 
         if (!sourceURL || !sourceURL.includes('https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/')) return false;
         const cleanUrl = sourceURL.split('?')[0];
@@ -658,7 +658,8 @@
                     displayCode: displayCode,
                     data: [imageSourceKey, prefixMatch, padLen, suffix, makerLabel, rawMediaType],
                     origin: originalImage,
-                    patternKey: patternKey // 검색용 키 저장
+                    patternKey: patternKey, // 검색용 키 저장
+                    makerLabelCode: makerLabelCode,
                 });
                 updateDisplayList();
             }
@@ -722,15 +723,37 @@
 
             row.querySelector('.item-check').onchange = updateCounts;
 
+            // updateDisplayList 함수 내 반복문(items.forEach) 부분 수정
             row.querySelector('.reset-btn').onclick = async (e) => {
-                await VceDB.deleteCode(key);
-                currentSessionCodes.delete(key);
-                const resetUrl = itemData.origin;                
-                if (resetUrl) {
-                    processWork(resetUrl);
+                const targetUrl = itemData.origin;
+                const makerLabel = itemData.data[4];
+                const makerLabelCode = itemData.makerLabelCode; // 상위 스코프 변수 활용
+                const rawMediaType = itemData.data[5];
+
+                if (targetUrl) {
+                    // 1. 대기열(Queue)에 객체 형태로 추가
+                    let queue = JSON.parse(GM_getValue("process_queue", "[]"));
+                    if (!queue.some(q => q.url === targetUrl)) {
+                        queue.push({
+                            url: targetUrl,
+                            maker: makerLabel,
+                            makerCode: makerLabelCode,
+                            type: rawMediaType
+                        });
+                        GM_setValue("process_queue", JSON.stringify(queue));
+                        console.log(`[Queue Add] ${targetUrl}`);
+                    }
+
+                    // 2. DB 및 메모리에서 즉시 삭제
+                    await VceDB.deleteCode(key);
+                    currentSessionCodes.delete(key);
+
+                    // 3. 리스트 갱신 및 큐 카운트 업데이트
+                    updateDisplayList(false);
+                    refreshQueueButton(); // 아래에서 정의할 버튼 갱신 함수
                 }
-                updateDisplayList(false);
             };
+
             listContainer.appendChild(row);
         });
 
@@ -914,19 +937,72 @@
         const controlBar = document.createElement('div');
         controlBar.style = "display:flex; flex-direction:column; padding:8px; background:#222; border-bottom:1px solid #444; gap:8px; margin-bottom:10px; border-radius:4px; box-sizing:border-box;";
         controlBar.innerHTML = `      
-    <div style="display:flex; align-items:center; justify-content:flex-start; width:100%; gap:8px;">
-        <button id="btnSelectAll" style="background:#2196F3; color:white; border:none; padding:4px 8px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 선택</button>
-        <button id="btnUnselectAll" style="background:#666; color:white; border:none; padding:4px 8px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 해제</button>
-        <div style="flex:1"></div> 
-        <button id="delSelected" style="background:#444; color:#ff4d4d; border:none; padding:4px 8px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">선택 삭제</button>
-    </div>
-    <div style="display:flex; gap:5px; width:100%;">
-        <input type="text" id="filterInput" placeholder="예: abc or /abc/" style="flex:1; min-width:0; background:#111; color:#00FF41; border:1px solid #444; padding:5px; font-size:12px; border-radius:3px; outline:none; font-family:monospace;">
-        <button id="clearBtn" style="background:#666; color:#fff; border:none; padding:0 8px; font-size:11px; cursor:pointer; border-radius:3px; white-space:nowrap;">X</button>
-        <button id="searchBtn" style="background:#00FF41; color:#000; border:none; padding:0 12px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; white-space:nowrap;">찾기</button>
-    </div>
+        <div style="display:flex; align-items:center; justify-content:flex-start; width:100%; gap:8px;">
+            <button id="btnSelectAll" style="background:#2196F3; color:white; border:none; padding:4px 8px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 선택</button>
+            <button id="btnUnselectAll" style="background:#666; color:white; border:none; padding:4px 8px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 해제</button>            
+            <button id="delSelected" style="background:#444; color:#ff4d4d; border:none; padding:4px 8px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold;">선택 삭제</button>
+            <button id="btnRetrySel" style="background:#FF9800; color:white; border:none; padding:5px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold;">선택 재시도 예약</button>
+        </div>
+        <div style="display:flex; gap:5px; width:100%;">
+            <input type="text" id="filterInput" placeholder="예: abc or /abc/" style="flex:1; min-width:0; background:#111; color:#00FF41; border:1px solid #444; padding:5px; font-size:12px; border-radius:3px; outline:none; font-family:monospace;">
+            <button id="clearBtn" style="background:#666; color:#fff; border:none; padding:0 8px; font-size:11px; cursor:pointer; border-radius:3px; white-space:nowrap;">X</button>
+            <button id="searchBtn" style="background:#00FF41; color:#000; border:none; padding:0 12px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; white-space:nowrap;">찾기</button>            
+        </div>
 `;
         panel.appendChild(controlBar);
+
+        // 선택 재시도 클릭 이벤트
+        controlBar.querySelector('#btnRetrySel').onclick = async () => {
+            const selected = listContainer.querySelectorAll('.item-check:checked');
+            if (selected.length === 0) return alert("항목을 선택해주세요.");
+
+            let queue = JSON.parse(GM_getValue("process_queue", "[]"));
+            for (const cb of selected) {
+                const key = cb.dataset.key;
+                const item = await VceDB.getCode(key);
+                if (item && !queue.some(q => q.url === item.origin)) {
+                    queue.push({
+                        url: item.origin,
+                        maker: item.data[4],
+                        makerCode: makerLabelCode,
+                        type: item.data[5]
+                    });
+                    await VceDB.deleteCode(key);
+                    currentSessionCodes.delete(key);
+                }
+            }
+            GM_setValue("process_queue", JSON.stringify(queue));
+            updateDisplayList(false);
+            refreshQueueButton();
+        };
+
+        // 버튼 그룹 생성 및 초기 숨김
+        const retryGroup = document.createElement('div');
+        retryGroup.id = "retry-group";
+        retryGroup.style = "display:none; gap:5px; margin-top:8px; width:100%;";
+        retryGroup.innerHTML = `            
+            <button id="btnRunQueue" style="flex:1; background:#007BFF; color:white; border:none; padding:5px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">대기열 실행 (0)</button>
+`;
+        controlBar.appendChild(retryGroup);       
+
+        // 대기열 실행 클릭 이벤트
+        const btnRun = retryGroup.querySelector('#btnRunQueue');
+        btnRun.onclick = async () => {
+            const queue = JSON.parse(GM_getValue("process_queue", "[]"));
+            if (queue.length === 0) return;
+            GM_setValue("process_queue", "[]"); // 즉시 비우기
+            btnRun.disabled = true;
+
+            for (let i = 0; i < queue.length; i++) {
+                const t = queue[i];
+                btnRun.innerText = `처리 중 (${i + 1}/${queue.length})`;
+                // 기존 processWork(sourceURL, rawMediaType, makerLabelCode, makerLabel) 순서에 맞춰 호출
+                await processWork(t.url, t.type, t.makerCode, t.maker);
+            }            
+            btnRun.disabled = false;
+            refreshQueueButton();
+            updateDisplayList(false);
+        };
 
         const filterInput = controlBar.querySelector('#filterInput');
         const searchBtn = controlBar.querySelector('#searchBtn');
@@ -1137,10 +1213,26 @@
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 
+
+    function refreshQueueButton() {
+        const queue = JSON.parse(GM_getValue("process_queue", "[]"));
+        const group = document.getElementById('retry-group');
+        const btn = document.getElementById('btnRunQueue');
+
+        if (group && btn) {
+            const hasItems = queue.length > 0;
+            group.style.display = hasItems ? "flex" : "none";
+            if (hasItems) btn.innerText = `대기열 실행 (${queue.length})`;
+        }
+    }
+
     window.addEventListener('load', async () => {
         initializeMakerMap();
         createUI();
+        pendingTry();
         await sleep(2000);
+        refreshQueueButton();
+        
 
         const tasksToRun = await VceDB.getSchedulableTasks();
 
