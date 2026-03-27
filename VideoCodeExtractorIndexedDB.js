@@ -163,6 +163,18 @@
             const db = await this.open();
             return new Promise(r => db.transaction("codes", "readwrite").objectStore("codes").delete(id).onsuccess = () => r());
         }
+        static async getCodeByPattern(patternKey) {
+            const db = await this.open();
+            return new Promise(r => {
+                const tx = db.transaction("codes", "readonly");
+                const store = tx.objectStore("codes");
+                // patternKey 인덱스가 있다면:
+                const index = store.index("patternKey");
+                const request = index.get(patternKey);
+                request.onsuccess = (e) => r(e.target.result);
+                request.onerror = () => r(null);
+            });
+        }
         static async setImageMeta(meta) {
             const db = await this.open();
             return new Promise(r => db.transaction("imageMeta", "readwrite").objectStore("imageMeta").put({ ...meta, updatedAt: Date.now() }).onsuccess = () => r());
