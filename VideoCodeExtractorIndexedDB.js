@@ -528,7 +528,6 @@
         `;
 
         if (alertStatus) {
-            console.log({ rawMediaType, makerLabelCode, makerLabel });
             if (!rawMediaType && !makerLabelCode) {
                 alertStatus.innerHTML = `<div style="color:#F44336; margin-bottom:5px; font-weight:bold;">❌ 추출할 메이커 페이지로 이동하세요!</div>`;
             } else if (!rawMediaType) {
@@ -705,6 +704,11 @@
             const contentId = idMatch ? idMatch[1] : "";
             const itemPageUrl = contentId ? `https://video.dmm.co.jp/av/content/?id=${contentId}` : "#";
             const row = document.createElement('div');
+            const refreshIcon = `
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M23 4v6h-6"></path>
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                                </svg>`;
             row.style = "display:flex; align-items:center; border-bottom:1px solid #333; padding:6px 0; gap:8px;";
             row.innerHTML = `
                 <input type="checkbox" class="item-check" data-key="${key}" style="margin-left:5px; width:15px; height:15px; cursor:pointer; accent-color:#00FF41; appearance:auto;">
@@ -713,17 +717,17 @@
                     ${detailLabel ? `<span style="color:white; font-size:10px; margin-left:5px;">[</span><span style="color:#00FF41; font-size:10px;">${detailLabel}</span><span style="color:white; font-size:10px;">]</span>` : ''}
                 </div>                                        
                 <span style="color:white; font-size:10px;padding-left:5px;">[ ${itemData.data[5]} ]</span>
-                <button class="del-btn" style="background:none; border:none; color:#ff4d4d; cursor:pointer; font-weight:bold; font-size:16px; padding:0 5px;">×</button>
+                <button class="reset-btn" style="background:none; border:none; color:#aaa; cursor:pointer; display:flex; align-items:center; padding:0 5px;">${refreshIcon}</button>
             `;
 
             row.querySelector('.item-check').onchange = updateCounts;
 
-            row.querySelector('.del-btn').onclick = async (e) => {
+            row.querySelector('.reset-btn').onclick = async (e) => {
                 await VceDB.deleteCode(key);
                 currentSessionCodes.delete(key);
-                const getS = e.target.parentElement.getAttribute('title');
-                if (getS) {
-                    processWork(getS);
+                const resetUrl = itemData.origin;                
+                if (resetUrl) {
+                    processWork(resetUrl);
                 }
                 updateDisplayList(false);
             };
@@ -973,7 +977,7 @@
                 updateDisplayList(false);
             }
         };
-        
+
         const tabBox = document.createElement('div');
         tabBox.style = "display:flex; margin-bottom:10px; border-bottom:1px solid #444; font-size:11px; cursor:pointer;";
         const sTab = document.createElement('div'); sTab.innerText = "현재 페이지"; sTab.style = "flex:1; text-align:center; padding:5px; color:#2196F3; border-bottom:2px solid #2196F3;";
