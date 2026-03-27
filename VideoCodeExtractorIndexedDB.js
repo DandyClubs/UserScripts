@@ -806,7 +806,8 @@
         return "Unknown";
     }
     // --- [사용자 보존 요청: 활용을 위해 남겨둔 함수들 삭제 금지] ---
-
+    // ================================================================================
+/** 
     let currentMakerLabel = ""; // 전역 변수    
 
     const addMakerMap = new Map();
@@ -888,7 +889,8 @@
         URL.revokeObjectURL(url);
     }
 
-    // -------------------------------------------------------------
+    */
+// ================================================================================
 
     function createUI() {
         const panel = document.createElement('div');
@@ -1086,7 +1088,8 @@
         panel.appendChild(btnContainer);
 
         // 페이지에서 수집
-
+        //-------------------------------------------------------------
+        /*
         const mapContainer = document.createElement('div');
         mapContainer.style = "display:flex; gap:5px;";
 
@@ -1102,6 +1105,8 @@
 
         mapContainer.append(extraBtn, saveBtn);
         panel.appendChild(mapContainer);
+        */
+        //-------------------------------------------------------------
 
         document.body.appendChild(panel);
 
