@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Code Extractor IndexedDB 고도화
 // @namespace    http://tampermonkey.net/
-// @version      4.2
+// @version      4.2.1
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
