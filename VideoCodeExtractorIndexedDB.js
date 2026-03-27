@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Code Extractor IndexedDB 고도화
 // @namespace    http://tampermonkey.net/
-// @version      4.2.1
+// @version      4.3.1
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
@@ -339,7 +339,11 @@
             GM_xmlhttpRequest({
                 method: "GET",
                 url: url,
-                headers: { "Range": `bytes=${targetRange}` },
+                headers: { 
+                    "Range": `bytes=${targetRange}`, 
+                    "Referer": "https://video.dmm.co.jp/", // 정상 경로인 척 함
+                    "Origin": "https://video.dmm.co.jp"
+                },
                 responseType: "arraybuffer",
                 onload: (res) => {
                     let result = { width: 0, height: 0, status: res.status, errorReason: "", type: "Unknown" };

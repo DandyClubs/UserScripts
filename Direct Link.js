@@ -313,7 +313,6 @@ function traceRedirect(url, maxRedirect = 10) {
                 method: "GET",
                 url: currentUrl,
                 redirect: "manual",
-
                 onload: function (res) {
                     const status = res.status;
                     // Location 헤더 찾기
