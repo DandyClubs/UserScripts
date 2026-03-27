@@ -58,8 +58,8 @@
 
     const mutCallback = () => {
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
-            let hasNew = false;            
-            
+            let hasNew = false;
+
             // 1. selector에 해당하면서 아직 처리되지 않은(:not) 요소들만 한 번에 가져옴
             // imageSelector가 img를 가리킨다면 해당 img들을, source를 가리킨다면 source들을 가져옵니다.
             const targets = document.querySelectorAll(`${imageSelector}:not(.${PROCESSED_CLASS})`);
@@ -132,8 +132,8 @@
             currentSessionCodes.clear();
             updateDisplayList();
         }
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {            
-            observer.observe(document.body, { childList: true, subtree: true });            
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+            observer.observe(document.body, { childList: true, subtree: true });
         }
         makerLabelCode = GetParam(PageURL(), 'maker');
         makerLabel = getMakerLabel(makerLabelCode);
@@ -166,7 +166,7 @@
         if (!majorsLabel.test(cleanUrl)) {
             console.warn('Not majorsLabel', majorsLabel.test(cleanUrl), cleanUrl);
             return false;
-        } 
+        }
 
         const skipPatterns = [
             /digital\/video\/(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)\//,
@@ -177,7 +177,7 @@
             if (skipRegex.test(cleanUrl)) {
                 console.warn('SKIP', skipRegex.test(cleanUrl), cleanUrl);
                 return false;
-            } 
+            }
         }
 
         const pathSegments = cleanUrl.split('/');
@@ -191,11 +191,14 @@
 
         // --- 추출 패턴 (예제 주석 복구) ---
         const extractPatterns = [
+
+            /digital\/video\/(.*)(d1clymax)(\d{5,})(.*?)\//,                // d1clymax00010 패턴    
             /digital\/video\/([a-z]*?)(dvaj|dvajbx)(\d{5,})(.*?)\//,                // DVAJ 패턴
             /digital\/video\/(\d{2})(kt)(\d{5,})(.*?)\//,              // 47kt00308
             /digital\/video\/(\d{2})([t]\d{1})(\d{5,})(.*?)\//,                           // 55t3800059 대응 (T+숫자2자리 고정)
             /digital\/video\/(h_[h0-9]*?)(ss)(\d{3,})([a-z]*?)\//,                  // h_113h113 + ss + 00003 + rai 대응
             /digital\/video\/(h_[h0-9]*?)([a-z]{3,})(\d{3,})([a-z]*?)\//,           // h_1515bggb00008 대응
+            /digital\/video\/(\d*?)(ss)(\d{3,})([a-z]*?)\//,                  // h_113h113 + ss + 00003 + rai 대응
             /digital\/video\/([0-9]*?)([a-z]+)(\d+)(.*?)\//,                         // 패턴 B: it001 또는 snos00136 형태
         ];
 
@@ -208,11 +211,11 @@
             const padLen = `zero${match[3].length}`;
             const suffix = match[4];
             const displayCode = code;
-            const uniqueKey = `${KEY_PREFIX}${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;       
-            if (!makerLabelCode || !rawMediaType || !makerLabel){
-                alert(`${makerLabelCode || 'No makerLabelCode'}, ${rawMediaType || 'No rawMediaType'}, ${makerLabel || 'No makerLabel'}`);                
+            const uniqueKey = `${KEY_PREFIX}${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
+            if (!makerLabelCode || !rawMediaType || !makerLabel) {
+                alert(`${makerLabelCode || 'No makerLabelCode'}, ${rawMediaType || 'No rawMediaType'}, ${makerLabel || 'No makerLabel'}`);
                 return false;
-            } 
+            }
 
             if (!localStorage.getItem(uniqueKey)) {
                 currentSessionCodes.add(uniqueKey);
@@ -280,9 +283,13 @@
             // 체크박스 클릭 시 선택 개수 실시간 업데이트
             row.querySelector('.item-check').onchange = updateCounts;
 
-            row.querySelector('.del-btn').onclick = () => {
+            row.querySelector('.del-btn').onclick = (e) => {
                 localStorage.removeItem(key);
                 currentSessionCodes.delete(key);
+                const getS = e.target.parentElement.getAttribute('title');
+                if (getS) {
+                    processUrl(getS);
+                }
                 updateDisplayList(false);
             };
             listContainer.appendChild(row);
@@ -311,12 +318,12 @@
             console.warn("[VCE] 外部リソースのロードに失敗しました:", e);
         }
         console.log(`메이커 맵 구성: ${makerMap.size}개 항목`, makerMap);
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {            
-            observer.observe(document.body, { childList: true, subtree: true });            
-        }            
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
         makerLabelCode = GetParam(PageURL(), 'maker');
         makerLabel = getMakerLabel(makerLabelCode);
-        rawMediaType = GetParam(PageURL(), 'media_type');        
+        rawMediaType = GetParam(PageURL(), 'media_type');
     }
 
 
@@ -455,13 +462,13 @@
 
         const filterInput = controlBar.querySelector('#filterInput');
         const searchBtn = controlBar.querySelector('#searchBtn');
-        
+
         searchBtn.onclick = () => { filterText = filterInput.value.trim(); controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
 
-        filterInput.onkeydown = (e) => { 
-            if (e.key === 'Enter') searchBtn.click(); 
+        filterInput.onkeydown = (e) => {
+            if (e.key === 'Enter') searchBtn.click();
             else if (e.key === 'Escape') filterInput.value = '';
-        };        
+        };
 
         controlBar.querySelector('#clearBtn').onclick = () => { filterInput.value = ""; filterText = ""; controlBar.querySelector('#selectAll').checked = false; updateDisplayList(false); };
 
@@ -475,7 +482,11 @@
             const selected = listContainer.querySelectorAll('.item-check:checked');
             if (selected.length === 0) return alert("삭제할 항목을 선택해주세요.");
             if (confirm(`${selected.length}개의 항목을 삭제하시겠습니까?`)) {
-                selected.forEach(cb => { const key = cb.dataset.key; localStorage.removeItem(key); currentSessionCodes.delete(key); });
+                selected.forEach(cb => {
+                    const key = cb.dataset.key;
+                    localStorage.removeItem(key);
+                    currentSessionCodes.delete(key);                    
+                });
                 updateDisplayList(false);
                 controlBar.querySelector('#selectAll').checked = false;
             }
@@ -535,7 +546,7 @@
         await sleep(2000);
         createUI();
 
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {            
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             mutCallback();
             observer.observe(document.body, { childList: true, subtree: true });
         }
