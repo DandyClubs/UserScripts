@@ -108,10 +108,7 @@
     let rawMediaType = GetParam(PageURL(), 'media_type');
 
     const PROCESSED_CLASS = 'processed-marker';
-
-    /* [기존 코드 보존] 메모리 기반 중복 방지 (이제 IndexedDB imageMeta가 대신함) */
-    // const patternMemoryDB = new Set();
-
+    
     let alertStatus = null; // 상태 메시지용 엘리먼트    
     let makerLabel = ""; // 전역 변수로 관리
     let listContainer = null;
@@ -184,19 +181,48 @@
         }
         static async getSchedulableTasks() {
             const db = await this.open();
-            return new Promise(r => {
-                const store = db.transaction("imageMeta").objectStore("imageMeta");
-                const index = store.index("status");
-                const request = index.getAll("pending"); // 우선 'pending'인 것들 모두 가져옴
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction("imageMeta", "readwrite"); // 'readwrite' 권한 필수
+                const store = tx.objectStore("imageMeta");
+                const request = store.getAll(); // 상태와 시간을 모두 체크하기 위해 전체 호출
 
-                request.onsuccess = (e) => {
+                request.onsuccess = async (e) => {
                     const now = Date.now();
-                    const allPending = e.target.result;
-                    // 시간이 되었거나, 재시도 설정(nextRetryAt)이 없는 신규 항목만 필터링
-                    const executable = allPending.filter(task =>
-                        !task.nextRetryAt || task.nextRetryAt <= now
-                    );
-                    r(executable);
+                    const TIMEOUT = 5 * 60 * 1000; // 5분 타임아웃
+                    const allTasks = e.target.result;
+
+                    // 1. 실행 가능한 작업 필터링
+                    const tasksToRun = allTasks.filter(task => {
+                        // 조건 A: 대기 중(pending)이고 실행 시간이 되었거나 첫 실행인 경우
+                        if (task.status === "pending") {
+                            return !task.nextRetryAt || task.nextRetryAt <= now;
+                        }
+
+                        // 조건 B: 실행 중(processing)인데 시작한 지 5분이 넘었을 경우 (고립된 작업 구출)
+                        if (task.status === "processing") {
+                            return task.lastStartTime && (now - task.lastStartTime) > TIMEOUT;
+                        }
+
+                        return false;
+                    });
+
+                    // 2. [중요] 필터링된 작업들을 즉시 '진행 중' 상태로 업데이트 (Lock 걸기)
+                    // 이렇게 해야 다른 탭이 동시에 실행했을 때 목록에서 제외됨
+                    for (const task of tasksToRun) {
+                        task.status = "processing";
+                        task.lastStartTime = now; // 작업 시작 시간 기록 (타임아웃 체크용)
+                        store.put(task);
+                    }
+
+                    // 트랜잭션이 완료되면 작업 목록을 반환
+                    tx.oncomplete = () => {
+                        resolve(tasksToRun);
+                    };
+
+                    tx.onerror = (err) => {
+                        console.error("트랜잭션 오류:", err);
+                        reject(err);
+                    };
                 };
             });
         }
@@ -469,10 +495,10 @@
     history.replaceState = function () { originalReplace.apply(this, arguments); resetSessionCodes(); };
 
 
-    async function processWork(srcset) {
+    async function processWork(sourceURL) {
 
-        if (!srcset || !srcset.includes('https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/')) return false;
-        const cleanUrl = srcset.split('?')[0];
+        if (!sourceURL || !sourceURL.includes('https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/')) return false;
+        const cleanUrl = sourceURL.split('?')[0];
 
         const majorsLabel = /digital\/video\/(.*?)([a-z]{3,7}\d{4,7}|[ts]{1,2}\d{2,7})[v]?/i;
         if (!majorsLabel.test(cleanUrl)) return false;
@@ -489,17 +515,25 @@
         const contentId = pathSegments[pathSegments.length - 2];
         const fileName = pathSegments.pop();
         const fileExtension = fileName.split('.').pop();
-        const newImageUrl = cleanUrl.replace(fileName, `${contentId}pl.${fileExtension}`);
+        const originalImage = cleanUrl.replace(fileName, `${contentId}pl.${fileExtension}`);
         const maskedId = contentId.replace(/\d/g, '0');
         const patternKey = `${maskedId}_${makerLabelCode}_${rawMediaType}`;
 
-        // 2. 해상도/패턴 캐시 확인 및 큐 추가
-        const meta = await VceDB.getImageMeta(cleanUrl);
+        // --- [섹션 1: 이미지 메타 처리] ---
+        // 이미지 해상도 체크는 코드 추출 여부와 상관없이 별개로 진행 (중복 시 DB가 알아서 처리)
+        const meta = await VceDB.getImageMeta(originalImage);
+        if (!meta) {
+            await VceDB.setImageMeta({ url: originalImage, patternKey, status: "pending" });
+            addToQueue({ url: originalImage });
+        }
 
-        if (!meta) await VceDB.setImageMeta({ url: newImageUrl, patternKey, status: "pending" });
-        addToQueue({ url: newImageUrl });
-
-        if (await VceDB.getImageByPattern(patternKey)) return true;
+        // --- [섹션 2: 코드 DB 중복 체크 (PatternKey 기준)] ---
+        // ★ 여기서 patternKey로 이미 저장된 코드가 있는지 확인합니다.
+        const existingPattern = await VceDB.getCodeByPattern(patternKey);
+        if (existingPattern) {
+            // 이미 이 패턴의 코드를 추출한 적이 있다면 더 이상 진행 안 함
+            return true;
+        }
 
         const extractPatterns = [
             /digital\/video\/(.*)(d1clymax)(\d{5,})(.*?)\//,
@@ -513,26 +547,30 @@
         ];
 
         let match = null;
-        for (const regex of extractPatterns) { match = cleanUrl.match(regex); if (match) break; }
+        for (const regex of extractPatterns) { match = originalImage.match(regex); if (match) break; }
 
         if (match) {
-            if (!makerLabelCode || !rawMediaType || !makerLabel) return false;
+            if (!makerLabelCode && !rawMediaType && !makerLabel) return false;
 
             const prefixMatch = match[1];
             const code = match[2].toUpperCase();
             const padLen = match[3].length;
             const suffix = match[4];
             const displayCode = code;
-            const uniqueKey = `${KEY_PREFIX(cleanUrl)}_${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
-
-            // 1. 화면 표시 및 DB 코드 저장 (기존 로컬스토리지 대체)
+            const uniqueKey = `${KEY_PREFIX(originalImage)}_${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
+            
             if (!currentSessionCodes.has(uniqueKey)) {
                 currentSessionCodes.add(uniqueKey);
-                let existingCode = await VceDB.getCode(uniqueKey);
+                const imageSourceKey = Object.keys(imageUrlsMap).find(key =>
+                    cleanUrl.startsWith(imageUrlsMap[key])
+                ) || "UNKNOWN";
+
+                // 저장할 때 patternKey를 포함시켜서 나중에 위에서 검색 가능하게 함
                 await VceDB.saveCode(uniqueKey, {
                     displayCode: displayCode,
-                    data: ["FANZA_DIGITAL", prefixMatch, padLen, suffix, makerLabel, rawMediaType],
+                    data: [imageSourceKey, prefixMatch, padLen, suffix, makerLabel, rawMediaType],
                     origin: cleanUrl,
+                    patternKey: patternKey // 검색용 키 저장
                 });
                 updateDisplayList();
             }
@@ -656,7 +694,10 @@
         console.log(`메이커 맵 구성: ${makerMap.size}개 항목`, makerMap);
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             observer.observe(document.body, { childList: true, subtree: true });
-        }        
+        }
+        makerLabelCode = GetParam(PageURL(), 'maker');
+        rawMediaType = GetParam(PageURL(), 'media_type');
+        makerLabel = getMakerLabel(makerLabelCode);                
     }
     
     function getMakerLabel(id) {
@@ -904,16 +945,14 @@
 
         if (tasksToRun.length > 0) {
             console.log(`${tasksToRun.length}개의 재시도 작업을 큐에 추가합니다.`);
-            tasksToRun.forEach(task => addToQueue({ url: task.url }));
+            for (const task of tasksToRun) {
+                await addToQueue({ url: task.url });
+            }
         }
 
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             mutCallback();
             observer.observe(document.body, { childList: true, subtree: true });
-        }
-
-        makerLabelCode = GetParam(PageURL(), 'maker');
-        rawMediaType = GetParam(PageURL(), 'media_type');
-        makerLabel = getMakerLabel(makerLabelCode);
+        }        
     });
 })();

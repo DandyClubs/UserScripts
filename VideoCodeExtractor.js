@@ -224,7 +224,7 @@
                 localStorage.setItem(uniqueKey, JSON.stringify({
                     displayCode: displayCode,
                     data: ["FANZA_DIGITAL", prefixMatch, padLen, suffix, makerLabel, rawMediaType],
-                    origin: cleanUrl
+                    origin: cleanUrl,
                 }));
                 if (typeof currentPattern !== 'undefined') {
                     patternMemoryDB.add(currentPattern);
