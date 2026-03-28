@@ -930,44 +930,6 @@
         panel.style = "position:fixed; bottom:20px; right:20px; z-index:9999; display:flex !important; flex-direction:column; background:rgba(15,15,15,0.95); padding:12px; border-radius:12px; width:260px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif; box-sizing:border-box;";
         panel.innerHTML = `<div style='font-weight:bold; font-size:13px; margin-bottom:5px; text-align:center; color:#2196F3;'>DMM CODE TRACKER</div>`;
 
-
-        // 수동 수집 버튼 추가
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
-            autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1, current: PageURL() });
-
-
-            const btnAutoRun = document.createElement('button');
-            btnAutoRun.innerText = "전체 페이지 수집 시작";
-            btnAutoRun.style = "background:#E91E63; color:white; border:none; padding:5px 10px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px;";
-            btnStart = btnAutoRun;
-            panel.appendChild(btnAutoRun);
-
-
-            btnAutoRun.onclick = () => {
-                const lastP = getLastPageNumber();
-                if (!confirm(`1페이지부터 ${lastP}페이지까지 자동으로 이동하며 수집합니다. 시작하시겠습니까?`)) return;
-
-                // 상태 저장
-                GM_setValue("auto_paging", { active: true, lastPage: lastP, current: PageURL() });
-                autoNextPage();
-            };
-
-
-            const lastP = getLastPageNumber();
-            const btnStop = document.createElement('button');
-            btnStop.innerText = "자동 순회 중단";
-            btnStop.style = "background:#E91E63; color:white; border:none; padding:5px 10px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px;";
-            countdownTimerText = btnStop;
-            autoNextPage();
-            btnStop.onclick = () => {
-                GM_setValue("auto_paging", { active: false, lastPage: lastP, current: PageURL() });
-            };
-            panel.appendChild(btnStop);
-
-
-
-        }
-
         alertStatus = document.createElement('div');
         alertStatus.style = "font-size:11px; text-align:center; line-height:1.4;";
         panel.appendChild(alertStatus);
@@ -1223,6 +1185,52 @@
             }
         };
         btnContainer.append(dlBtn, clBtn);
+
+
+        // 수동 수집 버튼 추가
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+            autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1 });
+            const btnAutoRun = document.createElement('button');
+            btnAutoRun.innerText = "전체 페이지 수집 시작";
+            btnAutoRun.style = "background:#E91E63; color:white; border:none; padding:5px 10px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px;";
+            panel.appendChild(btnAutoRun);
+            const btnStop = document.createElement('button');
+            btnStop.innerText = "자동 순회 중단";
+            btnStop.style = "background:#E91E63; color:white; border:none; padding:5px 10px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px;";
+
+            toggleAutoRun = (s) => {
+                if (autoStatus.active) {
+                    btnStop.innerText = `자동 수집 작업중... ${s && s > 0 ? s + 's' : ""}`;
+                    btnAutoRun.display = 'none';
+                    btnStop.display = '';
+                } else {
+                    btnStop.innerText = "자동 순회 종료";
+                    btnAutoRun.display = '';
+                    btnStop.display = 'none';
+                }
+            };
+            btnAutoRun.onclick = () => {
+                const lastP = getLastPageNumber();
+                if (!confirm(`1페이지부터 ${lastP}페이지까지 자동으로 이동하며 수집합니다. 시작하시겠습니까?`)) return;
+
+                // 상태 저장
+                GM_setValue("auto_paging", { active: true, lastPage: lastP });
+                autoNextPage();
+                toggleAutoRun();
+
+            };
+
+            const lastP = getLastPageNumber();
+            btnStop.onclick = () => {
+                GM_setValue("auto_paging", { active: false, lastPage: lastP });
+                toggleAutoRun();
+            };
+            toggleAutoRun();
+            if (autoStatus.active) autoNextPage();
+            btnContainer.appendChild(btnStop);
+        }
+
+
         panel.appendChild(btnContainer);
 
         // 페이지에서 수집
@@ -1276,8 +1284,7 @@
     let waitTime = 0;
     let remainingTime = 0;
     let countdownTimer = null;
-    let countdownTimerText = null;
-    let btnStart = null;
+    let toggleAutoRun = null;
     let isWorkingPage;
     let autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1, current: PageURL() });
     let pendingPage = autoStatus.current;
@@ -1306,7 +1313,7 @@
         remainingTime = ms;
 
         countdownTimer = setInterval(() => {
-            autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1, current: PageURL() });
+            autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1, pendingPage: PageURL() });
             if (!autoStatus.active) {
                 remainingTime = 0;
                 clearInterval(countdownTimer);
@@ -1315,11 +1322,58 @@
 
             remainingTime -= 1000;
             const sec = (remainingTime / 1000).toFixed(1);
-            countdownTimerText.innerText = `자동 수집 작업중... ${sec}s`;
+            toggleAutoRun(sec);
 
             if (remainingTime <= 0) {
                 remainingTime = 0;
                 clearInterval(countdownTimer);
+
+                const pagination = document.querySelector('ul[data-e2eid="pagination"]');
+                if (!pagination) return;
+
+                // "次へ" 이미지의 부모 <a> 태그 찾기
+                const nextImg = pagination.querySelector('img[alt="次へ"]');
+                const nextBtn = nextImg ? nextImg.closest('a') : null;
+
+                isWorkingPage = PageURL();
+                const lastPage = getLastPageNumber();
+
+                const pendingPage = autoStatus.pendingPage;                
+
+                if (nextBtn && nextBtn.href) {
+                    const firstPageLink = pagination.querySelector('li:nth-child(2) a'); // 대략적인 1페이지 링크
+
+                    const firstPage = GetParam(PageURL(), 'page') ? GetParam(PageURL(), 'page') : '';
+                    if (isWorkingPage !== pendingPage) {
+                        const currentUrl = new URL(pendingPage);
+                        const pageParam = currentUrl.searchParams.get('page');
+                        if (!pageParam || pageParam === "1") {
+                            nextBtn.click();    
+                        } else {                            
+                            currentUrl.searchParams.set('page', pageParam);
+                            window.location.href = currentUrl.toString();
+                        }                        
+                    }
+                    else if (firstPage === 1) {                        
+                        window.location.href = removeUriWithParam(PageURL(), 'page');
+                    } else if (isWorkingPage === lastPage) {
+                        console.log("[Auto] 끝");
+                        GM_deleteValue("auto_paging");
+                        toggleAutoRun();
+                    } else if (firstPageLink) {
+                        firstPageLink();
+                    } else {
+                        console.log('next');
+                        nextBtn.click();
+                    }
+                    // ⭐ 계속 루프 유지
+                    autoNextPage();
+
+                } else {
+                    console.log("[Auto] 끝");
+                    GM_deleteValue("auto_paging");
+                    toggleAutoRun();
+                }
             }
         }, 1000);
     }
@@ -1340,56 +1394,12 @@
     }
 
     async function autoNextPage() {
-        autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1, current: PageURL() });
+        autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1, pendingPage: PageURL() });
         if (autoStatus.active === false) return;
-        btnStart.style.display = "none";
 
         console.log("[Auto] 대기...");
         waitTime = getRandomDelay();
         startCountdown(waitTime);
-        await sleep(waitTime);
-
-        const pagination = document.querySelector('ul[data-e2eid="pagination"]');
-        if (!pagination) return;
-
-        // "次へ" 이미지의 부모 <a> 태그 찾기
-        const nextImg = pagination.querySelector('img[alt="次へ"]');
-        const nextBtn = nextImg ? nextImg.closest('a') : null;
-
-        isWorkingPage = PageURL();
-        const lastPage = getLastPageNumber();
-
-
-        if (nextBtn && nextBtn.href) {
-            const firstPageLink = document.querySelector('ul[data-e2eid="pagination"] li:nth-child(2) a'); // 대략적인 1페이지 링크
-
-            const firstPage = GetParam(PageURL(), 'page') ? GetParam(PageURL(), 'page') : PageURL();
-            if (firstPage === 1) {
-                window.location.href = removeUriWithParam(PageURL(), 'page');
-            };
-            if (isWorkingPage === pendingPage && GetParam(pendingPage, 'page') !== 1 && !firstPageLink) {
-                console.log('Page 이동');
-                const movePage = GetParam(pendingPage, 'page');
-                const urlParams = new URLSearchParams(window.location.search);
-                urlParams.set('page', movePage);
-                //window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
-
-            } else if (isWorkingPage === lastPage) {
-                console.log("[Auto] 끝");
-                GM_deleteValue("auto_paging");
-            } else {
-                if (firstPageLink) {
-                    firstPageLink.click();
-                }
-            }
-            // ⭐ 계속 루프 유지
-            setTimeout(autoNextPage, 2000);
-
-        } else {
-            console.log("[Auto] 끝");
-            GM_deleteValue("auto_paging");
-            btnStart.style.display = "";
-        }
     }
 
 
