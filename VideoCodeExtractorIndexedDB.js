@@ -482,7 +482,7 @@
             Object.assign(statusEl.style, {
                 position: 'fixed', bottom: '10px', right: '10px',
                 padding: '5px 10px', background: 'rgba(0,0,0,0.7)',
-                color: 'white', fontSize: '12px', borderRadius: '5px', zIndex: '9999'
+                color: 'white', fontSize: '12px', borderRadius: '5px', zIndex: '99999'
             });
             document.body.appendChild(statusEl);
         }
@@ -1139,20 +1139,21 @@
         metaDlBtn.innerText = "메타 저장";
         metaDlBtn.style = "flex:1; padding:8px; background:#2196F3; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
 
-        metaDlBtn.onclick = async () => {
-            // 이미지 메타 저장소의 모든 데이터를 가져오기 위해 별도의 메서드(getAllMeta)가 필요할 수 있습니다.
+        metaDlBtn.onclick = async () => {            
             const db = await VceDB.open();
             const allMeta = await new Promise(r => {
                 db.transaction("imageMeta").objectStore("imageMeta").getAll().onsuccess = e => r(e.target.result);
             });
 
             if (allMeta.length === 0) return alert("이미지 메타 데이터가 없습니다.");
+            
+            const cleanMeta = allMeta.filter(m => m.status ==='completed');            
 
             // 보기 좋게 정렬 (패턴키 기준)
-            allMeta.sort((a, b) => (a.contentId || "").localeCompare(b.contentId || ""));
+            cleanMeta.sort((a, b) => (a.contentId || "").localeCompare(b.contentId || ""));
 
-            let output = allMeta.map(m =>
-                `${m.contentId} | URL: ${m.url}} | [${m.status}]`
+            let output = cleanMeta.map(m =>
+                `${m.contentId} | URL: ${m.url}} | [${m.width}] | [${m.height}] | [${m.resText}]`
             ).join("\n");
 
             downloadFile(output, `Meta_${new Date().toISOString().slice(0, 10)}.txt`);
