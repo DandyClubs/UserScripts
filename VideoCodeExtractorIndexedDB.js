@@ -339,8 +339,8 @@
             GM_xmlhttpRequest({
                 method: "GET",
                 url: url,
-                headers: { 
-                    "Range": `bytes=${targetRange}`, 
+                headers: {
+                    "Range": `bytes=${targetRange}`,
                     "Referer": "https://video.dmm.co.jp/", // 정상 경로인 척 함
                     "Origin": "https://video.dmm.co.jp"
                 },
@@ -503,7 +503,7 @@
             for (const el of targets) {
                 el.classList.add(PROCESSED_CLASS);
                 const targetUrl = el.getAttribute('srcset') || el.getAttribute('src');
-                if (targetUrl) await processWork(targetUrl); // await 처리를 위해 변경됨
+                if (targetUrl) await processWork(targetUrl, rawMediaType, makerLabelCode, makerLabel); // await 처리를 위해 변경됨
             }
         }
     };
@@ -588,6 +588,7 @@
 
 
     async function processWork(sourceURL, rawMediaType, makerLabelCode, makerLabel) {
+        if (!makerLabelCode || !rawMediaType || !makerLabel) return false;
 
         if (!sourceURL || !sourceURL.includes('https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/')) return false;
         const cleanUrl = sourceURL.split('?')[0];
@@ -642,7 +643,6 @@
         for (const regex of extractPatterns) { match = originalImage.match(regex); if (match) break; }
 
         if (match) {
-            if (!makerLabelCode && !rawMediaType && !makerLabel) return false;
 
             const prefixMatch = match[1];
             const code = match[2].toUpperCase();
@@ -929,6 +929,61 @@
         panel.style = "position:fixed; bottom:20px; right:20px; z-index:9999; display:flex !important; flex-direction:column; background:rgba(15,15,15,0.95); padding:12px; border-radius:12px; width:260px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif; box-sizing:border-box;";
         panel.innerHTML = `<div style='font-weight:bold; font-size:13px; margin-bottom:5px; text-align:center; color:#2196F3;'>DMM CODE TRACKER</div>`;
 
+
+        // 수동 수집 버튼 추가
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {            
+
+            const btnAutoRun = document.createElement('button');   
+            
+            function updateButton() {
+                const isRunning = sessionStorage.getItem('VideoCodeRunning') === 'true';
+
+                if (isRunning) {        
+                    if (remainingTime <= 0){            
+                    btnAutoRun.innerText = `⏹ 자동 순회 중단 ${remainingTime}s 대기중`;
+                    } else {
+                        btnAutoRun.innerText = `⏹ 자동 순회 중단 대기중...`;
+                    }
+                    pendingPageNum = Number(localStorage.getItem('VideoCodePageNum')) || 1;                    
+                    localStorage.setIteme('VideoCodePageNum', JSON.stringify(pendingPageNum))
+                    btnAutoRun.style = "background:#333; color:white; border:none; padding:5px 10px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px; width:100%;";
+                } else {
+                    btnAutoRun.innerText = "🚀 전체 페이지 수집 시작";
+                    btnAutoRun.style = "background:#E91E63; color:white; border:none; padding:5px 10px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px; width:100%;";
+                }
+            }
+
+            btnAutoRun.onclick = () => {
+                const isRunning = sessionStorage.getItem('vce_auto_running') === 'true';
+
+                if (isRunning) {
+                    const pageNum = GetParam(PageURL(), 'page');
+                    sessionStorage.setItem("VideoCodeRunning", "false");
+                    sessionStorage.setItem("VideoCodePageNum", JSON.stringify(pageNum));
+                } else {
+                    if (!confirm("시작하시겠습니까?")) return;
+                    sessionStorage.setItem("VideoCodeRunning", "true");
+                    pendingPageNum = Number(localStorage.getItem('VideoCodePageNum')) || 1;
+
+                    
+                    if (pendingPageNum > 1) {
+                        autoNextPage(pendingPageNum);
+                    } else {
+                        // URL 분석 및 1페이지 강제 이동
+                        const currentUrl = new URL(window.location.href);                        
+                        currentUrl.searchParams.set('page', '1');
+                        window.location.href = currentUrl.toString();
+                    }
+                    
+                }
+
+                updateButton(); // ⭐ UI 즉시 반영
+            };
+            
+
+            panel.appendChild(btnAutoRun);
+        }
+
         alertStatus = document.createElement('div');
         alertStatus.style = "font-size:11px; text-align:center; line-height:1.4;";
         panel.appendChild(alertStatus);
@@ -953,6 +1008,7 @@
             <button id="searchBtn" style="background:#00FF41; color:#000; border:none; padding:0 12px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; white-space:nowrap;">찾기</button>            
         </div>
 `;
+
         panel.appendChild(controlBar);
 
         // 선택 재시도 클릭 이벤트
@@ -968,7 +1024,7 @@
                     queue.push({
                         url: item.origin,
                         maker: item.data[4],
-                        makerCode: makerLabelCode,
+                        makerCode: item.makerLabelCode,
                         type: item.data[5]
                     });
                     await VceDB.deleteCode(key);
@@ -987,7 +1043,7 @@
         retryGroup.innerHTML = `            
             <button id="btnRunQueue" style="flex:1; background:#007BFF; color:white; border:none; padding:5px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">대기열 실행 (0)</button>
 `;
-        controlBar.appendChild(retryGroup);       
+        controlBar.appendChild(retryGroup);
 
         // 대기열 실행 클릭 이벤트
         const btnRun = retryGroup.querySelector('#btnRunQueue');
@@ -1002,7 +1058,7 @@
                 btnRun.innerText = `처리 중 (${i + 1}/${queue.length})`;
                 // 기존 processWork(sourceURL, rawMediaType, makerLabelCode, makerLabel) 순서에 맞춰 호출
                 await processWork(t.url, t.type, t.makerCode, t.maker);
-            }            
+            }
             btnRun.disabled = false;
             refreshQueueButton();
             updateDisplayList(false);
@@ -1230,13 +1286,87 @@
         }
     }
 
-    window.addEventListener('load', async () => {
-        initializeMakerMap();
-        createUI();        
-        await sleep(2000);
-        refreshQueueButton();
-        
 
+    // 현재 탭에서 자동 수집 버튼을 눌렀는지 확인 (탭 닫으면 초기화됨)
+    
+    let waitTime = 0;
+    let remainingTime = 0;
+    let pendingPageNum = localStorage.getItem('VideoCodePageNum') || 1;
+
+    function isRunning() {                
+        return sessionStorage.getItem('VideoCodeRunning') === 'true';
+    }
+
+    // 10초 ~ 15초 사이의 랜덤 대기 함수
+    function getRandomDelay() {
+        return Math.floor(Math.random() * (15000 - 5000 + 1)) + Math.random() * (5000 - 0 + 1) + 5000;
+    }
+    function startCountdown(ms) {
+        clearInterval(countdownTimer);
+
+        let remainingTime = ms;
+
+        countdownTimer = setInterval(() => {
+            if (!isRunning()) {
+                remainingTime = 0;
+                clearInterval(countdownTimer);
+                return;
+            }
+
+            remainingTime -= 1000;
+            
+            if (remaining <= 0) {
+                remainingTime = 0;
+                clearInterval(countdownTimer);
+            }
+        }, 1000);
+    }
+
+    async function autoNextPage() {
+        if (!isRunning()) {
+            console.log("[Auto] 중단됨");
+            return;
+        }
+
+        console.log("[Auto] 대기...");
+        waitTime = getRandomDelay();
+        startCountdown(waitTime);
+        await sleep(waitTime);
+
+        if (!isRunning()) return; // ⭐ 중간 중단 대응
+        const pagination = document.querySelector('ul[data-e2eid="pagination"]');
+        if (!pagination) return;
+
+        const nextBtn = pagination.querySelector('img[alt="次へ"]')?.closest('a'); 
+
+        if (nextBtn) {
+            pendingPageNum = Number(localStorage.getItem('VideoCodePageNum')) || 1;
+            localStorage.setIteme('VideoCodePageNum', JSON.stringify(pendingPageNum))
+            if (pendingPageNum > 1) {
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('page', pendingPageNum);
+                window.location.href = currentUrl.toString();
+            } else {
+                // URL 분석 및 1페이지 강제 이동
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('page', '1');
+                window.location.href = currentUrl.toString();
+            }
+            // ⭐ 계속 루프 유지
+            setTimeout(autoNextPage, 2000);
+        } else {
+            console.log("[Auto] 끝");
+            sessionStorage.removeItem('VideoCodeRunning');
+            localStorage.removeItem('VideoCodePageNum');            
+        }
+    }
+
+
+    window.addEventListener('load', async () => {
+        initializeMakerMap();        
+        await sleep(2000);
+        createUI();
+        refreshQueueButton();
         const tasksToRun = await VceDB.getSchedulableTasks();
 
         if (tasksToRun.length > 0) {
@@ -1245,10 +1375,11 @@
                 await addToQueue({ url: task.url });
             }
         }
-
+        
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             mutCallback();
             observer.observe(document.body, { childList: true, subtree: true });
         }
+
     });
 })();
