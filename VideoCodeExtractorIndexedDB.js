@@ -1196,7 +1196,7 @@
             btnAutoRun.innerText = "전체 페이지 수집 시작";
             btnAutoRun.style = "background:#E91E63; color:white; border:none; padding:5px 10px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px;";            
             const btnStop = document.createElement('button');
-            btnStop.innerText = "자동 순회 중단";
+            btnStop.innerText = "자동 수집 정지 중";
             btnStop.style = "background:#E91E63; color:white; border:none; padding:5px 10px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px;";
 
             autoContainer.appendChild(btnAutoRun);
@@ -1205,16 +1205,16 @@
             toggleAutoRun = (s) => {
                 if (autoStatus.active) {
                     if(s === 0){
-                        btnStop.innerText = `자동 순회  완료`;
+                        btnStop.innerText = `자동 수집 완료`;
                     }else{
-                        btnStop.innerText = `자동 수집 작업중... ${s && s > 0 ? s + 's' : ""}`;
+                        btnStop.innerText = `자동 수집 작업 중... ${s && s > 0 ? s + 's' : ""}`;
                     }
                     
                     btnAutoRun.display = 'none';
-                    btnStop.display = '';
+                    btnStop.display = 'block';
                 } else {
-                    btnStop.innerText = "자동 순회 종료";
-                    btnAutoRun.display = '';
+                    btnStop.innerText = "자동 수집 정지 중";
+                    btnAutoRun.display = 'block';
                     btnStop.display = 'none';
                 }
             };
