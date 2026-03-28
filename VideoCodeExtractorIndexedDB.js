@@ -12,6 +12,7 @@
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_deleteValue
 // @grant        GM_getResourceText
 // @grant        GM_xmlhttpRequest
 // @run-at       document-body
@@ -34,11 +35,11 @@
     50% {opacity:1}
     100% {opacity:0}
     }
-    @keyframes blinkC { /* 색이 깜빡거리는 */ 
+    @keyframes blinkC { /* 색이 깜빡거리는 */
         50% {color:yellow}
     }
     #choicetype {
-        animation:blink 1s infinite ease;	
+        animation:blink 1s infinite ease;
     }
     `);
 
@@ -109,7 +110,7 @@
 
     const PROCESSED_CLASS = 'processed-marker';
 
-    let alertStatus = null; // 상태 메시지용 엘리먼트    
+    let alertStatus = null; // 상태 메시지용 엘리먼트
     let makerLabel = ""; // 전역 변수로 관리
     let listContainer = null;
     let countStatus = null; // 개수를 표시할 엘리먼트
@@ -388,7 +389,7 @@
                     // WebP (52 49 46 46 ... 57 45 42 50)
                     else if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
                         result.type = "WebP";
-                        // WebP는 내부 청크(VP8/VP8L/VP8X)에 따라 위치가 달라 더 복잡하지만, 
+                        // WebP는 내부 청크(VP8/VP8L/VP8X)에 따라 위치가 달라 더 복잡하지만,
                         // 간단하게 24-30바이트 사이에서 기초 해상도를 읽을 수 있습니다.
                         if (bytes[12] === 0x56 && bytes[13] === 0x50 && bytes[14] === 0x38) {
                             result.width = (bytes[26] | (bytes[27] << 8)) & 0x3FFF;
@@ -720,7 +721,7 @@
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; cursor:help;" title="${itemData.origin}">
                 <a href="${itemPageUrl}" target="_blank"><span style="color:#00FF41; font-family:monospace; font-size:12px;">${itemData.displayCode}</span></a>
                     ${detailLabel ? `<span style="color:white; font-size:10px; margin-left:5px;">[</span><span style="color:#00FF41; font-size:10px;">${detailLabel}</span><span style="color:white; font-size:10px;">]</span>` : ''}
-                </div>                                        
+                </div>
                 <span style="color:white; font-size:10px;padding-left:5px;">[ ${itemData.data[5]} ]</span>
                 <button class="reset-btn" style="background:none; border:none; color:#aaa; cursor:pointer; display:flex; align-items:center; padding:0 5px;">${refreshIcon}</button>
             `;
@@ -838,23 +839,23 @@
     }
     // --- [사용자 보존 요청: 활용을 위해 남겨둔 함수들 삭제 금지] ---
     // ================================================================================
-    /** 
-        let currentMakerLabel = ""; // 전역 변수    
-    
+    /**
+        let currentMakerLabel = ""; // 전역 변수
+
         const addMakerMap = new Map();
         const saveMakerMap = new Map();
-    
+
         function findMakerLabel(retryCount = 0) {
             // 1. 먼저 페이지 내 모든 메이커 정보를 맵으로 빌드
             extraMakerMap();
-    
+
             // 2. 현재 페이지의 파라미터에서 maker ID 가져오기
             const urlParams = new URLSearchParams(window.location.search);
             const makerId = urlParams.get('maker');
-    
+
             // 3. 맵에서 찾거나, 직접 셀렉터로 찾기
             const label = getMakerNameById(makerId);
-    
+
             if (label && label !== "Unknown") {
                 currentMakerLabel = label;
                 console.log(`[VCE] 매칭된 메이커: ${currentMakerLabel}`);
@@ -877,7 +878,7 @@
                     const makerId = url.searchParams.get('maker');
                     // .line-clamp-2.text-ellipsis 클래스를 가진 텍스트 추출
                     const makerName = link.querySelector('p.line-clamp-2.text-ellipsis')?.innerText.trim();
-    
+
                     if (makerId && makerName) {
                         addMakerMap.set(makerId, makerName);
                     }
@@ -885,7 +886,7 @@
                     console.warn(e);
                 }
             });
-    
+
             console.log(`[extraMakerMap] 메이커 맵 구성 완료: ${addMakerMap.size}개 항목`);
         }
         function saveMakerMapToFile() {
@@ -893,24 +894,24 @@
                 alert("저장할 데이터가 없습니다. 먼저 수집하세요.");
                 return;
             }
-    
+
             // 초기화 (기존 데이터 중첩 방지)
             saveMakerMap.clear();
-    
+
             // 수정 전: addMakerMap.forEach(([id, originalName]) => { ... })
             // 수정 후: value(이름)가 먼저, key(ID)가 두 번째 인자입니다.
             addMakerMap.forEach((originalName, id) => {
                 // 치환 맵(makerLabelReplaceMap)에 있으면 치환된 이름을, 없으면 원래 이름을 사용
                 const makerName = (typeof makerLabelReplaceMap !== 'undefined' && makerLabelReplaceMap[originalName])
                     || originalName;
-    
+
                 saveMakerMap.set(id, makerName);
             });
-    
+
             // 이하 JSON 변환 및 다운로드 로직은 동일
             const obj = Object.fromEntries(saveMakerMap);
             const jsonString = JSON.stringify(obj, null, 2);
-    
+
             const blob = new Blob([jsonString], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -919,7 +920,7 @@
             a.click();
             URL.revokeObjectURL(url);
         }
-    
+
         */
     // ================================================================================
 
@@ -931,58 +932,45 @@
 
 
         // 수동 수집 버튼 추가
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {            
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+            autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1, current: PageURL()});
+            const btnAutoRun = document.createElement('button');
+            btnAutoRun.innerText = "전체 페이지 수집 시작";
+            btnAutoRun.style = "background:#E91E63; color:white; border:none; padding:5px 10px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px;";
+            panel.appendChild(btnAutoRun);
 
-            const btnAutoRun = document.createElement('button');   
-            
-            function updateButton() {
-                const isRunning = sessionStorage.getItem('VideoCodeRunning') === 'true';
-
-                if (isRunning) {        
-                    if (remainingTime <= 0){            
-                    btnAutoRun.innerText = `⏹ 자동 순회 중단 ${remainingTime}s 대기중`;
-                    } else {
-                        btnAutoRun.innerText = `⏹ 자동 순회 중단 대기중...`;
-                    }
-                    pendingPageNum = Number(localStorage.getItem('VideoCodePageNum')) || 1;                    
-                    localStorage.setIteme('VideoCodePageNum', JSON.stringify(pendingPageNum))
-                    btnAutoRun.style = "background:#333; color:white; border:none; padding:5px 10px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px; width:100%;";
-                } else {
-                    btnAutoRun.innerText = "🚀 전체 페이지 수집 시작";
-                    btnAutoRun.style = "background:#E91E63; color:white; border:none; padding:5px 10px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px; width:100%;";
-                }
-            }
 
             btnAutoRun.onclick = () => {
-                const isRunning = sessionStorage.getItem('vce_auto_running') === 'true';
+                const lastP = getLastPageNumber();
+                if (!confirm(`1페이지부터 ${lastP}페이지까지 자동으로 이동하며 수집합니다. 시작하시겠습니까?`)) return;
 
-                if (isRunning) {
-                    const pageNum = GetParam(PageURL(), 'page');
-                    sessionStorage.setItem("VideoCodeRunning", "false");
-                    sessionStorage.setItem("VideoCodePageNum", JSON.stringify(pageNum));
+                // 상태 저장
+                GM_setValue("auto_paging", { active: true, lastPage: lastP });
+                autoNextPage();
+
+                // 현재가 1페이지가 아닐 수도 있으므로 1페이지로 먼저 이동 (선택 사항)
+                const firstPageLink = document.querySelector('ul[data-e2eid="pagination"] a[href*="page=1"]')
+                    || document.querySelector('ul[data-e2eid="pagination"] li:nth-child(2) a'); // 대략적인 1페이지 링크
+
+                if (firstPageLink) {
+                    firstPageLink.click();
                 } else {
-                    const lastP = getLastPageNumber();
-                    if (!confirm(`1페이지부터 ${lastP}페이지까지 자동으로 이동하며 수집합니다. 시작하시겠습니까?`)) return;
-                    sessionStorage.setItem("VideoCodeRunning", "true");
-                    pendingPageNum = Number(localStorage.getItem('VideoCodePageNum')) || 1;
-
-                    
-                    if (pendingPageNum > 1) {
-                        autoNextPage(pendingPageNum);
-                    } else {
-                        // URL 분석 및 1페이지 강제 이동
-                        const currentUrl = new URL(window.location.href);                        
-                        currentUrl.searchParams.set('page', '1');
-                        window.location.href = currentUrl.toString();
-                    }
-                    
+                    // 이미 1페이지거나 링크를 못찾으면 바로 실행
+                    location.reload();
                 }
-
-                updateButton(); // ⭐ UI 즉시 반영
             };
-            
-            updateButton(); // ⭐ UI 즉시 반영
-            panel.appendChild(btnAutoRun);
+            if (autoStatus.active) {
+                const lastP = getLastPageNumber();
+                const btnStop = document.createElement('button.stop');
+                btnStop.innerText = "자동 순회 중단";
+                btnStop.style = "background:#333; color:white; border:none; padding:5px; font-size:11px; cursor:pointer; border-radius:3px; margin-top:5px;";
+                countdownTimerText = btnStop;
+                btnStop.onclick = () => {
+                    GM_setValue("auto_paging", { active: false, lastPage: lastP, current: PageURL() });
+                };
+                panel.appendChild(btnStop);
+            }
+
         }
 
         alertStatus = document.createElement('div');
@@ -996,17 +984,17 @@
         // controlBar 생성
         const controlBar = document.createElement('div');
         controlBar.style = "display:flex; flex-direction:column; padding:8px; background:#222; border-bottom:1px solid #444; gap:8px; margin-bottom:10px; border-radius:4px; box-sizing:border-box;";
-        controlBar.innerHTML = `      
+        controlBar.innerHTML = `
         <div style="display:flex; align-items:center; justify-content:flex-start; width:100%; gap:8px;">
             <button id="btnSelectAll" style="background:#2196F3; color:white; border:none; padding:4px 8px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 선택</button>
-            <button id="btnUnselectAll" style="background:#666; color:white; border:none; padding:4px 8px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 해제</button>            
+            <button id="btnUnselectAll" style="background:#666; color:white; border:none; padding:4px 8px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 해제</button>
             <button id="delSelected" style="background:#444; color:#ff4d4d; border:none; padding:4px 8px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold;">선택 삭제</button>
             <button id="btnRetrySel" style="background:#FF9800; color:white; border:none; padding:5px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold;">선택 재시도 예약</button>
         </div>
         <div style="display:flex; gap:5px; width:100%;">
             <input type="text" id="filterInput" placeholder="예: abc or /abc/" style="flex:1; min-width:0; background:#111; color:#00FF41; border:1px solid #444; padding:5px; font-size:12px; border-radius:3px; outline:none; font-family:monospace;">
             <button id="clearBtn" style="background:#666; color:#fff; border:none; padding:0 8px; font-size:11px; cursor:pointer; border-radius:3px; white-space:nowrap;">X</button>
-            <button id="searchBtn" style="background:#00FF41; color:#000; border:none; padding:0 12px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; white-space:nowrap;">찾기</button>            
+            <button id="searchBtn" style="background:#00FF41; color:#000; border:none; padding:0 12px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; white-space:nowrap;">찾기</button>
         </div>
 `;
 
@@ -1041,7 +1029,7 @@
         const retryGroup = document.createElement('div');
         retryGroup.id = "retry-group";
         retryGroup.style = "display:none; gap:5px; margin-top:8px; width:100%;";
-        retryGroup.innerHTML = `            
+        retryGroup.innerHTML = `
             <button id="btnRunQueue" style="flex:1; background:#007BFF; color:white; border:none; padding:5px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">대기열 실행 (0)</button>
 `;
         controlBar.appendChild(retryGroup);
@@ -1289,15 +1277,13 @@
 
 
     // 현재 탭에서 자동 수집 버튼을 눌렀는지 확인 (탭 닫으면 초기화됨)
-    
+
     let waitTime = 0;
-    let remainingTime = 0;
-    let pendingPageNum = localStorage.getItem('VideoCodePageNum') || 1;
-
-    function isRunning() {                
-        return sessionStorage.getItem('VideoCodeRunning') === 'true';
-    }
-
+    let remainingTime = 0;        
+    let countdownTimerText = null;
+    let isWorkingPage;
+    let autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1, current: PageURL() });
+    let pendingPage = autoStatus.current;
 
     // 마지막 페이지 번호 추출 함수
     function getLastPageNumber() {
@@ -1311,7 +1297,7 @@
         });
         return maxPage;
     }
-    
+
     // 10초 ~ 15초 사이의 랜덤 대기 함수
     function getRandomDelay() {
         return Math.floor(Math.random() * (15000 - 5000 + 1)) + Math.random() * (5000 - 0 + 1) + 5000;
@@ -1319,7 +1305,7 @@
     function startCountdown(ms) {
         clearInterval(countdownTimer);
 
-        let remainingTime = ms;
+        remainingTime = ms;
 
         countdownTimer = setInterval(() => {
             if (!isRunning()) {
@@ -1329,7 +1315,9 @@
             }
 
             remainingTime -= 1000;
-            
+            const sec = (remainingTime / 1000).toFixed(1);
+            countdownTimerText.innerText = `자동 수집 작업중... ${sec}s`;
+
             if (remaining <= 0) {
                 remainingTime = 0;
                 clearInterval(countdownTimer);
@@ -1338,49 +1326,53 @@
     }
 
     async function autoNextPage() {
-        if (!isRunning()) {
-            console.log("[Auto] 중단됨");
-            return;
-        }
-
+        autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1, current: PageURL() });
+        
         console.log("[Auto] 대기...");
         waitTime = getRandomDelay();
         startCountdown(waitTime);
         await sleep(waitTime);
-
-        if (!isRunning()) return; // ⭐ 중간 중단 대응
+        
         const pagination = document.querySelector('ul[data-e2eid="pagination"]');
         if (!pagination) return;
 
         // "次へ" 이미지의 부모 <a> 태그 찾기
         const nextImg = pagination.querySelector('img[alt="次へ"]');
-        const nextBtn = nextImg ? nextImg.closest('a') : null;        
+        const nextBtn = nextImg ? nextImg.closest('a') : null;
+
+        isWorkingPage = PageURL();
+        const lastPage = getLastPageNumber();
+
 
         if (nextBtn && nextBtn.href) {
-            pendingPageNum = Number(localStorage.getItem('VideoCodePageNum')) || 1;
-            localStorage.setIteme('VideoCodePageNum', JSON.stringify(pendingPageNum))
-            if (pendingPageNum > 1) {
-                const currentUrl = new URL(window.location.href);
-                currentUrl.searchParams.set('page', pendingPageNum);
-                window.location.href = currentUrl.toString();
-            } else {
-                // URL 분석 및 1페이지 강제 이동
-                const currentUrl = new URL(window.location.href);
-                currentUrl.searchParams.set('page', '1');
-                window.location.href = currentUrl.toString();
+            const firstPageLink = document.querySelector('ul[data-e2eid="pagination"] li:nth-child(2) a'); // 대략적인 1페이지 링크
+            if (isWorkingPage === pendingPage) {
+                console.log('Page 이동');
+                const movePage = GetParam(pendingPage, 'page') || 1; 
+                const urlParams = new URLSearchParams(window.location.search);
+                urlParams.set('page', movePage);
+                window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
+
+            } else if (isWorkingPage === lastPage){
+                console.log("[Auto] 끝");
+                GM_deleteValue("auto_paging");    
+            }else {
+                if (firstPageLink) {
+                    firstPageLink.click();
+                }
             }
             // ⭐ 계속 루프 유지
             setTimeout(autoNextPage, 2000);
+
         } else {
             console.log("[Auto] 끝");
-            sessionStorage.removeItem('VideoCodeRunning');
-            localStorage.removeItem('VideoCodePageNum');            
+            GM_deleteValue("auto_paging");
         }
     }
 
 
     window.addEventListener('load', async () => {
-        initializeMakerMap();        
+        initializeMakerMap();
         await sleep(2000);
         createUI();
         refreshQueueButton();
@@ -1392,11 +1384,12 @@
                 await addToQueue({ url: task.url });
             }
         }
-        
+
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             mutCallback();
             observer.observe(document.body, { childList: true, subtree: true });
         }
+        isWorkingPage = GetParam(PageURL(), 'page') || 1;
 
     });
 })();
