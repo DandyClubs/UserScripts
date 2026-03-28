@@ -121,7 +121,7 @@
 
     const DB_CONFIG = { name: "VideoCodeExtractorDB", stores: { codes: "id", imageMeta: "url" } };
     const DB_VERSION_KEY = "VideoCodeExtractorDB_LAST_DB_VERSION"; // GM에 저장할 키 이름
-    
+
     class VceDB {
         /**
          * DB를 열고 구조를 최신화합니다.
@@ -1200,25 +1200,25 @@
         btnContainer.append(clBtn);
 
 
-        // createUI 함수 내부 혹은 적절한 위치에 추가
-        
-            const resetBtn = document.createElement('button');
-            resetBtn.innerText = "DB초기화";
+
+
+        const resetBtn = document.createElement('button');
+        resetBtn.innerText = "DB초기화";
         resetBtn.style.cssText = `flex:1; padding:4px; background-color: #ff4d4d; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;`;
 
-            resetBtn.onclick = async () => {
-                if (confirm("주의: 모든 저장된 코드와 이미지 메타데이터가 삭제됩니다. 계속하시겠습니까?")) {
-                    try {
-                        await VceDB.resetDatabase();
-                        alert("DB가 초기화되었습니다. 페이지를 새로고침하여 재설정합니다.");
-                        location.reload(); // 새로고침하면 open()이 실행되며 DB가 재생성됨
-                    } catch (err) {
-                        console.error(err);
-                    }
+        resetBtn.onclick = async () => {
+            if (confirm("주의: 모든 저장된 코드와 이미지 메타데이터가 삭제됩니다. 계속하시겠습니까?")) {
+                try {
+                    await VceDB.resetDatabase();
+                    alert("DB가 초기화되었습니다. 페이지를 새로고침하여 재설정합니다.");
+                    location.reload(); // 새로고침하면 open()이 실행되며 DB가 재생성됨
+                } catch (err) {
+                    console.error(err);
                 }
-            };
+            }
+        };
 
-        btnContainer.appendChild(resetBtn);    
+        btnContainer.appendChild(resetBtn);
 
 
         panel.appendChild(btnContainer);
@@ -1269,7 +1269,6 @@
             };
             toggleAutoRun();
             if (autoStatus.active) autoNextPage();
-
         }
 
 
@@ -1469,9 +1468,9 @@
     }
 
 
-    window.addEventListener('load', async () => {        
+    window.addEventListener('load', async () => {
         initializeMakerMap();
-        await sleep(2000);        
+        await sleep(2000);
         if (autoStatus.active) {
             if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+$/.test(PageURL())) {
                 startPage = 1;
@@ -1483,7 +1482,7 @@
             mutCallback();
             observer.observe(document.body, { childList: true, subtree: true });
         }
-        
+
         refreshQueueButton();
         const tasksToRun = await VceDB.getSchedulableTasks();
 
