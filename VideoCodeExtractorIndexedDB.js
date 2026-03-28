@@ -796,7 +796,7 @@
         } catch (e) {
             console.warn("[initializeMakerMap] 외부리소스 로딩 실패", e);
         }
-        console.log(`메이커 맵 구성: ${makerMap.size}개 항목`, makerMap);
+        //console.log(`메이커 맵 구성: ${makerMap.size}개 항목`, makerMap);
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             observer.observe(document.body, { childList: true, subtree: true });
         }
