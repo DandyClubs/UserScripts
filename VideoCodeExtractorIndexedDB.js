@@ -495,6 +495,27 @@
         }
     }
 
+    const getThree = ((str) => {
+        // 1. 자릿수가 3자 미만인 경우, 아무 작업도 하지 않고 원본 그대로 리턴
+        if (padLen < 3) {
+            return str;
+        }
+
+        // 2. 3자 이상인 경우에만 로직 적용
+        return str.split('').map((char, idx, arr) => {
+            const targetIndex = arr.length - 3; // 뒤에서 3번째 위치
+
+            // 뒤에서 3번째 자리는 무조건 유지 (숫자, 문자, 특수문자 포함)
+            if (idx === targetIndex) {
+                return char;
+            }
+
+            // 그 외 자리는 숫자일 때만 '0'으로 치환
+            return /\d/.test(char) ? '0' : char;
+        }).join('');
+    })();
+
+
     const mutCallback = async () => {
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             imageSelector = getImageSelector();
@@ -610,8 +631,8 @@
         const fileName = pathSegments.pop();
         const fileExtension = fileName.split('.').pop();
         const originalImage = cleanUrl.replace(fileName, `${contentId}pl.${fileExtension}`);
-        const maskedId = contentId.replace(/\d/g, '0');
-        const patternKey = `${maskedId}_${makerLabelCode}_${rawMediaType}`;
+        const maskedId = contentId.replace(/\d/g, '0');  
+        
 
         // --- [섹션 1: 이미지 메타 처리] ---
         // 이미지 해상도 체크는 코드 추출 여부와 상관없이 별개로 진행 (중복 시 DB가 알아서 처리)
@@ -619,14 +640,6 @@
         if (!meta) {
             await VceDB.setImageMeta({ url: originalImage, contentId, patternKey, status: "pending" });
             addToQueue({ url: originalImage });
-        }
-
-        // --- [섹션 2: 코드 DB 중복 체크 (PatternKey 기준)] ---
-        // ★ 여기서 patternKey로 이미 저장된 코드가 있는지 확인합니다.
-        const existingPattern = await VceDB.getCodeByPattern(patternKey);
-        if (existingPattern) {
-            // 이미 이 패턴의 코드를 추출한 적이 있다면 더 이상 진행 안 함
-            return true;
         }
 
         const extractPatterns = [
@@ -643,14 +656,29 @@
         let match = null;
         for (const regex of extractPatterns) { match = originalImage.match(regex); if (match) break; }
 
-        if (match) {
+        let patternKey
+        if(!match){
+            patternKey = `${maskedId}_${makerLabelCode}_${rawMediaType}`;            
+        }else if (match) {
 
             const prefixMatch = match[1];
             const code = match[2].toUpperCase();
-            const padLen = match[3].length;
+            const padLen = match[3].length;            
             const suffix = match[4];
             const displayCode = code;
-            const uniqueKey = `${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
+            const threeStr = getThree(match[3]);
+            patternKey = `${maskedId}_${makerLabelCode}_${rawMediaType}_${threeStr}`;
+
+            // --- [섹션 2: 코드 DB 중복 체크 (PatternKey 기준)] ---
+            // ★ 여기서 patternKey로 이미 저장된 코드가 있는지 확인합니다.
+            const existingPattern = await VceDB.getCodeByPattern(patternKey);
+            if (existingPattern) {
+                // 이미 이 패턴의 코드를 추출한 적이 있다면 더 이상 진행 안 함
+                return true;
+            }
+
+            const uniqueKey = `${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}_${threeStr}`;
+
 
             if (!currentSessionCodes.has(uniqueKey)) {
                 currentSessionCodes.add(uniqueKey);
@@ -665,6 +693,7 @@
                     origin: originalImage,
                     patternKey: patternKey, // 검색용 키 저장
                     makerLabelCode: makerLabelCode,
+                    threeStr: threeStr,
                 });
                 updateDisplayList();
             }
@@ -1100,7 +1129,10 @@
                 // 2차: 품번
                 if (a.displayCode !== b.displayCode) return a.displayCode.localeCompare(b.displayCode);
 
-                // 3차: sameCodeCount (숫자)
+                // 3차: 백단위 키                
+                if (a.threeStr !== b.threeStr) return a.threeStr.localeCompare(b.threeStr);
+
+                // 4차: sameCodeCount (숫자)
                 const seqA = a.data[a.data.length - 1] || 0;
                 const seqB = b.data[b.data.length - 1] || 0;
                 return seqA - seqB;
@@ -1121,7 +1153,7 @@
                 }
 
                 // DB에 저장된 data 배열(sameCodeCount 포함)을 그대로 JSON화하여 출력
-                output += `"${obj.displayCode}": ${JSON.stringify(obj.data)},\n`;
+                output += `"${obj.displayCode}": ${obj.threeStr} | ${JSON.stringify(obj.data, null, 2)},\n`;
             });
 
             // 파일 다운로드 처리
@@ -1139,15 +1171,15 @@
         metaDlBtn.innerText = "메타 저장";
         metaDlBtn.style = "flex:1; padding:8px; background:#2196F3; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
 
-        metaDlBtn.onclick = async () => {            
+        metaDlBtn.onclick = async () => {
             const db = await VceDB.open();
             const allMeta = await new Promise(r => {
                 db.transaction("imageMeta").objectStore("imageMeta").getAll().onsuccess = e => r(e.target.result);
             });
 
             if (allMeta.length === 0) return alert("이미지 메타 데이터가 없습니다.");
-            
-            const cleanMeta = allMeta.filter(m => m.status ==='completed');            
+
+            const cleanMeta = allMeta.filter(m => m.status === 'completed');
 
             // 보기 좋게 정렬 (패턴키 기준)
             cleanMeta.sort((a, b) => (a.contentId || "").localeCompare(b.contentId || ""));
@@ -1191,7 +1223,7 @@
 
         // 수동 수집 버튼 추가
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
-            autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1 });
+            autoStatus = GM_getValue("auto_paging", { active: false });
             const btnAutoRun = document.createElement('button');
             btnAutoRun.innerText = "페이지 수집 시작";
             btnAutoRun.style = "flex:1;background:#E91E63; color:white; border:none; padding:5px 5px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px;";
@@ -1208,14 +1240,14 @@
                         btnStop.innerText = `수집 완료`;
                     } else {
                         btnStop.innerText = `수집 작업 중... ${s && s > 0 ? s + 's' : ""}`;
-                    }                    
-                } 
+                    }
+                }
             };
             btnAutoRun.onclick = () => {
                 autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1 });
-                const continuePage = GetParam(autoStatus.pendingPage || PageURL(), 'page') || 1;                
+                const continuePage = GetParam(autoStatus.pendingPage || PageURL(), 'page') || 1;
                 const lastP = getLastPageNumber();
-                    if (!confirm(`${continuePage}페이지부터 ${lastP}페이지까지 자동으로 이동하며 수집합니다. 시작하시겠습니까?`)) return;
+                if (!confirm(`${continuePage}페이지부터 ${lastP}페이지까지 자동으로 이동하며 수집합니다. 시작하시겠습니까?`)) return;
 
                 // 상태 저장
                 GM_setValue("auto_paging", { active: true, lastPage: lastP });
@@ -1290,12 +1322,12 @@
     let remainingTime = 0;
     let countdownTimer = null;
     let toggleAutoRun = null;
-    let isWorkingPage;
     let startPage = 1;
     let maxPagesLimit = 50;
-    let autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1, current: PageURL() });
-    let pendingPage = autoStatus.current;
+    let autoStatus = GM_getValue("auto_paging", { active: false });
+    let pendingPage;
 
+    
     // 마지막 페이지 번호 추출 함수
     function getLastPageNumber() {
         const pagination = document.querySelector('ul[data-e2eid="pagination"]');
@@ -1311,7 +1343,7 @@
 
     // 10초 ~ 15초 사이의 랜덤 대기 함수
     function getRandomDelay() {
-        return Math.floor(Math.random() * (10000 - 5000 + 1)) +  5000;
+        return Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000;
     }
     function startCountdown(ms) {
         if (countdownTimer) clearInterval(countdownTimer);
@@ -1320,7 +1352,7 @@
         remainingTime = ms;
 
         countdownTimer = setInterval(() => {
-            autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1, pendingPage: PageURL() });
+            autoStatus = GM_getValue("auto_paging", { active: false });
             if (!autoStatus.active) {
                 remainingTime = 0;
                 clearInterval(countdownTimer);
@@ -1342,7 +1374,7 @@
                 const nextImg = pagination.querySelector('img[alt="次へ"]');
                 const nextBtn = nextImg ? nextImg.closest('a') : null;
 
-                isWorkingPage = PageURL();
+                let isWorkingPage = PageURL();
                 const lastPage = getLastPageNumber();
 
                 const pendingPage = autoStatus.pendingPage;
@@ -1352,13 +1384,13 @@
 
                     const firstPage = GetParam(PageURL(), 'page') || '';
 
-                    if (GetParam(PageURL(), 'page') > maxPagesLimit){
-                        console.log(`[Auto] ${maxPagesLimit} 초과`);                        
+                    if (GetParam(PageURL(), 'page') > maxPagesLimit) {
+                        console.log(`[Auto] ${maxPagesLimit} 초과`);
                         toggleAutoRun(remainingTime);
-                        GM_setValue("auto_paging", { active: true }); 
+                        GM_setValue("auto_paging", { active: true });
                         clearInterval(countdownTimer);
                     }
-                    
+
                     if (pendingPage && isWorkingPage !== pendingPage) {
                         const continuePage = GetParam(pendingPage, 'page');
                         if (!continuePage || continuePage === "1") {
@@ -1368,11 +1400,11 @@
                         }
                     } else if (firstPage === 1) {
                         window.location.href = removeUriWithParam(PageURL(), 'page');
-                    } 
+                    }
                     else if (isWorkingPage === lastPage) {
                         console.log("[Auto] 끝");
                         toggleAutoRun(remainingTime);
-                        GM_setValue("auto_paging", { active: true });  
+                        GM_setValue("auto_paging", { active: true });
                         clearInterval(countdownTimer);
                     } else if (startPage !== 1 && firstPageLink) {
                         firstPageLink.click();
@@ -1423,7 +1455,7 @@
     }
 
     async function autoNextPage() {
-        autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1, pendingPage: PageURL() });
+        autoStatus = GM_getValue("auto_paging", { active: false });
         if (autoStatus.active === false) return;
 
         console.log("[Auto] 대기...");
@@ -1435,7 +1467,6 @@
     window.addEventListener('load', async () => {
         initializeMakerMap();
         await sleep(2000);
-        createUI();
         refreshQueueButton();
         const tasksToRun = await VceDB.getSchedulableTasks();
 
@@ -1445,11 +1476,9 @@
                 await addToQueue({ url: task.url });
             }
         }
-
         if (autoStatus.active) {
-            autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1, pendingPage: PageURL() });
             if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+$/.test(PageURL())) {
-                startPage = 1;                
+                startPage = 1;
                 window.location.href = UpdateParam(PageURL(), 'media_type', '2d');
             }
         }
@@ -1457,6 +1486,7 @@
             mutCallback();
             observer.observe(document.body, { childList: true, subtree: true });
         }
+        createUI();
 
     });
 })();
