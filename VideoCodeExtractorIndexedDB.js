@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Code Extractor IndexedDB 고도화
 // @namespace    http://tampermonkey.net/
-// @version      4.3.1
+// @version      4.3.5
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
@@ -121,36 +121,26 @@
 
     const DB_CONFIG = { name: "VideoCodeExtractorDB", stores: { codes: "id", imageMeta: "url" } };
     const DB_VERSION_KEY = "VideoCodeExtractorDB_LAST_DB_VERSION"; // GM에 저장할 키 이름
-
+    
     class VceDB {
+        /**
+         * DB를 열고 구조를 최신화합니다.
+         * @returns {Promise<IDBDatabase>}
+         */
         static async open() {
-            const DB_NAME = "VideoCodeExtractorDB";
-
-            // 1. GM에서 버전을 가져오되, 없으면 'null'로 시작하여 실제 DB 조회를 유도함
-            let targetVersion = GM_getValue("LAST_DB_VERSION", null);
-
-            // 버전 정보가 전혀 없을 경우 (초기 설치 혹은 캐시 삭제 상태)
-            if (targetVersion === null) {
-                targetVersion = await new Promise(resolve => {
-                    const req = indexedDB.open(DB_NAME); // 버전 지정 없이 열기
-                    req.onsuccess = (e) => {
-                        const db = e.target.result;
-                        const v = db.version;
-                        db.close();
-                        resolve(v);
-                    };
-                    req.onerror = () => resolve(1); // DB 자체가 없으면 1번부터 시작
-                });
-            }
+            // 1. GM 저장소에서 마지막 기록된 버전을 가져옵니다. (없으면 기본값 1)
+            let targetVersion = GM_getValue(DB_VERSION_KEY, 1);
 
             const connect = (version) => new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME, version);
+                const request = indexedDB.open(DB_CONFIG.name, version);
 
                 request.onupgradeneeded = (e) => {
                     const db = e.target.result;
                     const tx = e.currentTarget.transaction;
 
-                    // [복구 로직] 저장소 및 인덱스 체크 (생략된 기존 인덱스 생성 코드 포함)
+                    console.log(`[DB Upgrade] 버전 ${version}으로 업데이트 중...`);
+
+                    // --- [1. codes 스토어 생성 및 인덱스 관리] ---
                     if (!db.objectStoreNames.contains("codes")) {
                         const store = db.createObjectStore("codes", { keyPath: "id" });
                         store.createIndex("patternKey", "patternKey", { unique: false });
@@ -160,48 +150,61 @@
                             store.createIndex("patternKey", "patternKey", { unique: false });
                         }
                     }
-                    // ... imageMeta 관련 인덱스 생성 코드 동일하게 유지 ...
+
+                    // --- [2. imageMeta 스토어 생성 및 인덱스 관리] ---
+                    if (!db.objectStoreNames.contains("imageMeta")) {
+                        const store = db.createObjectStore("imageMeta", { keyPath: "url" });
+                        store.createIndex("patternKey", "patternKey", { unique: false });
+                        store.createIndex("status", "status", { unique: false });
+                    } else {
+                        const store = tx.objectStore("imageMeta");
+                        if (!store.indexNames.contains("patternKey")) {
+                            store.createIndex("patternKey", "patternKey", { unique: false });
+                        }
+                        if (!store.indexNames.contains("status")) {
+                            store.createIndex("status", "status", { unique: false });
+                        }
+                    }
                 };
 
                 request.onsuccess = (e) => {
                     const db = e.target.result;
-                    GM_setValue("LAST_DB_VERSION", db.version); // 성공한 버전을 GM에 기록
+                    GM_setValue(DB_VERSION_KEY, db.version);
                     resolve(db);
                 };
 
-                request.onerror = (e) => {
-                    const err = e.target.error;
-                    // 만약 지정한 버전이 실제 DB 버전보다 낮으면 VersionError 발생
-                    if (err.name === "VersionError") {
-                        console.warn("저장된 버전보다 실제 DB 버전이 높습니다. 재동기화 중...");
-                        reject(err);
-                    } else {
-                        reject(e);
-                    }
-                };
+                request.onerror = (e) => reject(e.target.error);
             });
 
             try {
                 let db = await connect(targetVersion);
 
-                // [핵심] 인덱스가 누락되었는지 최종 검사
-                const hasIndex = db.transaction("codes", "readonly")
-                    .objectStore("codes")
-                    .indexNames.contains("patternKey");
+                // [방어 로직] 실제로 저장소와 인덱스가 모두 존재하는지 최종 검사
+                const hasCodes = db.objectStoreNames.contains("codes");
+                const hasImageMeta = db.objectStoreNames.contains("imageMeta");
 
-                if (!hasIndex) {
-                    console.log("인덱스 누락 확인: 버전을 한 단계 올려 업그레이드를 강제합니다.");
-                    const currentVer = db.version;
-                    db.close(); // 이전 연결 반드시 닫기
-                    return await connect(currentVer + 1);
+                let needsUpgrade = !hasCodes || !hasImageMeta;
+
+                if (!needsUpgrade && hasCodes) {
+                    const tx = db.transaction("codes", "readonly");
+                    if (!tx.objectStore("codes").indexNames.contains("patternKey")) {
+                        needsUpgrade = true;
+                    }
+                }
+
+                if (needsUpgrade) {
+                    console.warn("DB 구조 누락 발견: 버전을 올려 재구성을 강제합니다.");
+                    const nextVer = db.version + 1;
+                    db.close();
+                    return await connect(nextVer);
                 }
 
                 return db;
             } catch (err) {
+                // 버전 충돌(VersionError) 발생 시 최신 버전 파악 후 재시도
                 if (err.name === "VersionError") {
-                    // 에러 발생 시 버전 없이 다시 열어서 최신 숫자를 파악 후 다시 시도
                     return new Promise(resolve => {
-                        const req = indexedDB.open(DB_NAME);
+                        const req = indexedDB.open(DB_CONFIG.name);
                         req.onsuccess = (e) => {
                             const db = e.target.result;
                             const nextV = db.version + 1;
@@ -213,106 +216,117 @@
                 throw err;
             }
         }
+
+        // --- 데이터 조작 메서드들 ---
+
         static async getCode(id) {
             const db = await this.open();
             return new Promise(r => db.transaction("codes").objectStore("codes").get(id).onsuccess = e => r(e.target.result));
         }
+
         static async saveCode(id, payload) {
             const db = await this.open();
             const tx = db.transaction("codes", "readwrite");
             const store = tx.objectStore("codes");
+
             const existing = await new Promise(r => store.get(id).onsuccess = e => r(e.target.result));
-            if (existing) return new Promise(r => store.put({ ...existing, ...payload, updatedAt: Date.now() }).onsuccess = () => r());
+            if (existing) {
+                return new Promise(r => store.put({ ...existing, ...payload, updatedAt: Date.now() }).onsuccess = () => r());
+            }
 
             const all = await new Promise(r => store.getAll().onsuccess = e => r(e.target.result));
             const sameCodeCount = all.filter(item => item.displayCode === payload.displayCode).length;
             const data = { id, ...payload, timestamp: Date.now(), data: [...(payload.data || []), sameCodeCount] };
             return new Promise(r => store.put(data).onsuccess = () => r());
         }
+
         static async getAllCodes() {
             const db = await this.open();
             return new Promise(r => db.transaction("codes").objectStore("codes").getAll().onsuccess = e => r(e.target.result));
         }
+
         static async deleteCode(id) {
             const db = await this.open();
             return new Promise(r => db.transaction("codes", "readwrite").objectStore("codes").delete(id).onsuccess = () => r());
         }
+
         static async getCodeByPattern(patternKey) {
             const db = await this.open();
             return new Promise(r => {
                 const tx = db.transaction("codes", "readonly");
                 const store = tx.objectStore("codes");
-                // patternKey 인덱스가 있다면:
-                const index = store.index("patternKey");
-                const request = index.get(patternKey);
-                request.onsuccess = (e) => r(e.target.result);
-                request.onerror = () => r(null);
+                try {
+                    const index = store.index("patternKey");
+                    index.get(patternKey).onsuccess = (e) => r(e.target.result);
+                } catch (e) { r(null); }
             });
         }
+
         static async setImageMeta(meta) {
             const db = await this.open();
             return new Promise(r => db.transaction("imageMeta", "readwrite").objectStore("imageMeta").put({ ...meta, updatedAt: Date.now() }).onsuccess = () => r());
         }
+
         static async getImageMeta(url) {
             const db = await this.open();
-            return new Promise(r => db.transaction("imageMeta").objectStore("imageMeta").get(url).onsuccess = e => r(e.target.result));
+            return new Promise(r => {
+                const tx = db.transaction("imageMeta", "readonly");
+                tx.objectStore("imageMeta").get(url).onsuccess = e => r(e.target.result);
+            });
         }
-        static async getImageByPattern(patternKey) {
-            const db = await this.open();
-            return new Promise(r => db.transaction("imageMeta").objectStore("imageMeta").index("patternKey").get(patternKey).onsuccess = e => r(e.target.result));
-        }
-        static async getAllMeta() {
-            const db = await this.open();
-            return new Promise(r => db.transaction("imageMeta").objectStore("imageMeta").getAll().onsuccess = e => r(e.target.result));
-        }
-        static async getPendingTasks() {
-            const db = await this.open();
-            return new Promise(r => db.transaction("imageMeta").objectStore("imageMeta").index("status").getAll("pending").onsuccess = e => r(e.target.result));
-        }
+
         static async getSchedulableTasks() {
             const db = await this.open();
             return new Promise((resolve, reject) => {
-                const tx = db.transaction("imageMeta", "readwrite"); // 'readwrite' 권한 필수
+                const tx = db.transaction("imageMeta", "readwrite");
                 const store = tx.objectStore("imageMeta");
-                const request = store.getAll(); // 상태와 시간을 모두 체크하기 위해 전체 호출
+                const request = store.getAll();
 
-                request.onsuccess = async (e) => {
+                request.onsuccess = (e) => {
                     const now = Date.now();
-                    const TIMEOUT = 5 * 60 * 1000; // 5분 타임아웃
-                    const allTasks = e.target.result;
-
-                    // 1. 실행 가능한 작업 필터링
-                    const tasksToRun = allTasks.filter(task => {
-                        // 조건 A: 대기 중(pending)이고 실행 시간이 되었거나 첫 실행인 경우
-                        if (task.status === "pending") {
-                            return !task.nextRetryAt || task.nextRetryAt <= now;
-                        }
-
-                        // 조건 B: 실행 중(processing)인데 시작한 지 5분이 넘었을 경우 (고립된 작업 구출)
-                        if (task.status === "processing") {
-                            return task.lastStartTime && (now - task.lastStartTime) > TIMEOUT;
-                        }
-
+                    const TIMEOUT = 5 * 60 * 1000;
+                    const tasksToRun = e.target.result.filter(task => {
+                        if (task.status === "pending") return !task.nextRetryAt || task.nextRetryAt <= now;
+                        if (task.status === "processing") return task.lastStartTime && (now - task.lastStartTime) > TIMEOUT;
                         return false;
                     });
 
-                    // 2. [중요] 필터링된 작업들을 즉시 '진행 중' 상태로 업데이트 (Lock 걸기)
-                    // 이렇게 해야 다른 탭이 동시에 실행했을 때 목록에서 제외됨
                     for (const task of tasksToRun) {
                         task.status = "processing";
-                        task.lastStartTime = now; // 작업 시작 시간 기록 (타임아웃 체크용)
+                        task.lastStartTime = now;
                         store.put(task);
                     }
 
-                    // 트랜잭션이 완료되면 작업 목록을 반환
-                    tx.oncomplete = () => {
-                        resolve(tasksToRun);
-                    };
+                    tx.oncomplete = () => resolve(tasksToRun);
+                };
+                request.onerror = (err) => reject(err);
+            });
+        }
 
-                    tx.onerror = (err) => {
-                        console.error("트랜잭션 오류:", err);
-                        reject(err);
-                    };
+        /**
+     * 데이터베이스를 완전히 삭제하고 초기화합니다.
+     */
+        static async resetDatabase() {
+            return new Promise((resolve, reject) => {
+                // 현재 연결된 DB가 있다면 닫아야 삭제가 가능할 수 있습니다.
+                // 여기서는 단순 삭제 요청을 보냅니다.
+                const req = indexedDB.deleteDatabase(DB_CONFIG.name);
+
+                req.onsuccess = () => {
+                    console.log("데이터베이스 삭제 성공");
+                    GM_deleteValue(DB_VERSION_KEY); // 저장된 버전 정보도 삭제
+                    resolve();
+                };
+
+                req.onerror = () => {
+                    console.error("데이터베이스 삭제 실패");
+                    reject(new Error("DB 삭제에 실패했습니다."));
+                };
+
+                req.onblocked = () => {
+                    console.warn("삭제 작업이 차단되었습니다. 모든 탭을 닫고 다시 시도해 주세요.");
+                    alert("다른 탭에서 DB를 사용 중입니다. 모든 관련 탭을 닫고 다시 시도해 주세요.");
+                    reject(new Error("DB Blocked"));
                 };
             });
         }
@@ -495,18 +509,6 @@
         }
     }
 
-    // 기존 IIFE 형태를 일반 함수로 변경
-    const getThree = (str) => {        
-        if (str.length < 3) return str;
-
-        return str.split('').map((char, idx, arr) => {
-            const targetIndex = arr.length - 3;
-            if (idx === targetIndex) return char;
-            return /\d/.test(char) ? '0' : char;
-        }).join('');
-    };
-
-
     const mutCallback = async () => {
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             imageSelector = getImageSelector();
@@ -622,7 +624,24 @@
         const fileName = pathSegments.pop();
         const fileExtension = fileName.split('.').pop();
         const originalImage = cleanUrl.replace(fileName, `${contentId}pl.${fileExtension}`);
-        const maskedId = contentId.replace(/\d/g, '0');          
+        const maskedId = contentId.replace(/\d/g, '0');
+        const patternKey = `${maskedId}_${makerLabelCode}_${rawMediaType}`;
+
+        // --- [섹션 1: 이미지 메타 처리] ---
+        // 이미지 해상도 체크는 코드 추출 여부와 상관없이 별개로 진행 (중복 시 DB가 알아서 처리)
+        const meta = await VceDB.getImageMeta(originalImage);
+        if (!meta) {
+            await VceDB.setImageMeta({ url: originalImage, contentId, patternKey, status: "pending" });
+            addToQueue({ url: originalImage });
+        }
+
+        // --- [섹션 2: 코드 DB 중복 체크 (PatternKey 기준)] ---
+        // ★ 여기서 patternKey로 이미 저장된 코드가 있는지 확인합니다.
+        const existingPattern = await VceDB.getCodeByPattern(patternKey);
+        if (existingPattern) {
+            // 이미 이 패턴의 코드를 추출한 적이 있다면 더 이상 진행 안 함
+            return true;
+        }
 
         const extractPatterns = [
             /digital\/video\/(.*)(d1clymax)(\d{5,})(.*?)\//,
@@ -638,48 +657,14 @@
         let match = null;
         for (const regex of extractPatterns) { match = originalImage.match(regex); if (match) break; }
 
-
-        let patternKey
-        if(!match){
-            patternKey = `${maskedId}_${makerLabelCode}_${rawMediaType}_${maskedId}`;            
-            // --- [섹션 1: 이미지 메타 처리] ---
-            // 이미지 해상도 체크는 코드 추출 여부와 상관없이 별개로 진행 (중복 시 DB가 알아서 처리)
-            const meta = await VceDB.getImageMeta(originalImage);
-            if (!meta) {
-                await VceDB.setImageMeta({ url: originalImage, contentId, patternKey, status: "pending" });
-                addToQueue({ url: originalImage });
-            }
-        }else if (match) {
+        if (match) {
 
             const prefixMatch = match[1];
             const code = match[2].toUpperCase();
-            const padLen = match[3].length;            
+            const padLen = match[3].length;
             const suffix = match[4];
             const displayCode = code;
-            const threeStr = getThree(match[3]);
-            const finalPatternKey = `${prefixMatch}${threeStr}${suffix}`;
-            
-            patternKey = `${maskedId}_${makerLabelCode}_${rawMediaType}_${finalPatternKey}`;
-
-            
-            // --- [섹션 1: 이미지 메타 처리] ---
-            // 이미지 해상도 체크는 코드 추출 여부와 상관없이 별개로 진행 (중복 시 DB가 알아서 처리)
-            const meta = await VceDB.getImageMeta(originalImage);
-            if (!meta) {
-                await VceDB.setImageMeta({ url: originalImage, contentId, patternKey, status: "pending" });
-                addToQueue({ url: originalImage });
-            }
-
-            // --- [섹션 2: 코드 DB 중복 체크 (PatternKey 기준)] ---
-            // ★ 여기서 patternKey로 이미 저장된 코드가 있는지 확인합니다.
-            const existingPattern = await VceDB.getCodeByPattern(patternKey);
-            if (existingPattern) {
-                // 이미 이 패턴의 코드를 추출한 적이 있다면 더 이상 진행 안 함
-                return true;
-            }
-
-            const uniqueKey = `${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}_${threeStr}`;
-
+            const uniqueKey = `${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
 
             if (!currentSessionCodes.has(uniqueKey)) {
                 currentSessionCodes.add(uniqueKey);
@@ -694,7 +679,6 @@
                     origin: originalImage,
                     patternKey: patternKey, // 검색용 키 저장
                     makerLabelCode: makerLabelCode,
-                    threeStr: threeStr,
                 });
                 updateDisplayList();
             }
@@ -957,8 +941,8 @@
     function createUI() {
         const panel = document.createElement('div');
         panel.classList.add('videocodeextractor');
-        panel.style = "position:fixed; bottom:20px; right:20px; z-index:9999; display:flex !important; flex-direction:column; background:rgba(15,15,15,0.95); padding:12px; border-radius:12px; width:260px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif; box-sizing:border-box;";
-        panel.innerHTML = `<div style='font-weight:bold; font-size:13px; margin-bottom:5px; text-align:center; color:#2196F3;'>DMM CODE TRACKER</div>`;
+        panel.style = "position:fixed; bottom:15px; right:15px; z-index:99999; display:flex !important; flex-direction:column; background:rgba(15,15,15,0.95); padding:8px; border-radius:12px; width:268px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif; box-sizing:border-box;";
+        panel.innerHTML = `<div style='font-weight:bold; font-size:10px; margin-bottom:5px; text-align:center; color:#2196F3;'>DMM CODE TRACKER</div>`;
 
         alertStatus = document.createElement('div');
         alertStatus.style = "font-size:11px; text-align:center; line-height:1.4;";
@@ -972,7 +956,7 @@
         const controlBar = document.createElement('div');
         controlBar.style = "display:flex; flex-direction:column; padding:8px; background:#222; border-bottom:1px solid #444; gap:8px; margin-bottom:10px; border-radius:4px; box-sizing:border-box;";
         controlBar.innerHTML = `
-        <div style="display:flex; align-items:center; justify-content:flex-start; width:100%; gap:8px;">
+        <div style="display:flex; align-items:center; justify-content:flex-start; width:100%; gap:4px;">
             <button id="btnSelectAll" style="background:#2196F3; color:white; border:none; padding:4px 8px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 선택</button>
             <button id="btnUnselectAll" style="background:#666; color:white; border:none; padding:4px 8px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 해제</button>
             <button id="delSelected" style="background:#444; color:#ff4d4d; border:none; padding:4px 8px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold;">선택 삭제</button>
@@ -1110,7 +1094,7 @@
         // 1. 기존 품번(Codes) 다운로드 버튼
         const dlBtn = document.createElement('button');
         dlBtn.innerText = "품번 저장";
-        dlBtn.style = "flex:1; padding:8px; background:#4CAF50; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
+        dlBtn.style = "padding:4px; background:#4CAF50; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
 
         dlBtn.onclick = async () => {
             const allItems = await VceDB.getAllCodes();
@@ -1130,10 +1114,7 @@
                 // 2차: 품번
                 if (a.displayCode !== b.displayCode) return a.displayCode.localeCompare(b.displayCode);
 
-                // 3차: 백단위 키                
-                if (a.threeStr !== b.threeStr) return a.threeStr.localeCompare(b.threeStr);
-
-                // 4차: sameCodeCount (숫자)
+                // 3차: sameCodeCount (숫자)
                 const seqA = a.data[a.data.length - 1] || 0;
                 const seqB = b.data[b.data.length - 1] || 0;
                 return seqA - seqB;
@@ -1154,7 +1135,7 @@
                 }
 
                 // DB에 저장된 data 배열(sameCodeCount 포함)을 그대로 JSON화하여 출력
-                output += `"${obj.displayCode}": ${obj.threeStr} | ${JSON.stringify(obj.data, null, 2)},\n`;
+                output += `"${obj.displayCode}": ${JSON.stringify(obj.data)},\n`;
             });
 
             // 파일 다운로드 처리
@@ -1170,7 +1151,7 @@
         // 2. 신규 이미지 메타(ImageMeta) 다운로드 버튼
         const metaDlBtn = document.createElement('button');
         metaDlBtn.innerText = "메타 저장";
-        metaDlBtn.style = "flex:1; padding:8px; background:#2196F3; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
+        metaDlBtn.style = "padding:4px; background:#2196F3; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
 
         metaDlBtn.onclick = async () => {
             const db = await VceDB.open();
@@ -1205,7 +1186,7 @@
 
         const clBtn = document.createElement('button');
         clBtn.innerText = "초기화";
-        clBtn.style = "flex:1; padding:8px; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
+        clBtn.style = "padding:4px; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
         clBtn.onclick = async () => {
             if (confirm("모든 데이터를 삭제하시겠습니까?")) {
                 const db = await VceDB.open();
@@ -1217,6 +1198,29 @@
         btnContainer.appendChild(dlBtn);
         btnContainer.appendChild(metaDlBtn);
         btnContainer.append(clBtn);
+
+
+        // createUI 함수 내부 혹은 적절한 위치에 추가
+        
+            const resetBtn = document.createElement('button');
+            resetBtn.innerText = "DB초기화";
+        resetBtn.style.cssText = `flex:1; padding:4px; background-color: #ff4d4d; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;`;
+
+            resetBtn.onclick = async () => {
+                if (confirm("주의: 모든 저장된 코드와 이미지 메타데이터가 삭제됩니다. 계속하시겠습니까?")) {
+                    try {
+                        await VceDB.resetDatabase();
+                        alert("DB가 초기화되었습니다. 페이지를 새로고침하여 재설정합니다.");
+                        location.reload(); // 새로고침하면 open()이 실행되며 DB가 재생성됨
+                    } catch (err) {
+                        console.error(err);
+                    }
+                }
+            };
+
+        btnContainer.appendChild(resetBtn);    
+
+
         panel.appendChild(btnContainer);
 
         const autoContainer = document.createElement('div');
@@ -1237,7 +1241,7 @@
 
             toggleAutoRun = (s) => {
                 if (autoStatus.active) {
-                    if (s === 0) {
+                    if (s == 0) {
                         btnStop.innerText = `수집 완료`;
                     } else {
                         btnStop.innerText = `수집 작업 중... ${s && s > 0 ? s + 's' : ""}`;
@@ -1328,7 +1332,7 @@
     let autoStatus = GM_getValue("auto_paging", { active: false });
     let pendingPage;
 
-    
+
     // 마지막 페이지 번호 추출 함수
     function getLastPageNumber() {
         const pagination = document.querySelector('ul[data-e2eid="pagination"]');
@@ -1465,9 +1469,21 @@
     }
 
 
-    window.addEventListener('load', async () => {
+    window.addEventListener('load', async () => {        
         initializeMakerMap();
-        await sleep(2000);
+        await sleep(2000);        
+        if (autoStatus.active) {
+            if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+$/.test(PageURL())) {
+                startPage = 1;
+                window.location.href = UpdateParam(PageURL(), 'media_type', '2d');
+            }
+        }
+        createUI();
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+            mutCallback();
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
+        
         refreshQueueButton();
         const tasksToRun = await VceDB.getSchedulableTasks();
 
@@ -1477,17 +1493,5 @@
                 await addToQueue({ url: task.url });
             }
         }
-        if (autoStatus.active) {
-            if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+$/.test(PageURL())) {
-                startPage = 1;
-                window.location.href = UpdateParam(PageURL(), 'media_type', '2d');
-            }
-        }
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
-            mutCallback();
-            observer.observe(document.body, { childList: true, subtree: true });
-        }
-        createUI();
-
     });
 })();
