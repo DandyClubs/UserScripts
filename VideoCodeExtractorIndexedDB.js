@@ -961,7 +961,8 @@
                     sessionStorage.setItem("VideoCodeRunning", "false");
                     sessionStorage.setItem("VideoCodePageNum", JSON.stringify(pageNum));
                 } else {
-                    if (!confirm("시작하시겠습니까?")) return;
+                    const lastP = getLastPageNumber();
+                    if (!confirm(`1페이지부터 ${lastP}페이지까지 자동으로 이동하며 수집합니다. 시작하시겠습니까?`)) return;
                     sessionStorage.setItem("VideoCodeRunning", "true");
                     pendingPageNum = Number(localStorage.getItem('VideoCodePageNum')) || 1;
 
@@ -980,7 +981,7 @@
                 updateButton(); // ⭐ UI 즉시 반영
             };
             
-
+            updateButton(); // ⭐ UI 즉시 반영
             panel.appendChild(btnAutoRun);
         }
 
@@ -1297,6 +1298,20 @@
         return sessionStorage.getItem('VideoCodeRunning') === 'true';
     }
 
+
+    // 마지막 페이지 번호 추출 함수
+    function getLastPageNumber() {
+        const pagination = document.querySelector('ul[data-e2eid="pagination"]');
+        if (!pagination) return 1;
+        const links = pagination.querySelectorAll('a');
+        let maxPage = 1;
+        links.forEach(link => {
+            const p = parseInt(new URLSearchParams(link.search).get('page'));
+            if (p > maxPage) maxPage = p;
+        });
+        return maxPage;
+    }
+    
     // 10초 ~ 15초 사이의 랜덤 대기 함수
     function getRandomDelay() {
         return Math.floor(Math.random() * (15000 - 5000 + 1)) + Math.random() * (5000 - 0 + 1) + 5000;
@@ -1337,9 +1352,11 @@
         const pagination = document.querySelector('ul[data-e2eid="pagination"]');
         if (!pagination) return;
 
-        const nextBtn = pagination.querySelector('img[alt="次へ"]')?.closest('a'); 
+        // "次へ" 이미지의 부모 <a> 태그 찾기
+        const nextImg = pagination.querySelector('img[alt="次へ"]');
+        const nextBtn = nextImg ? nextImg.closest('a') : null;        
 
-        if (nextBtn) {
+        if (nextBtn && nextBtn.href) {
             pendingPageNum = Number(localStorage.getItem('VideoCodePageNum')) || 1;
             localStorage.setIteme('VideoCodePageNum', JSON.stringify(pendingPageNum))
             if (pendingPageNum > 1) {
