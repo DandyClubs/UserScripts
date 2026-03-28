@@ -495,25 +495,16 @@
         }
     }
 
-    const getThree = ((str) => {
-        // 1. 자릿수가 3자 미만인 경우, 아무 작업도 하지 않고 원본 그대로 리턴
-        if (padLen < 3) {
-            return str;
-        }
+    // 기존 IIFE 형태를 일반 함수로 변경
+    const getThree = (str) => {        
+        if (str.length < 3) return str;
 
-        // 2. 3자 이상인 경우에만 로직 적용
         return str.split('').map((char, idx, arr) => {
-            const targetIndex = arr.length - 3; // 뒤에서 3번째 위치
-
-            // 뒤에서 3번째 자리는 무조건 유지 (숫자, 문자, 특수문자 포함)
-            if (idx === targetIndex) {
-                return char;
-            }
-
-            // 그 외 자리는 숫자일 때만 '0'으로 치환
+            const targetIndex = arr.length - 3;
+            if (idx === targetIndex) return char;
             return /\d/.test(char) ? '0' : char;
         }).join('');
-    })();
+    };
 
 
     const mutCallback = async () => {
@@ -631,16 +622,7 @@
         const fileName = pathSegments.pop();
         const fileExtension = fileName.split('.').pop();
         const originalImage = cleanUrl.replace(fileName, `${contentId}pl.${fileExtension}`);
-        const maskedId = contentId.replace(/\d/g, '0');  
-        
-
-        // --- [섹션 1: 이미지 메타 처리] ---
-        // 이미지 해상도 체크는 코드 추출 여부와 상관없이 별개로 진행 (중복 시 DB가 알아서 처리)
-        const meta = await VceDB.getImageMeta(originalImage);
-        if (!meta) {
-            await VceDB.setImageMeta({ url: originalImage, contentId, patternKey, status: "pending" });
-            addToQueue({ url: originalImage });
-        }
+        const maskedId = contentId.replace(/\d/g, '0');          
 
         const extractPatterns = [
             /digital\/video\/(.*)(d1clymax)(\d{5,})(.*?)\//,
@@ -656,9 +638,17 @@
         let match = null;
         for (const regex of extractPatterns) { match = originalImage.match(regex); if (match) break; }
 
+
         let patternKey
         if(!match){
-            patternKey = `${maskedId}_${makerLabelCode}_${rawMediaType}`;            
+            patternKey = `${maskedId}_${makerLabelCode}_${rawMediaType}_${maskedId}`;            
+            // --- [섹션 1: 이미지 메타 처리] ---
+            // 이미지 해상도 체크는 코드 추출 여부와 상관없이 별개로 진행 (중복 시 DB가 알아서 처리)
+            const meta = await VceDB.getImageMeta(originalImage);
+            if (!meta) {
+                await VceDB.setImageMeta({ url: originalImage, contentId, patternKey, status: "pending" });
+                addToQueue({ url: originalImage });
+            }
         }else if (match) {
 
             const prefixMatch = match[1];
@@ -667,7 +657,18 @@
             const suffix = match[4];
             const displayCode = code;
             const threeStr = getThree(match[3]);
-            patternKey = `${maskedId}_${makerLabelCode}_${rawMediaType}_${threeStr}`;
+            const finalPatternKey = `${prefixMatch}${threeStr}${suffix}`;
+            
+            patternKey = `${maskedId}_${makerLabelCode}_${rawMediaType}_${finalPatternKey}`;
+
+            
+            // --- [섹션 1: 이미지 메타 처리] ---
+            // 이미지 해상도 체크는 코드 추출 여부와 상관없이 별개로 진행 (중복 시 DB가 알아서 처리)
+            const meta = await VceDB.getImageMeta(originalImage);
+            if (!meta) {
+                await VceDB.setImageMeta({ url: originalImage, contentId, patternKey, status: "pending" });
+                addToQueue({ url: originalImage });
+            }
 
             // --- [섹션 2: 코드 DB 중복 체크 (PatternKey 기준)] ---
             // ★ 여기서 patternKey로 이미 저장된 코드가 있는지 확인합니다.
