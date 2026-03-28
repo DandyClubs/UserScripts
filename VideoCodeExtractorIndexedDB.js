@@ -1212,7 +1212,7 @@
             };
             btnAutoRun.onclick = () => {
                 autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1 });
-                const continuePage = GetParam(autoStatus.pendingPage, 'page') || 1;                
+                const continuePage = GetParam(autoStatus.pendingPage || PageURL(), 'page') || 1;                
                 const lastP = getLastPageNumber();
                     if (!confirm(`${continuePage}페이지부터 ${lastP}페이지까지 자동으로 이동하며 수집합니다. 시작하시겠습니까?`)) return;
 
@@ -1349,30 +1349,30 @@
                 if (nextBtn && nextBtn.href) {
                     const firstPageLink = pagination.querySelector('li:nth-child(2) a'); // 대략적인 1페이지 링크
 
-                    const firstPage = GetParam(PageURL(), 'page') ? GetParam(PageURL(), 'page') : '';
+                    const firstPage = GetParam(PageURL(), 'page') || '';
 
                     if (GetParam(PageURL(), 'page') > maxPagesLimit){
-                        console.log(`[Auto] ${maxPagesLimit} 초과`);
-                        toggleAutoRun(0);
-                        GM_setValue("auto_paging", { active: true });                        
+                        console.log(`[Auto] ${maxPagesLimit} 초과`);                        
+                        toggleAutoRun(remainingTime);
+                        GM_setValue("auto_paging", { active: true }); 
+                        clearInterval(countdownTimer);
                     }
                     
                     if (pendingPage && isWorkingPage !== pendingPage) {
-                        const currentUrl = new URL(pendingPage);
-                        const pageParam = currentUrl.searchParams.get('page');
-                        if (!pageParam || pageParam === "1") {
+                        const continuePage = GetParam(pendingPage, 'page');
+                        if (!continuePage || continuePage === "1") {
                             nextBtn.click();
                         } else {
-                            currentUrl.searchParams.set('page', pageParam);
-                            window.location.href = currentUrl.toString();
+                            window.location.href = UpdateParam(pendingPage, 'page', continuePage);
                         }
                     } else if (firstPage === 1) {
                         window.location.href = removeUriWithParam(PageURL(), 'page');
                     } 
                     else if (isWorkingPage === lastPage) {
                         console.log("[Auto] 끝");
-                        toggleAutoRun(0);
-                        GM_setValue("auto_paging", { active: true });                        
+                        toggleAutoRun(remainingTime);
+                        GM_setValue("auto_paging", { active: true });  
+                        clearInterval(countdownTimer);
                     } else if (startPage !== 1 && firstPageLink) {
                         firstPageLink.click();
                     } else {
@@ -1384,8 +1384,9 @@
 
                 } else {
                     console.log("[Auto] 끝");
-                    toggleAutoRun(0);
+                    toggleAutoRun(remainingTime);
                     GM_setValue("auto_paging", { active: true });
+                    clearInterval(countdownTimer);
                 }
             }
         }, 1000);
