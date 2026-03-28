@@ -1207,19 +1207,14 @@
                         btnStop.innerText = `수집 완료`;
                     } else {
                         btnStop.innerText = `수집 작업 중... ${s && s > 0 ? s + 's' : ""}`;
-                    }
-
-                    btnAutoRun.display = 'none';
-                    btnStop.display = 'block';
-                } else {
-                    btnStop.innerText = "수집 정지 중";
-                    btnAutoRun.display = 'block';
-                    btnStop.display = 'none';
-                }
+                    }                    
+                } 
             };
             btnAutoRun.onclick = () => {
+                autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1 });
+                const continuePage = GetParam(autoStatus.pendingPage, 'page') || 1;                
                 const lastP = getLastPageNumber();
-                if (!confirm(`1페이지부터 ${lastP}페이지까지 자동으로 이동하며 수집합니다. 시작하시겠습니까?`)) return;
+                    if (!confirm(`${continuePage}페이지부터 ${lastP}페이지까지 자동으로 이동하며 수집합니다. 시작하시겠습니까?`)) return;
 
                 // 상태 저장
                 GM_setValue("auto_paging", { active: true, lastPage: lastP });
@@ -1231,6 +1226,7 @@
             const lastP = getLastPageNumber();
             btnStop.onclick = () => {
                 GM_setValue("auto_paging", { active: false, lastPage: lastP, pendingPage: PageURL() });
+                btnStop.innerText = "수집 정지 됨";
                 toggleAutoRun();
             };
             toggleAutoRun();
@@ -1295,6 +1291,7 @@
     let toggleAutoRun = null;
     let isWorkingPage;
     let startPage = 1;
+    let maxPagesLimit = 50;
     let autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1, current: PageURL() });
     let pendingPage = autoStatus.current;
 
@@ -1308,12 +1305,12 @@
             const p = parseInt(new URLSearchParams(link.search).get('page'));
             if (p > maxPage) maxPage = p;
         });
-        return maxPage;
+        return Math.min(maxPage, maxPagesLimit);
     }
 
     // 10초 ~ 15초 사이의 랜덤 대기 함수
     function getRandomDelay() {
-        return Math.floor(Math.random() * (15000 - 5000 + 1)) + Math.random() * (5000 - 0 + 1) + 5000;
+        return Math.floor(Math.random() * (10000 - 5000 + 1)) +  5000;
     }
     function startCountdown(ms) {
         if (countdownTimer) clearInterval(countdownTimer);
@@ -1353,6 +1350,13 @@
                     const firstPageLink = pagination.querySelector('li:nth-child(2) a'); // 대략적인 1페이지 링크
 
                     const firstPage = GetParam(PageURL(), 'page') ? GetParam(PageURL(), 'page') : '';
+
+                    if (GetParam(PageURL(), 'page') > maxPagesLimit){
+                        console.log(`[Auto] ${maxPagesLimit} 초과`);
+                        toggleAutoRun(0);
+                        GM_setValue("auto_paging", { active: true });                        
+                    }
+                    
                     if (pendingPage && isWorkingPage !== pendingPage) {
                         const currentUrl = new URL(pendingPage);
                         const pageParam = currentUrl.searchParams.get('page');
@@ -1364,16 +1368,13 @@
                         }
                     } else if (firstPage === 1) {
                         window.location.href = removeUriWithParam(PageURL(), 'page');
-                    } else if (startPage !== 1 && firstPageLink) {
-                        firstPageLink.click();
-                    }
+                    } 
                     else if (isWorkingPage === lastPage) {
                         console.log("[Auto] 끝");
                         toggleAutoRun(0);
-                        GM_setValue("auto_paging", { active: true });
-                        return;
-                    } else if (firstPageLink) {
-                        firstPageLink();
+                        GM_setValue("auto_paging", { active: true });                        
+                    } else if (startPage !== 1 && firstPageLink) {
+                        firstPageLink.click();
                     } else {
                         console.log('next');
                         nextBtn.click();
@@ -1398,6 +1399,20 @@
 
             keys.forEach(k => urlParams.delete(k));
             Url.search = urlParams.toString() ? `?${urlParams.toString()}` : '';
+            return Url.toString();
+        } catch (err) {
+            console.error(err);
+            return baseUrl;
+        }
+    }
+
+
+    function UpdateParam(baseUrl, key, val) {
+        try {
+            const Url = new URL(baseUrl);
+            const urlParams = new URLSearchParams(Url.search);
+            urlParams.set(key, val);
+            Url.search = urlParams.toString();
             return Url.toString();
         } catch (err) {
             console.error(err);
@@ -1432,10 +1447,8 @@
         if (autoStatus.active) {
             autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1, pendingPage: PageURL() });
             if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+$/.test(PageURL())) {
-                startPage = 1;
-                const urlParams = new URLSearchParams(PageURL());
-                urlParams.set('media_type', '2d');
-                window.location.href = `${window.location.pathname}?${urlParams.toString()}`;
+                startPage = 1;                
+                window.location.href = UpdateParam(PageURL(), 'media_type', '2d');
             }
         }
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
