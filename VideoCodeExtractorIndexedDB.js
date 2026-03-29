@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Code Extractor IndexedDB 고도화
 // @namespace    http://tampermonkey.net/
-// @version      4.3.12
+// @version      4.3.15
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
@@ -155,7 +155,7 @@ backdrop-filter: blur(1px);
     let currentSessionCodes = new Set();
     let isShowAllMode = false;
     let filterText = "";
-    let statusEl = "";
+    let statusEl = null;
 
 
     const DB_CONFIG = { name: "VideoCodeExtractorDB", stores: { codes: "id", imageMeta: "url" } };
@@ -541,11 +541,15 @@ backdrop-filter: blur(1px);
     }
 
     function updateProcessingStatus(isWorking, count) {
-        if (isWorking && count > 0) {
+        if (!statusEl) {
+            statusEl = document.getElementById('vce-status-indicator');
+            if (!statusEl) return;
+        }
+        if (isWorking && count && count > 0) {
             statusEl.innerHTML = `
                 <span style = "display:inline-flex; align-items:center; gap:6px;">
                     <svg width="24" height="14" viewBox="0 0 56 32" fill="none">
-                        <rect x="1" y="1" width="54" height="30" rx="4" stroke="currentColor" stroke-width="2" />
+                        <rect x="1" y="1" width="54" height="30" rx="4" stroke="currentColor" stroke-width="2"/>
                         <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
                             font-size="14" font-weight="bold" fill="currentColor">4K</text>
                     </svg>
@@ -563,7 +567,7 @@ backdrop-filter: blur(1px);
    `;
         }
         else {
-            statusEl.style.display = 'none';
+            statusEl.innerHTML = `<span style="display:none;"></span>`;
         }
     }
 
@@ -1042,7 +1046,6 @@ backdrop-filter: blur(1px);
         makerNodes.forEach(node => {
             try {
                 const link = node.closest('li a');
-                console.log(link);
                 const url = new URL(link.href, window.location.origin);
                 const makerId = url.searchParams.get('maker');
                 // .line-clamp-2.text-ellipsis 클래스를 가진 텍스트 추출
@@ -1071,9 +1074,20 @@ backdrop-filter: blur(1px);
         // 수정 후: value(이름)가 먼저, key(ID)가 두 번째 인자입니다.
         addMakerMap.forEach((originalName, id) => {
             // 치환 맵(makerLabelReplaceMap)에 있으면 치환된 이름을, 없으면 원래 이름을 사용
+
             const makerName = (typeof makerLabelReplaceMap !== 'undefined' && makerLabelReplaceMap[originalName])
                 || originalName;
 
+            if (!makerMap.has(id)) {
+                const entry = makerMap.get(id);
+                if (makerName !== entry.final) {
+                    const newData = { original: label, final: makerName };
+                    const currentLocal = GM_getValue(LOCAL_MAKER_KEY, {});
+                    currentLocal[id] = newData;
+                    GM_setValue(LOCAL_MAKER_KEY, currentLocal);
+                    console.log(`[신규 메이커 저장] ${id}: ${makerlName}`);
+                }
+            }
             saveMakerMap.set(id, makerName);
         });
 
@@ -1092,33 +1106,34 @@ backdrop-filter: blur(1px);
 
 
     function createUI() {
-        const panel = document.createElement('div');
-        panel.classList.add('videocodeextractor');
-        panel.style = "position:fixed; bottom:15px; right:15px; z-index:99999; display:flex !important; flex-direction:column; background:rgba(15,15,15,0.95); padding:8px; border-radius:12px; width:280px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif; box-sizing:border-box;";
-        panel.innerHTML = `<div style='font-weight:bold; font-size:10px; margin-bottom:5px; text-align:center; color:#2196F3;'>DMM CODE TRACKER</div>`;
+        return new Promise((resolve) => {
+            const panel = document.createElement('div');
+            panel.classList.add('videocodeextractor');
+            panel.style = "position:fixed; bottom:15px; right:15px; z-index:99999; display:flex !important; flex-direction:column; background:rgba(15,15,15,0.95); padding:8px; border-radius:12px; width:280px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif; box-sizing:border-box;";
+            panel.innerHTML = `<div style='font-weight:bold; font-size:10px; margin-bottom:5px; text-align:center; color:#2196F3;'>DMM CODE TRACKER</div>`;
 
-        statusEl = document.createElement('div');
-        statusEl.id = 'vce-status-indicator';
-        statusEl.style = `display: grid; justify-content: space-around; padding: 5px 10px; background: rgba(0,0,0,0.7); color: white; font-size: 12px; border-size: 12px; border-radius: 5px; z-index: 99999;`;
+            statusEl = document.createElement('div');
+            statusEl.id = 'vce-status-indicator';
+            statusEl.style = `display: grid; justify-content: space-around; padding: 5px 10px; background: rgba(0,0,0,0.7); color: white; font-size: 12px; border-size: 12px; border-radius: 5px; z-index: 99999;`;
 
-        panel.appendChild(statusEl);
+            panel.appendChild(statusEl);
 
-        alertStatus = document.createElement('div');
-        alertStatus.style = "font-size:11px; text-align:center; line-height:1.4;";
-        panel.appendChild(alertStatus);
+            alertStatus = document.createElement('div');
+            alertStatus.style = "font-size:11px; text-align:center; line-height:1.4;";
+            panel.appendChild(alertStatus);
 
-        countStatus = document.createElement('div');
-        countStatus.style = "font-size:10px; color:#aaa; text-align:center; margin-bottom:8px; padding:4px; background:#222; border-radius:4px;";
-        panel.appendChild(countStatus);
+            countStatus = document.createElement('div');
+            countStatus.style = "font-size:10px; color:#aaa; text-align:center; margin-bottom:8px; padding:4px; background:#222; border-radius:4px;";
+            panel.appendChild(countStatus);
 
-        // controlBar 생성
-        const controlBar = document.createElement('div');
-        controlBar.style = "display:flex; flex-direction:column; padding:8px; background:#222; border-bottom:1px solid #444; gap:8px; margin-bottom:10px; border-radius:4px; box-sizing:border-box;";
-        // 1. 공통 스타일을 변수로 정의
-        const commonBtnStyle = "border:none; padding:4px 8px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold; word-break:keep-all; line-height:1.2;";
+            // controlBar 생성
+            const controlBar = document.createElement('div');
+            controlBar.style = "display:flex; flex-direction:column; padding:8px; background:#222; border-bottom:1px solid #444; gap:8px; margin-bottom:10px; border-radius:4px; box-sizing:border-box;";
+            // 1. 공통 스타일을 변수로 정의
+            const commonBtnStyle = "border:none; padding:4px 8px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold; word-break:keep-all; line-height:1.2;";
 
-        // 2. `${}`를 사용하여 버튼에 삽입
-        controlBar.innerHTML = `
+            // 2. `${}`를 사용하여 버튼에 삽입
+            controlBar.innerHTML = `
             <div style="display:flex; align-items:center; gap:4px;">
                 <button id="btnSelectAll" style="background:#2196F3; color:white; ${commonBtnStyle}">전체 선택</button>
                 <button id="btnUnselectAll" style="background:#666; color:white; ${commonBtnStyle}">전체 해제</button>
@@ -1131,270 +1146,270 @@ backdrop-filter: blur(1px);
             <button id="searchBtn" style="background:#00FF41; color:#000; border:none; padding:0 12px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; white-space:nowrap;">찾기</button>
         </div>
 `;
-        panel.appendChild(controlBar);
+            panel.appendChild(controlBar);
 
-        // 선택 재시도 클릭 이벤트
-        controlBar.querySelector('#btnRetrySel').onclick = async () => {
-            const selected = listContainer.querySelectorAll('.item-check:checked');
-            if (selected.length === 0) return alert("항목을 선택해주세요.");
+            // 선택 재시도 클릭 이벤트
+            controlBar.querySelector('#btnRetrySel').onclick = async () => {
+                const selected = listContainer.querySelectorAll('.item-check:checked');
+                if (selected.length === 0) return alert("항목을 선택해주세요.");
 
-            let queue = JSON.parse(GM_getValue("process_queue", "[]"));
-            for (const cb of selected) {
-                const key = cb.dataset.key;
-                const item = await VceDB.getCode(key);
-                if (item && !queue.some(q => q.url === item.origin)) {
-                    queue.push({
-                        url: item.origin,
-                        maker: item.data[4],
-                        makerCode: item.makerLabelCode,
-                        type: item.data[5]
-                    });
-                    await VceDB.deleteCode(key);
-                    currentSessionCodes.delete(key);
-                }
-            }
-            GM_setValue("process_queue", JSON.stringify(queue));
-            updateDisplayList(false);
-            refreshQueueButton();
-        };
-
-        // 버튼 그룹 생성 및 초기 숨김
-        const retryGroup = document.createElement('div');
-        retryGroup.id = "retry-group";
-        retryGroup.style = "display:none; gap:5px; margin-top:8px; width:100%;";
-        retryGroup.innerHTML = `
-            <button id="btnRunQueue" style="flex:1; background:#007BFF; color:white; border:none; padding:5px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">대기열 실행 (0)</button>
-`;
-        controlBar.appendChild(retryGroup);
-
-        // 대기열 실행 클릭 이벤트
-        const btnRun = retryGroup.querySelector('#btnRunQueue');
-        btnRun.onclick = async () => {
-            const queue = JSON.parse(GM_getValue("process_queue", "[]"));
-            if (queue.length === 0) return;
-            GM_setValue("process_queue", "[]"); // 즉시 비우기
-            btnRun.disabled = true;
-
-            for (let i = 0; i < queue.length; i++) {
-                const t = queue[i];
-                btnRun.innerText = `처리 중 (${i + 1}/${queue.length})`;
-                // 기존 processWork(sourceURL, rawMediaType, makerLabelCode, makerLabel) 순서에 맞춰 호출
-                await processWork(t.url, t.type, t.makerCode, t.maker);
-            }
-            btnRun.disabled = false;
-            refreshQueueButton();
-            updateDisplayList(false);
-        };
-
-        const filterInput = controlBar.querySelector('#filterInput');
-        const searchBtn = controlBar.querySelector('#searchBtn');
-
-        // [찾기] 버튼: #selectAll 참조 제거
-        searchBtn.onclick = () => {
-            filterText = filterInput.value.trim();
-            updateDisplayList(false);
-        };
-
-        filterInput.onkeydown = (e) => {
-            if (e.key === 'Enter') searchBtn.click();
-            else if (e.key === 'Escape') { filterInput.value = ''; searchBtn.click(); }
-        };
-
-        // [X] 버튼: #selectAll 참조 제거
-        controlBar.querySelector('#clearBtn').onclick = () => {
-            filterInput.value = "";
-            filterText = "";
-            updateDisplayList(false);
-        };
-
-        // [전체 선택] 버튼
-        controlBar.querySelector('#btnSelectAll').onclick = () => {
-            const checkboxes = listContainer.querySelectorAll('.item-check');
-            checkboxes.forEach(cb => cb.checked = true);
-            if (typeof updateCounts === 'function') updateCounts();
-        };
-
-        // [전체 해제] 버튼
-        controlBar.querySelector('#btnUnselectAll').onclick = () => {
-            const checkboxes = listContainer.querySelectorAll('.item-check');
-            checkboxes.forEach(cb => cb.checked = false);
-            if (typeof updateCounts === 'function') updateCounts();
-        };
-
-        // [선택 삭제] 버튼: #selectAll 참조 제거 및 VceDB 연동
-        controlBar.querySelector('#delSelected').onclick = async () => {
-            const selected = listContainer.querySelectorAll('.item-check:checked');
-            if (selected.length === 0) return alert("삭제할 항목을 선택해주세요.");
-
-            if (confirm(`${selected.length}개의 항목을 삭제하시겠습니까?`)) {
+                let queue = JSON.parse(GM_getValue("process_queue", "[]"));
                 for (const cb of selected) {
                     const key = cb.dataset.key;
-                    await VceDB.deleteCode(key); // IndexedDB 삭제
-                    currentSessionCodes.delete(key); // 메모리 셋 갱신
+                    const item = await VceDB.getCode(key);
+                    if (item && !queue.some(q => q.url === item.origin)) {
+                        queue.push({
+                            url: item.origin,
+                            maker: item.data[4],
+                            makerCode: item.makerLabelCode,
+                            type: item.data[5]
+                        });
+                        await VceDB.deleteCode(key);
+                        currentSessionCodes.delete(key);
+                    }
                 }
+                GM_setValue("process_queue", JSON.stringify(queue));
                 updateDisplayList(false);
-            }
-        };
+                refreshQueueButton();
+            };
 
-        const tabBox = document.createElement('div');
-        tabBox.style = "display:flex; margin-bottom:10px; border-bottom:1px solid #444; font-size:11px; cursor:pointer;";
-        const sTab = document.createElement('div'); sTab.innerText = "현재 페이지"; sTab.style = "flex:1; text-align:center; padding:5px; color:#2196F3; border-bottom:2px solid #2196F3;";
-        const aTab = document.createElement('div'); aTab.innerText = "전체 저장소"; aTab.style = "flex:1; text-align:center; padding:5px; color:#888;";
-        tabBox.append(sTab, aTab);
-        panel.appendChild(tabBox);
+            // 버튼 그룹 생성 및 초기 숨김
+            const retryGroup = document.createElement('div');
+            retryGroup.id = "retry-group";
+            retryGroup.style = "display:none; gap:5px; margin-top:8px; width:100%;";
+            retryGroup.innerHTML = `
+            <button id="btnRunQueue" style="flex:1; background:#007BFF; color:white; border:none; padding:5px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold;">대기열 실행 (0)</button>
+`;
+            controlBar.appendChild(retryGroup);
 
-        sTab.onclick = () => { isShowAllMode = false; sTab.style.color = '#2196F3'; sTab.style.borderBottom = '2px solid #2196F3'; aTab.style.color = '#888'; aTab.style.borderBottom = 'none'; updateDisplayList(); };
-        aTab.onclick = () => { isShowAllMode = true; aTab.style.color = '#2196F3'; aTab.style.borderBottom = '2px solid #2196F3'; sTab.style.color = '#888'; sTab.style.borderBottom = 'none'; updateDisplayList(); };
+            // 대기열 실행 클릭 이벤트
+            const btnRun = retryGroup.querySelector('#btnRunQueue');
+            btnRun.onclick = async () => {
+                const queue = JSON.parse(GM_getValue("process_queue", "[]"));
+                if (queue.length === 0) return;
+                GM_setValue("process_queue", "[]"); // 즉시 비우기
+                btnRun.disabled = true;
 
-        listContainer = document.createElement('div');
-        listContainer.style = "max-height:400px; overflow-y:auto; margin-bottom:10px; padding-right:5px;";
-        panel.appendChild(listContainer);
-
-        const btnContainer = document.createElement('div');
-        btnContainer.style = "display:grid; grid-template-columns: repeat(4,auto); gap:5px;";
-
-        // 1. 기존 품번(Codes) 다운로드 버튼
-        const dlBtn = document.createElement('button');
-        dlBtn.innerText = "품번 저장";
-        dlBtn.style = "padding:4px; background:#4CAF50; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
-        const metaDlBtn = document.createElement('button');
-        metaDlBtn.innerText = "메타 저장";
-        metaDlBtn.style = "padding:4px; background:#2196F3; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
-        const clBtn = document.createElement('button');
-        clBtn.innerText = "품번 리셋 ";
-        clBtn.style = "padding:4px; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
-        const resetBtn = document.createElement('button');
-        resetBtn.innerText = "DB리셋";
-        resetBtn.style.cssText = `padding:4px; background-color: #ff4d4d; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;`;
-
-        btnContainer.appendChild(dlBtn);
-        btnContainer.appendChild(metaDlBtn);
-        btnContainer.append(clBtn);
-        btnContainer.appendChild(resetBtn);
-
-        dlBtn.onclick = async () => {
-            const allItems = await VceDB.getAllCodes();
-            if (allItems.length === 0) return alert("데이터가 없습니다.");
-
-            // 1. [1차 & 2차 정렬] 메이커와 품번으로 먼저 줄을 세웁니다.
-            // 3차 정렬(기존 순번)은 삭제로 인해 신뢰할 수 없으므로, 등록 순서(timestamp)를 활용하는 것이 좋습니다.
-            allItems.sort((a, b) => {
-                const makerA = a.data[4] || "기타";
-                const makerB = b.data[4] || "기타";
-                if (makerA !== makerB) return makerA.localeCompare(makerB, 'ja');
-
-                if (a.displayCode !== b.displayCode) return a.displayCode.localeCompare(b.displayCode);
-
-                // 같은 품번 내에서는 등록 순서(timestamp)대로 순번이 매겨지도록 정렬
-                return (a.timestamp || 0) - (b.timestamp || 0);
-            });
-
-            // 2. [핵심] 품번별로 현재 몇 번째인지 기억할 카운터 객체 (Map)
-            const codeCounterMap = new Map();
-
-            let output = "";
-            let currentMaker = "";
-
-            // 3. [데이터 순회 및 실시간 순번 부여]
-            allItems.forEach(obj => {
-                const maker = obj.data[4] || "기타";
-                const code = obj.displayCode;
-
-                // 메이커 구분선 출력
-                if (maker !== currentMaker) {
-                    if (currentMaker !== "") output += "\n";
-                    currentMaker = maker;
-                    output += `// ${currentMaker}\n`;
+                for (let i = 0; i < queue.length; i++) {
+                    const t = queue[i];
+                    btnRun.innerText = `처리 중 (${i + 1}/${queue.length})`;
+                    // 기존 processWork(sourceURL, rawMediaType, makerLabelCode, makerLabel) 순서에 맞춰 호출
+                    await processWork(t.url, t.type, t.makerCode, t.maker);
                 }
+                btnRun.disabled = false;
+                refreshQueueButton();
+                updateDisplayList(false);
+            };
 
-                // [중요] 해당 품번(code)이 전체에서 몇 번째로 등장했는지 계산
-                // 처음 등장하면 0, 두 번째면 1, 세 번째면 2... (메이커가 바뀌어도 유지됨)
-                let currentSeq = codeCounterMap.get(code) || 0;
-                codeCounterMap.set(code, currentSeq + 1);
+            const filterInput = controlBar.querySelector('#filterInput');
+            const searchBtn = controlBar.querySelector('#searchBtn');
 
-                // 출력용 데이터 복사 및 마지막 인덱스에 순번 주입
-                const exportData = [...obj.data];
-                exportData[exportData.length - 1] = currentSeq;
+            // [찾기] 버튼: #selectAll 참조 제거
+            searchBtn.onclick = () => {
+                filterText = filterInput.value.trim();
+                updateDisplayList(false);
+            };
 
-                output += `"${code}": ${JSON.stringify(exportData)},\n`;
-            });
+            filterInput.onkeydown = (e) => {
+                if (e.key === 'Enter') searchBtn.click();
+                else if (e.key === 'Escape') { filterInput.value = ''; searchBtn.click(); }
+            };
 
-            // 4. [다운로드 처리]
-            const blob = new Blob([output], { type: "text/plain" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `Codes_Fixed_${new Date().toISOString().slice(0, 10)}.txt`;
-            link.click();
-            URL.revokeObjectURL(url);
-        };
+            // [X] 버튼: #selectAll 참조 제거
+            controlBar.querySelector('#clearBtn').onclick = () => {
+                filterInput.value = "";
+                filterText = "";
+                updateDisplayList(false);
+            };
 
-        metaDlBtn.onclick = async () => {
-            const db = await VceDB.open();
-            const allMeta = await new Promise(r => {
-                db.transaction("imageMeta").objectStore("imageMeta").getAll().onsuccess = e => r(e.target.result);
-            });
+            // [전체 선택] 버튼
+            controlBar.querySelector('#btnSelectAll').onclick = () => {
+                const checkboxes = listContainer.querySelectorAll('.item-check');
+                checkboxes.forEach(cb => cb.checked = true);
+                if (typeof updateCounts === 'function') updateCounts();
+            };
 
-            if (allMeta.length === 0) return alert("이미지 메타 데이터가 없습니다.");
+            // [전체 해제] 버튼
+            controlBar.querySelector('#btnUnselectAll').onclick = () => {
+                const checkboxes = listContainer.querySelectorAll('.item-check');
+                checkboxes.forEach(cb => cb.checked = false);
+                if (typeof updateCounts === 'function') updateCounts();
+            };
 
-            const cleanMeta = allMeta.filter(m => m.status === 'completed');
+            // [선택 삭제] 버튼: #selectAll 참조 제거 및 VceDB 연동
+            controlBar.querySelector('#delSelected').onclick = async () => {
+                const selected = listContainer.querySelectorAll('.item-check:checked');
+                if (selected.length === 0) return alert("삭제할 항목을 선택해주세요.");
 
-            // 보기 좋게 정렬 (패턴키 기준)
-            cleanMeta.sort((a, b) => (a.contentId || "").localeCompare(b.contentId || ""));
+                if (confirm(`${selected.length}개의 항목을 삭제하시겠습니까?`)) {
+                    for (const cb of selected) {
+                        const key = cb.dataset.key;
+                        await VceDB.deleteCode(key); // IndexedDB 삭제
+                        currentSessionCodes.delete(key); // 메모리 셋 갱신
+                    }
+                    updateDisplayList(false);
+                }
+            };
 
-            let output = cleanMeta.map(m =>
-                `${m.contentId} | URL: ${m.url}} | [${m.width}] | [${m.height}] | [${m.resText}]`
-            ).join("\n");
+            const tabBox = document.createElement('div');
+            tabBox.style = "display:flex; margin-bottom:10px; border-bottom:1px solid #444; font-size:11px; cursor:pointer;";
+            const sTab = document.createElement('div'); sTab.innerText = "현재 페이지"; sTab.style = "flex:1; text-align:center; padding:5px; color:#2196F3; border-bottom:2px solid #2196F3;";
+            const aTab = document.createElement('div'); aTab.innerText = "전체 저장소"; aTab.style = "flex:1; text-align:center; padding:5px; color:#888;";
+            tabBox.append(sTab, aTab);
+            panel.appendChild(tabBox);
 
-            downloadFile(output, `Meta_${new Date().toISOString().slice(0, 10)}.txt`);
-        };
+            sTab.onclick = () => { isShowAllMode = false; sTab.style.color = '#2196F3'; sTab.style.borderBottom = '2px solid #2196F3'; aTab.style.color = '#888'; aTab.style.borderBottom = 'none'; updateDisplayList(); };
+            aTab.onclick = () => { isShowAllMode = true; aTab.style.color = '#2196F3'; aTab.style.borderBottom = '2px solid #2196F3'; sTab.style.color = '#888'; sTab.style.borderBottom = 'none'; updateDisplayList(); };
 
-        // 공통 다운로드 함수 (중복 코드 방지)
-        function downloadFile(content, fileName) {
-            const blob = new Blob([content], { type: "text/plain" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileName;
-            a.click();
-            URL.revokeObjectURL(url);
-        }
+            listContainer = document.createElement('div');
+            listContainer.style = "max-height:400px; overflow-y:auto; margin-bottom:10px; padding-right:5px;";
+            panel.appendChild(listContainer);
 
-        clBtn.onclick = async () => {
-            if (confirm("수집한 품번 데이터를 삭제하시겠습니까?")) {
+            const btnContainer = document.createElement('div');
+            btnContainer.style = "display:grid; grid-template-columns: repeat(4,auto); gap:5px;";
+
+            // 1. 기존 품번(Codes) 다운로드 버튼
+            const dlBtn = document.createElement('button');
+            dlBtn.innerText = "품번 저장";
+            dlBtn.style = "padding:4px; background:#4CAF50; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
+            const metaDlBtn = document.createElement('button');
+            metaDlBtn.innerText = "메타 저장";
+            metaDlBtn.style = "padding:4px; background:#2196F3; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
+            const clBtn = document.createElement('button');
+            clBtn.innerText = "품번 리셋 ";
+            clBtn.style = "padding:4px; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
+            const resetBtn = document.createElement('button');
+            resetBtn.innerText = "DB리셋";
+            resetBtn.style.cssText = `padding:4px; background-color: #ff4d4d; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;`;
+
+            btnContainer.appendChild(dlBtn);
+            btnContainer.appendChild(metaDlBtn);
+            btnContainer.append(clBtn);
+            btnContainer.appendChild(resetBtn);
+
+            dlBtn.onclick = async () => {
+                const allItems = await VceDB.getAllCodes();
+                if (allItems.length === 0) return alert("데이터가 없습니다.");
+
+                // 1. [1차 & 2차 정렬] 메이커와 품번으로 먼저 줄을 세웁니다.
+                // 3차 정렬(기존 순번)은 삭제로 인해 신뢰할 수 없으므로, 등록 순서(timestamp)를 활용하는 것이 좋습니다.
+                allItems.sort((a, b) => {
+                    const makerA = a.data[4] || "기타";
+                    const makerB = b.data[4] || "기타";
+                    if (makerA !== makerB) return makerA.localeCompare(makerB, 'ja');
+
+                    if (a.displayCode !== b.displayCode) return a.displayCode.localeCompare(b.displayCode);
+
+                    // 같은 품번 내에서는 등록 순서(timestamp)대로 순번이 매겨지도록 정렬
+                    return (a.timestamp || 0) - (b.timestamp || 0);
+                });
+
+                // 2. [핵심] 품번별로 현재 몇 번째인지 기억할 카운터 객체 (Map)
+                const codeCounterMap = new Map();
+
+                let output = "";
+                let currentMaker = "";
+
+                // 3. [데이터 순회 및 실시간 순번 부여]
+                allItems.forEach(obj => {
+                    const maker = obj.data[4] || "기타";
+                    const code = obj.displayCode;
+
+                    // 메이커 구분선 출력
+                    if (maker !== currentMaker) {
+                        if (currentMaker !== "") output += "\n";
+                        currentMaker = maker;
+                        output += `// ${currentMaker}\n`;
+                    }
+
+                    // [중요] 해당 품번(code)이 전체에서 몇 번째로 등장했는지 계산
+                    // 처음 등장하면 0, 두 번째면 1, 세 번째면 2... (메이커가 바뀌어도 유지됨)
+                    let currentSeq = codeCounterMap.get(code) || 0;
+                    codeCounterMap.set(code, currentSeq + 1);
+
+                    // 출력용 데이터 복사 및 마지막 인덱스에 순번 주입
+                    const exportData = [...obj.data];
+                    exportData[exportData.length - 1] = currentSeq;
+
+                    output += `"${code}": ${JSON.stringify(exportData)},\n`;
+                });
+
+                // 4. [다운로드 처리]
+                const blob = new Blob([output], { type: "text/plain" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `Codes_Fixed_${new Date().toISOString().slice(0, 10)}.txt`;
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+
+            metaDlBtn.onclick = async () => {
                 const db = await VceDB.open();
-                db.transaction("codes", "readwrite").objectStore("codes").clear();
-                currentSessionCodes.clear();
-                updateDisplayList();
+                const allMeta = await new Promise(r => {
+                    db.transaction("imageMeta").objectStore("imageMeta").getAll().onsuccess = e => r(e.target.result);
+                });
+
+                if (allMeta.length === 0) return alert("이미지 메타 데이터가 없습니다.");
+
+                const cleanMeta = allMeta.filter(m => m.status === 'completed');
+
+                // 보기 좋게 정렬 (패턴키 기준)
+                cleanMeta.sort((a, b) => (a.contentId || "").localeCompare(b.contentId || ""));
+
+                let output = cleanMeta.map(m =>
+                    `${m.contentId} | URL: ${m.url}} | [${m.width}] | [${m.height}] | [${m.resText}]`
+                ).join("\n");
+
+                downloadFile(output, `Meta_${new Date().toISOString().slice(0, 10)}.txt`);
+            };
+
+            // 공통 다운로드 함수 (중복 코드 방지)
+            function downloadFile(content, fileName) {
+                const blob = new Blob([content], { type: "text/plain" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                a.click();
+                URL.revokeObjectURL(url);
             }
-        };
-        resetBtn.onclick = async () => {
-            if (confirm("주의: 모든 저장된 코드와 이미지 메타데이터가 삭제됩니다. 계속하시겠습니까?")) {
-                try {
-                    await VceDB.resetDatabase();
-                    alert("DB가 초기화되었습니다. 페이지를 새로고침하여 재설정합니다.");
-                    location.reload(); // 새로고침하면 open()이 실행되며 DB가 재생성됨
-                } catch (err) {
-                    console.error(err);
+
+            clBtn.onclick = async () => {
+                if (confirm("수집한 품번 데이터를 삭제하시겠습니까?")) {
+                    const db = await VceDB.open();
+                    db.transaction("codes", "readwrite").objectStore("codes").clear();
+                    currentSessionCodes.clear();
+                    updateDisplayList();
                 }
-            }
-        };
+            };
+            resetBtn.onclick = async () => {
+                if (confirm("주의: 모든 저장된 코드와 이미지 메타데이터가 삭제됩니다. 계속하시겠습니까?")) {
+                    try {
+                        await VceDB.resetDatabase();
+                        alert("DB가 초기화되었습니다. 페이지를 새로고침하여 재설정합니다.");
+                        location.reload(); // 새로고침하면 open()이 실행되며 DB가 재생성됨
+                    } catch (err) {
+                        console.error(err);
+                    }
+                }
+            };
 
-        panel.appendChild(btnContainer);
+            panel.appendChild(btnContainer);
 
 
-        const autoContainer = document.createElement('div');
-        autoContainer.style = "display: flex; gap:5px;";
+            const autoContainer = document.createElement('div');
+            autoContainer.style = "display: flex; gap:5px;";
 
-        // 수동 수집 버튼 추가
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+/.test(PageURL())) {
-            const btnAutoRun = document.createElement('button');
-            btnAutoRun.innerText = "페이지 수집 시작";
-            btnAutoRun.style = "flex:1;background:#E91E63; color:white; border:none; padding:5px 5px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px;";
-            const btnReset = document.createElement('button');
-            btnReset.id = "btnReset";
-            btnReset.title = "이어하기 초기화";
-            btnReset.style = `
+            // 수동 수집 버튼 추가
+            if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+/.test(PageURL())) {
+                const btnAutoRun = document.createElement('button');
+                btnAutoRun.innerText = "페이지 수집 시작";
+                btnAutoRun.style = "flex:1;background:#E91E63; color:white; border:none; padding:5px 5px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px;";
+                const btnReset = document.createElement('button');
+                btnReset.id = "btnReset";
+                btnReset.title = "이어하기 초기화";
+                btnReset.style = `
     width:28px;
     height:24px;
     background:#555;
@@ -1408,121 +1423,123 @@ backdrop-filter: blur(1px);
     justify-content:center;
     margin-top:5px;
 `;
-            const btnStop = document.createElement('button');
-            btnStop.innerText = "정지 중";
-            btnStop.style = "flex:1;background:#E91E63; color:white; border:none; padding:5px 5px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px;";
+                const btnStop = document.createElement('button');
+                btnStop.innerText = "정지 중";
+                btnStop.style = "flex:1;background:#E91E63; color:white; border:none; padding:5px 5px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px;";
 
-            autoContainer.appendChild(btnAutoRun);
-            autoContainer.appendChild(btnReset); // 👈 여기 추가
-            autoContainer.appendChild(btnStop);
+                autoContainer.appendChild(btnAutoRun);
+                autoContainer.appendChild(btnReset); // 👈 여기 추가
+                autoContainer.appendChild(btnStop);
 
-            toggleAutoRun = (s) => {
-                const autoStatus = getState();
-                if (autoStatus.active) {
-                    if (s == 0) {
-                        btnStop.innerText = `수집 완료`;
-                    } else {
-                        btnStop.innerText = `수집 작업 중... ${s && s > 0 ? s + 's' : ""}`;
-                    }
-                }
-            };
-            btnAutoRun.onclick = () => {
-                if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+                toggleAutoRun = (s) => {
                     const autoStatus = getState();
-                    const continuePage = GetParam(autoStatus.pendingPage || PageURL(), 'page') || 1;
-                    const lastP = getLastPageNumber();
-                    const pageViewMode = document.querySelector('[data-e2eid="search-form"] select#sort');
-                    const pageViewCount = document.querySelector('[data-e2eid="search-number-displays"] li:last-child');
-                    const countText = '120';
-                    const containerPairs = [
-                        { container: pageViewMode },
-                        { container: pageViewCount, countText: countText }
-                    ];
-                    startWithHighlight('pageView', containerPairs, continuePage, lastP);
-                } else {
-                    const searchMode = document.querySelector('[data-e2eid="search-form"] select#contentType');
-                    const pageViewCount = document.querySelector('[data-e2eid="search-number-displays"] li:last-child');
-                    const countText = '120';
-                    const containerPairs = [
-                        { container: searchMode },
-                        { container: pageViewCount, countText: countText }
-                    ];
-                    startWithHighlight('search-form', containerPairs);
-                }
-            };
-
-            btnReset.onclick = () => {
-                const state = getState();
-
-                setState({
-                    ...state,
-                    pendingPage: null
-                });
-
-                btnReset.innerText = "✔";
-                btnReset.style.background = "#4CAF50";
-
-                setTimeout(() => {
-                    VCE.updateResetButton();
-                }, 500);
-
-                console.log('[Auto] pendingPage 초기화');
-            };
-
-            window.VCE = {
-                updateResetButton() {
-                    const state = getState();
-                    const btn = document.querySelector('#btnReset');
-                    if (!btn) return;
-
-                    if (state.pendingPage) {
-                        const page = GetParam(state.pendingPage, 'page') || '1';
-                        btn.innerText = `${page}`;
-                        btn.style.background = "#FF9800";
-                    } else {
-                        btn.innerText = "⟳";
-                        btn.style.background = "#555";
+                    if (autoStatus.active) {
+                        if (s == 0) {
+                            btnStop.innerText = `수집 완료`;
+                        } else {
+                            btnStop.innerText = `수집 작업 중... ${s && s > 0 ? s + 's' : ""}`;
+                        }
                     }
-                }
-            };
+                };
+                btnAutoRun.onclick = () => {
+                    if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+                        const autoStatus = getState();
+                        const continuePage = GetParam(autoStatus.pendingPage || PageURL(), 'page') || 1;
+                        const lastP = getLastPageNumber();
+                        const pageViewMode = document.querySelector('[data-e2eid="search-form"] select#sort');
+                        const pageViewCount = document.querySelector('[data-e2eid="search-number-displays"] li:last-child');
+                        const countText = '120';
+                        const containerPairs = [
+                            { container: pageViewMode },
+                            { container: pageViewCount, countText: countText }
+                        ];
+                        startWithHighlight('pageView', containerPairs, continuePage, lastP);
+                    } else {
+                        const searchMode = document.querySelector('[data-e2eid="search-form"] select#contentType');
+                        const pageViewCount = document.querySelector('[data-e2eid="search-number-displays"] li:last-child');
+                        const countText = '120';
+                        const containerPairs = [
+                            { container: searchMode },
+                            { container: pageViewCount, countText: countText }
+                        ];
+                        startWithHighlight('search-form', containerPairs);
+                    }
+                };
 
-            btnStop.onclick = () => {
-                if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
-                    setState({ active: false, pendingPage: PageURL() });
-                } else {
-                    setState({ active: false });
-                }
-                btnStop.innerText = "수집 정지 됨";
-            };
-        }
+                btnReset.onclick = () => {
+                    const state = getState();
 
-        panel.appendChild(autoContainer);
+                    setState({
+                        ...state,
+                        pendingPage: null
+                    });
 
-        // 페이지에서 수집
-        //-------------------------------------------------------------
-        /*
-        const mapContainer = document.createElement('div');
-        mapContainer.style = "display:flex; gap:5px;";
-     
-        const extraBtn = document.createElement('button');
-        extraBtn.innerText = "메이커 맵 수집";
-        extraBtn.style = "margin-top:5px; padding:5px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;";
-        extraBtn.onclick = extraMakerMap;
-     
-        const saveBtn = document.createElement('button');
-        saveBtn.innerText = "메이커 맵 저장";
-        saveBtn.style = "margin-top:5px; padding:5px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;";
-        saveBtn.onclick = saveMakerMapToFile;
-     
-        mapContainer.append(extraBtn, saveBtn);
-        panel.appendChild(mapContainer);
-        */
-        //-------------------------------------------------------------
+                    btnReset.innerText = "✔";
+                    btnReset.style.background = "#4CAF50";
 
-        document.body.appendChild(panel);
-        updateDisplayList();
-        VCE.updateResetButton();
+                    setTimeout(() => {
+                        VCE.updateResetButton();
+                    }, 500);
 
+                    console.log('[Auto] pendingPage 초기화');
+                };
+
+                window.VCE = {
+                    updateResetButton() {
+                        const state = getState();
+                        const btn = document.querySelector('#btnReset');
+                        if (!btn) return;
+
+                        if (state.pendingPage) {
+                            const page = GetParam(state.pendingPage, 'page') || '1';
+                            btn.innerText = `${page}`;
+                            btn.style.background = "#FF9800";
+                        } else {
+                            btn.innerText = "⟳";
+                            btn.style.background = "#555";
+                        }
+                    }
+                };
+
+                btnStop.onclick = () => {
+                    if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+                        setState({ active: false, pendingPage: PageURL() });
+                    } else {
+                        setState({ active: false });
+                    }
+                    btnStop.innerText = "수집 정지 됨";
+                };
+            }
+
+            panel.appendChild(autoContainer);
+
+
+            if (/video\.dmm\.co\.jp\/av\/maker\//.test(PageURL())) {
+                const mapContainer = document.createElement('div');
+                mapContainer.style = "display:flex; gap:5px;";
+
+                const extraBtn = document.createElement('button');
+                extraBtn.innerText = "메이커 맵 수집";
+                extraBtn.style = "flex:1;margin-top:5px; padding:5px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;";
+                extraBtn.onclick = extraMakerMap;
+
+                const saveBtn = document.createElement('button');
+                saveBtn.innerText = "메이커 맵 저장";
+                saveBtn.style = "flex:1;margin-top:5px; padding:5px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;";
+                saveBtn.onclick = saveMakerMapToFile;
+
+                mapContainer.append(extraBtn, saveBtn);
+                panel.appendChild(mapContainer);
+            }
+
+
+            document.body.appendChild(panel);
+            updateDisplayList();
+            if (window.VCE) {
+                VCE.updateResetButton();
+            }
+            resolve();
+        });
     }
 
     function sleep(ms) {
@@ -1708,7 +1725,7 @@ backdrop-filter: blur(1px);
             }
 
             // ✅ 7. 기본 next
-            console.log('Next');
+            //console.log('Next');
             setState({
                 pendingPage: nextBtn.href
             });
@@ -1867,7 +1884,7 @@ backdrop-filter: blur(1px);
                 window.location.href = UpdateParam(PageURL(), 'media_type', '2d');
             }
         }
-        createUI();
+        await createUI();
 
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             mutCallback();
