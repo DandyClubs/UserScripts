@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Code Extractor IndexedDB 고도화
 // @namespace    http://tampermonkey.net/
-// @version      4.3.8
+// @version      4.3.9
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
@@ -400,12 +400,12 @@ backdrop-filter: blur(1px);
             }
         };
 
-        const targetRange = getExpectedRange(url);
+        const targetRange = getExpectedRange(url + "?f=webp");
 
         return new Promise((resolve) => {
             GM_xmlhttpRequest({
                 method: "GET",
-                url: url,
+                url: url + "?f=webp",
                 headers: {
                     "Range": `bytes=${targetRange}`,
                     "Referer": "https://video.dmm.co.jp/", // 정상 경로인 척 함
@@ -460,7 +460,7 @@ backdrop-filter: blur(1px);
                         if (bytes[12] === 0x56 && bytes[13] === 0x50 && bytes[14] === 0x38) {
                             result.width = (bytes[26] | (bytes[27] << 8)) & 0x3FFF;
                             result.height = (bytes[28] | (bytes[29] << 8)) & 0x3FFF;
-                        }                        
+                        }
                     }
 
                     if (!result.width) result.errorReason = "해상도 정보 추출 불가";
@@ -540,10 +540,17 @@ backdrop-filter: blur(1px);
         }
     }
 
-    function updateProcessingStatus(isWorking, count) {        
+    function updateProcessingStatus(isWorking, count) {
         if (isWorking) {
-            statusEl.innerHTML = `⚙️ 처리 중... (대기: ${count})`;
-            statusEl.style.display = 'block';
+            statusEl.innerHTML = `
+                <span style = "display:inline-flex; align-items:center; gap:6px;">
+                    <svg width="16" height="10" viewBox="0 0 56 32" fill="none">
+                        <rect x="1" y="1" width="54" height="30" rx="4" stroke="currentColor" stroke-width="2" />
+                        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+                            font-size="14" font-weight="bold" fill="currentColor">4K</text>
+                    </svg>
+   해상도 확중 중... (대기: ${count})</span>
+`;            
         } else {
             statusEl.style.display = 'none';
         }
@@ -1078,12 +1085,9 @@ backdrop-filter: blur(1px);
 
         statusEl = document.createElement('div');
         statusEl.id = 'vce-status-indicator';
-        Object.assign(statusEl.style, { 
-            display: 'none',           
-            padding: '5px 10px', background: 'rgba(0,0,0,0.7)',
-            color: 'white', fontSize: '12px', borderRadius: '5px', zIndex: '99999'
-        });
-        panel.appendChild(statusEl);        
+        statusEl.style = `display: grid; justify-content: space-around; padding: 5px 10px; background: rgba(0,0,0,0.7); color: white; font-size: 12px; border-size: 12px; border-radius: 5px; z-index: 99999;`;
+
+        panel.appendChild(statusEl);
 
         alertStatus = document.createElement('div');
         alertStatus.style = "font-size:11px; text-align:center; line-height:1.4;";
@@ -1341,7 +1345,7 @@ backdrop-filter: blur(1px);
             a.click();
             URL.revokeObjectURL(url);
         }
-        
+
         clBtn.onclick = async () => {
             if (confirm("모든 데이터를 삭제하시겠습니까?")) {
                 const db = await VceDB.open();
@@ -1349,7 +1353,7 @@ backdrop-filter: blur(1px);
                 currentSessionCodes.clear();
                 updateDisplayList();
             }
-        };        
+        };
         resetBtn.onclick = async () => {
             if (confirm("주의: 모든 저장된 코드와 이미지 메타데이터가 삭제됩니다. 계속하시겠습니까?")) {
                 try {
@@ -1363,7 +1367,7 @@ backdrop-filter: blur(1px);
         };
 
         panel.appendChild(btnContainer);
-              
+
 
         const autoContainer = document.createElement('div');
         autoContainer.style = "display: flex; gap:5px;";
@@ -1471,10 +1475,10 @@ backdrop-filter: blur(1px);
             btnStop.onclick = () => {
                 if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
                     setState({ active: false, pendingPage: PageURL() });
-                }else{
+                } else {
                     setState({ active: false });
                 }
-                btnStop.innerText = "수집 정지 됨";                
+                btnStop.innerText = "수집 정지 됨";
             };
         }
 
