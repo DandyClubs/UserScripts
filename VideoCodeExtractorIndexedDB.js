@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         Video Code Extractor IndexedDB 고도화
 // @namespace    http://tampermonkey.net/
-// @version      4.3.5
+// @version      4.3.8
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
 // @match        https://video.dmm.co.jp/av/maker/*
 // @resource     MAKER_MAP https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/DMM_MakerMap_2026-03-26.json
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
+// @require      https://cdn.jsdelivr.net/npm/sweetalert2@11.26.24/dist/sweetalert2.all.min.js
 // @grant        GM_getResourceText
 // @grant        GM_addStyle
 // @grant        GM_setValue
@@ -41,6 +42,43 @@
     #choicetype {
         animation:blink 1s infinite ease;
     }
+
+    .spotlight-active {
+    position: relative !important;
+    z-index: 100 !important;    
+background: rgba(255, 255, 255, 0.01);
+border-radius: 16px;
+box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+backdrop-filter: blur(3px);
+-webkit-backdrop-filter: blur(3px);
+backdrop-filter: blur(1px);
+}
+
+/* 강조를 더 눈에 띄게 */
+.pulse-border {
+    outline: 3px solid #515cd8 !important;
+    animation: pulse 1.2s infinite;
+}
+
+
+@keyframes pulse {
+    0% { outline-offset: 0px; opacity: 1; }
+    100% { outline-offset: 10px; opacity: 0; }
+}
+
+.swal2-popup-custom {
+    transform: scale(0.9); /* 축소 (0.3은 너무 작을 수 있으니 조절해보세요) */
+    font-size: 0.8rem !important; /* 글자 크기 축소 */ 
+    filter: none !important;   
+}    
+
+.swal2-title {
+    font-size: 1.2em !important; /* 제목 크기 별도 조절 */
+}
+
+.swal2-styled {
+    padding: 5px 15px !important; /* 버튼 크기 축소 */
+}
     `);
 
     const imageUrlsMap = {
@@ -596,12 +634,6 @@
     window.addEventListener('popstate', resetSessionCodes);
     window.addEventListener('hashchange', resetSessionCodes);
 
-    const originalPush = history.pushState;
-    history.pushState = function () { originalPush.apply(this, arguments); resetSessionCodes(); };
-    const originalReplace = history.replaceState;
-    history.replaceState = function () { originalReplace.apply(this, arguments); resetSessionCodes(); };
-
-
     async function processWork(sourceURL, rawMediaType, makerLabelCode, makerLabel) {
         if (!makerLabelCode || !rawMediaType || !makerLabel) return false;
 
@@ -613,7 +645,8 @@
 
 
         const skipPatterns = [
-            /digital\/video\/(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)\//,
+            /digital\/video\/(yrnknkjdvaj)(\d{3,})\//, // yrnknkjdvaj 스트리밍 dvaj
+            /digital\/video\/(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)\//,            
             /digital\/video\/\d+jdxa\d+/i,
         ];
 
@@ -851,97 +884,193 @@
 
         return "Unknown";
     }
-    // --- [사용자 보존 요청: 활용을 위해 남겨둔 함수들 삭제 금지] ---
-    // ================================================================================
-    /**
-        let currentMakerLabel = ""; // 전역 변수
 
-        const addMakerMap = new Map();
-        const saveMakerMap = new Map();
 
-        function findMakerLabel(retryCount = 0) {
-            // 1. 먼저 페이지 내 모든 메이커 정보를 맵으로 빌드
-            extraMakerMap();
+    async function startWithHighlight(type, highlightPairs, continuePage, lastP) {
 
-            // 2. 현재 페이지의 파라미터에서 maker ID 가져오기
-            const urlParams = new URLSearchParams(window.location.search);
-            const makerId = urlParams.get('maker');
 
-            // 3. 맵에서 찾거나, 직접 셀렉터로 찾기
-            const label = getMakerNameById(makerId);
 
-            if (label && label !== "Unknown") {
-                currentMakerLabel = label;
-                console.log(`[VCE] 매칭된 메이커: ${currentMakerLabel}`);
-            } else if (retryCount < 10) {
-                console.log(`[VCE] 메이커 텍스트 추출 재시도 중... (${retryCount + 1}/10)`);
-                setTimeout(() => findMakerLabel(retryCount + 1), 1000);
-            }
-        }
-        function extraMakerMap() {
-            const makerNodes = document.querySelectorAll('li a[href*="/av/list/?maker="] p.line-clamp-2.text-ellipsis');
-            if (makerNodes.length === 0) {
-                alert("저장할 메이커 데이터가 없습니다.");
-                return;
-            }
-            makerNodes.forEach(node => {
-                try {
-                    const link = node.closest('li a');
-                    console.log(link);
-                    const url = new URL(link.href, window.location.origin);
-                    const makerId = url.searchParams.get('maker');
-                    // .line-clamp-2.text-ellipsis 클래스를 가진 텍스트 추출
-                    const makerName = link.querySelector('p.line-clamp-2.text-ellipsis')?.innerText.trim();
+        let count;
 
-                    if (makerId && makerName) {
-                        addMakerMap.set(makerId, makerName);
-                    }
-                } catch (e) {
-                    console.warn(e);
+        highlightPairs.forEach(({ countText, container }) => {
+            if (countText) {
+                const last = container.lastElementChild;
+                if (last?.classList.contains('bg-black')) {
+                    count = Number(last.textContent.trim());
+                } else {
+                    count = Number(container.textContent.trim());
                 }
-            });
+            };
+        });
 
-            console.log(`[extraMakerMap] 메이커 맵 구성 완료: ${addMakerMap.size}개 항목`);
-        }
-        function saveMakerMapToFile() {
-            if (addMakerMap.size === 0) {
-                alert("저장할 데이터가 없습니다. 먼저 수집하세요.");
-                return;
+
+        if (count >= 120) {
+
+            // 선택 요소 위로 올리기            
+            highlightPairs.forEach(({ container }) => {
+                container.parentElement.classList.add('spotlight-active');
+                container.classList.add('pulse-border');
+            });
+            // 기본 공통 설정
+            let swalConfig = {
+                customClass: { popup: 'swal2-popup-custom' },
+                showCancelButton: true,
+                confirmButtonColor: '#2196F3',
+                cancelButtonColor: '#666',
+                background: '#fff',
+                color: '#1e1e1e',
+                didClose: () => {
+                    highlightPairs.forEach(({ container }) => {
+                        container.parentElement.classList.remove('spotlight-active');
+                        container.classList.remove('pulse-border');
+                    });
+                }
+            };
+
+            // --- 조건별 분기 처리 ---
+            if (type === 'pageView') {
+                if (Number(continuePage) >= Number(lastP)) {
+                    // [상황 1] 현재 페이지가 제한 페이지보다 큰 경우 (재설정 필요)
+                    swalConfig.title = '페이지 범위 오류';
+                    swalConfig.html = `현재 페이지(<b>${continuePage}</b>)가 제한(<b>${lastP}</b>)보다 큽니다.<br><br><span style="color: #ff4d4d;">[${count}] 단위를 클릭하고 페이지를 새로고침 하시겠습니까?</span>`;
+                    swalConfig.confirmButtonText = '네, 설정 후 재로딩';
+
+                    // 확인 시 동작: target 클릭 후 새로고침
+                    swalConfig.preConfirm = () => {
+                        const target = highlightPairs.find(({ container }) => {
+                            const last = container.lastElementChild;
+                            return last?.tagName === 'BUTTON';
+                        });
+
+                        if (target) {
+                            target.container.lastElementChild.click();
+                        }
+                        setTimeout(() => location.reload(), 500); // 0.5초 뒤 새로고침
+                        return false; // Swal이 자동으로 닫히지 않게 하거나 reload로 종료
+                    };
+                } else {
+                    // [상황 2] 정상적인 수집 시작                    
+                    swalConfig.title = '수집을 시작하시겠습니까?';
+                    swalConfig.html = `<b>${continuePage}</b>페이지부터 <b>${lastP}</b>페이지까지 수집합니다.<br><br>페이지 표시 갯수(<b>${count}</b>)와 새로고침 여부를 확인하셨나요?`;
+                    swalConfig.confirmButtonText = '네, 시작합니다!';
+
+                    // 확인 시 동작: 수집 로직 실행
+                    swalConfig.preConfirm = () => {
+                        startAuto();
+                        toggleAutoRun();
+                    };
+                }
+            } else if (type === 'search-form') {
+                swalConfig.title = '수집되지 않는 페이지';
+                swalConfig.html = `<b>2D/VR에서 <a id="choicetype" href="https://video.dmm.co.jp/av/list/?maker=${makerLabelCode}&media_type=2d">2D</a>를 선택하세요.<br><br><span style="color: #ff4d4d;">페이지 표시 갯수를 120개로 설정하고<br>새로고침 F5를 클릭하세요!</span>`;
+                swalConfig.confirmButtonText = '네, 페이지 이동!';
+
+                // 확인 시 동작: 수집 로직 실행
+                swalConfig.preConfirm = () => {
+                    window.location.href = UpdateParam(PageURL(), 'media_type', '2d');
+                };
             }
 
-            // 초기화 (기존 데이터 중첩 방지)
-            saveMakerMap.clear();
+            // 0.5초 대기 후 실행
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await Swal.fire(swalConfig);
 
-            // 수정 전: addMakerMap.forEach(([id, originalName]) => { ... })
-            // 수정 후: value(이름)가 먼저, key(ID)가 두 번째 인자입니다.
-            addMakerMap.forEach((originalName, id) => {
-                // 치환 맵(makerLabelReplaceMap)에 있으면 치환된 이름을, 없으면 원래 이름을 사용
-                const makerName = (typeof makerLabelReplaceMap !== 'undefined' && makerLabelReplaceMap[originalName])
-                    || originalName;
+        } else {
+            console.log('aaaa');
+            if (confirm("페이지 표시 단위를 찾을 수 없습니다.")) {
+                // 기본 동작 실행
+            }
+        }
+    };
 
-                saveMakerMap.set(id, makerName);
-            });
+    // --- [맵 데이타 구축] ---
 
-            // 이하 JSON 변환 및 다운로드 로직은 동일
-            const obj = Object.fromEntries(saveMakerMap);
-            const jsonString = JSON.stringify(obj, null, 2);
+    let currentMakerLabel = ""; // 전역 변수
 
-            const blob = new Blob([jsonString], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `DMM_MakerMap_${new Date().toISOString().slice(0, 10)}.json`;
-            a.click();
-            URL.revokeObjectURL(url);
+    const addMakerMap = new Map();
+    const saveMakerMap = new Map();
+
+    function findMakerLabel(retryCount = 0) {
+        // 1. 먼저 페이지 내 모든 메이커 정보를 맵으로 빌드
+        extraMakerMap();
+
+        // 2. 현재 페이지의 파라미터에서 maker ID 가져오기
+        const urlParams = new URLSearchParams(window.location.search);
+        const makerId = urlParams.get('maker');
+
+        // 3. 맵에서 찾거나, 직접 셀렉터로 찾기
+        const label = getMakerNameById(makerId);
+
+        if (label && label !== "Unknown") {
+            currentMakerLabel = label;
+            console.log(`[VCE] 매칭된 메이커: ${currentMakerLabel}`);
+        } else if (retryCount < 10) {
+            console.log(`[VCE] 메이커 텍스트 추출 재시도 중... (${retryCount + 1}/10)`);
+            setTimeout(() => findMakerLabel(retryCount + 1), 1000);
+        }
+    }
+    function extraMakerMap() {
+        const makerNodes = document.querySelectorAll('li a[href*="/av/list/?maker="] p.line-clamp-2.text-ellipsis');
+        if (makerNodes.length === 0) {
+            alert("저장할 메이커 데이터가 없습니다.");
+            return;
+        }
+        makerNodes.forEach(node => {
+            try {
+                const link = node.closest('li a');
+                console.log(link);
+                const url = new URL(link.href, window.location.origin);
+                const makerId = url.searchParams.get('maker');
+                // .line-clamp-2.text-ellipsis 클래스를 가진 텍스트 추출
+                const makerName = link.querySelector('p.line-clamp-2.text-ellipsis')?.innerText.trim();
+
+                if (makerId && makerName) {
+                    addMakerMap.set(makerId, makerName);
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+        });
+
+        console.log(`[extraMakerMap] 메이커 맵 구성 완료: ${addMakerMap.size}개 항목`);
+    }
+    function saveMakerMapToFile() {
+        if (addMakerMap.size === 0) {
+            alert("저장할 데이터가 없습니다. 먼저 수집하세요.");
+            return;
         }
 
-        */
-    // ================================================================================
+        // 초기화 (기존 데이터 중첩 방지)
+        saveMakerMap.clear();
+
+        // 수정 전: addMakerMap.forEach(([id, originalName]) => { ... })
+        // 수정 후: value(이름)가 먼저, key(ID)가 두 번째 인자입니다.
+        addMakerMap.forEach((originalName, id) => {
+            // 치환 맵(makerLabelReplaceMap)에 있으면 치환된 이름을, 없으면 원래 이름을 사용
+            const makerName = (typeof makerLabelReplaceMap !== 'undefined' && makerLabelReplaceMap[originalName])
+                || originalName;
+
+            saveMakerMap.set(id, makerName);
+        });
+
+        // 이하 JSON 변환 및 다운로드 로직은 동일
+        const obj = Object.fromEntries(saveMakerMap);
+        const jsonString = JSON.stringify(obj, null, 2);
+
+        const blob = new Blob([jsonString], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `DMM_MakerMap_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
 
     function createUI() {
         const panel = document.createElement('div');
         panel.classList.add('videocodeextractor');
-        panel.style = "position:fixed; bottom:15px; right:15px; z-index:99999; display:flex !important; flex-direction:column; background:rgba(15,15,15,0.95); padding:8px; border-radius:12px; width:268px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif; box-sizing:border-box;";
+        panel.style = "position:fixed; bottom:15px; right:15px; z-index:99999; display:flex !important; flex-direction:column; background:rgba(15,15,15,0.95); padding:8px; border-radius:12px; width:280px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif; box-sizing:border-box;";
         panel.innerHTML = `<div style='font-weight:bold; font-size:10px; margin-bottom:5px; text-align:center; color:#2196F3;'>DMM CODE TRACKER</div>`;
 
         alertStatus = document.createElement('div');
@@ -955,20 +1084,23 @@
         // controlBar 생성
         const controlBar = document.createElement('div');
         controlBar.style = "display:flex; flex-direction:column; padding:8px; background:#222; border-bottom:1px solid #444; gap:8px; margin-bottom:10px; border-radius:4px; box-sizing:border-box;";
+        // 1. 공통 스타일을 변수로 정의
+        const commonBtnStyle = "border:none; padding:4px 8px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold; word-break:keep-all; line-height:1.2;";
+
+        // 2. `${}`를 사용하여 버튼에 삽입
         controlBar.innerHTML = `
-        <div style="display:flex; align-items:center; justify-content:flex-start; width:100%; gap:4px;">
-            <button id="btnSelectAll" style="background:#2196F3; color:white; border:none; padding:4px 8px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 선택</button>
-            <button id="btnUnselectAll" style="background:#666; color:white; border:none; padding:4px 8px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold;">전체 해제</button>
-            <button id="delSelected" style="background:#444; color:#ff4d4d; border:none; padding:4px 8px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold;">선택 삭제</button>
-            <button id="btnRetrySel" style="background:#FF9800; color:white; border:none; padding:5px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold;">선택 재시도 예약</button>
-        </div>
-        <div style="display:flex; gap:5px; width:100%;">
+            <div style="display:flex; align-items:center; gap:4px;">
+                <button id="btnSelectAll" style="background:#2196F3; color:white; ${commonBtnStyle}">전체 선택</button>
+                <button id="btnUnselectAll" style="background:#666; color:white; ${commonBtnStyle}">전체 해제</button>
+                <button id="delSelected" style="background:#444; color:#ff4d4d; ${commonBtnStyle}">선택 삭제</button>
+                <button id="btnRetrySel" style="background:#FF9800; color:white; ${commonBtnStyle}">선택 재시도 예약</button>
+            </div>
+            <div style="display:flex; gap:5px; width:100%;">
             <input type="text" id="filterInput" placeholder="예: abc or /abc/" style="flex:1; min-width:0; background:#111; color:#00FF41; border:1px solid #444; padding:5px; font-size:12px; border-radius:3px; outline:none; font-family:monospace;">
             <button id="clearBtn" style="background:#666; color:#fff; border:none; padding:0 8px; font-size:11px; cursor:pointer; border-radius:3px; white-space:nowrap;">X</button>
             <button id="searchBtn" style="background:#00FF41; color:#000; border:none; padding:0 12px; font-size:11px; cursor:pointer; border-radius:3px; font-weight:bold; white-space:nowrap;">찾기</button>
         </div>
 `;
-
         panel.appendChild(controlBar);
 
         // 선택 재시도 클릭 이벤트
@@ -1227,16 +1359,34 @@
         autoContainer.style = "display:flex; gap:5px;";
 
         // 수동 수집 버튼 추가
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+/.test(PageURL())) {
             autoStatus = GM_getValue("auto_paging", { active: false });
             const btnAutoRun = document.createElement('button');
             btnAutoRun.innerText = "페이지 수집 시작";
             btnAutoRun.style = "flex:1;background:#E91E63; color:white; border:none; padding:5px 5px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px;";
+            const btnReset = document.createElement('button');
+            btnReset.id = "btnReset";
+            btnReset.title = "이어하기 초기화";
+            btnReset.style = `
+    width:28px;
+    height:24px;
+    background:#555;
+    color:white;
+    border:none;
+    border-radius:4px;
+    font-size:11px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin-top:5px;
+`;
             const btnStop = document.createElement('button');
             btnStop.innerText = "정지 중";
             btnStop.style = "flex:1;background:#E91E63; color:white; border:none; padding:5px 5px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px;";
 
             autoContainer.appendChild(btnAutoRun);
+            autoContainer.appendChild(btnReset); // 👈 여기 추가
             autoContainer.appendChild(btnStop);
 
             toggleAutoRun = (s) => {
@@ -1249,28 +1399,77 @@
                 }
             };
             btnAutoRun.onclick = () => {
-                autoStatus = GM_getValue("auto_paging", { active: false, lastPage: 1 });
-                const continuePage = GetParam(autoStatus.pendingPage || PageURL(), 'page') || 1;
-                const lastP = getLastPageNumber();
-                if (!confirm(`${continuePage}페이지부터 ${lastP}페이지까지 자동으로 이동하며 수집합니다. 시작하시겠습니까?`)) return;
+                if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+                    const continuePage = GetParam(autoStatus.pendingPage || PageURL(), 'page') || 1;
+                    const lastP = getLastPageNumber();
+                    const pageViewMode = document.querySelector('[data-e2eid="search-form"] select#sort');
+                    const pageViewCount = document.querySelector('[data-e2eid="search-number-displays"] li:last-child');
+                    const countText = '120';
+                    const containerPairs = [
+                        { container: pageViewMode },
+                        { container: pageViewCount, countText: countText }
+                    ];
+                    startWithHighlight('pageView', containerPairs, continuePage, lastP);
+                } else {
+                    const searchMode = document.querySelector('[data-e2eid="search-form"] select#contentType');
+                    const pageViewCount = document.querySelector('[data-e2eid="search-number-displays"] li:last-child');
+                    const countText = '120';
+                    const containerPairs = [
+                        { container: searchMode },
+                        { container: pageViewCount, countText: countText }
+                    ];
+                    startWithHighlight('search-form', containerPairs);
+                }
+            };
 
-                // 상태 저장
-                GM_setValue("auto_paging", { active: true, lastPage: lastP });
-                autoNextPage();
-                toggleAutoRun();
+            btnReset.onclick = () => {
+                const state = getState();
 
+                setState({
+                    ...state,
+                    pendingPage: null
+                });
+
+                btnReset.innerText = "✔";
+                btnReset.style.background = "#4CAF50";
+
+                setTimeout(() => {
+                    VCE.updateResetButton();
+                }, 500);
+
+                console.log('[Auto] pendingPage 초기화');
+            };
+
+            window.VCE = {
+                updateResetButton() {
+                    const state = getState();
+                    const btn = document.querySelector('#btnReset');
+                    if (!btn) return;
+
+                    if (state.pendingPage) {
+                        const page = GetParam(state.pendingPage, 'page') || '1';
+                        btn.innerText = `${page}`;
+                        btn.style.background = "#FF9800";
+                    } else {
+                        btn.innerText = "⟳";
+                        btn.style.background = "#555";
+                    }
+                }
             };
 
             const lastP = getLastPageNumber();
             btnStop.onclick = () => {
-                GM_setValue("auto_paging", { active: false, lastPage: lastP, pendingPage: PageURL() });
+                if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+                    GM_setValue("auto_paging", { active: false, lastPage: lastP, pendingPage: PageURL() });
+                }
                 btnStop.innerText = "수집 정지 됨";
                 toggleAutoRun();
             };
             toggleAutoRun();
-            if (autoStatus.active) autoNextPage();
+            if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+                if (autoStatus.active) autoNextPage();
+            }
         }
-
 
         panel.appendChild(autoContainer);
 
@@ -1279,27 +1478,25 @@
         /*
         const mapContainer = document.createElement('div');
         mapContainer.style = "display:flex; gap:5px;";
-
+     
         const extraBtn = document.createElement('button');
         extraBtn.innerText = "메이커 맵 수집";
         extraBtn.style = "margin-top:5px; padding:5px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;";
         extraBtn.onclick = extraMakerMap;
-
+     
         const saveBtn = document.createElement('button');
         saveBtn.innerText = "메이커 맵 저장";
         saveBtn.style = "margin-top:5px; padding:5px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;";
         saveBtn.onclick = saveMakerMapToFile;
-
+     
         mapContainer.append(extraBtn, saveBtn);
         panel.appendChild(mapContainer);
         */
         //-------------------------------------------------------------
 
         document.body.appendChild(panel);
-
         updateDisplayList();
-
-
+        VCE.updateResetButton();
     }
 
     function sleep(ms) {
@@ -1322,15 +1519,45 @@
 
     // 현재 탭에서 자동 수집 버튼을 눌렀는지 확인 (탭 닫으면 초기화됨)
 
-    let waitTime = 0;
-    let remainingTime = 0;
-    let countdownTimer = null;
     let toggleAutoRun = null;
     let startPage = 1;
     let maxPagesLimit = 50;
     let autoStatus = GM_getValue("auto_paging", { active: false });
-    let pendingPage;
 
+
+    function getMaker() {
+        return GetParam(PageURL(), 'maker') || 'all';
+    }
+
+    function getStorageKey() {
+        return `VideoCodeExtractor_${getMaker()}`;
+    }
+    function getState() {
+        try {
+            return JSON.parse(localStorage.getItem(getStorageKey())) || {};
+        } catch {
+            return {};
+        }
+    }
+
+    function setState(data) {
+        const newState = {
+            ...getState(),
+            ...data,
+            updatedAt: Date.now()
+        };
+
+        localStorage.setItem(getStorageKey(), JSON.stringify(newState));
+        return newState;
+    }
+
+    function getState() {
+        try {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+        } catch {
+            return {};
+        }
+    }
 
     // 마지막 페이지 번호 추출 함수
     function getLastPageNumber() {
@@ -1349,84 +1576,231 @@
     function getRandomDelay() {
         return Math.floor(Math.random() * (10000 - 5000 + 1)) + 5000;
     }
-    function startCountdown(ms) {
-        if (countdownTimer) clearInterval(countdownTimer);
 
+    async function countdown(ms) {
+        let remainingTime = ms;
 
-        remainingTime = ms;
+        while (remainingTime > 0) {
+            const autoStatus = getState();
 
-        countdownTimer = setInterval(() => {
-            autoStatus = GM_getValue("auto_paging", { active: false });
             if (!autoStatus.active) {
-                remainingTime = 0;
-                clearInterval(countdownTimer);
-                return;
+                console.log('[Auto] 중단됨');
+                return false;
             }
 
-            remainingTime -= 1000;
             const sec = (remainingTime / 1000).toFixed(1);
             toggleAutoRun(sec);
 
-            if (remainingTime <= 0) {
-                remainingTime = 0;
-                clearInterval(countdownTimer);
+            await sleep(1000);
+            remainingTime -= 1000;
+        }
 
-                const pagination = document.querySelector('ul[data-e2eid="pagination"]');
-                if (!pagination) return;
+        return true;
+    }
 
-                // "次へ" 이미지의 부모 <a> 태그 찾기
-                const nextImg = pagination.querySelector('img[alt="次へ"]');
-                const nextBtn = nextImg ? nextImg.closest('a') : null;
+    function autoStep() {
+        const pagination = document.querySelector('ul[data-e2eid="pagination"]');
+        if (!pagination) return false;
 
-                let isWorkingPage = PageURL();
-                const lastPage = getLastPageNumber();
+        const nextImg = pagination.querySelector('img[alt="次へ"]');
+        const nextBtn = nextImg ? nextImg.closest('a') : null;
 
-                const pendingPage = autoStatus.pendingPage;
+        // ✅ 변경: localStorage 사용
+        const autoStatus = getState();
 
-                if (nextBtn && nextBtn.href) {
-                    const firstPageLink = pagination.querySelector('li:nth-child(2) a'); // 대략적인 1페이지 링크
+        let isWorkingPage = PageURL();
+        const lastPage = getLastPageNumber();
+        const pendingPage = autoStatus.pendingPage;
 
-                    const firstPage = GetParam(PageURL(), 'page') || '';
+        if (nextBtn && nextBtn.href) {
+            const firstPageLink = pagination.querySelector('li:nth-child(2) a');
+            const currentstartPage = pagination.querySelector('li:nth-child(2) p.text-white');
 
-                    if (GetParam(PageURL(), 'page') > maxPagesLimit) {
-                        console.log(`[Auto] ${maxPagesLimit} 초과`);
-                        toggleAutoRun(remainingTime);
-                        GM_setValue("auto_paging", { active: true });
-                        clearInterval(countdownTimer);
-                    }
+            const firstPage = GetParam(PageURL(), 'page') || '';
 
-                    if (pendingPage && isWorkingPage !== pendingPage) {
-                        const continuePage = GetParam(pendingPage, 'page');
-                        if (!continuePage || continuePage === "1") {
-                            nextBtn.click();
-                        } else {
-                            window.location.href = UpdateParam(pendingPage, 'page', continuePage);
-                        }
-                    } else if (firstPage === 1) {
-                        window.location.href = removeUriWithParam(PageURL(), 'page');
-                    }
-                    else if (isWorkingPage === lastPage) {
-                        console.log("[Auto] 끝");
-                        toggleAutoRun(remainingTime);
-                        GM_setValue("auto_paging", { active: true });
-                        clearInterval(countdownTimer);
-                    } else if (startPage !== 1 && firstPageLink) {
-                        firstPageLink.click();
-                    } else {
-                        console.log('next');
-                        nextBtn.click();
-                    }
-                    // ⭐ 계속 루프 유지
-                    autoNextPage();
-
-                } else {
-                    console.log("[Auto] 끝");
-                    toggleAutoRun(remainingTime);
-                    GM_setValue("auto_paging", { active: true });
-                    clearInterval(countdownTimer);
-                }
+            // ✅ 1. 페이지 제한 초과
+            if (Number(GetParam(PageURL(), 'page')) > Number(maxPagesLimit)) {
+                console.log(`[Auto] ${maxPagesLimit} 초과`);
+                toggleAutoRun(0);
+                setState({ active: false });
+                return false;
             }
-        }, 1000);
+
+            // ✅ 2. 첫 페이지 상태
+            if (currentstartPage) {
+                setState({
+                    pendingPage: nextBtn.href
+                });
+                VCE.updateResetButton();
+                nextBtn.click();
+                return true;
+            }
+
+            // ✅ 3. pendingPage 복구
+            if (pendingPage && isWorkingPage !== pendingPage) {
+                const continuePage = GetParam(pendingPage, 'page');
+
+                if (!continuePage || continuePage === "1") {
+                    setState({
+                        pendingPage: nextBtn.href
+                    });
+                    VCE.updateResetButton();
+                    nextBtn.click();
+                } else {
+                    const targetUrl = UpdateParam(pendingPage, 'page', continuePage);
+
+                    setState({
+                        pendingPage: targetUrl
+                    });
+                    VCE.updateResetButton();
+                    window.location.href = targetUrl;
+                }
+                return true;
+            }
+
+            // ✅ 4. page=1 처리
+            if (firstPage === 1 || firstPage === "1") {
+                const targetUrl = removeUriWithParam(PageURL(), 'page');
+
+                setState({
+                    pendingPage: targetUrl
+                });
+                VCE.updateResetButton();
+                window.location.href = targetUrl;
+                return true;
+            }
+
+            // ✅ 5. 마지막 페이지
+            const currentPage = Number(GetParam(PageURL(), 'page'));
+            const lastPageNum = Number(lastPage);
+
+            if (currentPage === lastPageNum) {
+                console.log("[Auto] 끝");
+                toggleAutoRun(0);
+                setState({ active: false, pendingPage: null });
+                return false;
+            }
+
+            // ✅ 6. 시작 페이지 이동
+            if (startPage !== 1 && firstPageLink) {
+                setState({
+                    pendingPage: firstPageLink.href
+                });
+                firstPageLink.click();
+                return true;
+            }
+
+            // ✅ 7. 기본 next
+            console.log('Next');
+            setState({
+                pendingPage: nextBtn.href
+            });
+            VCE.updateResetButton();
+            nextBtn.click();
+            return true;
+
+        } else {
+            console.log("[Auto] 끝");
+            toggleAutoRun(0);
+
+            setState({
+                active: false,
+                pendingPage: null
+            });
+            VCE.updateResetButton();
+
+            return false;
+        }
+    }
+
+    function startAuto() {
+        const maker = getMaker();
+        const lockName = `vc_${maker}`;
+
+        navigator.locks.request(
+            lockName,
+            { ifAvailable: true },
+            async lock => {
+                if (!lock) {
+                    console.log('[Lock] 다른 탭 실행 중');
+                    return;
+                }
+
+                const state = getState();
+
+                // 🔥 이어서 이동
+                if (state.pendingPage && location.href !== state.pendingPage) {
+                    console.log('[Auto] 이어서 이동:', state.pendingPage);
+                    location.href = state.pendingPage;
+                    return;
+                }
+
+                setState({ active: true });
+
+                await autoLoop();
+
+                setState({ active: false });
+
+                console.log('[Lock] 해제');
+            }
+        );
+    }
+
+    async function autoLoop() {
+        let guard = 0;
+
+        while (true) {
+            const autoStatus = getState();
+
+            if (!autoStatus.active) {
+                console.log('[Auto] 종료');
+                break;
+            }
+
+            if (++guard > 1000) {
+                console.log('[Auto] guard 종료');
+                break;
+            }
+
+            console.log("[Auto] 대기...");
+
+            const waitTime = getRandomDelay();
+
+            const ok = await countdown(waitTime);
+            if (!ok) break;
+
+            const moved = autoStep();
+            if (!moved) break;
+
+            // 👉 SPA URL 변경 대기
+            await waitForPageChange();
+
+            setState({
+                pendingPage: null
+            });
+
+            // 👉 DOM 안정화
+            await sleep(800);
+        }
+    }
+
+
+    function waitForPageChange() {
+        return new Promise(resolve => {
+            const prev = location.href;
+
+            const observer = new MutationObserver(() => {
+                if (location.href !== prev) {
+                    observer.disconnect();
+                    resolve();
+                }
+            });
+
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+        });
     }
 
     function removeUriWithParam(baseUrl, key) {
@@ -1458,16 +1832,6 @@
         }
     }
 
-    async function autoNextPage() {
-        autoStatus = GM_getValue("auto_paging", { active: false });
-        if (autoStatus.active === false) return;
-
-        console.log("[Auto] 대기...");
-        waitTime = getRandomDelay();
-        startCountdown(waitTime);
-    }
-
-
     window.addEventListener('load', async () => {
         initializeMakerMap();
         await sleep(2000);
@@ -1478,6 +1842,7 @@
             }
         }
         createUI();
+
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             mutCallback();
             observer.observe(document.body, { childList: true, subtree: true });
