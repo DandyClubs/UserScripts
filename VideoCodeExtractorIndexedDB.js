@@ -267,14 +267,24 @@ backdrop-filter: blur(1px);
             const tx = db.transaction("codes", "readwrite");
             const store = tx.objectStore("codes");
 
+            // 1. 기존 데이터 확인
             const existing = await new Promise(r => store.get(id).onsuccess = e => r(e.target.result));
-            if (existing) {
-                return new Promise(r => store.put({ ...existing, ...payload, updatedAt: Date.now() }).onsuccess = () => r());
-            }
 
-            const all = await new Promise(r => store.getAll().onsuccess = e => r(e.target.result));
-            const sameCodeCount = all.filter(item => item.displayCode === payload.displayCode).length;
-            const data = { id, ...payload, timestamp: Date.now(), data: [...(payload.data || []), sameCodeCount] };
+            if (existing) {
+                // 기존 데이터 업데이트 (수정 시)
+                return new Promise(r => store.put({
+                    ...existing,
+                    ...payload,
+                    updatedAt: Date.now()
+                }).onsuccess = () => r());
+            }
+            const data = {
+                id,
+                ...payload,
+                timestamp: Date.now(),
+                data: payload.data || []
+            };
+
             return new Promise(r => store.put(data).onsuccess = () => r());
         }
 
@@ -376,13 +386,16 @@ backdrop-filter: blur(1px);
     async function fetchImageResolution(url) {
         // 1. URL 확장자를 통해 필요한 바이트 크기 미리 계산
         const getExpectedRange = (url) => {
-            const lowerUrl = url.toLowerCase();
-            if (lowerUrl.endsWith('.png') || lowerUrl.endsWith('.gif')) {
+            const cleanUrl = url.split('?')[0];
+            const lowerUrl = cleanUrl.toLowerCase();
+            if (url.endsWith('f=webp')) {
+                return "0-5000"; // WebP는 약 5KB 정도
+            } else if (lowerUrl.endsWith('.png') || lowerUrl.endsWith('.gif')) {
                 return "0-1000"; // PNG/GIF는 1KB면 충분함
+            } else if (lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) {
+                return "0-20000"; // JPEG나 알 수 없는 경우 20KB
             } else if (lowerUrl.endsWith('.webp')) {
                 return "0-5000"; // WebP는 약 5KB 정도
-            } else {
-                return "0-20000"; // JPEG나 알 수 없는 경우 20KB
             }
         };
 
@@ -645,8 +658,8 @@ backdrop-filter: blur(1px);
 
 
         const skipPatterns = [
-            /digital\/video\/(yrnknkjdvaj)(\d{3,})\//, // yrnknkjdvaj 스트리밍 dvaj
-            /digital\/video\/(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)\//,            
+            /digital\/video\/yrnk([a-z]*)/, // yrnknkjdvaj yrnkmtndvaj스트리밍 dvaj
+            /digital\/video\/(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)\//,
             /digital\/video\/\d+jdxa\d+/i,
         ];
 
@@ -1232,51 +1245,56 @@ backdrop-filter: blur(1px);
             const allItems = await VceDB.getAllCodes();
             if (allItems.length === 0) return alert("데이터가 없습니다.");
 
-            // [3단계 정렬 수행]
+            // 1. [1차 & 2차 정렬] 메이커와 품번으로 먼저 줄을 세웁니다.
+            // 3차 정렬(기존 순번)은 삭제로 인해 신뢰할 수 없으므로, 등록 순서(timestamp)를 활용하는 것이 좋습니다.
             allItems.sort((a, b) => {
-                // 1차: 메이커명 (일본어/영어 섞임)
                 const makerA = a.data[4] || "기타";
                 const makerB = b.data[4] || "기타";
+                if (makerA !== makerB) return makerA.localeCompare(makerB, 'ja');
 
-                if (makerA !== makerB) {
-                    // 'ja' 옵션을 주면 일본어 정렬 규칙을 더 정확히 따릅니다.
-                    return makerA.localeCompare(makerB, 'ja');
-                }
-
-                // 2차: 품번
                 if (a.displayCode !== b.displayCode) return a.displayCode.localeCompare(b.displayCode);
 
-                // 3차: sameCodeCount (숫자)
-                const seqA = a.data[a.data.length - 1] || 0;
-                const seqB = b.data[b.data.length - 1] || 0;
-                return seqA - seqB;
+                // 같은 품번 내에서는 등록 순서(timestamp)대로 순번이 매겨지도록 정렬
+                return (a.timestamp || 0) - (b.timestamp || 0);
             });
 
+            // 2. [핵심] 품번별로 현재 몇 번째인지 기억할 카운터 객체 (Map)
+            const codeCounterMap = new Map();
 
             let output = "";
             let currentMaker = "";
 
+            // 3. [데이터 순회 및 실시간 순번 부여]
             allItems.forEach(obj => {
                 const maker = obj.data[4] || "기타";
+                const code = obj.displayCode;
 
-                // 메이커가 바뀌는 지점에 주석 삽입
+                // 메이커 구분선 출력
                 if (maker !== currentMaker) {
-                    if (currentMaker !== "") output += "\n"; // 메이커 간 구분 공백
+                    if (currentMaker !== "") output += "\n";
                     currentMaker = maker;
                     output += `// ${currentMaker}\n`;
                 }
 
-                // DB에 저장된 data 배열(sameCodeCount 포함)을 그대로 JSON화하여 출력
-                output += `"${obj.displayCode}": ${JSON.stringify(obj.data)},\n`;
+                // [중요] 해당 품번(code)이 전체에서 몇 번째로 등장했는지 계산
+                // 처음 등장하면 0, 두 번째면 1, 세 번째면 2... (메이커가 바뀌어도 유지됨)
+                let currentSeq = codeCounterMap.get(code) || 0;
+                codeCounterMap.set(code, currentSeq + 1);
+
+                // 출력용 데이터 복사 및 마지막 인덱스에 순번 주입
+                const exportData = [...obj.data];
+                exportData[exportData.length - 1] = currentSeq;
+
+                output += `"${code}": ${JSON.stringify(exportData)},\n`;
             });
 
-            // 파일 다운로드 처리
+            // 4. [다운로드 처리]
             const blob = new Blob([output], { type: "text/plain" });
             const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Codes_Final_${new Date().toISOString().slice(0, 10)}.txt`;
-            a.click();
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `Codes_Fixed_${new Date().toISOString().slice(0, 10)}.txt`;
+            link.click();
             URL.revokeObjectURL(url);
         };
 
@@ -1317,7 +1335,7 @@ backdrop-filter: blur(1px);
         }
 
         const clBtn = document.createElement('button');
-        clBtn.innerText = "초기화";
+        clBtn.innerText = " 초기화 ";
         clBtn.style = "padding:4px; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
         clBtn.onclick = async () => {
             if (confirm("모든 데이터를 삭제하시겠습니까?")) {
@@ -1360,7 +1378,6 @@ backdrop-filter: blur(1px);
 
         // 수동 수집 버튼 추가
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+/.test(PageURL())) {
-            autoStatus = GM_getValue("auto_paging", { active: false });
             const btnAutoRun = document.createElement('button');
             btnAutoRun.innerText = "페이지 수집 시작";
             btnAutoRun.style = "flex:1;background:#E91E63; color:white; border:none; padding:5px 5px; font-size:10px; cursor:pointer; border-radius:3px; font-weight:bold; margin-top:5px;";
@@ -1390,6 +1407,7 @@ backdrop-filter: blur(1px);
             autoContainer.appendChild(btnStop);
 
             toggleAutoRun = (s) => {
+                const autoStatus = getState();
                 if (autoStatus.active) {
                     if (s == 0) {
                         btnStop.innerText = `수집 완료`;
@@ -1400,6 +1418,7 @@ backdrop-filter: blur(1px);
             };
             btnAutoRun.onclick = () => {
                 if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+                    const autoStatus = getState();
                     const continuePage = GetParam(autoStatus.pendingPage || PageURL(), 'page') || 1;
                     const lastP = getLastPageNumber();
                     const pageViewMode = document.querySelector('[data-e2eid="search-form"] select#sort');
@@ -1460,15 +1479,13 @@ backdrop-filter: blur(1px);
             const lastP = getLastPageNumber();
             btnStop.onclick = () => {
                 if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
-                    GM_setValue("auto_paging", { active: false, lastPage: lastP, pendingPage: PageURL() });
+                    setState({ active: false, pendingPage: PageURL() });
+                }else{
+                    setState({ active: false });
                 }
                 btnStop.innerText = "수집 정지 됨";
                 toggleAutoRun();
             };
-            toggleAutoRun();
-            if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
-                if (autoStatus.active) autoNextPage();
-            }
         }
 
         panel.appendChild(autoContainer);
@@ -1497,6 +1514,7 @@ backdrop-filter: blur(1px);
         document.body.appendChild(panel);
         updateDisplayList();
         VCE.updateResetButton();
+
     }
 
     function sleep(ms) {
@@ -1522,7 +1540,6 @@ backdrop-filter: blur(1px);
     let toggleAutoRun = null;
     let startPage = 1;
     let maxPagesLimit = 50;
-    let autoStatus = GM_getValue("auto_paging", { active: false });
 
 
     function getMaker() {
@@ -1549,14 +1566,6 @@ backdrop-filter: blur(1px);
 
         localStorage.setItem(getStorageKey(), JSON.stringify(newState));
         return newState;
-    }
-
-    function getState() {
-        try {
-            return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-        } catch {
-            return {};
-        }
     }
 
     // 마지막 페이지 번호 추출 함수
@@ -1835,6 +1844,7 @@ backdrop-filter: blur(1px);
     window.addEventListener('load', async () => {
         initializeMakerMap();
         await sleep(2000);
+        const autoStatus = getState();
         if (autoStatus.active) {
             if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+$/.test(PageURL())) {
                 startPage = 1;
