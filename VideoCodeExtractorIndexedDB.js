@@ -155,6 +155,7 @@ backdrop-filter: blur(1px);
     let currentSessionCodes = new Set();
     let isShowAllMode = false;
     let filterText = "";
+    let statusEl = "";
 
 
     const DB_CONFIG = { name: "VideoCodeExtractorDB", stores: { codes: "id", imageMeta: "url" } };
@@ -459,7 +460,7 @@ backdrop-filter: blur(1px);
                         if (bytes[12] === 0x56 && bytes[13] === 0x50 && bytes[14] === 0x38) {
                             result.width = (bytes[26] | (bytes[27] << 8)) & 0x3FFF;
                             result.height = (bytes[28] | (bytes[29] << 8)) & 0x3FFF;
-                        }
+                        }                        
                     }
 
                     if (!result.width) result.errorReason = "해상도 정보 추출 불가";
@@ -539,19 +540,7 @@ backdrop-filter: blur(1px);
         }
     }
 
-    function updateProcessingStatus(isWorking, count) {
-        let statusEl = document.getElementById('vce-status-indicator');
-        if (!statusEl) {
-            statusEl = document.createElement('div');
-            statusEl.id = 'vce-status-indicator';
-            Object.assign(statusEl.style, {
-                position: 'fixed', bottom: '10px', right: '10px',
-                padding: '5px 10px', background: 'rgba(0,0,0,0.7)',
-                color: 'white', fontSize: '12px', borderRadius: '5px', zIndex: '99999'
-            });
-            document.body.appendChild(statusEl);
-        }
-
+    function updateProcessingStatus(isWorking, count) {        
         if (isWorking) {
             statusEl.innerHTML = `⚙️ 처리 중... (대기: ${count})`;
             statusEl.style.display = 'block';
@@ -659,6 +648,7 @@ backdrop-filter: blur(1px);
 
         const skipPatterns = [
             /digital\/video\/yrnk([a-z]*)/, // yrnknkjdvaj yrnkmtndvaj스트리밍 dvaj
+            /digital\/video\/\/td048.*dv\d+([a-z0-9]*?)\//, // td008dvaj0058, td048mtndv01598
             /digital\/video\/(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)\//,
             /digital\/video\/\d+jdxa\d+/i,
         ];
@@ -1086,6 +1076,15 @@ backdrop-filter: blur(1px);
         panel.style = "position:fixed; bottom:15px; right:15px; z-index:99999; display:flex !important; flex-direction:column; background:rgba(15,15,15,0.95); padding:8px; border-radius:12px; width:280px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif; box-sizing:border-box;";
         panel.innerHTML = `<div style='font-weight:bold; font-size:10px; margin-bottom:5px; text-align:center; color:#2196F3;'>DMM CODE TRACKER</div>`;
 
+        statusEl = document.createElement('div');
+        statusEl.id = 'vce-status-indicator';
+        Object.assign(statusEl.style, { 
+            display: 'none',           
+            padding: '5px 10px', background: 'rgba(0,0,0,0.7)',
+            color: 'white', fontSize: '12px', borderRadius: '5px', zIndex: '99999'
+        });
+        panel.appendChild(statusEl);        
+
         alertStatus = document.createElement('div');
         alertStatus.style = "font-size:11px; text-align:center; line-height:1.4;";
         panel.appendChild(alertStatus);
@@ -1234,12 +1233,26 @@ backdrop-filter: blur(1px);
         panel.appendChild(listContainer);
 
         const btnContainer = document.createElement('div');
-        btnContainer.style = "display:flex; gap:5px;";
+        btnContainer.style = "display:grid; grid-template-columns: repeat(4,auto); gap:5px;";
 
         // 1. 기존 품번(Codes) 다운로드 버튼
         const dlBtn = document.createElement('button');
         dlBtn.innerText = "품번 저장";
         dlBtn.style = "padding:4px; background:#4CAF50; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
+        const metaDlBtn = document.createElement('button');
+        metaDlBtn.innerText = "메타 저장";
+        metaDlBtn.style = "padding:4px; background:#2196F3; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
+        const clBtn = document.createElement('button');
+        clBtn.innerText = " 초기화 ";
+        clBtn.style = "padding:4px; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
+        const resetBtn = document.createElement('button');
+        resetBtn.innerText = "DB초기화";
+        resetBtn.style.cssText = `padding:4px; background-color: #ff4d4d; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;`;
+
+        btnContainer.appendChild(dlBtn);
+        btnContainer.appendChild(metaDlBtn);
+        btnContainer.append(clBtn);
+        btnContainer.appendChild(resetBtn);
 
         dlBtn.onclick = async () => {
             const allItems = await VceDB.getAllCodes();
@@ -1298,11 +1311,6 @@ backdrop-filter: blur(1px);
             URL.revokeObjectURL(url);
         };
 
-        // 2. 신규 이미지 메타(ImageMeta) 다운로드 버튼
-        const metaDlBtn = document.createElement('button');
-        metaDlBtn.innerText = "메타 저장";
-        metaDlBtn.style = "padding:4px; background:#2196F3; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
-
         metaDlBtn.onclick = async () => {
             const db = await VceDB.open();
             const allMeta = await new Promise(r => {
@@ -1333,10 +1341,7 @@ backdrop-filter: blur(1px);
             a.click();
             URL.revokeObjectURL(url);
         }
-
-        const clBtn = document.createElement('button');
-        clBtn.innerText = " 초기화 ";
-        clBtn.style = "padding:4px; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
+        
         clBtn.onclick = async () => {
             if (confirm("모든 데이터를 삭제하시겠습니까?")) {
                 const db = await VceDB.open();
@@ -1344,18 +1349,7 @@ backdrop-filter: blur(1px);
                 currentSessionCodes.clear();
                 updateDisplayList();
             }
-        };
-        btnContainer.appendChild(dlBtn);
-        btnContainer.appendChild(metaDlBtn);
-        btnContainer.append(clBtn);
-
-
-
-
-        const resetBtn = document.createElement('button');
-        resetBtn.innerText = "DB초기화";
-        resetBtn.style.cssText = `flex:1; padding:4px; background-color: #ff4d4d; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;`;
-
+        };        
         resetBtn.onclick = async () => {
             if (confirm("주의: 모든 저장된 코드와 이미지 메타데이터가 삭제됩니다. 계속하시겠습니까?")) {
                 try {
@@ -1368,13 +1362,11 @@ backdrop-filter: blur(1px);
             }
         };
 
-        btnContainer.appendChild(resetBtn);
-
-
         panel.appendChild(btnContainer);
+              
 
         const autoContainer = document.createElement('div');
-        autoContainer.style = "display:flex; gap:5px;";
+        autoContainer.style = "display: flex; gap:5px;";
 
         // 수동 수집 버튼 추가
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+/.test(PageURL())) {
@@ -1476,15 +1468,13 @@ backdrop-filter: blur(1px);
                 }
             };
 
-            const lastP = getLastPageNumber();
             btnStop.onclick = () => {
                 if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
                     setState({ active: false, pendingPage: PageURL() });
                 }else{
                     setState({ active: false });
                 }
-                btnStop.innerText = "수집 정지 됨";
-                toggleAutoRun();
+                btnStop.innerText = "수집 정지 됨";                
             };
         }
 
