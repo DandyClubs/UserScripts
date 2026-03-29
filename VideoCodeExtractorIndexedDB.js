@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Code Extractor IndexedDB 고도화
 // @namespace    http://tampermonkey.net/
-// @version      4.3.9
+// @version      4.3.10
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
@@ -544,12 +544,12 @@ backdrop-filter: blur(1px);
         if (isWorking) {
             statusEl.innerHTML = `
                 <span style = "display:inline-flex; align-items:center; gap:6px;">
-                    <svg width="16" height="10" viewBox="0 0 56 32" fill="none">
+                    <svg width="24" height="14" viewBox="0 0 56 32" fill="none">
                         <rect x="1" y="1" width="54" height="30" rx="4" stroke="currentColor" stroke-width="2" />
                         <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
                             font-size="14" font-weight="bold" fill="currentColor">4K</text>
                     </svg>
-   해상도 확중 중... (대기: ${count})</span>
+   해상도 확인 중... (대기: ${count})</span>
 `;            
         } else {
             statusEl.style.display = 'none';
