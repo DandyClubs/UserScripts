@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Code Extractor IndexedDB 고도화
 // @namespace    http://tampermonkey.net/
-// @version      4.3.10
+// @version      4.3.12
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
@@ -541,7 +541,7 @@ backdrop-filter: blur(1px);
     }
 
     function updateProcessingStatus(isWorking, count) {
-        if (isWorking) {
+        if (isWorking && count > 0) {
             statusEl.innerHTML = `
                 <span style = "display:inline-flex; align-items:center; gap:6px;">
                     <svg width="24" height="14" viewBox="0 0 56 32" fill="none">
@@ -550,8 +550,19 @@ backdrop-filter: blur(1px);
                             font-size="14" font-weight="bold" fill="currentColor">4K</text>
                     </svg>
    해상도 확인 중... (대기: ${count})</span>
-`;            
-        } else {
+`;
+        } else if (isWorking) {
+            statusEl.innerHTML = `
+                <span style = "display:inline-flex; align-items:center; gap:6px;">
+                    <svg width="24" height="14" viewBox="0 0 56 32" fill="none">
+                        <rect x="1" y="1" width="54" height="30" rx="4" stroke="currentColor" stroke-width="2" />
+                        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+                            font-size="14" font-weight="bold" fill="currentColor">4K</text>
+                    </svg>
+   해상도 확인 완료</span>
+   `;
+        }
+        else {
             statusEl.style.display = 'none';
         }
     }
@@ -955,18 +966,20 @@ backdrop-filter: blur(1px);
                         if (target) {
                             target.container.lastElementChild.click();
                         }
+                        setState({ active: true });
                         setTimeout(() => location.reload(), 500); // 0.5초 뒤 새로고침
                         return false; // Swal이 자동으로 닫히지 않게 하거나 reload로 종료
                     };
                 } else {
                     // [상황 2] 정상적인 수집 시작                    
                     swalConfig.title = '수집을 시작하시겠습니까?';
-                    swalConfig.html = `<b>${continuePage}</b>페이지부터 <b>${lastP}</b>페이지까지 수집합니다.<br><br>페이지 표시 갯수(<b>${count}</b>)와 새로고침 여부를 확인하셨나요?`;
+                    swalConfig.html = `<b>${continuePage}</b>페이지부터 <b>${lastP}</b>페이지까지 수집합니다.<br><br>페이지 표시 갯수(<b>${count}</b>)와 새로고침 여부를 확인하셨나요?<br><br>첫 페이지부터 다시 하려면 수집하기 버튼 옆 이어하기 초기화 아이콘을 클릭하세요!`;
                     swalConfig.confirmButtonText = '네, 시작합니다!';
 
                     // 확인 시 동작: 수집 로직 실행
                     swalConfig.preConfirm = () => {
                         startAuto();
+                        setState({ active: true });
                         toggleAutoRun();
                     };
                 }
@@ -977,6 +990,7 @@ backdrop-filter: blur(1px);
 
                 // 확인 시 동작: 수집 로직 실행
                 swalConfig.preConfirm = () => {
+                    setState({ active: true });
                     window.location.href = UpdateParam(PageURL(), 'media_type', '2d');
                 };
             }
@@ -1247,10 +1261,10 @@ backdrop-filter: blur(1px);
         metaDlBtn.innerText = "메타 저장";
         metaDlBtn.style = "padding:4px; background:#2196F3; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
         const clBtn = document.createElement('button');
-        clBtn.innerText = " 초기화 ";
+        clBtn.innerText = "품번 리셋 ";
         clBtn.style = "padding:4px; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;";
         const resetBtn = document.createElement('button');
-        resetBtn.innerText = "DB초기화";
+        resetBtn.innerText = "DB리셋";
         resetBtn.style.cssText = `padding:4px; background-color: #ff4d4d; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;`;
 
         btnContainer.appendChild(dlBtn);
@@ -1347,7 +1361,7 @@ backdrop-filter: blur(1px);
         }
 
         clBtn.onclick = async () => {
-            if (confirm("모든 데이터를 삭제하시겠습니까?")) {
+            if (confirm("수집한 품번 데이터를 삭제하시겠습니까?")) {
                 const db = await VceDB.open();
                 db.transaction("codes", "readwrite").objectStore("codes").clear();
                 currentSessionCodes.clear();
@@ -1751,6 +1765,8 @@ backdrop-filter: blur(1px);
 
     async function autoLoop() {
         let guard = 0;
+        const pagination = document.querySelector('ul[data-e2eid="pagination"]');
+        if (!pagination) return;
 
         while (true) {
             const autoStatus = getState();
@@ -1765,9 +1781,15 @@ backdrop-filter: blur(1px);
                 break;
             }
 
-            console.log("[Auto] 대기...");
+            //console.log("[Auto] 대기...");
 
-            const waitTime = getRandomDelay();
+            let waitTime;
+            const currentstartPage = pagination.querySelector('li:nth-child(2) p.text-white');
+            if (currentstartPage) {
+                waitTime = 1000;
+            } else {
+                waitTime = getRandomDelay();
+            }
 
             const ok = await countdown(waitTime);
             if (!ok) break;
@@ -1850,6 +1872,9 @@ backdrop-filter: blur(1px);
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
             mutCallback();
             observer.observe(document.body, { childList: true, subtree: true });
+            if (autoStatus.active) {
+                startAuto();
+            }
         }
 
         refreshQueueButton();
