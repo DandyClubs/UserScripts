@@ -511,9 +511,9 @@ backdrop-filter: blur(1px);
                 const imageEl = document.querySelector('div.grid div.flex a picture source');
                 if (imageEl) {
                     document.addEventListener('click', (e) => {
+                        e.preventDefault();
                         const CoverDownload = e.target.closest('.CoverDownload');
-                        if (CoverDownload) {
-                            e.preventDefault();
+                        if (CoverDownload) {                            
                             const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
                             const result = parse(document.body);
                             if (!result || !result.realCode) return;
@@ -531,7 +531,7 @@ backdrop-filter: blur(1px);
                                 link.download = `${finalFileName}.txt`;
                                 link.click();
                                 URL.revokeObjectURL(dataurl);
-                                forceDownload(cleanUrl, finalFileName + '.jpg');                                                                
+                                forceDownload(cleanUrl, finalFileName + '.jpg');
                             }
                         }
                     });
@@ -2511,28 +2511,42 @@ backdrop-filter: blur(1px);
                     config.rawImageDownloader();
                 }
                 resolve(element);
-            }
-            const observer = new MutationObserver((mutations, obs) => {
-                const found = targetNode.querySelector(selector);
-                if (found) {
-                    const mainVideo = document.querySelector(selector);
-                    if (mainVideo) {
-                        if (coverDownloadIcon) coverDownloadIcon.remove();
-                        coverDownloadIcon = document.createElement('div');
-                        coverDownloadIcon.classList.add('CoverDownload', 'fa-regular', 'fa-image');
-                        coverDownloadIcon.style = `color: dodgerblue !important; bottom: 0; right: 0;`;
-                        mainVideo.appendChild(coverDownloadIcon);
-                        config.rawImageDownloader();
+            } else {
+                const observer = new MutationObserver((mutations, obs) => {
+                    const found = targetNode.querySelector(selector);
+                    if (found) {
+                        const mainVideo = document.querySelector(selector);
+                        if (mainVideo) {
+                            if (coverDownloadIcon) coverDownloadIcon.remove();
+                            coverDownloadIcon = document.createElement('div');
+                            coverDownloadIcon.classList.add('CoverDownload', 'fa-regular', 'fa-image');
+                            coverDownloadIcon.style = `color: dodgerblue !important; bottom: 0; right: 0;`;
+                            mainVideo.appendChild(coverDownloadIcon);
+                            config.rawImageDownloader();
+                        }
+                        obs.disconnect();
+                        resolve(found);
                     }
-                    obs.disconnect();
-                    resolve(found);
-                }
-            });
+                });
 
-            observer.observe(targetNode, {
-                childList: true,
-                subtree: true
-            });
+                observer.observe(targetNode, {
+                    childList: true,
+                    subtree: true
+                });
+            }
+        });
+    }
+
+
+    function forceDownload(url, fileName) {
+        GM_xmlhttpRequest({
+            method: "GET",
+            url: url,
+            responseType: 'blob',
+            onload: function (res) {
+                //console.log(res.response, fileName)
+                saveAs(res.response, fileName);
+            }
         });
     }
 
