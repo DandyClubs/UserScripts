@@ -427,18 +427,6 @@ backdrop-filter: blur(1px);
         }
     }
 
-    function forceDownload(url, fileName) {
-        GM_xmlhttpRequest({
-            method: "GET",
-            url: url,
-            responseType: 'blob',
-            onload: function (res) {
-                //console.log(res.response, fileName)
-                saveAs(res.response, fileName);
-            }
-        });
-    }
-
     function findIdsByName(map, targetName, mode = 'id') {
         const resultIds = [];
 
@@ -535,10 +523,15 @@ backdrop-filter: blur(1px);
                             const url = imageEl.closest('a')?.href;
                             if (url) {
                                 const cleanUrl = url.split('?')[0];
-                                forceDownload(cleanUrl, finalFileName + '.jpg');
                                 const output = Object.entries(result).map(([key, value]) => `${key}: ${value}`).join('\n').replace(/^,/gm, '');
                                 const blob = new Blob([output], { type: "text/plain:charset=utf-8" });
-                                saveAs(blob, finalFileName + '.txt');
+                                const dataurl = URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = dataurl;
+                                link.download = `${finalFileName}.txt`;
+                                link.click();
+                                URL.revokeObjectURL(dataurl);
+                                forceDownload(cleanUrl, finalFileName + '.jpg');                                                                
                             }
                         }
                     });
