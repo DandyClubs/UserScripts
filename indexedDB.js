@@ -2491,12 +2491,12 @@ backdrop-filter: blur(1px);
         return new Promise((resolve, reject) => {
             const element = targetNode.querySelector(selector);
 
-            if (element.parentElement) {
+            if (element) {
                 resolve(element);
             }
             const observer = new MutationObserver((mutations, obs) => {
                 const found = targetNode.querySelector(selector);
-                if (found.parentElement) {
+                if (found) {
                     obs.disconnect();
                     resolve(found);
                 }
@@ -2534,14 +2534,14 @@ backdrop-filter: blur(1px);
             const config = siteConfigs['FANZA_DIGITAL'];
             if (config) {
                 config.addDB();
-                const mainVideo = document.querySelector('div iframe[title]');
+                let mainVideo = document.querySelector('div.flex.flex-col.relative.w-full');
                 if (mainVideo) {
-                    mainVideo.parentElement?.insertAdjacentHTML('beforeend', '<div class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></div>');
+                    mainVideo.insertAdjacentHTML('beforeend', `<div class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></div>`);
                     config.rawImageDownloader();
-                } else {
-                    await sleep(3000);
-                    waitElement('iframe[title]').then(e => {
-                        mainVideo.parentElement?.insertAdjacentHTML('beforeend', '<div class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></div>');
+                } else {                    
+                    waitElement('div.flex.flex-col.relative.w-full').then(e => {
+                        mainVideo = document.querySelector('div.flex.flex-col.relative.w-full');                    
+                        mainVideo.insertAdjacentHTML('beforeend', `<div class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></div>`);
                         config.rawImageDownloader();
                     });
                 }                              
