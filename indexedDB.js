@@ -1,14 +1,18 @@
 // ==UserScript==
-// @name         Video Code Extractor IndexedDB 고도화
+// @name         VideoCode & MetaData Extractor IndexedDB 고도화 5.0
 // @namespace    http://tampermonkey.net/
-// @version      4.3.15
+// @version      5.1
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
 // @match        https://video.dmm.co.jp/av/maker/*
+// @match        https://www.dmm.co.jp/mono/dvd/-/detail/=/cid=*
+// @match        https://video.dmm.co.jp/av/content/?id=*
 // @resource     MAKER_MAP https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/DMM_MakerMap_2026-03-26.json
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @require      https://cdn.jsdelivr.net/npm/sweetalert2@11.26.24/dist/sweetalert2.all.min.js
+// @require      https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // @grant        GM_getResourceText
 // @grant        GM_addStyle
 // @grant        GM_setValue
@@ -19,11 +23,21 @@
 // @run-at       document-body
 // @connect      dmm.co.jp
 // @connect      prestige-av.com
+// @connect      av-wiki.net
+// @connect      *
 // @noframes
 // ==/UserScript==
 
 (function () {
     'use strict';
+
+    const FontAwesomeCSS = function () {
+        let css = document.createElement('link');
+        css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css';
+        css.rel = 'stylesheet';
+        css.type = 'text/css';
+        document.getElementsByTagName('head')[0].appendChild(css);
+    };
 
     GM_addStyle(`
     .videocodeextractor {
@@ -78,6 +92,17 @@ backdrop-filter: blur(1px);
 
 .swal2-styled {
     padding: 5px 15px !important; /* 버튼 크기 축소 */
+}
+
+.CoverDownload {
+	cursor: pointer;
+	text-shadow: 2px 4px 4px rgba(0,0,0,0.2),
+                 0px -5px 10px rgba(255,255,255,0.15);
+	padding: .5rem;
+	margin: .5rem;
+    bottom: 0;
+    right: 0;
+    position: absolute;
 }
     `);
 
@@ -157,17 +182,33 @@ backdrop-filter: blur(1px);
     let filterText = "";
     let statusEl = null;
 
-
-    const DB_CONFIG = { name: "VideoCodeExtractorDB", stores: { codes: "id", imageMeta: "url" } };
+    const DB_CONFIG = { name: "VideoCodeExtractorDB" };
     const DB_VERSION_KEY = "VideoCodeExtractorDB_LAST_DB_VERSION"; // GM에 저장할 키 이름
+
+    const DB_SCHEMA = {
+        codes: {
+            keyPath: "id", // uniqueKey
+            indexes: [
+                { name: "displayCode", keyPath: "displayCode", unique: false }
+            ]
+        },
+        imageMeta: {
+            keyPath: "url", // originalImage
+            indexes: [
+                { name: "displayCode", keyPath: "displayCode", unique: false },
+                { name: "contentId", keyPath: "contentId", unique: false },
+                { name: "uniqueKey", keyPath: "uniqueKey", unique: false },
+                { name: "realCode", keyPath: "realCode", unique: false },
+                { name: "resolution", keyPath: "resolution", unique: false } // 스케줄러 핵심 인덱스
+            ]
+        }
+    };
 
     class VceDB {
         /**
-         * DB를 열고 구조를 최신화합니다.
-         * @returns {Promise<IDBDatabase>}
+         * DB를 열고 스키마를 검증한 후, 필요시 강제 업그레이드를 수행합니다.
          */
         static async open() {
-            // 1. GM 저장소에서 마지막 기록된 버전을 가져옵니다. (없으면 기본값 1)
             let targetVersion = GM_getValue(DB_VERSION_KEY, 1);
 
             const connect = (version) => new Promise((resolve, reject) => {
@@ -176,34 +217,20 @@ backdrop-filter: blur(1px);
                 request.onupgradeneeded = (e) => {
                     const db = e.target.result;
                     const tx = e.currentTarget.transaction;
+                    console.log(`[DB Upgrade] 버전 ${version}으로 업데이트 및 구조 재구성 중...`);
 
-                    console.log(`[DB Upgrade] 버전 ${version}으로 업데이트 중...`);
+                    for (const [storeName, config] of Object.entries(DB_SCHEMA)) {
+                        let store = db.objectStoreNames.contains(storeName)
+                            ? tx.objectStore(storeName)
+                            : db.createObjectStore(storeName, { keyPath: config.keyPath });
 
-                    // --- [1. codes 스토어 생성 및 인덱스 관리] ---
-                    if (!db.objectStoreNames.contains("codes")) {
-                        const store = db.createObjectStore("codes", { keyPath: "id" });
-                        store.createIndex("patternKey", "patternKey", { unique: false });
-                    } else {
-                        const store = tx.objectStore("codes");
-                        if (!store.indexNames.contains("patternKey")) {
-                            store.createIndex("patternKey", "patternKey", { unique: false });
-                        }
+                        config.indexes.forEach(idx => {
+                            if (!store.indexNames.contains(idx.name)) {
+                                store.createIndex(idx.name, idx.keyPath, { unique: idx.unique });
+                            }
+                        });
                     }
-
-                    // --- [2. imageMeta 스토어 생성 및 인덱스 관리] ---
-                    if (!db.objectStoreNames.contains("imageMeta")) {
-                        const store = db.createObjectStore("imageMeta", { keyPath: "url" });
-                        store.createIndex("patternKey", "patternKey", { unique: false });
-                        store.createIndex("status", "status", { unique: false });
-                    } else {
-                        const store = tx.objectStore("imageMeta");
-                        if (!store.indexNames.contains("patternKey")) {
-                            store.createIndex("patternKey", "patternKey", { unique: false });
-                        }
-                        if (!store.indexNames.contains("status")) {
-                            store.createIndex("status", "status", { unique: false });
-                        }
-                    }
+                    console.log(`[DB Upgrade] 버전 ${db.version}으로 업데이트 및 구조 재구성 완료!`);
                 };
 
                 request.onsuccess = (e) => {
@@ -211,37 +238,44 @@ backdrop-filter: blur(1px);
                     GM_setValue(DB_VERSION_KEY, db.version);
                     resolve(db);
                 };
-
                 request.onerror = (e) => reject(e.target.error);
             });
 
             try {
                 let db = await connect(targetVersion);
 
-                // [방어 로직] 실제로 저장소와 인덱스가 모두 존재하는지 최종 검사
-                const hasCodes = db.objectStoreNames.contains("codes");
-                const hasImageMeta = db.objectStoreNames.contains("imageMeta");
-
-                let needsUpgrade = !hasCodes || !hasImageMeta;
-
-                if (!needsUpgrade && hasCodes) {
-                    const tx = db.transaction("codes", "readonly");
-                    if (!tx.objectStore("codes").indexNames.contains("patternKey")) {
+                // --- [방어 로직: SCHEMA 기반 전수 조사] ---
+                let needsUpgrade = false;
+                for (const [storeName, config] of Object.entries(DB_SCHEMA)) {
+                    if (!db.objectStoreNames.contains(storeName)) {
                         needsUpgrade = true;
+                        break;
+                    }
+
+                    // 인덱스 존재 여부 검사 (readonly 트랜잭션 활용)
+                    const tx = db.transaction(storeName, "readonly");
+                    const store = tx.objectStore(storeName);
+                    const hasAllIndexes = config.indexes.every(idx => store.indexNames.contains(idx.name));
+
+                    if (!hasAllIndexes) {
+                        needsUpgrade = true;
+                        break;
                     }
                 }
 
                 if (needsUpgrade) {
-                    console.warn("DB 구조 누락 발견: 버전을 올려 재구성을 강제합니다.");
+                    console.warn("DB 구조 누락 발견: 강제 업그레이드를 시작합니다.");
                     const nextVer = db.version + 1;
                     db.close();
                     return await connect(nextVer);
                 }
 
                 return db;
+
             } catch (err) {
                 // 버전 충돌(VersionError) 발생 시 최신 버전 파악 후 재시도
                 if (err.name === "VersionError") {
+                    console.warn("버전 충돌 발생: 최신 버전을 확인하여 재시도합니다.");
                     return new Promise(resolve => {
                         const req = indexedDB.open(DB_CONFIG.name);
                         req.onsuccess = (e) => {
@@ -256,105 +290,117 @@ backdrop-filter: blur(1px);
             }
         }
 
-        // --- 데이터 조작 메서드들 ---
+        // --- 공통 CRUD 메서드 ---
 
-        static async getCode(id) {
-            const db = await this.open();
-            return new Promise(r => db.transaction("codes").objectStore("codes").get(id).onsuccess = e => r(e.target.result));
-        }
-
-        static async saveCode(id, payload) {
-            const db = await this.open();
-            const tx = db.transaction("codes", "readwrite");
-            const store = tx.objectStore("codes");
-
-            // 1. 기존 데이터 확인
-            const existing = await new Promise(r => store.get(id).onsuccess = e => r(e.target.result));
-
-            if (existing) {
-                // 기존 데이터 업데이트 (수정 시)
-                return new Promise(r => store.put({
-                    ...existing,
-                    ...payload,
-                    updatedAt: Date.now()
-                }).onsuccess = () => r());
-            }
-            const data = {
-                id,
-                ...payload,
-                timestamp: Date.now(),
-                data: payload.data || []
-            };
-
-            return new Promise(r => store.put(data).onsuccess = () => r());
-        }
-
-        static async getAllCodes() {
-            const db = await this.open();
-            return new Promise(r => db.transaction("codes").objectStore("codes").getAll().onsuccess = e => r(e.target.result));
-        }
-
-        static async deleteCode(id) {
-            const db = await this.open();
-            return new Promise(r => db.transaction("codes", "readwrite").objectStore("codes").delete(id).onsuccess = () => r());
-        }
-
-        static async getCodeByPattern(patternKey) {
+        // 데이터 하나 가져오기
+        static async get(storeName, key) {
             const db = await this.open();
             return new Promise(r => {
-                const tx = db.transaction("codes", "readonly");
-                const store = tx.objectStore("codes");
+                const req = db.transaction(storeName, "readonly").objectStore(storeName).get(key);
+                req.onsuccess = e => r(e.target.result);
+            });
+        }
+
+        // 데이터 저장 (기존 데이터가 있으면 병합)
+        static async save(storeName, key, payload) {
+            const db = await this.open();
+            const tx = db.transaction(storeName, "readwrite");
+            const store = tx.objectStore(storeName);
+            const keyPath = DB_SCHEMA[storeName].keyPath;
+
+            const existing = await new Promise(r => store.get(key).onsuccess = e => r(e.target.result));
+
+            const data = existing
+                ? { ...existing, ...payload, updatedAt: Date.now() } // 기존 데이터와 합치기
+                : { [keyPath]: key, ...payload, createdAt: Date.now(), updatedAt: Date.now() }; // 신규 생성
+
+            return new Promise(r => store.put(data).onsuccess = () => r(data));
+        }
+
+        // 인덱스로 데이터 검색 (예: status가 'pending'인 것 찾기)
+        static async getByIndex(storeName, indexName, value) {
+            const db = await this.open();
+            return new Promise(r => {
                 try {
-                    const index = store.index("patternKey");
-                    index.get(patternKey).onsuccess = (e) => r(e.target.result);
+                    const index = db.transaction(storeName, "readonly").objectStore(storeName).index(indexName);
+                    index.get(value).onsuccess = e => r(e.target.result);
                 } catch (e) { r(null); }
             });
         }
 
-        static async setImageMeta(meta) {
-            const db = await this.open();
-            return new Promise(r => db.transaction("imageMeta", "readwrite").objectStore("imageMeta").put({ ...meta, updatedAt: Date.now() }).onsuccess = () => r());
-        }
-
-        static async getImageMeta(url) {
-            const db = await this.open();
-            return new Promise(r => {
-                const tx = db.transaction("imageMeta", "readonly");
-                tx.objectStore("imageMeta").get(url).onsuccess = e => r(e.target.result);
-            });
-        }
-
-        static async getSchedulableTasks() {
+        static async getAllData(storeName) {
             const db = await this.open();
             return new Promise((resolve, reject) => {
-                const tx = db.transaction("imageMeta", "readwrite");
-                const store = tx.objectStore("imageMeta");
+                const tx = db.transaction(storeName, "readonly");
+                const store = tx.objectStore(storeName);
                 const request = store.getAll();
 
                 request.onsuccess = (e) => {
-                    const now = Date.now();
-                    const TIMEOUT = 5 * 60 * 1000;
-                    const tasksToRun = e.target.result.filter(task => {
-                        if (task.status === "pending") return !task.nextRetryAt || task.nextRetryAt <= now;
-                        if (task.status === "processing") return task.lastStartTime && (now - task.lastStartTime) > TIMEOUT;
-                        return false;
-                    });
+                    tx.oncomplete = () => resolve(request.result);
+                };
+                request.onerror = (err) => reject(err);
+            });
+        }
 
-                    for (const task of tasksToRun) {
-                        task.status = "processing";
-                        task.lastStartTime = now;
-                        store.put(task);
+        static async deleteAll(storeName, indexName, value) {
+            const db = await this.open();
+
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, "readwrite");
+                const store = tx.objectStore(storeName);
+
+                let target = store;
+
+                if (indexName) {
+                    target = store.index(indexName);
+                }
+
+                const range = IDBKeyRange.only(value);
+                const cursorReq = target.openCursor(range);
+
+                let deleteCount = 0;
+
+                cursorReq.onsuccess = (e) => {
+                    const cursor = e.target.result;
+                    if (cursor) {
+                        cursor.delete();
+                        deleteCount++;
+                        cursor.continue();
                     }
+                };
 
+                cursorReq.onerror = () => reject(cursorReq.error);
+                tx.oncomplete = () => resolve(deleteCount);
+                tx.onerror = () => reject(tx.error);
+            });
+        }
+
+
+        static async getSchedulableTasks(storeName) {
+            const db = await this.open();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, "readwrite");
+                const store = tx.objectStore(storeName);
+                const request = store.getAll();
+
+                request.onsuccess = (e) => {
+                    const tasksToRun = e.target.result.filter(task => !task.metaStatus !== 'SUCCESS' || task.resolutionmetaStatus !== 'SUCCESS');
                     tx.oncomplete = () => resolve(tasksToRun);
                 };
                 request.onerror = (err) => reject(err);
             });
         }
 
+        // 전체 삭제
+        static async delete(storeName, key) {
+            const db = await this.open();
+            return new Promise(r => db.transaction(storeName, "readwrite").objectStore(storeName).delete(key).onsuccess = () => r());
+        }
+
+
         /**
-     * 데이터베이스를 완전히 삭제하고 초기화합니다.
-     */
+    * 데이터베이스를 완전히 삭제하고 초기화합니다.
+    */
         static async resetDatabase() {
             return new Promise((resolve, reject) => {
                 // 현재 연결된 DB가 있다면 닫아야 삭제가 가능할 수 있습니다.
@@ -381,10 +427,446 @@ backdrop-filter: blur(1px);
         }
     }
 
-    const requestQueue = [];
-    let isIdleProcessing = false;
+    function forceDownload(url, fileName) {
+        GM_xmlhttpRequest({
+            method: "GET",
+            url: url,
+            responseType: 'blob',
+            onload: function (res) {
+                //console.log(res.response, fileName)
+                saveAs(res.response, fileName);
+            }
+        });
+    }
 
-    async function fetchImageResolution(url) {
+    function findIdsByName(map, targetName) {
+        const resultIds = [];
+
+        // Map의 [key, value] 쌍을 순회합니다.
+        for (const [id, data] of map.entries()) {
+            // original이나 final 중 하나라도 targetName과 같다면 id를 추가
+            if (data.original === targetName || data.final === targetName) {
+                return id;
+            }
+        }
+        return null;
+    }
+
+
+    const siteConfigs = {
+        DMM: {
+            ContentIdBuilder: (data) => {
+                const full = NumberFormatter.pad(data.number, data.padLen);   // 00001
+                const short = NumberFormatter.trimAndMinPad(data.number, 3); // 001
+
+                const prefix = data.displayCode.split('-')[0].toLowerCase();
+
+                return [
+                    `${prefix}${full}`,   // 정식
+                    `${prefix}${short}`   // fallback
+                ];
+            },
+            buildUrls: async (meta) => {
+                const data = await getCodeData(meta);
+                if (!data) return [];
+
+                const searchCodes = siteConfigs.DMM.ContentIdBuilder(data);
+                return searchCodes.map(cid =>
+                    `https://www.dmm.co.jp/mono/dvd/-/detail/=/cid=${cid}/`
+                );
+            },
+            titleSelector: 'div.page-detail div.area-headline div.hreview h1#title',
+            InfoSelector: 'div.wrapper-detailContents div.wrapper-product table',
+            realCodeKeys: ['品番'],
+            seriesKeys: ['シリーズ'],
+            labelKeys: ['レーベル'],
+            castKeys: ['出演者'],
+            releaseDateKeys: ['発売日'],
+            makerLabel: ['メーカー'],
+        },
+        FANZA_DIGITAL: {
+            addDB: async () => {
+                const imageEl = document.querySelector('div.grid div.flex a picture source');
+                if (imageEl) {
+                    const url = imageEl.closest('a')?.href;
+                    if (url) {                        
+                        const cleanUrl = url.split('?')[0];
+                        const existingMeta = await VceDB.get('imageMeta', cleanUrl);
+                        if (existingMeta.sourceSite === 'FANZA_DIGITAL') return;
+                        imageEl.classList.add(PROCESSED_CLASS);
+                        const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
+                        const result = parse(document.body);                        
+                        if (!result || !result.realCode) return;
+                        if (result.makerLabel) {
+                            const makerLabelCode = findIdsByName(makerMap, result.makerLabel);
+                            if (makerLabelCode) processWork(cleanUrl, '2D', makerLabelCode, result.makerLabel);
+                            await sleep(1000);
+                            const existingMeta = await VceDB.get('imageMeta', cleanUrl);
+                            if (existingMeta) {
+                                let metaData = {};
+                                if (result) {
+                                    metaData = {
+                                        ...result,
+                                        sourceSite: 'FANZA_DIGITAL',
+                                        metaStatus: 'SUCCESS'
+                                    };
+                                    await VceDB.save("imageMeta", cleanUrl, metaData);
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            rawImageDownloader: () => {
+                const imageEl = document.querySelector('div.grid div.flex a picture source');
+                if (imageEl) {
+                    document.addEventListener('click', (e) => {
+                        const CoverDownload = e.target.closest('.CoverDownload');
+                        if (CoverDownload) {
+                            e.preventDefault();
+                            const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
+                            const result = parse(document.body);
+                            if (!result || !result.realCode) return;                            
+                            const fileName = `${result.realCode} ${result.title}`;
+                            const url = imageEl.closest('a')?.href;
+                            if (url) {
+                                const cleanUrl = url.split('?')[0];
+                                forceDownload(cleanUrl, fileName + '.jpg');
+                                const output = Object.entries(result).map(([key, value]) => value).join('\n').replace(/^,/gm, '');                                
+                                const blob = new Blob([output], { type: "text/plain:charset=utf-8" });                                
+                                const texturl = URL.createObjectURL(blob);
+                                const link = document.createElement('a');
+                                link.href = texturl;
+                                link.download = fileName + `.txt`;
+                                link.click();
+                                URL.revokeObjectURL(url);
+                            }
+                        }
+                    });
+                }
+            },
+
+            ContentIdBuilder: (data) => {
+                const full = NumberFormatter.pad(data.number, data.padLen);   // 00001
+                const short = NumberFormatter.trimAndMinPad(data.number, 3); // 001
+
+                const prefix = data.displayCode.split('-')[0].toLowerCase();
+
+                return [
+                    `${prefix}${full}`,   // 정식
+                    `${prefix}${short}`   // fallback
+                ];
+            },
+            buildUrls: async (meta) => {
+                const data = await getCodeData(meta);
+                if (!data) return [];
+
+                const searchCodes = siteConfigs.DMM.ContentIdBuilder(data);
+                return searchCodes.map(cid =>
+                    `https://www.dmm.co.jp/mono/dvd/-/detail/=/cid=${cid}/`
+                );
+            },
+            titleSelector: 'h1.font-bold.text-2xl.inline.text-base',
+            InfoSelector: 'table.text-xs.shrink.table-fixed',
+            realCodeKeys: ['メーカー品番'],
+            seriesKeys: ['シリーズ'],
+            labelKeys: ['レーベル'],
+            castKeys: ['出演者'],
+            releaseDateKeys: ['商品発売日'],
+            makerLabel: ['メーカー'],
+        },
+        AVWiki: {
+            ContentIdBuilder: (data) => {
+                const num = NumberFormatter.trimAndMinPad(data.number, 3);
+                return [
+                    `${data.displayCode.toLowerCase()}-${num}`,
+                ];
+            },
+            buildUrls: async (meta) => {
+                const data = await getCodeData(meta);
+                if (!data) return [];
+
+                const searchCodes = siteConfigs.AVWiki.ContentIdBuilder(data);
+                return searchCodes.map(cid =>
+                    `https://av-wiki.net/${cid}/`
+                );
+            },
+            titleSelector: 'div.article-header h1.entry-title',
+            InfoSelector: 'section.article-body dl.dltable',
+            realCodeKeys: ['メーカー品番'],
+            seriesKeys: ['シリーズ'],
+            labelKeys: ['レーベル'],
+            castKeys: ['AV女優名'],
+            releaseDateKeys: ['配信開始日'],
+            makerLabel: ['メーカー'],
+        },
+    };
+
+
+    const NumberFormatter = {
+        // 그대로 (DMM 스타일)
+        pad(num, length) {
+            return num.toString().padStart(length, '0');
+        },
+
+        // 앞 0 제거
+        noPad(num) {
+            return String(Number(num));
+        },
+
+        // 최소 자리 보장 (ex: 3자리)
+        minPad(num, minLen) {
+            return num.toString().padStart(minLen, '0');
+        },
+
+        // 하이브리드 (앞 0 제거 후 최소 자리)
+        trimAndMinPad(num, minLen) {
+            return String(Number(num)).padStart(minLen, '0');
+        }
+    };
+
+    const CodeNormalizer = {
+        toDisplay(code) {
+            if (!code) return '';
+
+            const match = code.match(/^([a-zA-Z]+)(\d+)([a-zA-Z]*)$/);
+            if (!match) return code.toUpperCase();
+
+            return `${match[1].toUpperCase()}-${match[2]}${match[3].toLowerCase()}`;
+        }
+    };
+
+    function extractNumber(str, codeData) {
+
+        // displayCode 이전 제거
+        let cleanStr = str.replace(
+            new RegExp(`^.*?${codeData.displayCode}`, 'i'),
+            ''
+        );
+
+        // suffix 제거
+        if (codeData.suffix) {
+            cleanStr = cleanStr.replace(
+                new RegExp(`${codeData.suffix}$`, 'i'),
+                ''
+            );
+        }
+
+        return cleanStr;
+    }
+
+    async function getCodeData(meta) {
+        const codeData = await VceDB.get('codes', meta.uniqueKey);
+        if (!codeData) return null;
+
+        const number = extractNumber(meta.contentId, codeData);
+
+        return {
+            displayCode: codeData.displayCode,
+            number,
+            padLen: codeData.padLen,
+            suffix: codeData.suffix || ''
+        };
+    }
+
+    const ParserUtils = {
+        buildTableMap(root) {
+            const map = {};
+
+            // -------------------------
+            // 1. table 구조 (tr)
+            // -------------------------
+            root.querySelectorAll('tr').forEach(tr => {
+                const cells = tr.querySelectorAll('th, td');
+                if (cells.length >= 2) {
+                    const key = cells[0].innerText.replace('：', '').trim();
+                    const valueEl = cells[1];
+                    map[key] = valueEl;
+                }
+            });
+
+            // -------------------------
+            // 2. dl 구조 (dt/dd)
+            // -------------------------
+            root.querySelectorAll('dt').forEach(dt => {
+                const dd = dt.nextElementSibling;
+
+                if (dd && dd.tagName.toLowerCase() === 'dd') {
+                    const key = dt.innerText.trim();
+                    map[key] = dd;
+                }
+            });
+            return map;
+        },
+
+        cleanText(el) {
+            if (!el) return '';
+
+            return el.innerHTML
+                .replace(/<[^>]*>/gi, ' ')
+                .replace(/▼すべて表示する.+/, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        },
+
+        get(map, keys) {
+            for (const key of keys) {
+                if (map[key]) {
+                    return this.cleanText(map[key]);
+                }
+            }
+            return '';
+        },
+
+        normalize(meta) {
+            const result = { ...meta };
+
+            Object.keys(result).forEach(key => {
+                let val = result[key];
+
+                if (!val || val === '----') {
+                    result[key] = '';
+                    return;
+                }
+
+                if (key === 'cast') {
+                    result[key] = val;
+                }
+            });
+
+            if (result.releaseDate) {
+                result.releaseDate = result.releaseDate.replace(/[\/\-_]/g, '.');
+            }
+            if (result.realCode) {
+                result.realCode = CodeNormalizer.toDisplay(result.realCode);
+            }
+            // series 없으면 label fallback
+            if (!result.series && result.label) {
+                result.series = result.label;
+            }
+
+            return result;
+        }
+    };
+
+
+    const createPostProcessor = (config) => {
+        return (doc) => {
+            const table = doc.querySelector(config.InfoSelector);
+            if (!table) return null;
+
+            const map = ParserUtils.buildTableMap(table);
+
+            const metaData = {
+                title: doc.querySelector(config.titleSelector)?.innerText.trim() || '',
+                realCode: ParserUtils.get(map, config.realCodeKeys),
+                series: ParserUtils.get(map, config.seriesKeys),
+                label: ParserUtils.get(map, config.labelKeys),
+                cast: ParserUtils.get(map, config.castKeys),
+                releaseDate: ParserUtils.get(map, config.releaseDateKeys),
+                makerLabel: ParserUtils.get(map, config.makerLabel) || '',
+            };
+
+            return ParserUtils.normalize(metaData);
+        };
+    };
+
+    async function domMeta(url, siteName) {
+        const urlObj = new URL(url);
+
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: "GET",
+                url,
+                headers: { 'referer': url, 'origin': urlObj.origin },
+                onload: (res) => {
+
+                    if (res.status !== 200) {
+                        localStorage.setItem(`404_${url}`, res.status);
+                        console.log(`[${siteName}] → ${url} ${res.status}`);
+                        return resolve(null);
+                    }
+
+                    const doc = new DOMParser()
+                        .parseFromString(res.responseText, "text/html");
+
+                    const config = siteConfigs[siteName];
+                    const parse = createPostProcessor(config);
+
+                    const result = parse(doc);
+
+                    if (!result || !result.realCode) {
+                        return resolve(null);
+                    }
+
+                    resolve(result);
+                },
+                onerror: () => resolve(null),
+                ontimeout: () => resolve(null)
+            });
+        });
+    }
+
+    async function runFallbackParser(existingMeta) {
+        const siteOrder = ['AVWiki', 'DMM'];
+        const allTasks = [];
+
+        // 1. 모든 사이트로부터 시도할 URL 후보군을 먼저 수집
+        for (const siteName of siteOrder) {
+            const config = siteConfigs[siteName];
+            if (!config) continue;
+
+            const urls = await config.buildUrls(existingMeta);
+            if (urls && urls.length > 0) {
+                urls.forEach(url => {
+                    allTasks.push({ url, siteName });
+                });
+            }
+        }
+
+        // 후보군이 하나도 없으면 바로 종료
+        if (allTasks.length === 0) {
+            console.warn(`[Meta] 모든 사이트에서 생성된 URL이 없습니다. `, existingMeta.url);
+            return null;
+        }
+
+        console.log(`[Meta] 총 ${allTasks.length}개의 후보 URL 분석 시작...`);
+
+        // 2. 통합된 리스트를 순회하며 하나라도 성공하면 즉시 종료
+        for (const { url, siteName } of allTasks) {
+            // 이미 실패 기록이 있는 URL은 스킵
+            if (localStorage.getItem(`404_${url}`)) {
+                console.log(`[Skip] 이미 404 확인됨: ${url}`);
+                continue;
+            } else if (localStorage.getItem(`Success_${url}`) === existingMeta.contentId) {
+                console.log(`[Skip] 이미 Success 확인됨: ${url}`);
+            }
+
+            console.log(`[${siteName}] 시도 중: ${url}`);
+
+            const result = await domMeta(url, siteName);
+
+            if (result && result.realCode) {
+                // ⭐ 성공 시점: 결과를 찾으면 즉시 리턴하여 '전체 루프'를 탈출합니다.
+                localStorage.setItem(`Success_${url}`, existingMeta.contentId);
+                console.log(`[${siteName}] 성공 및 종료: ${url}`);
+
+                return {
+                    ...result,
+                    sourceSite: siteName,
+                };
+            }
+
+            // 해당 URL 실패 시 다음 후보로 이동
+            console.log(`[${siteName}] 결과 없음: ${url}`);
+        }
+
+        // 모든 후보를 다 돌았는데도 성공이 없으면 null 반환
+        console.log(`[Meta] 모든 후보 URL 시도 실패`, existingMeta.url);
+        return null;
+    }
+
+    function fetchImageResolution(url) {
         // 1. URL 확장자를 통해 필요한 바이트 크기 미리 계산
         const getExpectedRange = (url) => {
             const cleanUrl = url.split('?')[0];
@@ -472,80 +954,98 @@ backdrop-filter: blur(1px);
         });
     }
 
-    function addToQueue(task) {
-        if (!requestQueue.find(t => t.url === task.url)) {
-            requestQueue.push(task);
-            if (!isIdleProcessing) scheduleIdleWork();
+
+    let isResProcessing = false;
+    let isMetaProcessing = false;
+    const requestMetaMap = new Map();
+    const requestResMap = new Map();
+
+
+    async function addToQueue(task) {
+        const existingMeta = await VceDB.get('imageMeta', task.url);
+
+        if (!requestMetaMap.has(task.url) && existingMeta.metaStatus !== 'SUCCESS') {
+            requestMetaMap.set(task.url, task);
+            if (!isMetaProcessing) doMeta();
+        }
+
+        if (!requestResMap.has(task.url) && existingMeta.resolutionState !== 'SUCCESS') {
+            requestResMap.set(task.url, task);
+            if (!isResProcessing) doRes();
         }
     }
 
-    function scheduleIdleWork() {
-        isIdleProcessing = true;
-        if ('requestIdleCallback' in window) window.requestIdleCallback(doIdleWork, { timeout: 2000 });
-        else setTimeout(doIdleWork, 100);
-    }
+    async function doMeta() {
+        isMetaProcessing = true;
 
-    async function doIdleWork(deadline) {
-        while (requestQueue.length > 0 && (deadline.timeRemaining() > 0 || deadline.didTimeout)) {
-            const task = requestQueue.shift();
+        while (requestMetaMap.size > 0) {
+            const firstKey = requestMetaMap.keys().next().value;
+            const task = requestMetaMap.get(firstKey);
+            requestMetaMap.delete(firstKey);
 
-            // 1. 상태 표시 업데이트 (대기량 알림)
-            updateProcessingStatus(true, requestQueue.length);
+            updateProcessingStatus(requestMetaMap.size, requestResMap.size);
 
-            const res = await fetchImageResolution(task.url);
-            const existingMeta = await VceDB.getImageMeta(task.url);
-            if (!existingMeta) continue;
-
-            let updateData = { ...existingMeta };
-
-            if (res.width > 0) {
-                // 성공 시
-                updateData.status = "completed";
-                updateData.width = res.width;
-                updateData.height = res.height;
-                updateData.resText = `${res.width}x${res.height}`;
-                updateData.retryCount = 0; // 초기화
-            } else {
-                // 실패 시 재시도 로직 계산
-                const retryCount = (existingMeta.retryCount || 0) + 1;
-                const now = Date.now();
-
-                updateData.lastError = res.errorReason;
-                updateData.retryCount = retryCount;
-
-                if (res.status === 404) {
-                    // 404: 24시간 뒤 재시도, 2회 실패 시 포기
-                    if (retryCount >= 2) {
-                        updateData.status = "failed_permanently";
-                    } else {
-                        updateData.status = "pending";
-                        updateData.nextRetryAt = now + (24 * 60 * 60 * 1000);
-                    }
-                } else {
-                    // 403, 500, 451, 0 등: 12시간 뒤 무한 재시도
-                    updateData.status = "pending";
-                    updateData.nextRetryAt = now + (12 * 60 * 60 * 1000);
-                }
+            const existingMeta = await VceDB.get('imageMeta', task.url);
+            if (!existingMeta) {
+                console.warn(`[Skip] DB 정보가 없음: ${task.url}`);
+                continue;
             }
 
-            await VceDB.setImageMeta(updateData);
+            const meta = await runFallbackParser(existingMeta);
+
+            let metaData = {};
+            if (meta) {
+                metaData = {
+                    ...meta,
+                    metaStatus: 'SUCCESS'
+                };
+                await VceDB.save("imageMeta", task.url, metaData);
+            }
+
         }
 
-        // 작업 완료 후 상태 업데이트
-        if (requestQueue.length > 0) {
-            scheduleIdleWork();
+        if (requestMetaMap.size > 0) {
+            doMeta();
         } else {
-            isIdleProcessing = false;
-            updateProcessingStatus(false, 0);
+            isMetaProcessing = false;
+            updateProcessingStatus(requestMetaMap.size, requestResMap.size);
+        }
+    }
+    async function doRes() {
+        isResProcessing = true;
+
+        while (requestResMap.size > 0) {
+            const firstKey = requestResMap.keys().next().value;
+            const task = requestResMap.get(firstKey);
+            requestResMap.delete(firstKey);
+
+            updateProcessingStatus(requestMetaMap.size, requestResMap.size);
+
+            const res = await fetchImageResolution(task.url);
+            let resData;
+            if (res && res.width > 0) {
+                resData = {
+                    resolution: { W: res.width, H: res.height },
+                    resolutionState: 'SUCCESS'
+                };
+                await VceDB.save("imageMeta", task.url, resData);
+            }
+        }
+
+        if (requestResMap.size > 0) {
+            doRes();
+        } else {
+            isResProcessing = false;
+            updateProcessingStatus(requestMetaMap.size, requestResMap.size);
         }
     }
 
-    function updateProcessingStatus(isWorking, count) {
+    function updateProcessingStatus(metaCount = 0, resCount = 0) {
         if (!statusEl) {
             statusEl = document.getElementById('vce-status-indicator');
             if (!statusEl) return;
         }
-        if (isWorking && count && count > 0) {
+        if (metaCount > 0 || resCount > 0) {
             statusEl.innerHTML = `
                 <span style = "display:inline-flex; align-items:center; gap:6px;">
                     <svg width="24" height="14" viewBox="0 0 56 32" fill="none">
@@ -553,21 +1053,28 @@ backdrop-filter: blur(1px);
                         <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
                             font-size="14" font-weight="bold" fill="currentColor">4K</text>
                     </svg>
-   해상도 확인 중... (대기: ${count})</span>
+   정보 확인 중...(M:${metaCount} I:${resCount})</span>
 `;
-        } else if (isWorking) {
+        } else {
             statusEl.innerHTML = `
-                <span style = "display:inline-flex; align-items:center; gap:6px;">
+                <span style = "display:inline-flex; align-items:center; gap:6px; cursor:pointer">
                     <svg width="24" height="14" viewBox="0 0 56 32" fill="none">
                         <rect x="1" y="1" width="54" height="30" rx="4" stroke="currentColor" stroke-width="2" />
                         <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
                             font-size="14" font-weight="bold" fill="currentColor">4K</text>
                     </svg>
-   해상도 확인 완료</span>
+   해상도 메타 정보 확인</span>
    `;
-        }
-        else {
-            statusEl.innerHTML = `<span style="display:none;"></span>`;
+
+            statusEl.onclick = async () => {
+                const tasksToRun = await VceDB.getSchedulableTasks('imageMeta');
+                if (tasksToRun.length > 0) {
+                    console.log(`${tasksToRun.length}개의 재시도 작업을 큐에 추가합니다.`);
+                    for (const task of tasksToRun) {
+                        await addToQueue({ url: task.url });
+                    }
+                }
+            };
         }
     }
 
@@ -581,6 +1088,7 @@ backdrop-filter: blur(1px);
                 el.classList.add(PROCESSED_CLASS);
                 const targetUrl = el.getAttribute('srcset') || el.getAttribute('src');
                 if (targetUrl) await processWork(targetUrl, rawMediaType, makerLabelCode, makerLabel); // await 처리를 위해 변경됨
+                await sleep(200);
             }
         }
     };
@@ -588,6 +1096,7 @@ backdrop-filter: blur(1px);
     const observer = new MutationObserver(mutCallback);
 
     function GetParam(url, paramName) {
+        if (!url) return '';
         const urlObj = new URL(url);
         const params = new URLSearchParams(urlObj.search);
         const result = params.get(paramName);
@@ -599,7 +1108,10 @@ backdrop-filter: blur(1px);
         const selectedCount = listContainer.querySelectorAll('.item-check:checked').length;
         const currentListCount = listContainer.querySelectorAll('.item-check').length;
 
-        const allCodes = await VceDB.getAllCodes();
+        const db = await VceDB.open();
+        const allCodes = await new Promise(r => {
+            db.transaction("codes").objectStore("codes").getAll().onsuccess = e => r(e.target.result);
+        });
         const totalCount = allCodes.length; // 로컬스토리지 대신 DB 갯수로 대체
 
         countStatus.innerHTML = `
@@ -659,6 +1171,7 @@ backdrop-filter: blur(1px);
     window.addEventListener('hashchange', resetSessionCodes);
 
     async function processWork(sourceURL, rawMediaType, makerLabelCode, makerLabel) {
+
         if (!makerLabelCode || !rawMediaType || !makerLabel) return false;
 
         if (!sourceURL || !sourceURL.includes('https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/')) return false;
@@ -682,24 +1195,10 @@ backdrop-filter: blur(1px);
         const fileName = pathSegments.pop();
         const fileExtension = fileName.split('.').pop();
         const originalImage = cleanUrl.replace(fileName, `${contentId}pl.${fileExtension}`);
-        const maskedId = contentId.replace(/\d/g, '0');
-        const patternKey = `${maskedId}_${makerLabelCode}_${rawMediaType}`;
 
-        // --- [섹션 1: 이미지 메타 처리] ---
-        // 이미지 해상도 체크는 코드 추출 여부와 상관없이 별개로 진행 (중복 시 DB가 알아서 처리)
-        const meta = await VceDB.getImageMeta(originalImage);
-        if (!meta) {
-            await VceDB.setImageMeta({ url: originalImage, contentId, patternKey, status: "pending" });
-            addToQueue({ url: originalImage });
-        }
-
-        // --- [섹션 2: 코드 DB 중복 체크 (PatternKey 기준)] ---
-        // ★ 여기서 patternKey로 이미 저장된 코드가 있는지 확인합니다.
-        const existingPattern = await VceDB.getCodeByPattern(patternKey);
-        if (existingPattern) {
-            // 이미 이 패턴의 코드를 추출한 적이 있다면 더 이상 진행 안 함
-            return true;
-        }
+        // --- [섹션 2: 코드 DB 중복 체크] ---   
+        const existingImage = await VceDB.get('imageMeta', originalImage);
+        if (existingImage) return true;
 
         const extractPatterns = [
             /digital\/video\/(.*)(d1clymax)(\d{5,})(.*?)\//,
@@ -716,31 +1215,61 @@ backdrop-filter: blur(1px);
         for (const regex of extractPatterns) { match = originalImage.match(regex); if (match) break; }
 
         if (match) {
-
-            const prefixMatch = match[1];
+            const prefix = match[1];
             const code = match[2].toUpperCase();
             const padLen = match[3].length;
             const suffix = match[4];
             const displayCode = code;
-            const uniqueKey = `${displayCode}_${prefixMatch}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
+            const uniqueKey = `${displayCode}_${prefix}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
 
-            if (!currentSessionCodes.has(uniqueKey)) {
-                currentSessionCodes.add(uniqueKey);
-                const imageSourceKey = Object.keys(imageUrlsMap).find(key =>
-                    originalImage.startsWith(imageUrlsMap[key])
-                ) || "UNKNOWN";
 
-                // 저장할 때 patternKey를 포함시켜서 나중에 위에서 검색 가능하게 함
-                await VceDB.saveCode(uniqueKey, {
-                    displayCode: displayCode,
-                    data: [imageSourceKey, prefixMatch, padLen, suffix, makerLabel, rawMediaType],
-                    origin: originalImage,
-                    patternKey: patternKey, // 검색용 키 저장
-                    makerLabelCode: makerLabelCode,
-                });
-                updateDisplayList();
-            }
+            // --- [섹션 1: 이미지 메타 처리] ---
 
+            await VceDB.save("imageMeta", originalImage, {
+                displayCode: displayCode, // Index  
+                uniqueKey: uniqueKey, // Index             
+                makerLabelCode: makerLabelCode,
+                makerLabel: makerLabel,
+                rawMediaType: rawMediaType,
+                imageSource: originalImage,
+                contentId: contentId, // Index
+                //스케줄 작업으로 처리하는 값들
+                title: '',
+                realCode: '', // Index
+                series: '', // 시리즈가 없거나 ---- 면 라벨
+                label: '',
+                cast: '',
+                releaseDate: '',
+                resolution: '', // 스케줄 작업으로 처리{W: 0, H: 0},                                 
+                /** 메타 데이타
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(res.responseText, "text/html");
+                */
+            });
+
+            if (currentSessionCodes.has(uniqueKey)) return true;
+            currentSessionCodes.add(uniqueKey);
+
+            const existinguniqueKey = await VceDB.get('codes', uniqueKey);
+            if (existinguniqueKey) return true;
+
+            const imageSourceKey = Object.keys(imageUrlsMap).find(key =>
+                originalImage.startsWith(imageUrlsMap[key])
+            ) || "UNKNOWN";
+
+            await VceDB.save("codes", uniqueKey, {
+                displayCode: displayCode,
+                imageSourceKey: imageSourceKey,
+                imageSource: originalImage,
+                contentId: contentId,
+                prefix: prefix,
+                padLen: padLen,
+                suffix: suffix,
+                makerLabelCode: makerLabelCode,
+                makerLabel: makerLabel,
+                rawMediaType: rawMediaType,
+            });
+            updateDisplayList();
             return true;
         }
         return false;
@@ -751,7 +1280,10 @@ backdrop-filter: blur(1px);
         const currentScroll = listContainer.scrollTop;
         listContainer.innerHTML = "";
 
-        let items = await VceDB.getAllCodes();
+        const db = await VceDB.open();
+        let items = await new Promise(r => {
+            db.transaction("codes").objectStore("codes").getAll().onsuccess = e => r(e.target.result);
+        });
         if (!isShowAllMode) {
             items = items.filter(item => currentSessionCodes.has(item.id));
         }
@@ -777,8 +1309,8 @@ backdrop-filter: blur(1px);
 
         items.forEach(itemData => {
             const key = itemData.id;
-            const detailLabel = `${itemData.data[1] && itemData.data[3] ? itemData.data[1] + ', ' + itemData.data[3] : itemData.data[1] || itemData.data[3] || ''}`;
-            const idMatch = itemData.origin.match(/digital\/video\/([^\/]+)\//i);
+            const detailLabel = `${itemData.prefix && itemData.suffix ? itemData.prefix + ', ' + itemData.suffix : itemData.prefix || itemData.suffix || ''}`;
+            const idMatch = itemData.imageSource.match(/digital\/video\/([^\/]+)\//i);
             const contentId = idMatch ? idMatch[1] : "";
             const itemPageUrl = contentId ? `https://video.dmm.co.jp/av/content/?id=${contentId}` : "#";
             const row = document.createElement('div');
@@ -790,11 +1322,11 @@ backdrop-filter: blur(1px);
             row.style = "display:flex; align-items:center; border-bottom:1px solid #333; padding:6px 0; gap:8px;";
             row.innerHTML = `
                 <input type="checkbox" class="item-check" data-key="${key}" style="margin-left:5px; width:15px; height:15px; cursor:pointer; accent-color:#00FF41; appearance:auto;">
-                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; cursor:help;" title="${itemData.origin}">
+                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; cursor:help;" title="${itemData.imageSource}">
                 <a href="${itemPageUrl}" target="_blank"><span style="color:#00FF41; font-family:monospace; font-size:12px;">${itemData.displayCode}</span></a>
                     ${detailLabel ? `<span style="color:white; font-size:10px; margin-left:5px;">[</span><span style="color:#00FF41; font-size:10px;">${detailLabel}</span><span style="color:white; font-size:10px;">]</span>` : ''}
                 </div>
-                <span style="color:white; font-size:10px;padding-left:5px;">[ ${itemData.data[5]} ]</span>
+                <span style="color:white; font-size:10px;padding-left:5px;">[ ${itemData.rawMediaType} ]</span>
                 <button class="reset-btn" style="background:none; border:none; color:#aaa; cursor:pointer; display:flex; align-items:center; padding:0 5px;">${refreshIcon}</button>
             `;
 
@@ -802,10 +1334,10 @@ backdrop-filter: blur(1px);
 
             // updateDisplayList 함수 내 반복문(items.forEach) 부분 수정
             row.querySelector('.reset-btn').onclick = async (e) => {
-                const targetUrl = itemData.origin;
-                const makerLabel = itemData.data[4];
+                const targetUrl = itemData.imageSource;
+                const makerLabel = itemData.makerLabel;
                 const makerLabelCode = itemData.makerLabelCode; // 상위 스코프 변수 활용
-                const rawMediaType = itemData.data[5];
+                const rawMediaType = itemData.rawMediaType;
 
                 if (targetUrl) {
                     // 1. 대기열(Queue)에 객체 형태로 추가
@@ -822,7 +1354,8 @@ backdrop-filter: blur(1px);
                     }
 
                     // 2. DB 및 메모리에서 즉시 삭제
-                    await VceDB.deleteCode(key);
+                    await VceDB.delete('codes', key);
+                    await VceDB.deleteAll('imageMeta', 'uniqueKey', key);
                     currentSessionCodes.delete(key);
 
                     // 3. 리스트 갱신 및 큐 카운트 업데이트
@@ -911,8 +1444,10 @@ backdrop-filter: blur(1px);
     }
 
 
-    async function startWithHighlight(type, highlightPairs, continuePage, lastP) {
-
+    async function startWithHighlight(type, highlightPairs) {
+        const autoStatus = getState();
+        const continuePage = GetParam(autoStatus.pendingPage, 'page') || 1;
+        const lastP = getLastPageNumber();
 
 
         let count;
@@ -952,8 +1487,25 @@ backdrop-filter: blur(1px);
                 }
             };
 
+
             // --- 조건별 분기 처리 ---
             if (type === 'pageView') {
+                if (Number(continuePage) === 1 && !autoStatus.pendingPage) {
+                    const pagination = document.querySelector('ul[data-e2eid="pagination"]');
+                    if (!pagination) return false;
+                    const firstPageLink = pagination.querySelector('li:nth-child(2) a');
+                    swalConfig.title = '수집을 시작하시겠습니까?';
+                    swalConfig.html = `<b>${continuePage}</b>페이지부터 <b>${lastP}</b>페이지까지 수집합니다.<br><br>페이지 표시 갯수(<b>${count}</b>)와 새로고침 여부를 확인하셨나요?<br><br>첫 페이지부터 다시 하려면 수집하기 버튼 옆 이어하기 초기화 아이콘을 클릭하세요!`;
+                    swalConfig.confirmButtonText = '네, 시작합니다!';
+
+                    // 확인 시 동작: 수집 로직 실행
+                    swalConfig.preConfirm = () => {
+                        if (firstPageLink) firstPageLink.click();
+                        startAuto();
+                        setState({ active: true });
+                        toggleAutoRun();
+                    };
+                }
                 if (Number(continuePage) >= Number(lastP)) {
                     // [상황 1] 현재 페이지가 제한 페이지보다 큰 경우 (재설정 필요)
                     swalConfig.title = '페이지 범위 오류';
@@ -1004,7 +1556,6 @@ backdrop-filter: blur(1px);
             await Swal.fire(swalConfig);
 
         } else {
-            console.log('aaaa');
             if (confirm("페이지 표시 단위를 찾을 수 없습니다.")) {
                 // 기본 동작 실행
             }
@@ -1103,7 +1654,41 @@ backdrop-filter: blur(1px);
         a.click();
         URL.revokeObjectURL(url);
     }
+    function formatTable(data) {
+        const rows = data.map(m => [
+            m.realCode || '',
+            m.makerLabel || '',
+            m.series || '',
+            m.label || '',
+            m.cast || '',
+            m.releaseDate || '',
+            m.resolution ? `${m.resolution.W}x${m.resolution.H}` : '',
+            m.imageSource || '',
+            m.sourceSite || ''
+        ]);
 
+        const headers = [
+            'Code', 'Maker', 'Series', 'Label',
+            'Cast', 'Date', 'Res', 'Image', 'Site'
+        ];
+
+        // 헤더 포함
+        rows.unshift(headers);
+
+        // 🔥 각 컬럼 최대 길이 계산
+        const colWidths = headers.map((_, colIndex) =>
+            Math.max(...rows.map(row => (row[colIndex] || '').length))
+        );
+
+        // 🔥 padEnd로 정렬
+        const lines = rows.map(row =>
+            row.map((cell, i) =>
+                (cell || '').padEnd(colWidths[i], ' ')
+            ).join(' | ')
+        );
+
+        return lines.join('\n');
+    }
 
     function createUI() {
         return new Promise((resolve) => {
@@ -1156,15 +1741,16 @@ backdrop-filter: blur(1px);
                 let queue = JSON.parse(GM_getValue("process_queue", "[]"));
                 for (const cb of selected) {
                     const key = cb.dataset.key;
-                    const item = await VceDB.getCode(key);
+                    const item = await VceDB.get('codes', key);
                     if (item && !queue.some(q => q.url === item.origin)) {
                         queue.push({
                             url: item.origin,
-                            maker: item.data[4],
+                            maker: item.makerLabel,
                             makerCode: item.makerLabelCode,
-                            type: item.data[5]
+                            type: item.rawMediaType
                         });
-                        await VceDB.deleteCode(key);
+                        await VceDB.delete('codes', key);
+                        await VceDB.deleteAll('imageMeta', 'uniqueKey', key);
                         currentSessionCodes.delete(key);
                     }
                 }
@@ -1244,7 +1830,8 @@ backdrop-filter: blur(1px);
                 if (confirm(`${selected.length}개의 항목을 삭제하시겠습니까?`)) {
                     for (const cb of selected) {
                         const key = cb.dataset.key;
-                        await VceDB.deleteCode(key); // IndexedDB 삭제
+                        await VceDB.delete('codes', key); // IndexedDB 삭제
+                        await VceDB.deleteAll('imageMeta', 'uniqueKey', key);
                         currentSessionCodes.delete(key); // 메모리 셋 갱신
                     }
                     updateDisplayList(false);
@@ -1288,14 +1875,17 @@ backdrop-filter: blur(1px);
             btnContainer.appendChild(resetBtn);
 
             dlBtn.onclick = async () => {
-                const allItems = await VceDB.getAllCodes();
+                const db = await VceDB.open();
+                const allItems = await new Promise(r => {
+                    db.transaction("codes").objectStore("codes").getAll().onsuccess = e => r(e.target.result);
+                });
                 if (allItems.length === 0) return alert("데이터가 없습니다.");
 
                 // 1. [1차 & 2차 정렬] 메이커와 품번으로 먼저 줄을 세웁니다.
                 // 3차 정렬(기존 순번)은 삭제로 인해 신뢰할 수 없으므로, 등록 순서(timestamp)를 활용하는 것이 좋습니다.
                 allItems.sort((a, b) => {
-                    const makerA = a.data[4] || "기타";
-                    const makerB = b.data[4] || "기타";
+                    const makerA = a.makerLabel || "기타";
+                    const makerB = b.makerLabel || "기타";
                     if (makerA !== makerB) return makerA.localeCompare(makerB, 'ja');
 
                     if (a.displayCode !== b.displayCode) return a.displayCode.localeCompare(b.displayCode);
@@ -1312,7 +1902,7 @@ backdrop-filter: blur(1px);
 
                 // 3. [데이터 순회 및 실시간 순번 부여]
                 allItems.forEach(obj => {
-                    const maker = obj.data[4] || "기타";
+                    const maker = obj.makerLabel || "기타";
                     const code = obj.displayCode;
 
                     // 메이커 구분선 출력
@@ -1339,7 +1929,7 @@ backdrop-filter: blur(1px);
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url;
-                link.download = `Codes_Fixed_${new Date().toISOString().slice(0, 10)}.txt`;
+                link.download = `Codes_${new Date().toISOString().slice(0, 10)}.txt`;
                 link.click();
                 URL.revokeObjectURL(url);
             };
@@ -1350,18 +1940,42 @@ backdrop-filter: blur(1px);
                     db.transaction("imageMeta").objectStore("imageMeta").getAll().onsuccess = e => r(e.target.result);
                 });
 
-                if (allMeta.length === 0) return alert("이미지 메타 데이터가 없습니다.");
+                if (allMeta.length === 0) return alert("메타 데이터가 없습니다.");
 
-                const cleanMeta = allMeta.filter(m => m.status === 'completed');
+                const cleanMeta = allMeta.filter(m => m.metaStatus === 'SUCCESS');
 
                 // 보기 좋게 정렬 (패턴키 기준)
                 cleanMeta.sort((a, b) => (a.contentId || "").localeCompare(b.contentId || ""));
 
-                let output = cleanMeta.map(m =>
-                    `${m.contentId} | URL: ${m.url}} | [${m.width}] | [${m.height}] | [${m.resText}]`
-                ).join("\n");
 
-                downloadFile(output, `Meta_${new Date().toISOString().slice(0, 10)}.txt`);
+                const displayData = cleanMeta.map(item => {
+                    return {
+                        메이커: item.makerLabel,
+                        코드: item.displayCode,
+                        실제코드: item.realCode,
+                        시리즈: (item.series === '' || item.series === '----') ? item.label : item.series,
+                        배우: item.cast || '정보없음',
+                        출시일: item.releaseDate,
+                        // resolution 객체를 "1920x1080" 형태의 문자열로 변환
+                        해상도: item.resolution && item.resolution.W ? `${item.resolution.W}x${item.resolution.H}` : '계산중',
+                        출처: item.sourceSite
+                    };
+                });
+
+                // 1. 새 워크북 생성
+                const workbook = XLSX.utils.book_new();
+
+                // 2. JSON 데이터를 시트로 변환
+                const worksheet = XLSX.utils.json_to_sheet(displayData);
+
+                // 3. 워크북에 시트 추가
+                XLSX.utils.book_append_sheet(workbook, worksheet, "DataSheet");
+
+                // 4. 파일 다운로드 (파일명: exported_data.xlsx)
+                XLSX.writeFile(workbook, "exported_data.xlsx");
+
+
+
             };
 
             // 공통 다운로드 함수 (중복 코드 방지)
@@ -1387,7 +2001,8 @@ backdrop-filter: blur(1px);
                 if (confirm("주의: 모든 저장된 코드와 이미지 메타데이터가 삭제됩니다. 계속하시겠습니까?")) {
                     try {
                         await VceDB.resetDatabase();
-                        alert("DB가 초기화되었습니다. 페이지를 새로고침하여 재설정합니다.");
+                        localStorage.
+                            alert("DB가 초기화되었습니다. 페이지를 새로고침하여 재설정합니다.");
                         location.reload(); // 새로고침하면 open()이 실행되며 DB가 재생성됨
                     } catch (err) {
                         console.error(err);
@@ -1443,9 +2058,6 @@ backdrop-filter: blur(1px);
                 };
                 btnAutoRun.onclick = () => {
                     if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
-                        const autoStatus = getState();
-                        const continuePage = GetParam(autoStatus.pendingPage || PageURL(), 'page') || 1;
-                        const lastP = getLastPageNumber();
                         const pageViewMode = document.querySelector('[data-e2eid="search-form"] select#sort');
                         const pageViewCount = document.querySelector('[data-e2eid="search-number-displays"] li:last-child');
                         const countText = '120';
@@ -1453,7 +2065,7 @@ backdrop-filter: blur(1px);
                             { container: pageViewMode },
                             { container: pageViewCount, countText: countText }
                         ];
-                        startWithHighlight('pageView', containerPairs, continuePage, lastP);
+                        startWithHighlight('pageView', containerPairs);
                     } else {
                         const searchMode = document.querySelector('[data-e2eid="search-form"] select#contentType');
                         const pageViewCount = document.querySelector('[data-e2eid="search-number-displays"] li:last-child');
@@ -1874,7 +2486,31 @@ backdrop-filter: blur(1px);
         }
     }
 
-    window.addEventListener('load', async () => {
+
+    function waitElement(selector, targetNode = document.body) {
+        return new Promise((resolve, reject) => {
+            const element = targetNode.querySelector(selector);
+
+            if (element.parentElement) {
+                resolve(element);
+            }
+            const observer = new MutationObserver((mutations, obs) => {
+                const found = targetNode.querySelector(selector);
+                if (found.parentElement) {
+                    obs.disconnect();
+                    resolve(found);
+                }
+            });
+
+            observer.observe(targetNode, {
+                childList: true,
+                subtree: true
+            });
+        });
+    }
+
+    async function collectAndProcess() {
+        FontAwesomeCSS();
         initializeMakerMap();
         await sleep(2000);
         const autoStatus = getState();
@@ -1894,14 +2530,35 @@ backdrop-filter: blur(1px);
             }
         }
 
-        refreshQueueButton();
-        const tasksToRun = await VceDB.getSchedulableTasks();
-
-        if (tasksToRun.length > 0) {
-            console.log(`${tasksToRun.length}개의 재시도 작업을 큐에 추가합니다.`);
-            for (const task of tasksToRun) {
-                await addToQueue({ url: task.url });
+        if (PageURL().startsWith('https://video.dmm.co.jp/av/content/?id=')) {
+            const config = siteConfigs['FANZA_DIGITAL'];
+            if (config) {
+                config.addDB();
+                const mainVideo = document.querySelector('div iframe[title]');
+                if (mainVideo) {
+                    mainVideo.parentElement?.insertAdjacentHTML('beforeend', '<div class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></div>');
+                    config.rawImageDownloader();
+                } else {
+                    await sleep(3000);
+                    waitElement('iframe[title]').then(e => {
+                        mainVideo.parentElement?.insertAdjacentHTML('beforeend', '<div class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></div>');
+                        config.rawImageDownloader();
+                    });
+                }                              
+                
             }
         }
-    });
+
+        refreshQueueButton();
+        updateProcessingStatus();
+    }
+
+
+    if (document.readyState === 'complete') {
+        collectAndProcess();
+    } else {
+        window.addEventListener('load', async () => {
+            collectAndProcess();
+        });
+    }
 })();

@@ -23,12 +23,12 @@
 // ==/UserScript==
 
 const FontAwesomeCSS = function () {
-    let css = document.createElement('link')
-    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css'
-    css.rel = 'stylesheet'
-    css.type = 'text/css'
-    document.getElementsByTagName('head')[0].appendChild(css)
-}
+    let css = document.createElement('link');
+    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css';
+    css.rel = 'stylesheet';
+    css.type = 'text/css';
+    document.getElementsByTagName('head')[0].appendChild(css);
+};
 
 
 GM_addStyle(`
@@ -95,24 +95,27 @@ GM_addStyle(`
 
 `);
 
-let AutoClose = true
-let areadyDownloaded = false
+let AutoClose = true;
+let areadyDownloaded = false;
 // 전역 또는 UI 이벤트 핸들러가 접근 가능한 위치에 선언
 let userAbortController = null;
+let abortReason = null; // 🔥 추가
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
-const RootDomain = extractRootDomain(PageURL)
+const RootDomain = extractRootDomain(PageURL);
 
-let GetDPI, DefaultFontSize, CneterBoxFontSize, StateFontSize, StateLineHeight, maxLength, minLength
+let GetDPI, DefaultFontSize, CneterBoxFontSize, StateFontSize, StateLineHeight, maxLength, minLength;
 
 
-let JobList = []
+let JobList = [];
 let ImagesDB = new Set();
-let DownloadImagesDB = []
-let Title, Author, Images, ZipFileName, ArchivesFileName, Tag
-let AllCount = 0
-let errorCount = 0
-let addCount = 0
+let DownloadImagesDB = [];
+let Title, Author, Images, ZipFileName, ArchivesFileName, Tag;
+let AllCount = 0;
+let errorCount = 0;
+let addCount = 0;
+let rs;   // new ReadableStream
+let gmRequest; // GM_xmlhttpRequest의 리턴 객체
 
 
 class JobQueueDB {
@@ -169,23 +172,23 @@ class JobQueueDB {
 
 
 const jobDB = new JobQueueDB();
-await jobDB.init()
+await jobDB.init();
 
 document.addEventListener("DOMContentLoaded", async () => {
-    console.log('All Images Download Zip!')
-    AddDBResetButton()
+    console.log('All Images Download Zip!');
+    AddDBResetButton();
     jobDB.init().then(() => {
         FontAwesomeCSS();
         MakeIcon();
-        updateJobUI();        
+        updateJobUI();
         Start().then(Title => {
             if (Title) {
-                secondStep(Title)
+                secondStep(Title);
             }
         });
-    })
-    
-    
+    });
+
+
 
     jobDB.bc.onmessage = (e) => {
         if (e.data === 'refresh-jobs') {
@@ -196,16 +199,16 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     window.addEventListener('storage', (e) => {
         if (e.key === 'AutoDownload') {
-            let ev = document.querySelector(".AutoDownload")
-            if (!ev) { return }
+            let ev = document.querySelector(".AutoDownload");
+            if (!ev) { return; }
             if (localStorage.getItem('AutoDownload') == 1) {
-                ev.classList.replace('Off', 'On')
+                ev.classList.replace('Off', 'On');
             }
             else {
-                ev.classList.replace('On', 'Off')
+                ev.classList.replace('On', 'Off');
             }
         }
-    })
+    });
 
 }, { once: true });
 
@@ -277,14 +280,14 @@ async function UpdateJobQueue(url, action) {
     // 자동 다운로드 조건 확인 (탭 1번만)
     const allJobs = await jobDB.getAllJobs();
     JobList = allJobs.map(j => j.url);
-    let JobState = document.querySelector('.JobState')
+    let JobState = document.querySelector('.JobState');
     if (JobState) {
-        JobState.innerText = JobList?.length
+        JobState.innerText = JobList?.length;
     }
 
     if (localStorage.getItem('AutoDownload') == 1) {
         if (localStorage.getItem('AutoDownload') == 1 && JobList[0] === PageURL && !areadyDownloaded) {
-            downloadPhotosWithRetry(DownloadImagesDB)
+            downloadPhotosWithRetry(DownloadImagesDB);
         }
     }
 
@@ -324,6 +327,10 @@ async function retry(fn, max = 5, delay = 1000) {
 // === UI 생성 ===
 function createProgressUI() {
     if (window.ProgressUI) return;
+    if (document.querySelector('.ProgressWrapper')) {
+        return;
+    }
+
 
     const style = document.createElement('style');
     style.textContent = `
@@ -524,12 +531,12 @@ async function Xfetch(url, fetchInit = {}) {
     }
 
     if (!isStreamSupported) {
-        console.log('Streaming Not Supported!')
+        console.log('Streaming Not Supported!');
         // Fallback for browsers/userscript engines without streaming support
         return new Promise((resolve, reject) => {
             // This promise will hold the blob and is used by the various response methods
             const blobPromise = new Promise((res, rej) => {
-                GM_xmlhttpRequest({
+                gmRequest = GM_xmlhttpRequest({
                     url,
                     method,
                     headers,
@@ -558,8 +565,19 @@ async function Xfetch(url, fetchInit = {}) {
             // If the signal is aborted, we can reject the promise
             if (signal) {
                 signal.addEventListener('abort', () => {
+                    try {
+                        if (gmRequest && typeof gmRequest.abort === 'function') {
+                            gmRequest.abort(); // 실제 네트워크 연결 끊기
+                        }
+                        console.log(rs, rs.cancel);
+                        if (rs && typeof rs.cancel === 'function') {
+                            rs.cancel(); // 스트림 닫기
+                        }
+                    } catch (e) {
+                        console.warn("Abort cleanup error:", e);
+                    }
                     reject(new Error('Request aborted'));
-                }, { once: true })
+                }, { once: true });
             };
 
             blobPromise.catch(reject);
@@ -586,7 +604,7 @@ async function Xfetch(url, fetchInit = {}) {
         //console.log('Streaming Supported!')
         return new Promise((resolve, reject) => {
             const responsePromise = new Promise((res, rej) => {
-                GM_xmlhttpRequest({
+                gmRequest = GM_xmlhttpRequest({
                     url,
                     method,
                     headers,
@@ -599,8 +617,19 @@ async function Xfetch(url, fetchInit = {}) {
 
             if (signal) {
                 signal.addEventListener('abort', () => {
+                    try {
+                        if (gmRequest && typeof gmRequest.abort === 'function') {
+                            gmRequest.abort(); // 실제 네트워크 연결 끊기
+                        }
+                        console.log(rs, rs.cancel);
+                        if (rs && typeof rs.cancel === 'function') {
+                            rs.cancel(); // 스트림 닫기
+                        }
+                    } catch (e) {
+                        console.warn("Abort cleanup error:", e);
+                    }
                     reject(new Error('Request aborted'));
-                }, { once: true })
+                }, { once: true });
             };
 
             responsePromise.catch(reject);
@@ -689,17 +718,17 @@ function onElementLoaded(elementToObserve, parentStaticElement) {
                     if (divToCheck) {
                         console.log(`element loaded: ${elementToObserve}`);
                         Onobserver.disconnect(); // stop observing
-                        resolve(true)
+                        resolve(true);
                         //return;
                     }
-                })
+                });
 
 
                 // start observing for dynamic div
                 Onobserver.observe(parentElement, {
                     childList: true,
                     subtree: true,
-                })
+                });
             }
         } catch (e) {
             console.log(e);
@@ -726,7 +755,7 @@ function MakeIcon() {
         </div>
         `
     );
-    console.log('MakeIcon() 실행됨')
+    console.log('MakeIcon() 실행됨');
 
     // DOM 요소를 한 번만 선택하고 변수에 할당
     const centerBox = document.querySelector(".CenterBox");
@@ -766,7 +795,7 @@ function MakeIcon() {
     let lastExecutionTime = performance.now();
     window.visualViewport.addEventListener('resize', () => {
         const now = performance.now();
-        if (now - lastExecutionTime >= 250) {            
+        if (now - lastExecutionTime >= 250) {
             RefreshIcon(performance.now());
         }
         lastExecutionTime = now;
@@ -785,7 +814,7 @@ function MakeIcon() {
 
 function RefreshIcon(Run) {
     const centerBox = document.querySelector(".CenterBox");
-    if (!centerBox) return
+    if (!centerBox) return;
     // 폰트 사이즈 계산
     GetDPI = window.devicePixelRatio || 1;
     DefaultFontSize = getDefaultFontSize() || 16; // fallback 16px
@@ -802,12 +831,12 @@ function RefreshIcon(Run) {
     jobStateEl.style.setProperty('--sFontSize', `${StateFontSize}`);
 }
 function GetRequiredElement(selector, label = 'Element') {
-    let el = document.querySelector(selector)
+    let el = document.querySelector(selector);
     if (!el) {
-        console.warn(`${label} Not Found!`)
-        return null
+        console.warn(`${label} Not Found!`);
+        return null;
     }
-    return el
+    return el;
 }
 
 
@@ -823,12 +852,12 @@ async function Start() {
         Title = GetRequiredElement("article header.entry-header .single-post-title.entry-title", "Title");
         if (!Title) return console.warn('Title not found for everia.club');
         Images = Array.from(document.querySelectorAll('article > div.entry-content img'));
-        Images.forEach(entry => UpdateDB(entry))
+        Images.forEach(entry => UpdateDB(entry));
     } else if (/ilovexs\.com/.test(PageURL)) {
         Title = GetRequiredElement("#content.site-content h4.entry-title", "Title");
         if (!Title) return console.warn('Title not found for ilovexs.com');
         Images = Array.from(document.querySelectorAll('#content.site-content .entry-content img'));
-        Images.forEach(entry => UpdateDB(entry))
+        Images.forEach(entry => UpdateDB(entry));
 
     } else if (/girlgirlgo\.org\/random/.test(PageURL)) {
         return console.log('Random images - no processing');
@@ -838,14 +867,14 @@ async function Start() {
         if (!Title) return console.warn('Title not found for girlgirlgo.org');
         Author = document.querySelector('article div.post-body div.post-meta-top.entry-meta div.post-author strong.author.vcard a.on-popunder');
         Images = Array.from(document.querySelectorAll('article div.post-body div.post-media-body img'));
-        Images.forEach(entry => UpdateDB(entry))
+        Images.forEach(entry => UpdateDB(entry));
 
 
     } else if (/foamgirl\.net\/\d+\.html/.test(PageURL)) {
         Title = GetRequiredElement(".single_mianimage .item_title h1", "Title");
         if (!Title) return console.warn('Title not found for foamgirl.net');
         Images = Array.from(document.querySelectorAll('.single_mianimage #content img'));
-        Images.forEach(entry => UpdateDB(entry))
+        Images.forEach(entry => UpdateDB(entry));
 
         const navRight = document.querySelector('.mbx-nav-right');
         const maxPage = Number(navRight?.innerText.replace(/^.*[\\/]/, '')) || 1;
@@ -871,11 +900,36 @@ async function Start() {
 
     if (!Title) return console.warn('Title not found');
     document.querySelector('.CenterBox').insertAdjacentHTML('afterbegin', '<i class="DownButton fas fa-download"></i>');
-    return Title
+    return Title;
 }
 
 
 async function secondStep(Title) {
+
+    document.addEventListener('click', (e) => {
+        const stopBtn = e.target.closest('.StopAll');
+        console.log(e.target);
+        if (!stopBtn) return;
+        console.log('StopAll 버튼 클릭');
+        if (stopBtn) {
+            if (userAbortController && !userAbortController.signal.aborted) {
+                console.log("⏹ 다운로드 중지 요청");
+                abortReason = 'user';
+                userAbortController.abort();
+            }
+        }
+        const retryFailedBtn = e.target.closest('.RetryFailed');
+        if (!retryFailedBtn) return;
+        if (retryFailedBtn) {
+            if (errorCount > 0) {
+                console.log("🔄 실패한 이미지 재시도", errorCount);
+                downloadPhotosWithRetry(DownloadImagesDB);
+            } else {
+                console.log("❌ 재시도할 실패 이미지 없음");
+            }
+        }
+    });
+
 
     document.querySelector('.CenterBox').style.visibility = 'visible';
 
@@ -883,17 +937,17 @@ async function secondStep(Title) {
     Title = Title.endsWith(`(${Array.from(ImagesDB).length}P)`) ? Title : `${Title}(${Array.from(ImagesDB).length}P)`;
     ZipFileName = byteLengthOf(FilenameConvert(Author ? `[${Author.innerText.trim()}] ${Title}` : Title), 240);
     if (!ZipFileName) {
-        await UpdateJobQueue(PageURL, 'remove')
-        throw new Error('ZipFileName is empty')
+        await UpdateJobQueue(PageURL, 'remove');
+        throw new Error('ZipFileName is empty');
     }
     const allJobs = await jobDB.getAllJobs();
     JobList = allJobs.map(j => j.url);
     checkAndStartJob();
 
 
-    await generateZIP(ImagesDB) // DownloadImagesDB 생성
+    await generateZIP(ImagesDB); // DownloadImagesDB 생성
 
-    console.log('DownloadImagesDB: ', DownloadImagesDB)
+    console.log('DownloadImagesDB: ', DownloadImagesDB);
 
     document.querySelector('.DownButton').addEventListener('click', e => {
         e.preventDefault();
@@ -914,31 +968,6 @@ async function secondStep(Title) {
         }
     }
 
-
-    await onElementLoaded('.StopAll').then(() => {
-        console.log('StopAll 버튼이 로드되었습니다.');
-
-        document.querySelector('.StopAll').addEventListener('click', () => {
-            navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, () => {
-
-            });
-            if (userAbortController) {
-                console.log("⏹ 다운로드 중지 요청");
-                userAbortController.abort();
-            }
-        });
-
-        document.querySelector('.RetryFailed').addEventListener('click', () => {
-            navigator.locks.request('AllImagesJobLock', { mode: 'exclusive' }, () => {
-                if (errorCount > 0) {
-                    console.log("🔄 실패한 이미지 재시도", errorCount);
-                    downloadPhotosWithRetry(DownloadImagesDB)
-                } else {
-                    console.log("❌ 재시도할 실패 이미지 없음");
-                }
-            });
-        });
-    })
 }
 
 
@@ -950,7 +979,7 @@ function isAutoDownload() {
 
 
 function byteLengthOf(TitleText, maxByte) {
-    console.log(TitleText, maxByte)
+    console.log(TitleText, maxByte);
     let result = '';
     let lineByte = 0;
 
@@ -999,7 +1028,7 @@ function activityTimeoutSignal(ms) {
     // 타임아웃을 설정/재설정하는 함수
     const resetTimeout = () => {
         if (timeoutId) clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => controller.abort(), ms);
+        timeoutId = setTimeout(() => { abortReason = 'error'; controller.abort(); }, ms);
     };
 
     // 타임아웃을 즉시 시작
@@ -1026,7 +1055,7 @@ async function downloadPhotosWithRetry(DownloadImagesDB) {
     const { signal: userSignal } = userAbortController;
     const maxRetries = 2;
     let errorList = [];
-    errorCount = 0
+    errorCount = 0;
 
     AllCount = DownloadImagesDB.length;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -1054,7 +1083,7 @@ async function downloadPhotosWithRetry(DownloadImagesDB) {
                 updateStateText("🚫 다운로드 취소됨");
             } else {
                 console.error("⛔ 치명적 오류:", fatalErr);
-                AutoClose = false
+                AutoClose = false;
             }
             // IndexedDB 임시 데이터 제거 (streamSaver 버퍼 제거)
 
@@ -1072,26 +1101,32 @@ async function downloadPhotosWithRetry(DownloadImagesDB) {
         errorCount = errorList.length;
         updateStateText(`❌ 최종 실패 ${errorList.length} 항목`);
         showErrorPanel(errorList);
-        AutoClose = false
-        areadyDownloaded = false
+        AutoClose = false;
+        areadyDownloaded = false;
         UpdateJobQueue(PageURL, 'remove'); // ✅ JobQueue에서 제거
     } else if (userSignal.aborted) {
-        UpdateJobQueue(PageURL, 'remove'); // ✅ JobQueue에서 제거
-        await sleep(5000);
-        UpdateJobQueue(PageURL, 'add'); // ✅ JobQueue에 다시 추가
-        areadyDownloaded = false
+        if (abortReason === 'user') {
+            console.log("⛔ 사용자 중단");
+            await UpdateJobQueue(PageURL, 'remove');
+        } else {
+            console.log("⚠️ 오류로 중단 → 재시도 대상");
+            UpdateJobQueue(PageURL, 'remove'); // ✅ JobQueue에서 제거
+            await sleep(5000);
+            UpdateJobQueue(PageURL, 'add'); // ✅ JobQueue에 다시 추가
+            areadyDownloaded = false;
+        }
     } else {
         updateStateText(`✅ 전체 성공`);
         UpdateJobQueue(PageURL, 'remove'); // ✅ JobQueue에서 제거
-        areadyDownloaded = true
-        await sleep(2500)
-        hideProgressUI()
-        await sleep(2500)
+        areadyDownloaded = true;
+        await sleep(2500);
+        hideProgressUI();
+        await sleep(2500);
         if (localStorage.getItem('AutoDownload') == "1" && AutoClose && AllCount === addCount) {
             self.close();
         }
     }
-    downloadedFiles.clear()
+    downloadedFiles.clear();
 }
 
 
@@ -1103,7 +1138,7 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
     // streamSaver에도 사용자 취소 신호 전달
     const fileStream = streamSaver.createWriteStream(ArchivesFileName, { signal: userSignal });
 
-    const rs = new ReadableStream({
+    rs = new ReadableStream({
         start(controller) {
             zip.ondata = (err, chunk, final) => {
                 if (err) return controller.error(err);
@@ -1138,23 +1173,23 @@ async function downloadPhotosAttempt(DB, userSignal, isRetry = false) {
 
 
             const usefoamgirl = 'foamgirl.net' === RootDomain;
-            let modHeader
+            let modHeader;
             if ('foamgirl.net' === RootDomain) {
                 modHeader = {
                     'Referer': PageURL,
                     //'Origin': new URL(PageURL).origin
-                }
+                };
 
             } else if ('everia.club' === RootDomain) {
                 modHeader = {
                     'Referer': meta.P,
                     //'Origin': new URL(meta.P).origin
-                }
+                };
             } else {
                 modHeader = {
                     'Referer': PageURL,
                     //'Origin': new URL(PageURL).origin
-                }
+                };
             }
 
             const response = await Xfetch(meta.P,
@@ -1239,26 +1274,26 @@ function NextPage(url) {
                 "Origin": new URL(url).origin
             },
             onload: function (resp) {
-                const html = document.createElement('html')
-                html.innerHTML = resp.responseText
+                const html = document.createElement('html');
+                html.innerHTML = resp.responseText;
 
-                const container = html.querySelector("div.single_mianimage div.content div#content div#image_div.image_div")
+                const container = html.querySelector("div.single_mianimage div.content div#content div#image_div.image_div");
                 if (!container) {
-                    console.warn(`[NextPage] No image container found on ${url}`)
-                    return resolve(html)
+                    console.warn(`[NextPage] No image container found on ${url}`);
+                    return resolve(html);
                 }
 
-                const images = [...container.querySelectorAll('img')]
-                images.forEach(entry => UpdateDB(entry))
+                const images = [...container.querySelectorAll('img')];
+                images.forEach(entry => UpdateDB(entry));
 
-                resolve(html)
+                resolve(html);
             },
             onerror: function (error) {
-                console.error(`[NextPage] Failed to load ${url}:`, error)
-                reject(error)
+                console.error(`[NextPage] Failed to load ${url}:`, error);
+                reject(error);
             }
-        })
-    })
+        });
+    });
 }
 
 
@@ -1273,24 +1308,24 @@ function GetUrl(url) {
             },
             onload: function (resp) {
                 try {
-                    const html = document.createElement('html')
-                    html.innerHTML = resp.responseText
-                    const container = html.querySelector("div._download")
-                    const anchor = container?.querySelector('a[href*="http"]')
+                    const html = document.createElement('html');
+                    html.innerHTML = resp.responseText;
+                    const container = html.querySelector("div._download");
+                    const anchor = container?.querySelector('a[href*="http"]');
                     if (anchor) {
-                        resolve(anchor.href)
+                        resolve(anchor.href);
                     } else {
-                        reject(new Error("No download link found in response."))
+                        reject(new Error("No download link found in response."));
                     }
                 } catch (err) {
-                    reject(err)
+                    reject(err);
                 }
             },
             onerror: function (error) {
-                reject(error)
+                reject(error);
             }
-        })
-    })
+        });
+    });
 }
 
 function CheckOnline(url) {
@@ -1299,66 +1334,66 @@ function CheckOnline(url) {
             method: "GET",
             url: url,
             onload: function (resp) {
-                console.log(`[CheckOnline] ${url} -> Status: ${resp.status}`)
-                resolve(resp.status >= 200 && resp.status < 400) // success range
+                console.log(`[CheckOnline] ${url} -> Status: ${resp.status}`);
+                resolve(resp.status >= 200 && resp.status < 400); // success range
             },
             onerror: function (error) {
-                console.warn(`[CheckOnline] Error fetching ${url}:`, error)
-                resolve(false)
+                console.warn(`[CheckOnline] Error fetching ${url}:`, error);
+                resolve(false);
             }
-        })
-    })
+        });
+    });
 }
 
 
 
 function UpdateDB(el) {
-    if (!el) return
+    if (!el) return;
 
-    const url = el.getAttribute('data-lazy-src') || el.getAttribute('data-src') || el.src
+    const url = el.getAttribute('data-lazy-src') || el.getAttribute('data-src') || el.src;
     if (getExtensionOfFilename(url)) {
-        ImagesDB.add(url)
+        ImagesDB.add(url);
     }
-    return ImagesDB
+    return ImagesDB;
 }
 
 async function generateZIP(ImagesDB) {
-    console.log('Download to Zip')
+    console.log('Download to Zip');
 
-    DownloadImagesDB = []
-    ArchivesFileName = ZipFileName + ".zip"
+    DownloadImagesDB = [];
+    ArchivesFileName = ZipFileName + ".zip";
 
-    const DB = Array.from(ImagesDB)
-    const analysis = analyzeByExtension(DB)
+    const DB = Array.from(ImagesDB);
+    const analysis = analyzeByExtension(DB);
 
     if (Object.keys(analysis).length === 0) {
-        await UpdateJobQueue(PageURL, 'remove')
-        throw new Error('nameLengths is empty')
+        await UpdateJobQueue(PageURL, 'remove');
+        throw new Error('nameLengths is empty');
     }
 
     await Promise.allSettled(DB.map(async (el, i) => {
-        let filename = ''
-        let Extension = getExtensionOfFilename(el)
-        let indexNumber = (i + 1).toString().padStart(3, '0')
-        let base = GetFileName(el)
+        let filename = '';
+        let Extension = getExtensionOfFilename(el);
+        let indexNumber = (i + 1).toString().padStart(3, '0');
+        let base = GetFileName(el);
 
 
         if (/blogger\.googleusercontent\.com/.test(el)) {
-            filename = `${ZipFileName} ${indexNumber}.jpg`
+            filename = `${ZipFileName} ${indexNumber}.jpg`;
         } else if (/cdn\.foamgirl\.net/.test(el)) {
             filename = adjustFilename(base, Extension, analysis[Extension]);
         } else if (/%/.test(base) || /girlgirlgo\.org/.test(el)) {
-            filename = `${ZipFileName.replace(/\(\d+P\)$/, '')}-${indexNumber}${Extension}`
+            filename = `${ZipFileName.replace(/\(\d+P\)$/, '')}-${indexNumber}${Extension}`;
         } else if (/_/.test(base)) {
             filename = adjustFilename(base, Extension, analysis[Extension]).replace('_', ' ');
         } else {
             filename = adjustFilename(base, Extension, analysis[Extension]);
         }
 
-        DownloadImagesDB.push({ P: el, F: filename })
-    }))
+        DownloadImagesDB.push({ P: el, F: filename });
+    }));
 
-    return DownloadImagesDB
+    return DownloadImagesDB;
 }
 
 

@@ -317,9 +317,10 @@
         for (const rule of rulePipeline) {
             if (rule.condition(el, context)) {
                 if (isAltKeyPressed) {
+                    console.log(`Rule Matched: ${el} ${rule.name}`); // 디버깅 시 이 줄의 주석을 해제하세요.
                     return rule.name;
                 }
-                // console.log(`Rule Matched: ${rule.name}`); // 디버깅 시 이 줄의 주석을 해제하세요.
+                //console.log(`Rule Matched: ${rule.name}`); // 디버깅 시 이 줄의 주석을 해제하세요.
                 rule.action(el);
                 return; // 첫 번째 일치하는 규칙을 적용하고 즉시 종료
             }
