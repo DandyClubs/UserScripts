@@ -489,13 +489,13 @@ backdrop-filter: blur(1px);
                 const imageEl = document.querySelector('div.grid div.flex a picture source');
                 if (imageEl) {
                     const url = imageEl.closest('a')?.href;
-                    if (url) {                        
+                    if (url) {
                         const cleanUrl = url.split('?')[0];
                         const existingMeta = await VceDB.get('imageMeta', cleanUrl);
                         if (existingMeta.sourceSite === 'FANZA_DIGITAL') return;
                         imageEl.classList.add(PROCESSED_CLASS);
                         const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
-                        const result = parse(document.body);                        
+                        const result = parse(document.body);
                         if (!result || !result.realCode) return;
                         if (result.makerLabel) {
                             const makerLabelCode = findIdsByName(makerMap, result.makerLabel);
@@ -526,14 +526,14 @@ backdrop-filter: blur(1px);
                             e.preventDefault();
                             const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
                             const result = parse(document.body);
-                            if (!result || !result.realCode) return;                            
+                            if (!result || !result.realCode) return;
                             const fileName = `${result.realCode} ${result.title}`;
                             const url = imageEl.closest('a')?.href;
                             if (url) {
                                 const cleanUrl = url.split('?')[0];
                                 forceDownload(cleanUrl, fileName + '.jpg');
-                                const output = Object.entries(result).map(([key, value]) => value).join('\n').replace(/^,/gm, '');                                
-                                const blob = new Blob([output], { type: "text/plain:charset=utf-8" });                                
+                                const output = Object.entries(result).map(([key, value]) => value).join('\n').replace(/^,/gm, '');
+                                const blob = new Blob([output], { type: "text/plain:charset=utf-8" });
                                 const texturl = URL.createObjectURL(blob);
                                 const link = document.createElement('a');
                                 link.href = texturl;
@@ -1147,6 +1147,14 @@ backdrop-filter: blur(1px);
             observer.disconnect(); // 기존 감시 중단 후 재시작
             observer.observe(document.body, { childList: true, subtree: true });
             mutCallback(); // 즉시 한 번 실행
+        }
+
+        if (PageURL().startsWith('https://video.dmm.co.jp/av/content/?id=')) {
+            const config = siteConfigs['FANZA_DIGITAL'];
+            if (config) {
+                config.addDB();
+                waitElement('div.flex.flex-col.relative.w-full');
+            }
         }
     };
 
@@ -2488,15 +2496,26 @@ backdrop-filter: blur(1px);
 
 
     function waitElement(selector, targetNode = document.body) {
+        const config = siteConfigs['FANZA_DIGITAL'];
         return new Promise((resolve, reject) => {
             const element = targetNode.querySelector(selector);
 
             if (element) {
+                const mainVideo = document.querySelector('div.flex.flex-col.relative.w-full');
+                if (mainVideo) {
+                    mainVideo.insertAdjacentHTML('beforeend', `<div class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important; top: ${areaHeight}px; left:${areaWidth}px;"></div>`);
+                    config.rawImageDownloader();
+                }
                 resolve(element);
             }
             const observer = new MutationObserver((mutations, obs) => {
                 const found = targetNode.querySelector(selector);
                 if (found) {
+                    const mainVideo = document.querySelector('div.flex.flex-col.relative.w-full');
+                    if (mainVideo) {
+                        mainVideo.insertAdjacentHTML('beforeend', `<div class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important; top: ${areaHeight}px; left:${areaWidth}px;"></div>`);
+                        config.rawImageDownloader();
+                    }
                     obs.disconnect();
                     resolve(found);
                 }
@@ -2527,25 +2546,6 @@ backdrop-filter: blur(1px);
             observer.observe(document.body, { childList: true, subtree: true });
             if (autoStatus.active) {
                 startAuto();
-            }
-        }
-
-        if (PageURL().startsWith('https://video.dmm.co.jp/av/content/?id=')) {
-            const config = siteConfigs['FANZA_DIGITAL'];
-            if (config) {
-                config.addDB();
-                let mainVideo = document.querySelector('div.flex.flex-col.relative.w-full');
-                if (mainVideo) {
-                    mainVideo.insertAdjacentHTML('beforeend', `<div class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></div>`);
-                    config.rawImageDownloader();
-                } else {                    
-                    waitElement('div.flex.flex-col.relative.w-full').then(e => {
-                        mainVideo = document.querySelector('div.flex.flex-col.relative.w-full');                    
-                        mainVideo.insertAdjacentHTML('beforeend', `<div class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important;"></div>`);
-                        config.rawImageDownloader();
-                    });
-                }                              
-                
             }
         }
 
