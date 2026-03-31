@@ -439,14 +439,16 @@ backdrop-filter: blur(1px);
         });
     }
 
-    function findIdsByName(map, targetName) {
+    function findIdsByName(map, targetName, mode = 'id') {
         const resultIds = [];
 
         // Map의 [key, value] 쌍을 순회합니다.
         for (const [id, data] of map.entries()) {
             // original이나 final 중 하나라도 targetName과 같다면 id를 추가
-            if (data.original === targetName || data.final === targetName) {
+            if (mode === 'id' && data.original === targetName || data.final === targetName) {
                 return id;
+            } else if (mode === 'final' && data.final === targetName) {
+                return data.final;
             }
         }
         return null;
@@ -492,13 +494,13 @@ backdrop-filter: blur(1px);
                     if (url) {
                         const cleanUrl = url.split('?')[0];
                         const existingMeta = await VceDB.get('imageMeta', cleanUrl);
-                        if (existingMeta.sourceSite === 'FANZA_DIGITAL') return;
+                        if (existingMeta && existingMeta.sourceSite === 'FANZA_DIGITAL') return;
                         imageEl.classList.add(PROCESSED_CLASS);
                         const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
                         const result = parse(document.body);
                         if (!result || !result.realCode) return;
                         if (result.makerLabel) {
-                            const makerLabelCode = findIdsByName(makerMap, result.makerLabel);
+                            const makerLabelCode = findIdsByName(makerMap, result.makerLabel, 'id');
                             if (makerLabelCode) processWork(cleanUrl, '2D', makerLabelCode, result.makerLabel);
                             await sleep(1000);
                             const existingMeta = await VceDB.get('imageMeta', cleanUrl);
@@ -528,18 +530,15 @@ backdrop-filter: blur(1px);
                             const result = parse(document.body);
                             if (!result || !result.realCode) return;
                             const fileName = `${result.realCode} ${result.title}`;
+                            const limitedfileName = byteLengthOf(fileName, 240);
+                            let finalFileName = FilenameConvert(limitedfileName);
                             const url = imageEl.closest('a')?.href;
                             if (url) {
                                 const cleanUrl = url.split('?')[0];
-                                forceDownload(cleanUrl, fileName + '.jpg');
-                                const output = Object.entries(result).map(([key, value]) => value).join('\n').replace(/^,/gm, '');
+                                forceDownload(cleanUrl, finalFileName + '.jpg');
+                                const output = Object.entries(result).map(([key, value]) => `${key}: ${value}`).join('\n').replace(/^,/gm, '');
                                 const blob = new Blob([output], { type: "text/plain:charset=utf-8" });
-                                const texturl = URL.createObjectURL(blob);
-                                const link = document.createElement('a');
-                                link.href = texturl;
-                                link.download = fileName + `.txt`;
-                                link.click();
-                                URL.revokeObjectURL(url);
+                                saveAs(blob, finalFileName + '.txt');
                             }
                         }
                     });
@@ -993,6 +992,11 @@ backdrop-filter: blur(1px);
 
             const meta = await runFallbackParser(existingMeta);
 
+
+            if (meta.makerLabel) {
+                meta.makerLabel = findIdsByName(makerMap, meta.makerLabel, 'final') || meta.makerLabel;
+            }
+
             let metaData = {};
             if (meta) {
                 metaData = {
@@ -1133,6 +1137,8 @@ backdrop-filter: blur(1px);
         }
     }
 
+    let coverDownloadIcon = null;
+
     const resetSessionCodes = () => {
         const newUrl = PageURL();
         makerLabelCode = GetParam(newUrl, 'maker');
@@ -1153,6 +1159,7 @@ backdrop-filter: blur(1px);
             const config = siteConfigs['FANZA_DIGITAL'];
             if (config) {
                 config.addDB();
+                if (coverDownloadIcon) coverDownloadIcon.remove();
                 waitElement('div.flex.flex-col.relative.w-full');
             }
         }
@@ -2501,9 +2508,13 @@ backdrop-filter: blur(1px);
             const element = targetNode.querySelector(selector);
 
             if (element) {
-                const mainVideo = document.querySelector('div.flex.flex-col.relative.w-full');
+                const mainVideo = document.querySelector(selector);
                 if (mainVideo) {
-                    mainVideo.insertAdjacentHTML('beforeend', `<div class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important; top: ${areaHeight}px; left:${areaWidth}px;"></div>`);
+                    if (coverDownloadIcon) coverDownloadIcon.remove();
+                    coverDownloadIcon = document.createElement('div');
+                    coverDownloadIcon.classList.add('CoverDownload', 'fa-regular', 'fa-image');
+                    coverDownloadIcon.style = `color: dodgerblue !important; bottom: 0; right: 0;`;
+                    mainVideo.appendChild(coverDownloadIcon);
                     config.rawImageDownloader();
                 }
                 resolve(element);
@@ -2511,9 +2522,13 @@ backdrop-filter: blur(1px);
             const observer = new MutationObserver((mutations, obs) => {
                 const found = targetNode.querySelector(selector);
                 if (found) {
-                    const mainVideo = document.querySelector('div.flex.flex-col.relative.w-full');
+                    const mainVideo = document.querySelector(selector);
                     if (mainVideo) {
-                        mainVideo.insertAdjacentHTML('beforeend', `<div class="CoverDownload fa-regular fa-image" style="color: dodgerblue !important; top: ${areaHeight}px; left:${areaWidth}px;"></div>`);
+                        if (coverDownloadIcon) coverDownloadIcon.remove();
+                        coverDownloadIcon = document.createElement('div');
+                        coverDownloadIcon.classList.add('CoverDownload', 'fa-regular', 'fa-image');
+                        coverDownloadIcon.style = `color: dodgerblue !important; bottom: 0; right: 0;`;
+                        mainVideo.appendChild(coverDownloadIcon);
                         config.rawImageDownloader();
                     }
                     obs.disconnect();
@@ -2527,6 +2542,52 @@ backdrop-filter: blur(1px);
             });
         });
     }
+
+    function byteLengthOf(text, maxByte) {
+        let currentByte = 0;
+        let result = '';
+        for (let i = 0; i < text.length; i++) {
+            const charCode = text.charCodeAt(i);
+            let charByte;
+            if (charCode <= 0x7F) charByte = 1;
+            else if (charCode <= 0x7FF) charByte = 2;
+            else if (charCode <= 0xFFFF) charByte = 3;
+            else {
+                charByte = 4;
+                i++;
+            }
+
+            if (currentByte + charByte >= maxByte) {
+                // 마지막 문자가 '、' 또는 ','인 경우 제거
+                if (result.endsWith('、') || result.endsWith(',')) {
+                    result = result.slice(0, -1);
+                }
+                return result.trim() + '…';
+            }
+            currentByte += charByte;
+            result += text[i];
+        }
+        return result;
+    }
+
+    function FilenameConvert(text) {
+        if (typeof text !== 'string') return '';
+
+        const replacements = {
+            '<': '＜',
+            '>': '＞',
+            ':': '：',
+            '"': '＂',
+            '/': '／',
+            '\\': '＼',
+            '|': '｜',
+            '?': '？',
+            '*': '＊',
+        };
+
+        return [...text].map(c => replacements[c] || c).join('');
+    }
+
 
     async function collectAndProcess() {
         FontAwesomeCSS();
@@ -2546,6 +2607,15 @@ backdrop-filter: blur(1px);
             observer.observe(document.body, { childList: true, subtree: true });
             if (autoStatus.active) {
                 startAuto();
+            }
+        }
+
+        if (PageURL().startsWith('https://video.dmm.co.jp/av/content/?id=')) {
+            const config = siteConfigs['FANZA_DIGITAL'];
+            if (config) {
+                config.addDB();
+                await sleep(1000);
+                waitElement('div.flex.flex-col.relative.w-full');
             }
         }
 
