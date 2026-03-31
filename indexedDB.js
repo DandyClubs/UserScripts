@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoCode & MetaData Extractor IndexedDB 고도화 5.0
 // @namespace    http://tampermonkey.net/
-// @version      5.1
+// @version      5.1.5
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
@@ -513,7 +513,7 @@ backdrop-filter: blur(1px);
                     document.addEventListener('click', (e) => {
                         e.preventDefault();
                         const CoverDownload = e.target.closest('.CoverDownload');
-                        if (CoverDownload) {                            
+                        if (CoverDownload) {
                             const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
                             const result = parse(document.body);
                             if (!result || !result.realCode) return;
@@ -1132,6 +1132,24 @@ backdrop-filter: blur(1px);
 
     let coverDownloadIcon = null;
 
+    async function checkIcon(config) {
+        const checkInterval = setInterval(() => {
+            const element = document.querySelector('iframe[title]');            
+            if (element) {                
+                if (coverDownloadIcon) coverDownloadIcon.remove();
+                coverDownloadIcon = document.createElement('div');
+                coverDownloadIcon.classList.add('CoverDownload', 'fa-regular', 'fa-image');
+                coverDownloadIcon.style = `color: dodgerblue !important; bottom: 0; right: 0;`;
+                element.parentElement.appendChild(coverDownloadIcon);
+                config.rawImageDownloader();
+                console.log(coverDownloadIcon, element);
+
+                // 중요: 감지에 성공하면 반드시 인터벌을 중단해야 합니다.
+                clearInterval(checkInterval);
+            }
+        }, 1000); // 0.5초마다 체크
+    }
+
     const resetSessionCodes = () => {
         const newUrl = PageURL();
         makerLabelCode = GetParam(newUrl, 'maker');
@@ -1148,13 +1166,12 @@ backdrop-filter: blur(1px);
             mutCallback(); // 즉시 한 번 실행
         }
 
-        if (PageURL().startsWith('https://video.dmm.co.jp/av/content/?id=')) {
+        if (PageURL().startsWith('https://video.dmm.co.jp/av/content/')) {
             const config = siteConfigs['FANZA_DIGITAL'];
             if (config) {
                 config.addDB();
-                if (coverDownloadIcon) coverDownloadIcon.remove();
-                waitElement('div.flex.flex-col.relative.w-full');
             }
+            checkIcon(config);           
         }
     };
 
@@ -2497,44 +2514,33 @@ backdrop-filter: blur(1px);
 
     function waitElement(selector, targetNode = document.body) {
         const config = siteConfigs['FANZA_DIGITAL'];
-        return new Promise((resolve, reject) => {
-            const element = targetNode.querySelector(selector);
-
-            if (element) {
+        const element = targetNode.querySelector(selector);
+        if (element) {
+            if (coverDownloadIcon) coverDownloadIcon.remove();
+            coverDownloadIcon = document.createElement('div');
+            coverDownloadIcon.classList.add('CoverDownload', 'fa-regular', 'fa-image');
+            coverDownloadIcon.style = `color: dodgerblue !important; bottom: 0; right: 0;`;
+            element.parentElement.appendChild(coverDownloadIcon);
+            config.rawImageDownloader();
+        } else {
+            const iconObserver = new MutationObserver((mutations, obs) => {
                 const mainVideo = document.querySelector(selector);
                 if (mainVideo) {
                     if (coverDownloadIcon) coverDownloadIcon.remove();
                     coverDownloadIcon = document.createElement('div');
                     coverDownloadIcon.classList.add('CoverDownload', 'fa-regular', 'fa-image');
                     coverDownloadIcon.style = `color: dodgerblue !important; bottom: 0; right: 0;`;
-                    mainVideo.appendChild(coverDownloadIcon);
+                    mainVideo.parentElement.appendChild(coverDownloadIcon);
                     config.rawImageDownloader();
+                    obs.disconnect();
                 }
-                resolve(element);
-            } else {
-                const observer = new MutationObserver((mutations, obs) => {
-                    const found = targetNode.querySelector(selector);
-                    if (found) {
-                        const mainVideo = document.querySelector(selector);
-                        if (mainVideo) {
-                            if (coverDownloadIcon) coverDownloadIcon.remove();
-                            coverDownloadIcon = document.createElement('div');
-                            coverDownloadIcon.classList.add('CoverDownload', 'fa-regular', 'fa-image');
-                            coverDownloadIcon.style = `color: dodgerblue !important; bottom: 0; right: 0;`;
-                            mainVideo.appendChild(coverDownloadIcon);
-                            config.rawImageDownloader();
-                        }
-                        obs.disconnect();
-                        resolve(found);
-                    }
-                });
 
-                observer.observe(targetNode, {
-                    childList: true,
-                    subtree: true
-                });
-            }
-        });
+            });
+            iconObserver.observe(targetNode, {
+                childList: true,
+                subtree: true
+            });
+        }
     }
 
 
@@ -2617,17 +2623,16 @@ backdrop-filter: blur(1px);
             }
         }
 
-        if (PageURL().startsWith('https://video.dmm.co.jp/av/content/?id=')) {
+        refreshQueueButton();
+        updateProcessingStatus();
+
+        if (PageURL().startsWith('https://video.dmm.co.jp/av/content/')) {
             const config = siteConfigs['FANZA_DIGITAL'];
             if (config) {
                 config.addDB();
-                await sleep(1000);
-                waitElement('div.flex.flex-col.relative.w-full');
             }
+            checkIcon(config);
         }
-
-        refreshQueueButton();
-        updateProcessingStatus();
     }
 
 
