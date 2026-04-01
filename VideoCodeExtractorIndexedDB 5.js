@@ -1012,7 +1012,9 @@ backdrop-filter: blur(1px);
 
 
     let isResProcessing = false;
+    let isMetaStop = false;
     let isMetaProcessing = false;
+    let isResStop = false;
     const requestMetaMap = new Map();
     const requestResMap = new Map();
 
@@ -1022,19 +1024,32 @@ backdrop-filter: blur(1px);
 
         if (!requestMetaMap.has(task.url) && existingMeta.metaStatus !== 'SUCCESS') {
             requestMetaMap.set(task.url, task);
-            if (!isMetaProcessing) doMeta();
+            if (!isMetaProcessing){
+                doMeta();
+                isMetaStop = false;
+            } 
+            if(isMetaProcessing){
+                isMetaStop = true;
+            }
         }
 
         if (!requestResMap.has(task.url) && existingMeta.resolutionState !== 'SUCCESS') {
             requestResMap.set(task.url, task);
-            if (!isResProcessing) doRes();
+            if (!isResProcessing){
+                doRes();
+                isResStop = false;
+            } 
+            if(isResProcessing){
+                isResStop = true;
+            }
         }
     }
 
     async function doMeta() {
         isMetaProcessing = true;
 
-        while (requestMetaMap.size > 0) {
+        while (requestMetaMap.size > 0 && isMetaStop === false) {
+
             const firstKey = requestMetaMap.keys().next().value;
             const task = requestMetaMap.get(firstKey);
             requestMetaMap.delete(firstKey);
@@ -1074,7 +1089,7 @@ backdrop-filter: blur(1px);
     async function doRes() {
         isResProcessing = true;
 
-        while (requestResMap.size > 0) {
+        while (requestResMap.size > 0 && isResStop === false) {
             const firstKey = requestResMap.keys().next().value;
             const task = requestResMap.get(firstKey);
             requestResMap.delete(firstKey);
@@ -2787,8 +2802,14 @@ backdrop-filter: blur(1px);
 
 
     async function startJob() {
-
-        if (isRunning) return;
+        
+        if (isRunning) {
+            workerWin.close();
+            isRunning = false;
+            workerWin = null;
+            updateProcessingFANZADIGITAL(taskQueue.length, '');
+            return;
+        }
 
         isRunning = true;
 
@@ -2830,7 +2851,7 @@ backdrop-filter: blur(1px);
                 workerWin.close();
                 isRunning = false;
                 workerWin = null;
-                updateProcessingFANZADIGITAL(taskQueue.length, contentId);
+                updateProcessingFANZADIGITAL(taskQueue.length, '');
                 return;
             }
 
@@ -2839,7 +2860,7 @@ backdrop-filter: blur(1px);
             const contentId = pathSegments[pathSegments.length - 2];
             const workerUrl = `https://video.dmm.co.jp/av/content/?id=${contentId}`;
             updateProcessingFANZADIGITAL(taskQueue.length, contentId);
-            console.log(workerWin, workerUrl);
+            //console.log(workerWin, workerUrl, contentId, taskQueue);
             workerWin.postMessage({
                 type: 'MOVE_TASK',
                 url: workerUrl
