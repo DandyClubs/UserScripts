@@ -209,7 +209,7 @@ function showCloudflareAlert(url, domain) {
     document.body.appendChild(box);
 
     document.getElementById(`btn-${alertId}`).onclick = () => {
-        const authWin = window.open(url, '_blank', 'width=1000,height=800');
+        const authWin = window.open(url, '_blank', 'width=1000, height=800');
 
         const checkTimer = setInterval(async () => {
             if (authWin.closed) {

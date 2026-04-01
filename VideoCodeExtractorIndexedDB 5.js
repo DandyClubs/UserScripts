@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         VideoCode & MetaData Extractor IndexedDB 고도화 5.0
 // @namespace    http://tampermonkey.net/
-// @version      5.1.10
+// @version      5.2.0
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
 // @match        https://video.dmm.co.jp/av/maker/*
 // @match        https://video.dmm.co.jp/av/content/?id=*
+// @match        https://video.dmm.co.jp
 // @resource     MAKER_MAP https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/DMM_MakerMap_2026-03-26.json
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @require      https://cdn.jsdelivr.net/npm/sweetalert2@11.26.24/dist/sweetalert2.all.min.js
@@ -179,6 +180,7 @@ backdrop-filter: blur(1px);
     let currentSessionCodes = new Set();
     let isShowAllMode = false;
     let filterText = "";
+    let FANZADIGITAL = null;
     let statusEl = null;
     let autoContainer = null;
     let mapContainer = null;
@@ -377,7 +379,7 @@ backdrop-filter: blur(1px);
         }
 
 
-        static async getSchedulableTasks(storeName) {
+        static async getSchedulableTasks(storeName, type) {
             const db = await this.open();
             return new Promise((resolve, reject) => {
                 const tx = db.transaction(storeName, "readwrite");
@@ -385,8 +387,20 @@ backdrop-filter: blur(1px);
                 const request = store.getAll();
 
                 request.onsuccess = (e) => {
-                    const tasksToRun = e.target.result.filter(task => !task.metaStatus !== 'SUCCESS' || task.resolutionmetaStatus !== 'SUCCESS');
-                    tx.oncomplete = () => resolve(tasksToRun);
+
+                    if (type === 'meta') {
+                        const tasksToRun = e.target.result.filter(task => task.metaStatus !== 'SUCCESS');
+                        tx.oncomplete = () => resolve(tasksToRun);
+                    }
+                    if (type === 'image') {
+                        const tasksToRun = e.target.result.filter(task => task.resolutionmetaStatus !== 'SUCCESS');
+                        tx.oncomplete = () => resolve(tasksToRun);
+                    }
+                    if (type === 'both') {
+                        const tasksToRun = e.target.result.filter(task => task.metaStatus !== 'SUCCESS' || task.resolutionmetaStatus !== 'SUCCESS');
+                        tx.oncomplete = () => resolve(tasksToRun);
+                    }
+
                 };
                 request.onerror = (err) => reject(err);
             });
@@ -455,27 +469,27 @@ backdrop-filter: blur(1px);
     const siteConfigs = {
         DMM: {
             ContentIdBuilder: (data) => {
-                const urlsDB = [];                
+                const urlsDB = [];
                 const withPrefix = data.prefix.toLowerCase();
                 const withSuffix = data.suffix.toLowerCase();
-                const extraID = /\d+ID$/i.test(data.displayCode) ? parseInt(data.displayCode) : null;                
-                const extraIDX = /\d+IDX$/i.test(data.displayCode) ? parseInt(data.displayCode) : null;                
+                const extraID = /\d+ID$/i.test(data.displayCode) ? parseInt(data.displayCode) : null;
+                const extraIDX = /\d+IDX$/i.test(data.displayCode) ? parseInt(data.displayCode) : null;
                 if (extraID && extraID < 24) {
                     const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55id24031                    
-                    const reMakeCode =  data.displayCode.toLowerCase().replace(/(\d{2})([a-zA-Z]*)/i, '$2$1');
+                    const reMakeCode = data.displayCode.toLowerCase().replace(/(\d{2})([a-zA-Z]*)/i, '$2$1');
                     const prefix = withPrefix + reMakeCode.toLowerCase();
 
                     return [
-                        `${prefix}${short}`,   
+                        `${prefix}${short}`,
                     ];
                 } else if (extraID && extraID >= 24) {
                     const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55id25031                                        
                     const prefix = withPrefix + data.displayCode.toLowerCase();
                     return [
-                        `${prefix}${short}`,   
+                        `${prefix}${short}`,
                     ];
                 }
-                if (extraIDX){
+                if (extraIDX) {
                     const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55idx25031                                       
                     const prefix = withPrefix + data.displayCode.toLowerCase();
                     return [
@@ -483,24 +497,24 @@ backdrop-filter: blur(1px);
                     ];
                 }
                 const extraHitma = data.displayCode.match(/hitma/i);
-                if(extraHitma){
+                if (extraHitma) {
                     const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55hitma282
                     const prefix = withPrefix + data.displayCode.toLowerCase();
                     return [
-                        `${prefix}${short}`,   
+                        `${prefix}${short}`,
                     ];
                 }
-                
+
                 const short = NumberFormatter.trimAndMinPad(data.number, 3); // 001                
                 const full = NumberFormatter.pad(data.number, data.padLen);   // 00001
                 const prefix = data.displayCode.split('-')[0].toLowerCase();
                 const addPrefix = withPrefix ? withPrefix + data.displayCode.toLowerCase() : null;
-                
+
                 urlsDB.push(`${prefix}${short}`);
-                if (addPrefix){
+                if (addPrefix) {
                     urlsDB.push(`${addPrefix}${full}`);
                     urlsDB.push(`${addPrefix}${short}`);
-                } 
+                }
                 urlsDB.push(`${prefix}${full}`);
                 return urlsDB;
             },
@@ -526,37 +540,47 @@ backdrop-filter: blur(1px);
         FANZA_DIGITAL: {
             addDB: async () => {
                 const imageEl = document.querySelector('div[data-e2eid="sample-image-gallery"] a picture source');
-                if (imageEl) {
-                    const url = imageEl.closest('a')?.href;
-                    if (url) {
-                        const cleanUrl = url.split('?')[0];
-                        const existingMeta = await VceDB.get('imageMeta', cleanUrl);
-                        if (existingMeta && existingMeta.sourceSite === 'FANZA_DIGITAL') return;
-                        const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
-                        const result = parse(document.body);
-                        if (!result || !result.realCode) return;
-                        if (result.makerLabel) {
-                            const makerLabelCode = findIdsByName(makerMap, result.makerLabel, 'id');
-                            const makerLabel = makerLabelReplaceMap[result.makerLabel] || result.makerLabel;
-                            if (!makerLabelCode) return;
-                            const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';
-                            await processWork(cleanUrl, rawMediaType, makerLabelCode, makerLabel);
-                            await sleep(1000);
-                            const existingMeta = await VceDB.get('imageMeta', cleanUrl);
-                            if (existingMeta) {
-                                let metaData = {};
-                                if (result) {
-                                    metaData = {
-                                        ...result,
-                                        sourceSite: 'FANZA_DIGITAL',
-                                        metaStatus: 'SUCCESS'
-                                    };
-                                    await VceDB.save("imageMeta", cleanUrl, metaData);
-                                    updateDisplayList(false, 'addDB');
-                                }
-                            }
-                        }
+                if (!imageEl) return 'element not found';
+                const url = imageEl.closest('a')?.href;
+                if (!url) return 'url not found';
+                const cleanUrl = url.split('?')[0];
+                let existingMeta = await VceDB.get('imageMeta', cleanUrl);
+                if (existingMeta && existingMeta.resolutionState !== 'SUCCESS') {
+                    const res = await fetchImageResolution(cleanUrl);
+                    let resData = {};
+                    if (res && res.width > 0) {
+                        resData = {
+                            resolution: { W: res.width, H: res.height },
+                            resolutionState: 'SUCCESS'
+                        };
+                        await VceDB.save("imageMeta", cleanUrl, resData);
                     }
+                }
+                if (existingMeta && existingMeta.sourceSite === 'FANZA_DIGITAL') return 'FANZA_DIGITAL';
+                const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
+                const result = parse(document.body);
+                if (!result || !result.realCode) return `result not fouund`;
+                if (!result.makerLabel) return `makerLabel not found`;                
+                const makerLabel = makerLabelReplaceMap[result.makerLabel] || result.makerLabel;
+                const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id') || existingMeta?.makerLabelCode;
+                if (!makerLabelCode) return 'makerLabelCode not found';
+                const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';
+                await processWork(cleanUrl, rawMediaType, makerLabelCode, makerLabel);
+                await sleep(1000);
+                existingMeta = await VceDB.get('imageMeta', cleanUrl);
+                if (existingMeta) {
+                    let metaData = {};
+                    if (result) {
+                        metaData = {
+                            ...result,
+                            sourceSite: 'FANZA_DIGITAL',
+                            metaStatus: 'SUCCESS'
+                        };
+                        await VceDB.save("imageMeta", cleanUrl, metaData);
+                        updateDisplayList(false, 'addDB');
+                        return 'SUCCESS';
+                    }
+                    return 'Last Setp FAIL';
                 }
             },
             rawImageDownloader: () => {
@@ -589,43 +613,6 @@ backdrop-filter: blur(1px);
                         }
                     });
                 }
-            },
-
-            ContentIdBuilder: (data) => {
-                const extraID = data.displayCode.match(/(\d+)ID/i);
-                if (extraID && extraID < 25) {
-                    const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55id24031                    \
-                    const reMakeCode = data.displayCode.toLowerCase().replace(/(\d{2})([a-zA-Z]*)/i, '$2$1');
-                    const prefix = data.prefix.toLowerCase() + reMakeCode.toLowerCase();
-
-                    return [
-                        `${prefix}${short}`,   // 정식                      
-                    ];
-                } else if (extraID && extraID >= 25) {
-                    const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55id25031                    \                    
-                    const prefix = data.prefix.toLowerCase() + data.displayCode.toLowerCase().toLowerCase();
-                    return [
-                        `${prefix}${short}`,   // 정식                      
-                    ];
-                }
-                const full = NumberFormatter.pad(data.number, data.padLen);   // 00001
-                const short = NumberFormatter.trimAndMinPad(data.number, 3); // 001                
-
-                const prefix = data.displayCode.split('-')[0].toLowerCase();
-
-                return [
-                    `${prefix}${full}`,   // 정식
-                    `${prefix}${short}`   // fallback
-                ];
-            },
-            buildUrls: async (meta) => {
-                const data = await getCodeData(meta);
-                if (!data) return [];
-
-                const searchCodes = siteConfigs.DMM.ContentIdBuilder(data);
-                return searchCodes.map(cid =>
-                    `https://www.dmm.co.jp/mono/dvd/-/detail/=/cid=${cid}/`
-                );
             },
             titleSelector: 'h1.font-bold.text-2xl.inline.text-base',
             InfoSelector: 'table.text-xs.shrink.table-fixed',
@@ -1095,7 +1082,7 @@ backdrop-filter: blur(1px);
             updateProcessingStatus(requestMetaMap.size, requestResMap.size);
 
             const res = await fetchImageResolution(task.url);
-            let resData;
+            let resData = {};
             if (res && res.width > 0) {
                 resData = {
                     resolution: { W: res.width, H: res.height },
@@ -1140,13 +1127,45 @@ backdrop-filter: blur(1px);
    `;
 
             statusEl.onclick = async () => {
-                const tasksToRun = await VceDB.getSchedulableTasks('imageMeta');
+                const tasksToRun = await VceDB.getSchedulableTasks('imageMeta', 'both');
                 if (tasksToRun.length > 0) {
                     console.log(`${tasksToRun.length}개의 재시도 작업을 큐에 추가합니다.`);
                     for (const task of tasksToRun) {
                         await addToQueue({ url: task.url });
                     }
                 }
+            };
+        }
+    }
+
+    function updateProcessingFANZADIGITAL(metaCount = 0, contentId = '') {
+        if (!FANZADIGITAL) {
+            FANZADIGITAL = document.getElementById('FANZADIGITAL-status-indicator');
+            if (!FANZADIGITAL) return;
+        }
+        if (metaCount > 0) {
+            FANZADIGITAL.innerHTML = `
+                <span style = "display:inline-flex; align-items:center; gap:6px;white-space: nowrap;">
+                    <svg width="24" height="14" viewBox="0 0 56 32" fill="none">
+                        <rect x="1" y="1" width="54" height="30" rx="4" stroke="currentColor" stroke-width="2"/>
+                        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+                            font-size="14" font-weight="bold" fill="currentColor">4K</text>
+                    </svg>
+   정보 확인 중...${metaCount} ${contentId}</span>
+`;
+        } else {
+            FANZADIGITAL.innerHTML = `
+                <span style = "display:inline-flex; align-items:center; gap:6px; cursor:pointer">
+                    <svg width="24" height="14" viewBox="0 0 56 32" fill="none">
+                        <rect x="1" y="1" width="54" height="30" rx="4" stroke="currentColor" stroke-width="2" />
+                        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+                            font-size="14" font-weight="bold" fill="currentColor">4K</text>
+                    </svg>
+   FANZA_DIGITAL 메타 정보 확인</span>
+   `;
+
+            FANZADIGITAL.onclick = async () => {
+                startJob();
             };
         }
     }
@@ -1251,7 +1270,9 @@ backdrop-filter: blur(1px);
         if (/video\.dmm\.co\.jp\/av\/content\/\?id/.test(newUrl)) {
             const config = siteConfigs['FANZA_DIGITAL'];
             if (config) {
-                config.addDB();
+                config.addDB().then((e) => {
+                    console.log(e, `resetSessionCodes`);
+                });
             }
             checkIcon(config);
         }
@@ -1827,6 +1848,12 @@ backdrop-filter: blur(1px);
             panel.classList.add('videocodeextractor');
             panel.style = "position:fixed; bottom:15px; right:15px; z-index:99999; display:flex !important; flex-direction:column; background:rgba(15,15,15,0.95); padding:8px; border-radius:12px; width:280px; border:1px solid #444; box-shadow:0 8px 32px rgba(0,0,0,0.5); color:white; font-family:sans-serif; box-sizing:border-box;";
             panel.innerHTML = `<div style='font-weight:bold; font-size:10px; margin-bottom:5px; text-align:center; color:#2196F3;'>DMM CODE TRACKER</div>`;
+
+            FANZADIGITAL = document.createElement('div');
+            FANZADIGITAL.id = 'FANZADIGITAL-status-indicator';
+            FANZADIGITAL.style = `display: grid; justify-content: space-around; padding: 5px 10px; background: rgba(0,0,0,0.7); color: white; font-size: 12px; border-size: 12px; border-radius: 5px; z-index: 99999;`;
+
+            panel.appendChild(FANZADIGITAL);
 
             statusEl = document.createElement('div');
             statusEl.id = 'vce-status-indicator';
@@ -2716,8 +2743,8 @@ backdrop-filter: blur(1px);
 
     async function collectAndProcess() {
         FontAwesomeCSS();
-        initializeMakerMap();
-        await sleep(2000);
+        await initializeMakerMap();
+
         const autoStatus = getState();
         if (autoStatus.active) {
             if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+$/.test(PageURL())) {
@@ -2736,23 +2763,162 @@ backdrop-filter: blur(1px);
         }
 
         refreshQueueButton();
+        updateProcessingFANZADIGITAL();
         updateProcessingStatus();
 
         if (PageURL().startsWith('https://video.dmm.co.jp/av/content/')) {
             const config = siteConfigs['FANZA_DIGITAL'];
             if (config) {
-                config.addDB();
+                await sleep(getRandomDelay());
+                config.addDB().then((e) => {
+                    console.log(e, `collectAndProcess`);
+                });
             }
             checkIcon(config);
         }
     }
 
 
-    if (document.readyState === 'complete') {
-        collectAndProcess();
+
+
+    let taskQueue = [];
+    let isRunning = false;
+    let workerWin = null;
+
+
+    async function startJob() {
+
+        if (isRunning) return;
+
+        isRunning = true;
+
+        taskQueue = await VceDB.getSchedulableTasks('imageMeta', 'meta');
+        console.log('총 작업:', taskQueue.length);
+
+        if (taskQueue.length === 0) {
+            console.log('작업 없음');
+            isRunning = false;
+            return;
+        }
+
+
+        console.log('[VCE] Parent mode');
+
+        const origin = new URL(location.href).origin;
+
+        function ensureWorker() {
+            if (!workerWin || workerWin.closed) {
+                workerWin = window.open(location.origin, '_blank', 'width=1000, height=800'); // ✔️ 중요
+                workerWin.name = 'vce_worker';
+                return; // 👈 여기 중요
+            }
+        }
+
+        window.addEventListener('message', (e) => {
+            const { type } = e.data || {};
+            if (type === 'TASK_DONE') {
+                console.log('완료:', e.data.url);
+                assignNext();
+            }
+        });
+
+        function assignNext() {
+            if (!isRunning) return;
+
+            if (taskQueue.length === 0) {
+                console.log('모든 작업 완료');
+                workerWin.close();
+                isRunning = false;
+                workerWin = null;
+                updateProcessingFANZADIGITAL(taskQueue.length, contentId);
+                return;
+            }
+
+            const task = taskQueue.shift();
+            const pathSegments = task.url.split('/');
+            const contentId = pathSegments[pathSegments.length - 2];
+            const workerUrl = `https://video.dmm.co.jp/av/content/?id=${contentId}`;
+            updateProcessingFANZADIGITAL(taskQueue.length, contentId);
+            console.log(workerWin, workerUrl);
+            workerWin.postMessage({
+                type: 'MOVE_TASK',
+                url: workerUrl
+            }, origin);
+        }
+
+        ensureWorker();
+    }
+
+
+    /*********************************************************
+     * 공통 유틸
+     *********************************************************/
+
+    function isWorker() {
+        return window.name === 'vce_worker';
+    }
+
+    /*********************************************************
+     * 부모 (컨트롤러)
+     *********************************************************/
+
+
+
+    /*********************************************************
+     * 워커 (자식탭)
+     *********************************************************/
+    function runWorker() {
+        console.log('[VCE] Worker mode');
+
+        async function requestTask() {
+            const origin = new URL(location.href).origin;
+            if (/^https:\/\/video\.dmm\.co\.jp\/$/.test(location.href)) {
+                window.opener?.postMessage({
+                    type: 'TASK_DONE',
+                    url: location.href
+                }, origin);
+            } else {
+                await sleep(getRandomDelay());
+                const config = siteConfigs['FANZA_DIGITAL'];
+                if (config) {
+                    const result = await config.addDB();
+                    localStorage.setItem(location.href, JSON.stringify(result));
+                    console.log('[VCE] 작업 완료', result, location.href);
+                    await sleep(getRandomDelay());
+                    window.opener?.postMessage({
+                        type: 'TASK_DONE',
+                        url: location.href
+                    }, origin);
+
+                    await sleep(500);
+                }
+            }
+        }
+
+        /******** 메시지 수신 ********/
+        window.addEventListener('message', (e) => {
+            const { type, url } = e.data || {};
+            if (type === 'MOVE_TASK') {
+                console.log('[VCE] 이동:', url);
+                window.location.href = url;
+            }
+        });
+
+        /******** 초기 진입 ********/
+        window.addEventListener('load', async() => {
+            console.log(isWorker());
+            await initializeMakerMap();
+            requestTask();
+        });
+
+    }
+
+    if (isWorker()) {
+        runWorker();
     } else {
         window.addEventListener('load', async () => {
             collectAndProcess();
         });
     }
+
 })();
