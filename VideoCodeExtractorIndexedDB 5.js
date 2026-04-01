@@ -6,7 +6,6 @@
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
 // @match        https://video.dmm.co.jp/av/maker/*
-// @match        https://www.dmm.co.jp/mono/dvd/-/detail/=/cid=*
 // @match        https://video.dmm.co.jp/av/content/?id=*
 // @resource     MAKER_MAP https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/DMM_MakerMap_2026-03-26.json
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
@@ -462,7 +461,7 @@ backdrop-filter: blur(1px);
                 const extraID = /\d+ID$/i.test(data.displayCode) ? parseInt(data.displayCode) : null;                
                 const extraIDX = /\d+IDX$/i.test(data.displayCode) ? parseInt(data.displayCode) : null;                
                 if (extraID && extraID < 24) {
-                    const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55id24031                    \
+                    const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55id24031                    
                     const reMakeCode =  data.displayCode.toLowerCase().replace(/(\d{2})([a-zA-Z]*)/i, '$2$1');
                     const prefix = withPrefix + reMakeCode.toLowerCase();
 
@@ -470,14 +469,14 @@ backdrop-filter: blur(1px);
                         `${prefix}${short}`,   
                     ];
                 } else if (extraID && extraID >= 24) {
-                    const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55id25031                    \                    
+                    const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55id25031                                        
                     const prefix = withPrefix + data.displayCode.toLowerCase();
                     return [
                         `${prefix}${short}`,   
                     ];
                 }
                 if (extraIDX){
-                    const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55idx25031                    \                    
+                    const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55idx25031                                       
                     const prefix = withPrefix + data.displayCode.toLowerCase();
                     return [
                         `${prefix}${short}${withSuffix}`,
@@ -495,10 +494,13 @@ backdrop-filter: blur(1px);
                 const short = NumberFormatter.trimAndMinPad(data.number, 3); // 001                
                 const full = NumberFormatter.pad(data.number, data.padLen);   // 00001
                 const prefix = data.displayCode.split('-')[0].toLowerCase();
-                const addPrefix = withPrefix ? withPrefix + data.prefix.toLowerCase() + data.displayCode.toLowerCase() : null;
+                const addPrefix = withPrefix ? withPrefix + data.displayCode.toLowerCase() : null;
                 
                 urlsDB.push(`${prefix}${short}`);
-                if (addPrefix) urlsDB.push(`${addPrefix}${short}`);
+                if (addPrefix){
+                    urlsDB.push(`${addPrefix}${full}`);
+                    urlsDB.push(`${addPrefix}${short}`);
+                } 
                 urlsDB.push(`${prefix}${full}`);
                 return urlsDB;
             },
