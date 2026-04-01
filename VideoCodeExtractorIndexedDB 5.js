@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoCode & MetaData Extractor IndexedDB 고도화 5.0
 // @namespace    http://tampermonkey.net/
-// @version      5.1.6
+// @version      5.1.10
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
@@ -444,37 +444,63 @@ backdrop-filter: blur(1px);
         return null;
     }
 
-const keyMap = {
-    title: 'Title',
-    realCode: '品番',
-    series: 'シリーズ',
-    label: 'レーベル',
-    cast: '出演者',
-    releaseDate: '発売日',
-    makerLabel: 'メーカー',        
-}
+    const keyMap = {
+        title: 'Title',
+        realCode: '品番',
+        series: 'シリーズ',
+        label: 'レーベル',
+        cast: '出演者',
+        releaseDate: '発売日',
+        makerLabel: 'メーカー',
+    };
     const siteConfigs = {
         DMM: {
             ContentIdBuilder: (data) => {
-                if (/\d{2}ID/i.test(data.displayCode)) {
+                const urlsDB = [];                
+                const withPrefix = data.prefix.toLowerCase();
+                const withSuffix = data.suffix.toLowerCase();
+                const extraID = /\d+ID$/i.test(data.displayCode) ? parseInt(data.displayCode) : null;                
+                const extraIDX = /\d+IDX$/i.test(data.displayCode) ? parseInt(data.displayCode) : null;                
+                if (extraID && extraID < 24) {
                     const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55id24031                    \
-                    const reMakeCode = data.displayCode.toLowerCase().replace(/(\d{2})([a-zA-Z]*)/i, '$2$1');
-                    const prefix = data.prefix.toLowerCase() + reMakeCode.toLowerCase();
+                    const reMakeCode =  data.displayCode.toLowerCase().replace(/(\d{2})([a-zA-Z]*)/i, '$2$1');
+                    const prefix = withPrefix + reMakeCode.toLowerCase();
 
                     return [
-                        `${prefix}${short}`,   // 정식                      
+                        `${prefix}${short}`,   
+                    ];
+                } else if (extraID && extraID >= 24) {
+                    const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55id25031                    \                    
+                    const prefix = withPrefix + data.displayCode.toLowerCase();
+                    return [
+                        `${prefix}${short}`,   
                     ];
                 }
+                if (extraIDX){
+                    const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55idx25031                    \                    
+                    const prefix = withPrefix + data.displayCode.toLowerCase();
+                    return [
+                        `${prefix}${short}${withSuffix}`,
+                    ];
+                }
+                const extraHitma = data.displayCode.match(/hitma/i);
+                if(extraHitma){
+                    const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55hitma282
+                    const prefix = withPrefix + data.displayCode.toLowerCase();
+                    return [
+                        `${prefix}${short}`,   
+                    ];
+                }
+                
+                const short = NumberFormatter.trimAndMinPad(data.number, 3); // 001                
                 const full = NumberFormatter.pad(data.number, data.padLen);   // 00001
-                const short = NumberFormatter.trimAndMinPad(data.number, 3); // 001
-
                 const prefix = data.displayCode.split('-')[0].toLowerCase();
-
-                return [
-                    `${prefix}${short}`,   // short
-                    `${prefix}${full}`,   // full
-
-                ];
+                const addPrefix = withPrefix ? withPrefix + data.prefix.toLowerCase() + data.displayCode.toLowerCase() : null;
+                
+                urlsDB.push(`${prefix}${short}`);
+                if (addPrefix) urlsDB.push(`${addPrefix}${short}`);
+                urlsDB.push(`${prefix}${full}`);
+                return urlsDB;
             },
             buildUrls: async (meta) => {
                 const data = await getCodeData(meta);
@@ -564,13 +590,18 @@ const keyMap = {
             },
 
             ContentIdBuilder: (data) => {
-                const remake = NumberFormatter.trimAndMinPad(data.number, 3);    //55id24031
-
-                if (/\d{2}ID/i.test(data.displayCode)){
+                const extraID = data.displayCode.match(/(\d+)ID/i);
+                if (extraID && extraID < 25) {
                     const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55id24031                    \
-                    const reMakeCode = data.displayCode.toLowerCase().replace(/(\d{2})([a-zA-Z]*)/i, '$2$1')
+                    const reMakeCode = data.displayCode.toLowerCase().replace(/(\d{2})([a-zA-Z]*)/i, '$2$1');
                     const prefix = data.prefix.toLowerCase() + reMakeCode.toLowerCase();
 
+                    return [
+                        `${prefix}${short}`,   // 정식                      
+                    ];
+                } else if (extraID && extraID >= 25) {
+                    const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55id25031                    \                    
+                    const prefix = data.prefix.toLowerCase() + data.displayCode.toLowerCase().toLowerCase();
                     return [
                         `${prefix}${short}`,   // 정식                      
                     ];
@@ -606,7 +637,8 @@ const keyMap = {
         },
         AVWiki: {
             ContentIdBuilder: (data) => {
-                if (/\d{2}ID/i.test(data.displayCode)) return [];
+                const extraID = data.displayCode.match(/(\d+)ID/i);
+                if (extraID) return [];
                 const num = NumberFormatter.trimAndMinPad(data.number, 3);
                 return [
                     `${data.displayCode.toLowerCase()}-${num}`,
@@ -766,7 +798,7 @@ const keyMap = {
                 }
             });
 
-            if(result.title){
+            if (result.title) {
                 result.title = result.title.replace(/【独占】|【準新作】|【FANZA独占】|【配信専用】/g, '').trim();
             }
             if (result.releaseDate) {
@@ -1199,7 +1231,7 @@ const keyMap = {
     }
 
     const resetSessionCodes = () => {
-        const newUrl = PageURL();        
+        const newUrl = PageURL();
 
         if (currentSessionCodes.size > 0) {
             currentSessionCodes.clear();
@@ -1228,9 +1260,9 @@ const keyMap = {
         }
 
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+/.test(newUrl)) {
-            autoContainer.style.display = 'flex';            
+            autoContainer.style.display = 'flex';
         } else {
-            autoContainer.style.display = 'none';            
+            autoContainer.style.display = 'none';
         }
     };
 
@@ -1266,6 +1298,7 @@ const keyMap = {
 
 
         const skipPatterns = [
+            /digital\/video\/\d+adi\d+/i, // 55adi00005
             /digital\/video\/yrnk([a-z]*)/, // yrnknkjdvaj yrnkmtndvaj스트리밍 dvaj
             /digital\/video\/\/td048.*dv\d+([a-z0-9]*?)\//, // td008dvaj0058, td048mtndv01598
             /digital\/video\/(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)\//,
@@ -2245,7 +2278,7 @@ const keyMap = {
 
             mapContainer.append(extraBtn, saveBtn);
             panel.appendChild(mapContainer);
-            
+
 
             document.body.appendChild(panel);
             updateDisplayList(false, 'createUI');
