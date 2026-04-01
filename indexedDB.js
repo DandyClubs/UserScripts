@@ -436,7 +436,7 @@ backdrop-filter: blur(1px);
             if (mode === 'id' && data.original === targetName || data.final === targetName) {
                 return id;
             } else if (mode === 'final' && data.final === targetName) {
-                return data.final;
+                return data.final || data.original;
             }
         }
         return null;
@@ -482,14 +482,15 @@ backdrop-filter: blur(1px);
                     if (url) {
                         const cleanUrl = url.split('?')[0];
                         const existingMeta = await VceDB.get('imageMeta', cleanUrl);
-                        if (existingMeta && existingMeta.sourceSite === 'FANZA_DIGITAL') return;
-                        imageEl.classList.add(PROCESSED_CLASS);
+                        if (existingMeta && existingMeta.sourceSite === 'FANZA_DIGITAL') return;                        
                         const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
                         const result = parse(document.body);
                         if (!result || !result.realCode) return;
                         if (result.makerLabel) {
                             const makerLabelCode = findIdsByName(makerMap, result.makerLabel, 'id');
-                            if (makerLabelCode) processWork(cleanUrl, '2D', makerLabelCode, result.makerLabel);
+                            const makerLabel = findIdsByName(makerMap, result.makerLabel, 'final');
+                            if (!makerLabelCode) return;
+                            await processWork(cleanUrl, '2D', makerLabelCode, makerLabel);
                             await sleep(1000);
                             const existingMeta = await VceDB.get('imageMeta', cleanUrl);
                             if (existingMeta) {
