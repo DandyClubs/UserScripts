@@ -104,6 +104,113 @@ backdrop-filter: blur(1px);
     right: 0;
     position: absolute;
 }
+
+#vce-search-icon {
+    position: fixed; top: 10px; right: 10px; z-index: 9999;
+    cursor: pointer; font-size: 16px; background: #fff; border-radius: 50%; padding: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+}
+
+
+/* CSS 예시 (기존 스타일에 병합하세요) */
+#vce-search-modal {
+    display: none;
+    flex-direction: column;
+    position: fixed;
+    z-index: 99999;
+    background: #1e1e1e;
+    color: #eee;
+    border: 1px solid #444;
+    max-width: 80%;
+    min-width: 1000px;
+    min-height: 800px;
+    top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 80%; max-width: 1200px; height: 80%; 
+    /* --- 추가 --- */
+    resize: both; 
+    overflow: hidden; /* 헤더 드래그를 위해 필요 */
+}
+
+.vce-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+    padding: 10px;
+}
+
+.vce-pagination button {
+    cursor: pointer;
+    background: #333;
+    border: 1px solid #555;
+    color: #fff;
+    padding: 2px 8px;
+}
+
+.vce-pagination button.active {
+    background: #00FF41;
+    color: #000;
+    font-weight: bold;
+}
+
+.vce-pagination button:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}    
+
+/* 헤더 (드래그 핸들) */
+.vce-modal-header {
+    padding: 10px; background: rgba(30, 30, 30, 0.8); border-bottom: 1px solid #444;
+    cursor: move; display: flex; justify-content: space-between; align-items: center;
+    font-weight: bold; font-size: 11px; color: #2196F3; letter-spacing: 1px;
+}
+
+/* 컨텐츠 영역 */
+.vce-content-wrapper { padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+
+/* 검색바 및 입력창 */
+.vce-control-bar {
+    display: flex; flex-direction: column; gap: 8px; padding: 8px;
+    background: #222; border-radius: 4px; border: 1px solid #333;
+}
+.vce-input-group { display: flex; gap: 5px; }
+.vce-input-group input {
+    flex: 1; background: #111; color: #00FF41; border: 1px solid #444;
+    padding: 6px; font-size: 12px; border-radius: 3px; outline: none; font-family: monospace;
+}
+
+/* 버튼 공통 스타일 */
+.vce-btn {
+    border: none; padding: 5px 10px; font-size: 10px; cursor: pointer;
+    border-radius: 3px; font-weight: bold; color: white; transition: opacity 0.2s;
+}
+.vce-btn:hover { opacity: 0.8; }
+.btn-blue { background: #2196F3; }
+.btn-green { background: #4CAF50; }
+.btn-grey { background: #666; }
+.btn-search { background: #00FF41; color: #000; }
+
+/* 테이블 스타일 */
+.vce-table-container { flex: 1; overflow-y: auto; background: #111; border: 1px solid #333; border-radius: 4px; }
+.vce-result-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.vce-result-table th { position: sticky; top: 0; background: #222; color: #aaa; padding: 8px; border-bottom: 1px solid #444; text-align: center; max-width: 8ch;}
+.vce-result-table td { padding: 6px 8px; border-bottom: 1px solid #222; color: #eee; }
+.vce-result-table tr:hover { background: #1a1a1a; }
+
+/* 페이징 */
+.vce-pagination { display: flex; justify-content: center; gap: 4px; margin-top: 10px; }
+.vce-pagination button { background: #333; color: #ccc; border: 1px solid #444; padding: 3px 7px; font-size: 10px; cursor: pointer; border-radius: 2px; }
+.vce-pagination button.active { background: #2196F3; color: white; border-color: #2196F3; }
+.vce-result-table {
+	border-collapse: collapse;
+	font-size: 11px;
+}
+
+.vce-table-container {
+    overflow-y: auto;
+    /* 스크롤이 끝에 도달했을 때 부모(body)로 전파되는 것을 방지 */
+    overscroll-behavior: contain; 
+}
+
     `);
 
     const imageUrlsMap = {
@@ -331,7 +438,7 @@ backdrop-filter: blur(1px);
             });
         }
 
-        static async getAllData(storeName) {
+        static async getAll(storeName) {
             const db = await this.open();
             return new Promise((resolve, reject) => {
                 const tx = db.transaction(storeName, "readonly");
@@ -441,6 +548,9 @@ backdrop-filter: blur(1px);
             });
         }
     }
+
+
+    let FANZADIGITALBC = new BroadcastChannel("FANZADIGITALChannel");
 
     function findIdsByName(map, targetName, mode = 'id') {
         const resultIds = [];
@@ -560,7 +670,7 @@ backdrop-filter: blur(1px);
                 const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
                 const result = parse(document.body);
                 if (!result || !result.realCode) return `result not fouund`;
-                if (!result.makerLabel) return `makerLabel not found`;                
+                if (!result.makerLabel) return `makerLabel not found`;
                 const makerLabel = makerLabelReplaceMap[result.makerLabel] || result.makerLabel;
                 const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id') || existingMeta?.makerLabelCode;
                 if (!makerLabelCode) return 'makerLabelCode not found';
@@ -1024,22 +1134,22 @@ backdrop-filter: blur(1px);
 
         if (!requestMetaMap.has(task.url) && existingMeta.metaStatus !== 'SUCCESS') {
             requestMetaMap.set(task.url, task);
-            if (!isMetaProcessing){
+            if (!isMetaProcessing) {
                 doMeta();
                 isMetaStop = false;
-            } 
-            if(isMetaProcessing){
+            }
+            if (isMetaProcessing) {
                 isMetaStop = true;
             }
         }
 
         if (!requestResMap.has(task.url) && existingMeta.resolutionState !== 'SUCCESS') {
             requestResMap.set(task.url, task);
-            if (!isResProcessing){
+            if (!isResProcessing) {
                 doRes();
                 isResStop = false;
-            } 
-            if(isResProcessing){
+            }
+            if (isResProcessing) {
                 isResStop = true;
             }
         }
@@ -2124,14 +2234,13 @@ backdrop-filter: blur(1px);
                 const displayData = cleanMeta.map(item => {
                     return {
                         メーカー: item.makerLabel,
-                        코드: item.displayCode,
                         メーカー品番: item.realCode,
-                        シリーズ: (item.series === '' || item.series === '----') ? item.label : item.series,
-                        出演者: item.cast || '정보없음',
-                        Title: item.title,
+                        제목: item.title,
+                        レーベル: item.label || '',
+                        出演者: item.cast || '',
                         商品発売日: item.releaseDate,
                         // resolution 객체를 "1920x1080" 형태의 문자열로 변환
-                        해상도: item.resolution && item.resolution.W ? `${item.resolution.W}x${item.resolution.H}` : '계산중',
+                        해상도: item.resolution && item.resolution.W ? `${item.resolution.W}x${item.resolution.H}` : '',
                         출처: item.sourceSite
                     };
                 });
@@ -2760,6 +2869,7 @@ backdrop-filter: blur(1px);
         FontAwesomeCSS();
         await initializeMakerMap();
 
+
         const autoStatus = getState();
         if (autoStatus.active) {
             if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+$/.test(PageURL())) {
@@ -2793,7 +2903,376 @@ backdrop-filter: blur(1px);
         }
     }
 
+    async function searchVCE() {
+        let allResults = [];
+        let currentPage = 1;
+        const itemsPerPage = 50;
 
+        // 모달 생성
+        const modal = document.createElement('div');
+        modal.id = 'vce-search-modal';
+        modal.innerHTML = `
+        <div class="vce-modal-header" id="vce-drag-handle">
+            <span>DATABASE EXPLORER</span>
+            <button id="vce-close-x" style="background:none; border:none; color:#888; cursor:pointer; font-size:14px;">✕</button>
+        </div>
+        <div class="vce-content-wrapper">
+            <div class="vce-control-bar">
+                <div class="vce-input-group">
+                    <input type="text" id="vce-query" placeholder="예: ABC 100-200 (빈칸은 전체)">
+                    <button id="vce-btn-clear" class="vce-btn btn-grey">X</button>
+                    <button id="vce-btn-run-search" class="vce-btn btn-search">SEARCH</button>
+                </div>
+                <div style="display:flex; justify-content: space-between; align-items:center;">
+                    <div style="display:flex; gap:4px;">
+                        <button id="vce-sel-all" class="vce-btn btn-blue">전체 선택</button>
+                        <button id="vce-unsel-all" class="vce-btn btn-grey">전체 해제</button>
+                    </div>
+                    <button id="vce-btn-export" class="vce-btn btn-green">선택 항목 메타 저장</button>
+                    <button id="vce-btn-allexport" class="vce-btn btn-green">모든 메타 저장</button>
+                </div>
+            </div>
+
+            <div class="vce-table-container">
+                <table class="vce-result-table">
+                    <thead>
+                        <tr>
+                            <th style="width:40px;">선택</th>
+                            <th>제작사</th>
+                <th style="color:#00FF41; font-family:monospace;">품번</th>                                
+                <th>제목</th>
+                <th>라벨</th>
+                <th>배우</th>
+                <th>출시일</th>
+                <th>해상도</th>                          
+                        </tr>
+                    </thead>
+                    <tbody id="vce-table-body"></tbody>
+                </table>
+            </div>
+
+            <div id="vce-paging-bar" class="vce-pagination"></div>
+        </div>
+    `;
+        document.body.appendChild(modal);
+
+        // --- 모달 크기 저장 및 복원 (수정본) ---
+        const STORAGE_KEY = 'vce_modal_size';
+
+        // 1. 저장된 크기 불러오기 (값이 없으면 1200px, 높이는 auto)
+        const savedSize = await localStorage.getItem(STORAGE_KEY);
+        console.log(savedSize);
+        if (savedSize) {
+            const { width } = JSON.parse(savedSize);
+            modal.style.width = width + 'px';
+            modal.style.minWidth = '800px';
+        } else {
+            // 초기값이 없을 때: 너비 1200px, 화면 정중앙 배치
+            modal.style.width = '1200px';
+            modal.style.minWidth = '800px';
+            modal.style.left = '50%';
+            modal.style.top = '50%';
+            modal.style.transform = 'translate(-50%, -50%)';
+        }
+
+        // 높이는 항상 콘텐츠에 맞게 (초기에는 auto)
+        modal.style.height = 'auto';
+        modal.style.maxHeight = '80vh'; // 화면을 넘지 않도록 최대 높이 제한
+
+        const overlay = document.createElement('div');
+        overlay.style = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.15); z-index:99;";
+        document.body.appendChild(overlay);
+
+        // --- 드래그 로직 (3.js 스타일 기반) ---
+        const handle = document.getElementById('vce-drag-handle');
+        let isDragging = false, offset = { x: 0, y: 0 };
+
+        handle.onmousedown = (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            isDragging = true;
+            const rect = modal.getBoundingClientRect();
+            modal.style.transform = 'none';
+            modal.style.left = rect.left + 'px';
+            modal.style.top = rect.top + 'px';
+            offset.x = e.clientX - rect.left;
+            offset.y = e.clientY - rect.top;
+
+            document.onmousemove = (e) => {
+                if (isDragging) {
+                    modal.style.left = (e.clientX - offset.x) + 'px';
+                    modal.style.top = (e.clientY - offset.y) + 'px';
+                }
+            };
+            document.onmouseup = () => { isDragging = false; };
+        };
+
+        // --- 영문/숫자 입력 씹힘 방지 및 검색 ---
+        const queryInput = document.getElementById('vce-query');
+        queryInput.addEventListener('keydown', (e) => {
+            e.stopPropagation(); // 사이트 단축키 방해 차단
+            if (e.key === 'Enter') performSearch();
+            if (e.key === 'Escape') { queryInput.value = ''; performSearch(); }
+        }, true);
+
+        async function performSearch() {
+            const val = queryInput.value.trim();
+            const dbData = await VceDB.getAll("imageMeta");
+
+            if (!val) {
+                allResults = dbData;
+            } else {
+                const terms = val.split(/\s+/);
+                allResults = dbData.filter(item => {
+                    return terms.every(term => {
+                        const rangeMatch = term.match(/^(\d+)-(\d+)$/);
+                        if (rangeMatch) {
+                            const s = parseInt(rangeMatch[1]), e = parseInt(rangeMatch[2]);
+                            const nums = (item.realCode || "").match(/\d+/g);
+                            return nums ? nums.some(n => { const v = parseInt(n); return v >= s && v <= e; }) : false;
+                        }
+                        return (item.realCode || "").toLowerCase().includes(term.toLowerCase());
+                    });
+                });
+            }
+            currentPage = 1;
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('vce-table-body');
+            tbody.innerHTML = '';
+            const start = (currentPage - 1) * itemsPerPage;
+            allResults.slice(start, start + itemsPerPage).forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                <td style="text-align:center;"><input type="checkbox" class="vce-row-cb" data-key="${item.url}" style="margin-left:5px; width:12px; height:12px; cursor:pointer; accent-color:#00FF41; appearance:auto;"></td>
+                <td style="white-space:nowrap;">${item.makerLabel || ''}</td>
+                <td style="color:#00FF41; font-family:monospace;white-space:nowrap;">${item.realCode || ''}</td>                
+                <td>${item.title || ''}</td>
+                <td style="white-space:nowrap;">${item.label || ''}</td>
+                <td>${item.cast || ''}</td>                
+                <td style="white-space:nowrap;">${item.releaseDate || ''}</td>
+                <td style="white-space:nowrap;">${item.resolution ? `<a class="vce-preview" href="${item.url}" target="_blank">${item.resolution.W}x${item.resolution.H}</a>` : ''}</td>
+            `;
+                tbody.appendChild(tr);
+            });
+            renderPaging();
+        }
+
+
+        let container = null;
+        let preview = null;
+        function renderPreview() {
+            container = document.querySelector('.vce-table-container');
+            
+            preview = document.createElement('img');
+            preview.style.position = 'absolute';
+            preview.style.top = '50%';
+            preview.style.left = '50%';
+            preview.style.transform = 'translate(-50%, -50%)';
+            preview.style.maxWidth = '80%';
+            preview.style.maxHeight = '80%';
+            preview.style.display = 'none';
+            preview.style.zIndex = '999';
+            
+            container.appendChild(preview);
+
+            window.addEventListener('scroll', () => {
+                preview.style.display = 'none';
+            });
+
+        }
+
+        renderPreview();
+
+        // hover 이벤트
+        document.addEventListener('mouseover', (e) => {
+            const a = e.target.closest('a');
+            if (!a || !container.contains(a)) return;            
+            
+            const href = a.href + '?f=webp';
+
+            preview.src = href;
+            preview.style.transition = 'opacity 0.2s';
+            preview.style.opacity = '0';
+
+            preview.style.display = 'block';
+            requestAnimationFrame(() => {
+                preview.style.opacity = '1';
+            });            
+
+            a.addEventListener('mouseleave', () => {
+                preview.style.display = 'none';
+            }, { once: true });
+        });
+
+        
+
+
+        function renderPaging() {
+            const bar = document.getElementById('vce-paging-bar');
+            bar.innerHTML = '';
+            const totalPage = Math.ceil(allResults.length / itemsPerPage);
+            if (totalPage <= 1) return;
+
+            const pageStep = 3; // 현재 페이지 앞뒤로 보여줄 번호 개수
+
+            // 버튼 생성 공통 함수
+            const createBtn = (text, targetPage, active = false, disabled = false) => {
+                const b = document.createElement('button');
+                b.innerText = text;
+                if (active) b.className = 'active';
+                if (disabled) b.disabled = true;
+                else b.onclick = () => { currentPage = targetPage; renderTable(); };
+                return b;
+            };
+
+            // 1. [맨처음 <<], [이전 <]
+            bar.appendChild(createBtn('<<', 1, false, currentPage === 1));
+            bar.appendChild(createBtn('<', Math.max(1, currentPage - 1), false, currentPage === 1));
+
+            // 2. 페이지 번호 (현재 페이지 기준 앞뒤 범위)
+            let startPage = Math.max(1, currentPage - pageStep);
+            let endPage = Math.min(totalPage, currentPage + pageStep);
+
+            // 앞에 생략 기호 ...
+            if (startPage > 2) {
+                const dot = document.createElement('span');
+                dot.innerText = '...';
+                dot.style.margin = '0 5px';
+                bar.appendChild(dot);
+                bar.appendChild(createBtn(`${startPage}`, Math.min(totalPage, startPage), false, currentPage === totalPage));
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                bar.appendChild(createBtn(i, i, i === currentPage));
+            }
+
+            // 뒤에 생략 기호 ...
+            if (endPage < (totalPage - 1)) {
+                const dot = document.createElement('span');
+                dot.innerText = '...';
+                dot.style.margin = '0 5px';
+                bar.appendChild(dot);
+                bar.appendChild(createBtn(`${totalPage}`, Math.max(totalPage, endPage), false, currentPage === totalPage));
+            }
+
+            // 3. [다음 >], [맨뒤로 >>]            
+            bar.appendChild(createBtn('>', Math.min(totalPage, currentPage + 1), false, currentPage === totalPage));
+            bar.appendChild(createBtn('>>', totalPage, false, currentPage === totalPage));
+        }
+
+        // --- 버튼 이벤트들 ---
+        document.getElementById('vce-btn-run-search').onclick = performSearch;
+        document.getElementById('vce-btn-clear').onclick = () => { queryInput.value = ''; performSearch(); };
+        document.getElementById('vce-sel-all').onclick = () => document.querySelectorAll('.vce-row-cb').forEach(c => c.checked = true);
+        document.getElementById('vce-unsel-all').onclick = () => document.querySelectorAll('.vce-row-cb').forEach(c => c.checked = false);
+
+        document.getElementById('vce-btn-export').onclick = () => {
+            const checked = Array.from(document.querySelectorAll('.vce-row-cb:checked')).map(c => c.getAttribute('data-key'));
+            if (checked.length === 0) return alert("항목을 선택하세요.");
+            const data = allResults.filter(i => checked.includes(String(i.url)));
+            // 보기 좋게 정렬 (패턴키 기준)
+            data.sort((a, b) => (a.realCode || "").localeCompare(b.realCode || ""));
+
+
+            const displayData = data.map(item => {
+                return {
+                    メーカー: item.makerLabel,
+                    メーカー品番: item.realCode,
+                    제목: item.title,
+                    レーベル: item.label || '',
+                    出演者: item.cast || '',
+                    商品発売日: item.releaseDate,
+                    // resolution 객체를 "1920x1080" 형태의 문자열로 변환
+                    해상도: item.resolution && item.resolution.W ? `${item.resolution.W}x${item.resolution.H}` : '',
+                };
+            });
+
+            // 1. 새 워크북 생성
+            const workbook = XLSX.utils.book_new();
+
+            // 2. JSON 데이터를 시트로 변환
+            const worksheet = XLSX.utils.json_to_sheet(displayData);
+
+            // 3. 워크북에 시트 추가
+            XLSX.utils.book_append_sheet(workbook, worksheet, "DataSheet");
+
+            // 4. 파일 다운로드 (파일명: exported_data.xlsx)
+            XLSX.writeFile(workbook, "exported_data.xlsx");
+        };
+        document.getElementById('vce-btn-allexport').onclick = () => {            
+            const data = allResults;
+            // 보기 좋게 정렬 (패턴키 기준)
+            data.sort((a, b) => (a.realCode || "").localeCompare(b.realCode || ""));
+
+
+            const displayData = data.map(item => {
+                return {
+                    メーカー: item.makerLabel,
+                    メーカー品番: item.realCode,
+                    제목: item.title,
+                    レーベル: item.label || '',
+                    出演者: item.cast || '',
+                    商品発売日: item.releaseDate,
+                    // resolution 객체를 "1920x1080" 형태의 문자열로 변환
+                    해상도: item.resolution && item.resolution.W ? `${item.resolution.W}x${item.resolution.H}` : '',
+                };
+            });
+
+            // 1. 새 워크북 생성
+            const workbook = XLSX.utils.book_new();
+
+            // 2. JSON 데이터를 시트로 변환
+            const worksheet = XLSX.utils.json_to_sheet(displayData);
+
+            // 3. 워크북에 시트 추가
+            XLSX.utils.book_append_sheet(workbook, worksheet, "DataSheet");
+
+            // 4. 파일 다운로드 (파일명: exported_data.xlsx)
+            XLSX.writeFile(workbook, "exported_data.xlsx");
+        };
+
+        document.getElementById('vce-close-x').onclick = () => {
+            modal.style.display = 'none';
+            overlay.style.display = 'none';
+        };
+
+
+
+        // 2. 크기 변경 감지 (너비만 저장)
+        const resizer = new ResizeObserver(entries => {
+            for (let entry of entries) {
+                const { width } = entry.contentRect;
+                // 높이는 저장하지 않고 너비만 유지
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({ width }));
+            }
+        });
+        resizer.observe(modal);
+
+
+        const icon = document.createElement('div');
+        icon.id = 'vce-search-icon';
+        icon.innerHTML = '🔍';
+        document.body.appendChild(icon);
+        icon.addEventListener('click', (e) => {
+            e.stopPropagation(); // 🔥 body / row 이벤트 차단
+            window.openVceExplorer();
+        });
+
+
+
+
+        // 아이콘 클릭 시 열기 (기존 아이콘 코드에 연결)
+        window.openVceExplorer = () => {
+            if (modal.style.display === 'flex') return;
+            modal.style.display = 'flex';
+            overlay.style.display = 'block';
+            performSearch();
+        };
+
+
+    }
 
 
     let taskQueue = [];
@@ -2802,16 +3281,18 @@ backdrop-filter: blur(1px);
 
 
     async function startJob() {
-        
+
         if (isRunning) {
             workerWin.close();
             isRunning = false;
             workerWin = null;
             updateProcessingFANZADIGITAL(taskQueue.length, '');
+            FANZADIGITALBC.close();
             return;
         }
-
+        FANZADIGITALBC = new BroadcastChannel("FANZADIGITALChannel");
         isRunning = true;
+
 
         taskQueue = await VceDB.getSchedulableTasks('imageMeta', 'meta');
         console.log('총 작업:', taskQueue.length);
@@ -2835,13 +3316,13 @@ backdrop-filter: blur(1px);
             }
         }
 
-        window.addEventListener('message', (e) => {
+        FANZADIGITALBC.onmessage = (e) => {
             const { type } = e.data || {};
             if (type === 'TASK_DONE') {
                 console.log('완료:', e.data.url);
                 assignNext();
             }
-        });
+        };
 
         function assignNext() {
             if (!isRunning) return;
@@ -2852,6 +3333,7 @@ backdrop-filter: blur(1px);
                 isRunning = false;
                 workerWin = null;
                 updateProcessingFANZADIGITAL(taskQueue.length, '');
+                FANZADIGITALBC.close();
                 return;
             }
 
@@ -2861,10 +3343,10 @@ backdrop-filter: blur(1px);
             const workerUrl = `https://video.dmm.co.jp/av/content/?id=${contentId}`;
             updateProcessingFANZADIGITAL(taskQueue.length, contentId);
             //console.log(workerWin, workerUrl, contentId, taskQueue);
-            workerWin.postMessage({
+            FANZADIGITALBC.postMessage({
                 type: 'MOVE_TASK',
                 url: workerUrl
-            }, origin);
+            });
         }
 
         ensureWorker();
@@ -2890,14 +3372,15 @@ backdrop-filter: blur(1px);
      *********************************************************/
     function runWorker() {
         console.log('[VCE] Worker mode');
+        FANZADIGITALBC = new BroadcastChannel("FANZADIGITALChannel");
 
         async function requestTask() {
             const origin = new URL(location.href).origin;
             if (/^https:\/\/video\.dmm\.co\.jp\/$/.test(location.href)) {
-                window.opener?.postMessage({
+                FANZADIGITALBC.postMessage({
                     type: 'TASK_DONE',
                     url: location.href
-                }, origin);
+                });
             } else {
                 await sleep(getRandomDelay());
                 const config = siteConfigs['FANZA_DIGITAL'];
@@ -2906,10 +3389,10 @@ backdrop-filter: blur(1px);
                     localStorage.setItem(location.href, JSON.stringify(result));
                     console.log('[VCE] 작업 완료', result, location.href);
                     await sleep(getRandomDelay());
-                    window.opener?.postMessage({
+                    FANZADIGITALBC.postMessage({
                         type: 'TASK_DONE',
                         url: location.href
-                    }, origin);
+                    });
 
                     await sleep(500);
                 }
@@ -2917,16 +3400,18 @@ backdrop-filter: blur(1px);
         }
 
         /******** 메시지 수신 ********/
-        window.addEventListener('message', (e) => {
+        FANZADIGITALBC.onmessage = (e) => {
             const { type, url } = e.data || {};
             if (type === 'MOVE_TASK') {
                 console.log('[VCE] 이동:', url);
-                window.location.href = url;
+                const link = document.createElement('a');
+                link.href = url;
+                link.click();
             }
-        });
+        };
 
         /******** 초기 진입 ********/
-        window.addEventListener('load', async() => {
+        window.addEventListener('load', async () => {
             console.log(isWorker());
             await initializeMakerMap();
             requestTask();
@@ -2939,6 +3424,7 @@ backdrop-filter: blur(1px);
     } else {
         window.addEventListener('load', async () => {
             collectAndProcess();
+            searchVCE();
         });
     }
 
