@@ -651,27 +651,34 @@ backdrop-filter: blur(1px);
         },
         FANZA_DIGITAL: {
             addDB: async () => {
-                const imageEl = document.querySelector('div[data-e2eid="sample-image-gallery"] a picture source');
-                if (!imageEl) return 'element not found';
-                const url = imageEl.closest('a')?.href;
-                if (!url) return 'url not found';
-                await processWork(imageEl.getAttribute('srcset'), url.href, 'FANZA_DIGITAL');
-                const cleanUrl = url.split('?')[0];
-                let existingMeta = await VceDB.get('imageMeta', cleanUrl);
+                let imageSrc
+                const el = document.querySelector('div[data-e2eid="sample-image-gallery"] a');                
+                const url = location.href;                
+                const contentId = GetParam(url, 'id').toLocaleLowerCase();
+                if (!contentId) return 'not contentId';
+                if (!/pl\.jpg/i.test(el.href)) {
+                    imageSrc = `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`;
+                }else{
+                    imageSrc = el.href;
+                }               
+                const rawImage = imageSrc.split('?')[0];
+                await processWork(rawImage, url, 'FANZA_DIGITAL');
+                
+                let existingMeta = await VceDB.get('imageMeta', rawImage);
                 if (existingMeta && existingMeta.resolutionState !== 'SUCCESS') {
-                    const res = await fetchImageResolution(cleanUrl);
+                    const res = await fetchImageResolution(rawImage);
                     let resData = {};
                     if (res && res.width > 0) {
                         resData = {
                             resolution: { W: res.width, H: res.height },
                             resolutionState: 'SUCCESS'
                         };
-                        await VceDB.save("imageMeta", cleanUrl, resData);
+                        await VceDB.save("imageMeta", rawImage, resData);
                     }
                 }
                 if (existingMeta && existingMeta.sourceSite === 'FANZA_DIGITAL') return 'FANZA_DIGITAL';
                 const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
-                const result = parse(document.body);
+                const result = await parse(document.body);
                 if (!result || !result.realCode) return `result not fouund`;
                 if (!result.makerLabel) return `makerLabel not found`;
                 const makerLabel = makerLabelReplaceMap[result.makerLabel] || result.makerLabel;
@@ -679,7 +686,7 @@ backdrop-filter: blur(1px);
                 if (!makerLabelCode) return 'makerLabelCode not found';
                 const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';
                 await sleep(1000);
-                existingMeta = await VceDB.get('imageMeta', cleanUrl);
+                existingMeta = await VceDB.get('imageMeta', rawImage);
                 if (existingMeta) {
                     let metaData = {};
                     if (result) {
@@ -691,7 +698,8 @@ backdrop-filter: blur(1px);
                             sourceSite: 'FANZA_DIGITAL',
                             metaStatus: 'SUCCESS'
                         };
-                        await VceDB.save("imageMeta", cleanUrl, metaData);
+                        await VceDB.save("imageMeta", rawImage, metaData);
+                        console.log(metaData);
                         updateDisplayList(false, 'addDB');
                         const existingCode = await VceDB.get('codes', existingMeta.uniqueKey);
                         if (existingCode && existingCode.codeStatus !== 'SUCCESS') {
@@ -704,10 +712,11 @@ backdrop-filter: blur(1px);
                             };
                             await VceDB.save("codes", existingMeta.uniqueKey, codeData);
                         }
-                        return 'SUCCESS';
+                        return `SUCCESS` ;
                     }
                     return 'Last Setp FAIL';
                 }
+                return 'Not existingMeta';
             },
             rawImageDownloader: () => {
                 const imageEl = document.querySelector('div.grid div.flex a picture source');
@@ -1450,51 +1459,49 @@ backdrop-filter: blur(1px);
 
     async function processWork(imageSrc, linkUrl, reTry = false) {
 
-        if (!imageSrc || !imageSrc.includes('https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/')) return false;
-        const cleanUrl = imageSrc.split('?')[0];
+
         const contentId = GetParam(linkUrl, 'id').toLocaleLowerCase();
         if (!contentId) return false;
 
 
-        const majorsLabel = /digital\/video\/(.*?)([a-z]{3,7}\d{4,7}|(KT|TS|SW|\d{2}ID[a-zA-Z]?|\d+T\d{2.3}[a-zA-Z]?))[v]?/i;
-        if (!majorsLabel.test(cleanUrl)) return false;
+        if (!/(pl|ps)\.jpg/i.test(linkUrl)){
+            imageSrc = `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`;
+        }
+        const rawImage = imageSrc.split('?')[0];
+
+        const majorsLabel = /\/(.*?)([a-z]{3,7}\d{4,7}|(KT|TS|SW|\d{2}ID[a-zA-Z]?|\d+T\d{2.3}[a-zA-Z]?))[v]?/i;
+        if (!majorsLabel.test(rawImage)) return false;
 
 
         const skipPatterns = [
-            /digital\/video\/\d+adi\d+/i, // 55adi00005
-            /digital\/video\/yrnk([a-z]*)/, // yrnknkjdvaj yrnkmtndvaj스트리밍 dvaj
-            /digital\/video\/\/td048.*dv\d+([a-z0-9]*?)\//, // td008dvaj0058, td048mtndv01598
-            /digital\/video\/(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)\//,
-            /digital\/video\/\d+jdxa\d+/i,
+            /\/\d+adi\d+/i, // 55adi00005
+            /\/yrnk([a-z]*)/, // yrnknkjdvaj yrnkmtndvaj스트리밍 dvaj
+            /\/\/td048.*dv\d+([a-z0-9]*?)\//, // td008dvaj0058, td048mtndv01598
+            /\/(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)\//,
+            /\/\d+jdxa\d+/i,
         ];
 
-        for (const skipRegex of skipPatterns) if (skipRegex.test(cleanUrl)) return false;
-
-        const pathSegments = cleanUrl.split('/');
-        const imageId = pathSegments[pathSegments.length - 2];
-        const fileName = pathSegments.pop();
-        const fileExtension = fileName.split('.').pop();
-        const originalImage = cleanUrl.replace(fileName, `${imageId}pl.${fileExtension}`);
+        for (const skipRegex of skipPatterns) if (skipRegex.test(rawImage)) return false;
 
         // --- [섹션 2: 코드 DB 중복 체크] ---   
-        const existingImage = await VceDB.get('imageMeta', originalImage);
+        const existingImage = await VceDB.get('imageMeta', rawImage);
         if (existingImage) return true;
 
         const extractPatterns = [
-            /digital\/video\/(\d+)(KT|TS|SW|\d{2}ID[a-zA-Z]?)(\d{5,})(.*?)\//i,                // 1sw01045 패턴    
-            /digital\/video\/(\d+)(T0?\d{2}[a-zA-Z]?)(\d{3,})(.*?)/i,                // 55t038024 패턴    
-            /digital\/video\/(.*)(d1clymax)(\d{5,})(.*?)\//,
-            /digital\/video\/([a-z]*?)(dvaj|dvajbx)(\d{5,})(.*?)\//,
-            /digital\/video\/(\d{2})(kt)(\d{5,})(.*?)\//,
-            /digital\/video\/(\d{2})([t]\d{1})(\d{5,})(.*?)\//,
-            /digital\/video\/(h_[h0-9]*?)(ss)(\d{3,})([a-z]*?)\//,
-            /digital\/video\/(h_[h0-9]*?)([a-z]{3,})(\d{3,})([a-z]*?)\//,
-            /digital\/video\/(\d*?)(ss)(\d{3,})([a-z]*?)\//,
-            /digital\/video\/([0-9]*?)([a-z]+)(\d+)(.*?)\//,
+            /\/(\d+)(KT|TS|SW|\d{2}ID[a-zA-Z]?)(\d{5,})(.*?)\//i,                // 1sw01045 패턴    
+            /\/(\d+)(T0?\d{2}[a-zA-Z]?)(\d{3,})(.*?)/i,                // 55t038024 패턴    
+            /\/(.*)(d1clymax)(\d{5,})(.*?)\//,
+            /\/([a-z]*?)(dvaj|dvajbx)(\d{5,})(.*?)\//,
+            /\/(\d{2})(kt)(\d{5,})(.*?)\//,
+            /\/(\d{2})([t]\d{1})(\d{5,})(.*?)\//,
+            /\/(h_[h0-9]*?)(ss)(\d{3,})([a-z]*?)\//,
+            /\/(h_[h0-9]*?)([a-z]{3,})(\d{3,})([a-z]*?)\//,
+            /\/(\d*?)(ss)(\d{3,})([a-z]*?)\//,
+            /\/([0-9]*?)([a-z]+)(\d+)(.*?)\//,
         ];
 
         let match = null;
-        for (const regex of extractPatterns) { match = originalImage.match(regex); if (match) break; }
+        for (const regex of extractPatterns) { match = rawImage.match(regex); if (match) break; }
 
         if (match) {
             const prefix = match[1];
@@ -1507,13 +1514,13 @@ backdrop-filter: blur(1px);
 
             // --- [섹션 1: 이미지 메타 처리] ---
 
-            await VceDB.save("imageMeta", originalImage, {
+            await VceDB.save("imageMeta", rawImage, {
                 displayCode: displayCode, // Index  
                 uniqueKey: uniqueKey, // Index             
                 makerLabelCode: '',
                 makerLabel: '',
                 rawMediaType: '',
-                imageSource: originalImage,
+                imageSource: rawImage,
                 contentId: contentId, // Index
                 //스케줄 작업으로 처리하는 값들
                 title: '',
@@ -1529,6 +1536,16 @@ backdrop-filter: blur(1px);
                 */
             });
 
+            const res = await fetchImageResolution(rawImage);
+            let resData = {};
+            if (res && res.width > 0) {
+                resData = {
+                    resolution: { W: res.width, H: res.height },
+                    resolutionState: 'SUCCESS'
+                };
+                await VceDB.save("imageMeta", rawImage, resData);
+            }
+
             if (currentSessionCodes.has(uniqueKey)) return true;
             currentSessionCodes.add(uniqueKey);
 
@@ -1536,14 +1553,14 @@ backdrop-filter: blur(1px);
             if (existinguniqueKey) return true;
 
             const imageSourceKey = Object.keys(imageUrlsMap).find(key =>
-                originalImage.startsWith(imageUrlsMap[key])
+                rawImage.startsWith(imageUrlsMap[key])
             ) || "UNKNOWN";
 
             await VceDB.save("codes", uniqueKey, {
                 displayCode: displayCode,
                 imageSourceKey: imageSourceKey,
                 reTryData: {
-                    imageSrc: originalImage, linkUrl: `https://video.dmm.co.jp/av/content/?id=${contentId}`
+                    imageSrc: rawImage, linkUrl: `https://video.dmm.co.jp/av/content/?id=${contentId}`
                 },
                 contentId: contentId,
                 prefix: prefix,
@@ -3517,7 +3534,7 @@ backdrop-filter: blur(1px);
         FANZADIGITALBC.onmessage = (e) => {
             const { type } = e.data || {};
             if (type === 'TASK_DONE') {
-                console.log('완료:', e.data.url);
+                console.log('완료:', e.data.url, e.data.result);
                 assignNext();
             }
         };
@@ -3580,19 +3597,23 @@ backdrop-filter: blur(1px);
                     url: location.href
                 });
             } else {
-                await sleep(getRandomDelay());
+                await sleep(getRandomDelay() + 2000);
                 const config = siteConfigs['FANZA_DIGITAL'];
                 if (config) {
                     const result = await config.addDB();
                     console.log('[VCE] 작업 완료', result, location.href);
-                    FANZADIGITALBC.postMessage({
-                        type: 'TASK_DONE',
-                        url: location.href
-                    });
-                    await sleep(getRandomDelay());
+                    if (result === 'SUCCESS') {
+                        FANZADIGITALBC.postMessage({
+                            type: 'TASK_DONE',
+                            url: location.href,
+                            result: result
+
+                        });
+                    }
+                    await sleep(getRandomDelay() * 2);
                     if (currentPage === PageURL()) {
                         const link = document.createElement('a');
-                        link.href = url;
+                        link.href = location.href;
                         link.click();
                     }
                 }
