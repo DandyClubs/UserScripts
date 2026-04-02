@@ -7,6 +7,7 @@
 // @match        https://video.dmm.co.jp/av/list/?maker=*
 // @match        https://video.dmm.co.jp/av/maker/*
 // @match        https://video.dmm.co.jp/av/content/?id=*
+// @match        https://video.dmm.co.jp/av/list/?key=*
 // @match        https://video.dmm.co.jp
 // @resource     MAKER_MAP https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/DMM_MakerMap_2026-03-26.json
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
@@ -650,9 +651,10 @@ backdrop-filter: blur(1px);
         FANZA_DIGITAL: {
             addDB: async () => {
                 const imageEl = document.querySelector('div[data-e2eid="sample-image-gallery"] a picture source');
-                if (!imageEl) return 'element not found';
+                if (!imageEl) return 'element not found';                
                 const url = imageEl.closest('a')?.href;
                 if (!url) return 'url not found';
+                await processWork(imageEl.getAttribute('srcset'), url.href, 'FANZA_DIGITAL');
                 const cleanUrl = url.split('?')[0];
                 let existingMeta = await VceDB.get('imageMeta', cleanUrl);
                 if (existingMeta && existingMeta.resolutionState !== 'SUCCESS') {
@@ -672,10 +674,9 @@ backdrop-filter: blur(1px);
                 if (!result || !result.realCode) return `result not fouund`;
                 if (!result.makerLabel) return `makerLabel not found`;
                 const makerLabel = makerLabelReplaceMap[result.makerLabel] || result.makerLabel;
-                const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id') || existingMeta?.makerLabelCode;
+                const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id');
                 if (!makerLabelCode) return 'makerLabelCode not found';
-                const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';
-                await processWork(cleanUrl, rawMediaType, makerLabelCode, makerLabel);
+                const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';                
                 await sleep(1000);
                 existingMeta = await VceDB.get('imageMeta', cleanUrl);
                 if (existingMeta) {
@@ -683,6 +684,9 @@ backdrop-filter: blur(1px);
                     if (result) {
                         metaData = {
                             ...result,
+                            makerLabel,
+                            makerLabelCode,
+                            rawMediaType,
                             sourceSite: 'FANZA_DIGITAL',
                             metaStatus: 'SUCCESS'
                         };
@@ -1164,7 +1168,7 @@ backdrop-filter: blur(1px);
             const task = requestMetaMap.get(firstKey);
             requestMetaMap.delete(firstKey);
 
-            updateProcessingStatus(requestMetaMap.size, requestResMap.size);
+            //updateProcessingStatus(requestMetaMap.size, requestResMap.size);
 
             const existingMeta = await VceDB.get('imageMeta', task.url);
             if (!existingMeta) {
@@ -1193,7 +1197,7 @@ backdrop-filter: blur(1px);
             doMeta();
         } else {
             isMetaProcessing = false;
-            updateProcessingStatus(requestMetaMap.size, requestResMap.size);
+            //updateProcessingStatus(requestMetaMap.size, requestResMap.size);
         }
     }
     async function doRes() {
@@ -1204,7 +1208,7 @@ backdrop-filter: blur(1px);
             const task = requestResMap.get(firstKey);
             requestResMap.delete(firstKey);
 
-            updateProcessingStatus(requestMetaMap.size, requestResMap.size);
+            //updateProcessingStatus(requestMetaMap.size, requestResMap.size);
 
             const res = await fetchImageResolution(task.url);
             let resData = {};
@@ -1221,11 +1225,12 @@ backdrop-filter: blur(1px);
             doRes();
         } else {
             isResProcessing = false;
-            updateProcessingStatus(requestMetaMap.size, requestResMap.size);
+            //updateProcessingStatus(requestMetaMap.size, requestResMap.size);
         }
     }
 
     function updateProcessingStatus(metaCount = 0, resCount = 0) {
+        
         if (!statusEl) {
             statusEl = document.getElementById('vce-status-indicator');
             if (!statusEl) return;
@@ -1262,6 +1267,7 @@ backdrop-filter: blur(1px);
             };
         }
     }
+        
 
     function updateProcessingFANZADIGITAL(metaCount = 0, contentId = '') {
         if (!FANZADIGITAL) {
@@ -1296,15 +1302,14 @@ backdrop-filter: blur(1px);
     }
 
     const mutCallback = async () => {
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+        if (/video\.dmm\.co\.jp\/av\/list\//.test(PageURL())) {
             imageSelector = getImageSelector();
             if (!imageSelector) return;
             const targets = document.querySelectorAll(`${imageSelector}:not(.${PROCESSED_CLASS})`);
             if (targets.length === 0) return;
             for (const el of targets) {
-                el.classList.add(PROCESSED_CLASS);
-                const targetUrl = el.getAttribute('srcset') || el.getAttribute('src');
-                if (targetUrl) await processWork(targetUrl, rawMediaType, makerLabelCode, makerLabel); // await 처리를 위해 변경됨
+                el.classList.add(PROCESSED_CLASS);                
+                if (el) await processWork(el.getAttribute('srcset'), el.closest('a').href); // await 처리를 위해 변경됨
                 await sleep(200);
             }
         }
@@ -1383,10 +1388,7 @@ backdrop-filter: blur(1px);
             currentSessionCodes.clear();
             updateDisplayList(false, 'resetSessionCodes');
         }
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(newUrl)) {
-            makerLabelCode = GetParam(newUrl, 'maker');
-            rawMediaType = GetParam(newUrl, 'media_type');
-            makerLabel = getMakerLabel(makerLabelCode);
+        if (/video\.dmm\.co\.jp\/av\/list\//.test(newUrl)) {            
             observer.disconnect(); // 기존 감시 중단 후 재시작
             observer.observe(document.body, { childList: true, subtree: true });
             mutCallback(); // 즉시 한 번 실행
@@ -1407,7 +1409,7 @@ backdrop-filter: blur(1px);
             mapContainer.style.display = 'none';
         }
 
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+/.test(newUrl)) {
+        if (/video\.dmm\.co\.jp\/av\/list\//.test(newUrl)) {
             autoContainer.style.display = 'flex';
         } else {
             autoContainer.style.display = 'none';
@@ -1434,12 +1436,13 @@ backdrop-filter: blur(1px);
     window.addEventListener('popstate', resetSessionCodes);
     window.addEventListener('hashchange', resetSessionCodes);
 
-    async function processWork(sourceURL, rawMediaType, makerLabelCode, makerLabel, reTry = false) {
+    async function processWork(imageSrc, linkUrl, reTry = false) {        
 
-        if (!makerLabelCode || !rawMediaType || !makerLabel) return false;
+        if (!imageSrc || !imageSrc.includes('https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/')) return false;
+        const cleanUrl = imageSrc.split('?')[0];
+        const contentId = GetParam(linkUrl, 'id').toLocaleLowerCase();
+        if (!contentId) return false;
 
-        if (!sourceURL || !sourceURL.includes('https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/')) return false;
-        const cleanUrl = sourceURL.split('?')[0];
 
         const majorsLabel = /digital\/video\/(.*?)([a-z]{3,7}\d{4,7}|(KT|TS|SW|\d{2}ID[a-zA-Z]?|\d+T\d{2.3}[a-zA-Z]?))[v]?/i;
         if (!majorsLabel.test(cleanUrl)) return false;
@@ -1456,10 +1459,10 @@ backdrop-filter: blur(1px);
         for (const skipRegex of skipPatterns) if (skipRegex.test(cleanUrl)) return false;
 
         const pathSegments = cleanUrl.split('/');
-        const contentId = pathSegments[pathSegments.length - 2];
+        const imageId = pathSegments[pathSegments.length - 2];
         const fileName = pathSegments.pop();
         const fileExtension = fileName.split('.').pop();
-        const originalImage = cleanUrl.replace(fileName, `${contentId}pl.${fileExtension}`);
+        const originalImage = cleanUrl.replace(fileName, `${imageId}pl.${fileExtension}`);
 
         // --- [섹션 2: 코드 DB 중복 체크] ---   
         const existingImage = await VceDB.get('imageMeta', originalImage);
@@ -1487,7 +1490,7 @@ backdrop-filter: blur(1px);
             const padLen = match[3].length;
             const suffix = match[4];
             const displayCode = code;
-            const uniqueKey = `${displayCode}_${prefix}_${padLen}_${suffix}_${makerLabelCode}_${rawMediaType}`;
+            const uniqueKey = `${displayCode}_${prefix}_${padLen}_${suffix}_${contentId.replace(/\d/g,'0')}`;
 
 
             // --- [섹션 1: 이미지 메타 처리] ---
@@ -1495,9 +1498,9 @@ backdrop-filter: blur(1px);
             await VceDB.save("imageMeta", originalImage, {
                 displayCode: displayCode, // Index  
                 uniqueKey: uniqueKey, // Index             
-                makerLabelCode: makerLabelCode,
-                makerLabel: makerLabel,
-                rawMediaType: rawMediaType,
+                makerLabelCode: '',
+                makerLabel: '',
+                rawMediaType: '',
                 imageSource: originalImage,
                 contentId: contentId, // Index
                 //스케줄 작업으로 처리하는 값들
@@ -1527,14 +1530,15 @@ backdrop-filter: blur(1px);
             await VceDB.save("codes", uniqueKey, {
                 displayCode: displayCode,
                 imageSourceKey: imageSourceKey,
-                imageSource: originalImage,
+                reTryData: {
+                    imageSrc: originalImage, linkUrl: `https://video.dmm.co.jp/av/content/?id=${contentId}` },
                 contentId: contentId,
                 prefix: prefix,
                 padLen: padLen,
                 suffix: suffix,
-                makerLabelCode: makerLabelCode,
-                makerLabel: makerLabel,
-                rawMediaType: rawMediaType,
+                makerLabelCode: '',
+                makerLabel: '',
+                rawMediaType: '',                
             });
             if (!reTry) {
                 updateDisplayList(false, 'processWork');
@@ -1580,7 +1584,7 @@ backdrop-filter: blur(1px);
         items.forEach(itemData => {
             const key = itemData.id;
             const detailLabel = `${itemData.prefix && itemData.suffix ? itemData.prefix + ', ' + itemData.suffix : itemData.prefix || itemData.suffix || ''}`;
-            const idMatch = itemData.imageSource.match(/digital\/video\/([^\/]+)\//i);
+            const idMatch = itemData.reTryData.imageSrc.match(/digital\/video\/([^\/]+)\//i);
             const contentId = idMatch ? idMatch[1] : "";
             const itemPageUrl = contentId ? `https://video.dmm.co.jp/av/content/?id=${contentId}` : "#";
             const row = document.createElement('div');
@@ -1592,11 +1596,11 @@ backdrop-filter: blur(1px);
             row.style = "display:flex; align-items:center; border-bottom:1px solid #333; padding:6px 0; gap:8px;";
             row.innerHTML = `
                 <input type="checkbox" class="item-check" data-key="${key}" style="margin-left:5px; width:15px; height:15px; cursor:pointer; accent-color:#00FF41; appearance:auto;">
-                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; cursor:help;" title="${itemData.imageSource}">
+                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; cursor:help;" title="${itemData.reTryData.imageSrc}">
                 <a href="${itemPageUrl}" target="_blank"><span style="color:#00FF41; font-family:monospace; font-size:12px;">${itemData.displayCode}</span></a>
                     ${detailLabel ? `<span style="color:white; font-size:10px; margin-left:5px;">[</span><span style="color:#00FF41; font-size:10px;">${detailLabel}</span><span style="color:white; font-size:10px;">]</span>` : ''}
                 </div>
-                <span style="color:white; font-size:10px;padding-left:5px;">[ ${itemData.rawMediaType} ]</span>
+                <span style="color:white; font-size:10px;padding-left:5px;">[ ${itemData.rawMediaType || ''} ]</span>
                 <button class="reset-btn" style="background:none; border:none; color:#aaa; cursor:pointer; display:flex; align-items:center; padding:0 5px;">${refreshIcon}</button>
             `;
 
@@ -1611,23 +1615,18 @@ backdrop-filter: blur(1px);
 
             // updateDisplayList 함수 내 반복문(items.forEach) 부분 수정
             row.querySelector('.reset-btn').onclick = async (e) => {
-                const targetUrl = itemData.imageSource;
-                const makerLabel = itemData.makerLabel;
-                const makerLabelCode = itemData.makerLabelCode; // 상위 스코프 변수 활용
-                const rawMediaType = itemData.rawMediaType;
+                const imageEl = itemData.imageEl;                
 
-                if (targetUrl) {
+                if (imageEl) {
                     // 1. 대기열(Queue)에 객체 형태로 추가
                     let queue = JSON.parse(GM_getValue("process_queue", "[]"));
-                    if (!queue.some(q => q.url === targetUrl)) {
+                    if (!queue.some(q => q.el === imageEl)) {
                         queue.push({
-                            url: targetUrl,
-                            maker: makerLabel,
-                            makerCode: makerLabelCode,
-                            type: rawMediaType
+                            imageSrc,
+                            linkUrl                            
                         });
                         GM_setValue("process_queue", JSON.stringify(queue));
-                        console.log(`[Queue Add] ${targetUrl}`);
+                        console.log(`[Queue Add] ${imageEl}`);
                     }
 
                     // 2. DB 및 메모리에서 즉시 삭제
@@ -1680,7 +1679,7 @@ backdrop-filter: blur(1px);
             console.warn("[initializeMakerMap] 외부리소스 로딩 실패", e);
         }
         //console.log(`메이커 맵 구성: ${makerMap.size}개 항목`, makerMap);
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+        if (/video\.dmm\.co\.jp\/av\/list\//.test(PageURL())) {
             observer.observe(document.body, { childList: true, subtree: true });
         }
         makerLabelCode = GetParam(PageURL(), 'maker');
@@ -1723,7 +1722,8 @@ backdrop-filter: blur(1px);
 
     async function startWithHighlight(type, highlightPairs) {
         const autoStatus = getState();
-        const continuePage = GetParam(autoStatus.pendingPage, 'page') || 1;
+        const continuePage = Number(GetParam(autoStatus.pendingPage, 'page')) || Number('1');
+        const currentPage = Number(GetParam(PageURL(), 'page')) || Number('1');
         const lastP = getLastPageNumber();
 
 
@@ -1764,29 +1764,58 @@ backdrop-filter: blur(1px);
                 }
             };
 
+            
 
             // --- 조건별 분기 처리 ---
             if (type === 'pageView') {
-                if (Number(continuePage) === 1 && !autoStatus.pendingPage) {
+                if (autoStatus.pendingPage || Number(currentPage) > 1) {
                     const pagination = document.querySelector('ul[data-e2eid="pagination"]');
                     if (!pagination) return false;
                     const firstPageLink = pagination.querySelector('li:nth-child(2) a');
-                    swalConfig.title = '수집을 시작하시겠습니까?';
-                    swalConfig.html = `<b>${continuePage}</b>페이지부터 <b>${lastP}</b>페이지까지 수집합니다.<br><br>페이지 표시 갯수(<b>${count}</b>)와 새로고침 여부를 확인하셨나요?<br><br>첫 페이지부터 다시 하려면 수집하기 버튼 옆 이어하기 초기화 아이콘을 클릭하세요!`;
+                    swalConfig.title = '이어서 수집을 시작하시겠습니까?';
+                    swalConfig.html = `
+<b>${continuePage || currentPage}</b>페이지부터 
+<input
+  id="swal-max-page"
+  type="number"
+  value="${lastP}" 
+  min="${continuePage || currentPage}" 
+  max="${lastP}"
+  style="width:3ch; text-align:center;">
+페이지까지 수집합니다.
+<br><br>
+페이지 표시 갯수(<b>${count}</b>)와 새로고침 여부를 확인하셨나요?
+<br><br>
+첫 페이지부터 다시 하려면 수집하기 버튼 옆 이어하기 초기화 아이콘을 클릭하세요!
+`;
                     swalConfig.confirmButtonText = '네, 시작합니다!';
 
                     // 확인 시 동작: 수집 로직 실행
                     swalConfig.preConfirm = () => {
+                       const input = document.getElementById('swal-max-page');
+                       const value = Math.min(
+                            lastP,
+                           Math.max(continuePage, parseInt(input.value, 10) || continuePage)
+                        );
+
+                        if (isNaN(value) || value <= 0) {
+                            Swal.showValidationMessage('올바른 페이지 숫자를 입력하세요');
+                            return false;
+                        }
+                        
+                        maxPagesLimit = value;
+
                         if (firstPageLink) firstPageLink.click();
-                        startAuto();
+                        
+                        startAuto(value);
                         setState({ active: true });
                         toggleAutoRun();
-                    };
+                    };                    
                 }
-                if (Number(continuePage) >= Number(lastP)) {
+                if (Number(continuePage) >= Number(lastP) || Number(currentPage) >= Number(lastP)) {
                     // [상황 1] 현재 페이지가 제한 페이지보다 큰 경우 (재설정 필요)
                     swalConfig.title = '페이지 범위 오류';
-                    swalConfig.html = `현재 페이지(<b>${continuePage}</b>)가 제한(<b>${lastP}</b>)보다 큽니다.<br><br><span style="color: #ff4d4d;">[${count}] 단위를 클릭하고 페이지를 새로고침 하시겠습니까?</span>`;
+                    swalConfig.html = `현재 페이지(<b>${continuePage || currentPage}</b>)가 제한(<b>${lastP}</b>)보다 큽니다.<br><br><span style="color: #ff4d4d;">[${count}] 단위를 클릭하고 페이지를 새로고침 하시겠습니까?</span>`;
                     swalConfig.confirmButtonText = '네, 설정 후 재로딩';
 
                     // 확인 시 동작: target 클릭 후 새로고침
@@ -1806,19 +1835,45 @@ backdrop-filter: blur(1px);
                 } else {
                     // [상황 2] 정상적인 수집 시작                    
                     swalConfig.title = '수집을 시작하시겠습니까?';
-                    swalConfig.html = `<b>${continuePage}</b>페이지부터 <b>${lastP}</b>페이지까지 수집합니다.<br><br>페이지 표시 갯수(<b>${count}</b>)와 새로고침 여부를 확인하셨나요?<br><br>첫 페이지부터 다시 하려면 수집하기 버튼 옆 이어하기 초기화 아이콘을 클릭하세요!`;
+                    swalConfig.html = `
+<b>${continuePage || currentPage}</b>페이지부터 
+<input
+  id="swal-max-page"
+  type="number"
+  value="${lastP}" 
+  min="${continuePage || currentPage}" 
+  max="${lastP}"
+  style="width:3ch; text-align:center;">
+페이지까지 수집합니다.
+<br><br>
+페이지 표시 갯수(<b>${count}</b>)와 새로고침 여부를 확인하셨나요?
+<br><br>
+첫 페이지부터 다시 하려면 수집하기 버튼 옆 이어하기 초기화 아이콘을 클릭하세요!
+`;
+                    
                     swalConfig.confirmButtonText = '네, 시작합니다!';
 
                     // 확인 시 동작: 수집 로직 실행
                     swalConfig.preConfirm = () => {
+                      const input = document.getElementById('swal-max-page');
+                      const value = Math.min(
+                            lastP,
+                          Math.max(continuePage, parseInt(input.value, 10) || continuePage)
+                        );
+
+                        if (isNaN(value) || value <= 0) {
+                            Swal.showValidationMessage('올바른 페이지 숫자를 입력하세요');
+                            return false;
+                        }                                               
+                        maxPagesLimit = value;
                         startAuto();
                         setState({ active: true });
-                        toggleAutoRun();
+                        toggleAutoRun();                            
                     };
                 }
             } else if (type === 'search-form') {
                 swalConfig.title = '수집되지 않는 페이지';
-                swalConfig.html = `<b>2D/VR에서 <a id="choicetype" href="https://video.dmm.co.jp/av/list/?maker=${makerLabelCode}&media_type=2d">2D</a>를 선택하세요.<br><br><span style="color: #ff4d4d;">페이지 표시 갯수를 120개로 설정하고<br>새로고침 F5를 클릭하세요!</span>`;
+                swalConfig.html = `<b>2D/VR에서 <a id="choicetype" href="https://video.dmm.co.jp/av/list/"></a>를 선택하세요.<br><br><span style="color: #ff4d4d;">페이지 표시 갯수를 120개로 설정하고<br>새로고침 F5를 클릭하세요!</span>`;
                 swalConfig.confirmButtonText = '네, 페이지 이동!';
 
                 // 확인 시 동작: 수집 로직 실행
@@ -1979,13 +2034,13 @@ backdrop-filter: blur(1px);
             FANZADIGITAL.style = `display: grid; justify-content: space-around; padding: 5px 10px; background: rgba(0,0,0,0.7); color: white; font-size: 12px; border-size: 12px; border-radius: 5px; z-index: 99999;`;
 
             panel.appendChild(FANZADIGITAL);
-
+/*
             statusEl = document.createElement('div');
             statusEl.id = 'vce-status-indicator';
             statusEl.style = `display: grid; justify-content: space-around; padding: 5px 10px; background: rgba(0,0,0,0.7); color: white; font-size: 12px; border-size: 12px; border-radius: 5px; z-index: 99999;`;
 
             panel.appendChild(statusEl);
-
+*/
             alertStatus = document.createElement('div');
             alertStatus.style = "font-size:11px; text-align:center; line-height:1.4;";
             panel.appendChild(alertStatus);
@@ -2025,12 +2080,10 @@ backdrop-filter: blur(1px);
                 for (const cb of selected) {
                     const key = cb.dataset.key;
                     const item = await VceDB.get('codes', key);
-                    if (item && !queue.some(q => q.url === item.origin)) {
+                    if (item && !queue.some(q => q.imageSrc === item.reTryData.imageSrc)) {
                         queue.push({
-                            url: item.origin,
-                            maker: item.makerLabel,
-                            makerCode: item.makerLabelCode,
-                            type: item.rawMediaType
+                            imageSrc,
+                            linkUrl
                         });
                         await VceDB.delete('codes', key);
                         await VceDB.deleteAll('imageMeta', 'uniqueKey', key);
@@ -2061,9 +2114,8 @@ backdrop-filter: blur(1px);
 
                 for (let i = 0; i < queue.length; i++) {
                     const t = queue[i];
-                    btnRun.innerText = `처리 중 (${i + 1}/${queue.length})`;
-                    // 기존 processWork(sourceURL, rawMediaType, makerLabelCode, makerLabel) 순서에 맞춰 호출
-                    await processWork(t.url, t.type, t.makerCode, t.maker, true);
+                    btnRun.innerText = `처리 중 (${i + 1}/${queue.length})`;                    
+                    await processWork(t.imageSrc, t.linkUrl, true);                    
                 }
                 btnRun.disabled = false;
                 refreshQueueButton();
@@ -2299,7 +2351,7 @@ backdrop-filter: blur(1px);
             autoContainer = document.createElement('div');
             autoContainer.classList.add('auto-container');
             autoContainer.style = "display: none; gap:5px;";
-            if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+/.test(PageURL())) {
+            if (/video\.dmm\.co\.jp\/av\/list\//.test(PageURL())) {
                 autoContainer.style = "display: flex; gap:5px;";
             }
 
@@ -2344,7 +2396,7 @@ backdrop-filter: blur(1px);
                 }
             };
             btnAutoRun.onclick = () => {
-                if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+                if (/video\.dmm\.co\.jp\/av\/list\//.test(PageURL())) {
                     const pageViewMode = document.querySelector('[data-e2eid="search-form"] select#sort');
                     const pageViewCount = document.querySelector('[data-e2eid="search-number-displays"] li:last-child');
                     const countText = '120';
@@ -2401,10 +2453,11 @@ backdrop-filter: blur(1px);
             };
 
             btnStop.onclick = () => {
-                if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+                if (/video\.dmm\.co\.jp\/av\/list\//.test(PageURL())) {
                     setState({ active: false, pendingPage: PageURL() });
                 } else {
                     setState({ active: false });
+                    maxPagesLimit = 50;
                 }
                 btnStop.innerText = "수집 정지 됨";
             };
@@ -2557,6 +2610,7 @@ backdrop-filter: blur(1px);
                 console.log(`[Auto] ${maxPagesLimit} 초과`);
                 toggleAutoRun(0);
                 setState({ active: false });
+                maxPagesLimit = 50;
                 return false;
             }
 
@@ -2612,6 +2666,7 @@ backdrop-filter: blur(1px);
                 console.log("[Auto] 끝");
                 toggleAutoRun(0);
                 setState({ active: false, pendingPage: null });
+                maxPagesLimit = 50;
                 return false;
             }
 
@@ -2636,6 +2691,7 @@ backdrop-filter: blur(1px);
         } else {
             console.log("[Auto] 끝");
             toggleAutoRun(0);
+            maxPagesLimit = 50;
 
             setState({
                 active: false,
@@ -2869,17 +2925,10 @@ backdrop-filter: blur(1px);
         FontAwesomeCSS();
         await initializeMakerMap();
 
-
-        const autoStatus = getState();
-        if (autoStatus.active) {
-            if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+$/.test(PageURL())) {
-                startPage = 1;
-                window.location.href = UpdateParam(PageURL(), 'media_type', '2d');
-            }
-        }
+        const autoStatus = getState();        
         await createUI();
 
-        if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=/.test(PageURL())) {
+        if (/video\.dmm\.co\.jp\/av\/list\//.test(PageURL())) {
             mutCallback();
             observer.observe(document.body, { childList: true, subtree: true });
             if (autoStatus.active) {
@@ -2889,7 +2938,7 @@ backdrop-filter: blur(1px);
 
         refreshQueueButton();
         updateProcessingFANZADIGITAL();
-        updateProcessingStatus();
+        //updateProcessingStatus();
 
         if (PageURL().startsWith('https://video.dmm.co.jp/av/content/')) {
             const config = siteConfigs['FANZA_DIGITAL'];
@@ -2960,8 +3009,7 @@ backdrop-filter: blur(1px);
         const STORAGE_KEY = 'vce_modal_size';
 
         // 1. 저장된 크기 불러오기 (값이 없으면 1200px, 높이는 auto)
-        const savedSize = await localStorage.getItem(STORAGE_KEY);
-        console.log(savedSize);
+        const savedSize = await localStorage.getItem(STORAGE_KEY);        
         if (savedSize) {
             const { width } = JSON.parse(savedSize);
             modal.style.width = width + 'px';
@@ -3086,7 +3134,7 @@ backdrop-filter: blur(1px);
         renderPreview();
 
         // hover 이벤트
-        document.addEventListener('mouseover', (e) => {
+        container.addEventListener('mouseover', (e) => {
             const a = e.target.closest('a');
             if (!a || !container.contains(a)) return;            
             
@@ -3385,8 +3433,7 @@ backdrop-filter: blur(1px);
                 await sleep(getRandomDelay());
                 const config = siteConfigs['FANZA_DIGITAL'];
                 if (config) {
-                    const result = await config.addDB();
-                    localStorage.setItem(location.href, JSON.stringify(result));
+                    const result = await config.addDB();                    
                     console.log('[VCE] 작업 완료', result, location.href);
                     await sleep(getRandomDelay());
                     FANZADIGITALBC.postMessage({
