@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         VideoCode & MetaData Extractor IndexedDB 고도화 5.0
+// @name         VideoCode & MetaData Extractor IndexedDB 고도화 6.0
 // @namespace    http://tampermonkey.net/
-// @version      5.2.0
+// @version      6.0
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/?maker=*
@@ -124,8 +124,8 @@ backdrop-filter: blur(1px);
     max-width: 80%;
     min-width: 1000px;
     min-height: 800px;
-    top: 50%; left: 50%; transform: translate(-50%, -50%);
-    width: 80%; max-width: 1200px; height: 80%; 
+    top: 50%; left: 50%; transform: translate(-50%, -50%);    
+    border-radius: 8px;
     /* --- 추가 --- */
     resize: both; 
     overflow: hidden; /* 헤더 드래그를 위해 필요 */
@@ -193,7 +193,7 @@ backdrop-filter: blur(1px);
 /* 테이블 스타일 */
 .vce-table-container { flex: 1; overflow-y: auto; background: #111; border: 1px solid #333; border-radius: 4px; }
 .vce-result-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-.vce-result-table th { position: sticky; top: 0; background: #222; color: #aaa; padding: 8px; border-bottom: 1px solid #444; text-align: center; max-width: 8ch;}
+.vce-result-table th { position: sticky; top: 0; background: #222; color: #aaa; padding: 8px; border-bottom: 1px solid #444; text-align: center;}
 .vce-result-table td { padding: 6px 8px; border-bottom: 1px solid #222; color: #eee; }
 .vce-result-table tr:hover { background: #1a1a1a; }
 
@@ -203,7 +203,7 @@ backdrop-filter: blur(1px);
 .vce-pagination button.active { background: #2196F3; color: white; border-color: #2196F3; }
 .vce-result-table {
 	border-collapse: collapse;
-	font-size: 11px;
+	font-size: 10px;
 }
 
 .vce-table-container {
@@ -211,7 +211,8 @@ backdrop-filter: blur(1px);
     /* 스크롤이 끝에 도달했을 때 부모(body)로 전파되는 것을 방지 */
     overscroll-behavior: contain; 
 }
-
+.vce-result-table th:nth-child(7) { width: 10ch; }
+.vce-result-table th:nth-child(8) { width: 10ch; }
     `);
 
     const imageUrlsMap = {
@@ -651,7 +652,7 @@ backdrop-filter: blur(1px);
         FANZA_DIGITAL: {
             addDB: async () => {
                 const imageEl = document.querySelector('div[data-e2eid="sample-image-gallery"] a picture source');
-                if (!imageEl) return 'element not found';                
+                if (!imageEl) return 'element not found';
                 const url = imageEl.closest('a')?.href;
                 if (!url) return 'url not found';
                 await processWork(imageEl.getAttribute('srcset'), url.href, 'FANZA_DIGITAL');
@@ -676,7 +677,7 @@ backdrop-filter: blur(1px);
                 const makerLabel = makerLabelReplaceMap[result.makerLabel] || result.makerLabel;
                 const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id');
                 if (!makerLabelCode) return 'makerLabelCode not found';
-                const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';                
+                const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';
                 await sleep(1000);
                 existingMeta = await VceDB.get('imageMeta', cleanUrl);
                 if (existingMeta) {
@@ -694,15 +695,15 @@ backdrop-filter: blur(1px);
                         updateDisplayList(false, 'addDB');
                         const existingCode = await VceDB.get('codes', existingMeta.uniqueKey);
                         if (existingCode && existingCode.codeStatus !== 'SUCCESS') {
-                            const codeData = {                                
+                            const codeData = {
                                 makerLabel,
                                 makerLabelCode,
                                 rawMediaType,
                                 sourceSite: 'FANZA_DIGITAL',
                                 codeStatus: 'SUCCESS'
-                            }
+                            };
                             await VceDB.save("codes", existingMeta.uniqueKey, codeData);
-                        }                            
+                        }
                         return 'SUCCESS';
                     }
                     return 'Last Setp FAIL';
@@ -1241,7 +1242,7 @@ backdrop-filter: blur(1px);
     }
 
     function updateProcessingStatus(metaCount = 0, resCount = 0) {
-        
+
         if (!statusEl) {
             statusEl = document.getElementById('vce-status-indicator');
             if (!statusEl) return;
@@ -1278,7 +1279,7 @@ backdrop-filter: blur(1px);
             };
         }
     }
-        
+
 
     function updateProcessingFANZADIGITAL(metaCount = 0, contentId = '') {
         if (!FANZADIGITAL) {
@@ -1319,7 +1320,7 @@ backdrop-filter: blur(1px);
             const targets = document.querySelectorAll(`${imageSelector}:not(.${PROCESSED_CLASS})`);
             if (targets.length === 0) return;
             for (const el of targets) {
-                el.classList.add(PROCESSED_CLASS);                
+                el.classList.add(PROCESSED_CLASS);
                 if (el) await processWork(el.getAttribute('srcset'), el.closest('a').href); // await 처리를 위해 변경됨
                 await sleep(200);
             }
@@ -1399,7 +1400,7 @@ backdrop-filter: blur(1px);
             currentSessionCodes.clear();
             updateDisplayList(false, 'resetSessionCodes');
         }
-        if (/video\.dmm\.co\.jp\/av\/list\//.test(newUrl)) {            
+        if (/video\.dmm\.co\.jp\/av\/list\//.test(newUrl)) {
             observer.disconnect(); // 기존 감시 중단 후 재시작
             observer.observe(document.body, { childList: true, subtree: true });
             mutCallback(); // 즉시 한 번 실행
@@ -1447,7 +1448,7 @@ backdrop-filter: blur(1px);
     window.addEventListener('popstate', resetSessionCodes);
     window.addEventListener('hashchange', resetSessionCodes);
 
-    async function processWork(imageSrc, linkUrl, reTry = false) {        
+    async function processWork(imageSrc, linkUrl, reTry = false) {
 
         if (!imageSrc || !imageSrc.includes('https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/')) return false;
         const cleanUrl = imageSrc.split('?')[0];
@@ -1501,7 +1502,7 @@ backdrop-filter: blur(1px);
             const padLen = match[3].length;
             const suffix = match[4];
             const displayCode = code;
-            const uniqueKey = `${displayCode}_${prefix}_${padLen}_${suffix}_${contentId.replace(/\d/g,'0')}`;
+            const uniqueKey = `${displayCode}_${prefix}_${padLen}_${suffix}_${contentId.replace(/\d/g, '0')}`;
 
 
             // --- [섹션 1: 이미지 메타 처리] ---
@@ -1542,14 +1543,15 @@ backdrop-filter: blur(1px);
                 displayCode: displayCode,
                 imageSourceKey: imageSourceKey,
                 reTryData: {
-                    imageSrc: originalImage, linkUrl: `https://video.dmm.co.jp/av/content/?id=${contentId}` },
+                    imageSrc: originalImage, linkUrl: `https://video.dmm.co.jp/av/content/?id=${contentId}`
+                },
                 contentId: contentId,
                 prefix: prefix,
                 padLen: padLen,
                 suffix: suffix,
                 makerLabelCode: '',
                 makerLabel: '',
-                rawMediaType: '',                
+                rawMediaType: '',
             });
             if (!reTry) {
                 updateDisplayList(false, 'processWork');
@@ -1626,7 +1628,7 @@ backdrop-filter: blur(1px);
 
             // updateDisplayList 함수 내 반복문(items.forEach) 부분 수정
             row.querySelector('.reset-btn').onclick = async (e) => {
-                const imageEl = itemData.imageEl;                
+                const imageEl = itemData.imageEl;
 
                 if (imageEl) {
                     // 1. 대기열(Queue)에 객체 형태로 추가
@@ -1634,7 +1636,7 @@ backdrop-filter: blur(1px);
                     if (!queue.some(q => q.el === imageEl)) {
                         queue.push({
                             imageSrc,
-                            linkUrl                            
+                            linkUrl
                         });
                         GM_setValue("process_queue", JSON.stringify(queue));
                         console.log(`[Queue Add] ${imageEl}`);
@@ -1775,7 +1777,7 @@ backdrop-filter: blur(1px);
                 }
             };
 
-            
+
 
             // --- 조건별 분기 처리 ---
             if (type === 'pageView') {
@@ -1803,25 +1805,25 @@ backdrop-filter: blur(1px);
 
                     // 확인 시 동작: 수집 로직 실행
                     swalConfig.preConfirm = () => {
-                       const input = document.getElementById('swal-max-page');
-                       const value = Math.min(
+                        const input = document.getElementById('swal-max-page');
+                        const value = Math.min(
                             lastP,
-                           Math.max(continuePage, parseInt(input.value, 10) || continuePage)
+                            Math.max(continuePage, parseInt(input.value, 10) || continuePage)
                         );
 
                         if (isNaN(value) || value <= 0) {
                             Swal.showValidationMessage('올바른 페이지 숫자를 입력하세요');
                             return false;
                         }
-                        
+
                         maxPagesLimit = value;
 
                         if (firstPageLink) firstPageLink.click();
-                        
+
                         startAuto(value);
                         setState({ active: true });
                         toggleAutoRun();
-                    };                    
+                    };
                 }
                 if (Number(continuePage) >= Number(lastP) || Number(currentPage) >= Number(lastP)) {
                     // [상황 1] 현재 페이지가 제한 페이지보다 큰 경우 (재설정 필요)
@@ -1861,25 +1863,25 @@ backdrop-filter: blur(1px);
 <br><br>
 첫 페이지부터 다시 하려면 수집하기 버튼 옆 이어하기 초기화 아이콘을 클릭하세요!
 `;
-                    
+
                     swalConfig.confirmButtonText = '네, 시작합니다!';
 
                     // 확인 시 동작: 수집 로직 실행
                     swalConfig.preConfirm = () => {
-                      const input = document.getElementById('swal-max-page');
-                      const value = Math.min(
+                        const input = document.getElementById('swal-max-page');
+                        const value = Math.min(
                             lastP,
-                          Math.max(continuePage, parseInt(input.value, 10) || continuePage)
+                            Math.max(continuePage, parseInt(input.value, 10) || continuePage)
                         );
 
                         if (isNaN(value) || value <= 0) {
                             Swal.showValidationMessage('올바른 페이지 숫자를 입력하세요');
                             return false;
-                        }                                               
+                        }
                         maxPagesLimit = value;
                         startAuto();
                         setState({ active: true });
-                        toggleAutoRun();                            
+                        toggleAutoRun();
                     };
                 }
             } else if (type === 'search-form') {
@@ -2045,13 +2047,13 @@ backdrop-filter: blur(1px);
             FANZADIGITAL.style = `display: grid; justify-content: space-around; padding: 5px 10px; background: rgba(0,0,0,0.7); color: white; font-size: 12px; border-size: 12px; border-radius: 5px; z-index: 99999;`;
 
             panel.appendChild(FANZADIGITAL);
-/*
-            statusEl = document.createElement('div');
-            statusEl.id = 'vce-status-indicator';
-            statusEl.style = `display: grid; justify-content: space-around; padding: 5px 10px; background: rgba(0,0,0,0.7); color: white; font-size: 12px; border-size: 12px; border-radius: 5px; z-index: 99999;`;
-
-            panel.appendChild(statusEl);
-*/
+            /*
+                        statusEl = document.createElement('div');
+                        statusEl.id = 'vce-status-indicator';
+                        statusEl.style = `display: grid; justify-content: space-around; padding: 5px 10px; background: rgba(0,0,0,0.7); color: white; font-size: 12px; border-size: 12px; border-radius: 5px; z-index: 99999;`;
+            
+                        panel.appendChild(statusEl);
+            */
             alertStatus = document.createElement('div');
             alertStatus.style = "font-size:11px; text-align:center; line-height:1.4;";
             panel.appendChild(alertStatus);
@@ -2125,8 +2127,8 @@ backdrop-filter: blur(1px);
 
                 for (let i = 0; i < queue.length; i++) {
                     const t = queue[i];
-                    btnRun.innerText = `처리 중 (${i + 1}/${queue.length})`;                    
-                    await processWork(t.imageSrc, t.linkUrl, true);                    
+                    btnRun.innerText = `처리 중 (${i + 1}/${queue.length})`;
+                    await processWork(t.imageSrc, t.linkUrl, true);
                 }
                 btnRun.disabled = false;
                 refreshQueueButton();
@@ -2716,24 +2718,24 @@ backdrop-filter: blur(1px);
     }
 
     async function startAuto() {
-        
-                const state = getState();
 
-                // 🔥 이어서 이동
-                if (state.pendingPage && location.href !== state.pendingPage) {
-                    console.log('[Auto] 이어서 이동:', state.pendingPage);
-                    location.href = state.pendingPage;
-                    return;
-                }
+        const state = getState();
 
-                setState({ active: true });
+        // 🔥 이어서 이동
+        if (state.pendingPage && location.href !== state.pendingPage) {
+            console.log('[Auto] 이어서 이동:', state.pendingPage);
+            location.href = state.pendingPage;
+            return;
+        }
 
-                await autoLoop();
+        setState({ active: true });
 
-                setState({ active: false });
+        await autoLoop();
 
-                console.log('[Lock] 해제');
-        
+        setState({ active: false });
+
+        console.log('[Lock] 해제');
+
     }
 
     async function autoLoop() {
@@ -2925,7 +2927,7 @@ backdrop-filter: blur(1px);
         FontAwesomeCSS();
         await initializeMakerMap();
 
-        const autoStatus = getState();        
+        const autoStatus = getState();
         await createUI();
 
         if (/video\.dmm\.co\.jp\/av\/list\//.test(PageURL())) {
@@ -2950,6 +2952,79 @@ backdrop-filter: blur(1px);
             }
             checkIcon(config);
         }
+    }
+
+
+    async function exportFullBackup() {
+        try {
+            // 모든 스토어의 데이터를 병렬로 가져옴
+            const [codesData, imageMetaData] = await Promise.all([
+                VceDB.getAll("codes"),
+                VceDB.getAll("imageMeta")
+            ]);
+
+            const backupPayload = {
+                version: 1.0,
+                timestamp: Date.now(),
+                data: {
+                    codes: codesData,
+                    imageMeta: imageMetaData
+                }
+            };
+
+            const blob = new Blob([JSON.stringify(backupPayload, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `VceDB_Full_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error("전체 백업 실패:", err);
+        }
+    }
+
+    async function importFullBackup() {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '.json';
+
+        fileInput.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    const payload = JSON.parse(event.target.result);
+
+                    // 통합 백업 형식인지 확인
+                    if (!payload.data || !payload.data.codes || !payload.data.imageMeta) {
+                        alert("올바른 통합 백업 파일 형식이 아닙니다.");
+                        return;
+                    }
+
+                    if (!confirm("기존 데이터에 덧씌워 복원하시겠습니까?")) return;
+
+                    // 1. codes 데이터 복원
+                    for (const item of payload.data.codes) {
+                        await VceDB.put("codes", item);
+                    }
+
+                    // 2. imageMeta 데이터 복원
+                    for (const item of payload.data.imageMeta) {
+                        await VceDB.put("imageMeta", item);
+                    }
+
+                    alert("모든 데이터베이스가 복원되었습니다.");
+
+                } catch (err) {
+                    alert("복원 실패: " + err.message);
+                }
+            };
+            reader.readAsText(file);
+        };
+        fileInput.click();
     }
 
     async function searchVCE() {
@@ -2977,8 +3052,12 @@ backdrop-filter: blur(1px);
                         <button id="vce-sel-all" class="vce-btn btn-blue">전체 선택</button>
                         <button id="vce-unsel-all" class="vce-btn btn-grey">전체 해제</button>
                     </div>
-                    <button id="vce-btn-export" class="vce-btn btn-green">선택 항목 메타 저장</button>
-                    <button id="vce-btn-allexport" class="vce-btn btn-green">모든 메타 저장</button>
+                    <div style="display:flex; gap:4px;">
+                        <button id="vce-btn-export" class="vce-btn btn-green">선택 항목 메타 저장</button>
+                        <button id="vce-btn-allexport" class="vce-btn btn-green">모든 메타 저장</button>
+                        <button id="vce-btn-allDBExport" class="vce-btn btn-green">DB 내려받기</button>
+                        <button id="vce-btn-allDBImport" class="vce-btn btn-green">DB 업로드</button>
+                    </div>
                 </div>
             </div>
 
@@ -2986,20 +3065,19 @@ backdrop-filter: blur(1px);
                 <table class="vce-result-table">
                     <thead>
                         <tr>
-                            <th style="width:40px;">선택</th>
-                            <th>제작사</th>
-                <th style="color:#00FF41; font-family:monospace;">품번</th>                                
-                <th>제목</th>
-                <th>라벨</th>
-                <th>배우</th>
-                <th>출시일</th>
-                <th>해상도</th>                          
+                            <th style="width:40px;cursor:default;">선택</th>
+                            <th class="sortable" data-col="makerLabel" style="cursor:pointer;">제작사 ↕</th>
+                            <th class="sortable" data-col="realCode" style="cursor:pointer;color:#00FF41; font-family:monospace;">품번 ↕</th>
+                <th class="sortable" data-col="title" style="cursor:pointer;">제목 ↕</th>
+                <th class="sortable" data-col="label" style="cursor:pointer;">라벨 ↕</th>
+                <th class="sortable" data-col="cast" style="cursor:pointer;">배우 ↕</th>
+                <th class="sortable" data-col="releaseDate" style="cursor:pointer;">출시일 ↕</th>
+                <th class="sortable" data-col="resolution.W" style="cursor:pointer;">해상도 ↕</th>
                         </tr>
                     </thead>
                     <tbody id="vce-table-body"></tbody>
                 </table>
             </div>
-
             <div id="vce-paging-bar" class="vce-pagination"></div>
         </div>
     `;
@@ -3009,7 +3087,7 @@ backdrop-filter: blur(1px);
         const STORAGE_KEY = 'vce_modal_size';
 
         // 1. 저장된 크기 불러오기 (값이 없으면 1200px, 높이는 auto)
-        const savedSize = await localStorage.getItem(STORAGE_KEY);        
+        const savedSize = await localStorage.getItem(STORAGE_KEY);
         if (savedSize) {
             const { width } = JSON.parse(savedSize);
             modal.style.width = width + 'px';
@@ -3031,7 +3109,7 @@ backdrop-filter: blur(1px);
         overlay.style = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.15); z-index:99;";
         document.body.appendChild(overlay);
 
-        // --- 드래그 로직 (3.js 스타일 기반) ---
+        // --- 드래그 로직 ---
         const handle = document.getElementById('vce-drag-handle');
         let isDragging = false, offset = { x: 0, y: 0 };
 
@@ -3064,7 +3142,13 @@ backdrop-filter: blur(1px);
 
         async function performSearch() {
             const val = queryInput.value.trim();
-            const dbData = await VceDB.getAll("imageMeta");
+            const db = await VceDB.open();
+            const dbData = await new Promise(r => {
+                db.transaction("imageMeta", "readonly").objectStore("imageMeta").getAll().onsuccess = e => {
+                    const filtered = e.target.result.filter(task => task.metaStatus == 'SUCCESS');
+                    r(filtered);
+                };
+            });
 
             if (!val) {
                 allResults = dbData;
@@ -3103,6 +3187,9 @@ backdrop-filter: blur(1px);
                 <td style="white-space:nowrap;">${item.resolution ? `<a class="vce-preview" href="${item.url}" target="_blank">${item.resolution.W}x${item.resolution.H}</a>` : ''}</td>
             `;
                 tbody.appendChild(tr);
+                tr.querySelector('.vce-row-cb').addEventListener('click', (e) => {
+                    e.stopPropagation(); // 🔥 body / row 이벤트 차단                    
+                });
             });
             renderPaging();
         }
@@ -3112,7 +3199,7 @@ backdrop-filter: blur(1px);
         let preview = null;
         function renderPreview() {
             container = document.querySelector('.vce-table-container');
-            
+
             preview = document.createElement('img');
             preview.style.position = 'absolute';
             preview.style.top = '50%';
@@ -3122,7 +3209,7 @@ backdrop-filter: blur(1px);
             preview.style.maxHeight = '80%';
             preview.style.display = 'none';
             preview.style.zIndex = '999';
-            
+
             container.appendChild(preview);
 
             window.addEventListener('scroll', () => {
@@ -3136,8 +3223,8 @@ backdrop-filter: blur(1px);
         // hover 이벤트
         container.addEventListener('mouseover', (e) => {
             const a = e.target.closest('a');
-            if (!a || !container.contains(a)) return;            
-            
+            if (!a || !container.contains(a)) return;
+
             const href = a.href + '?f=webp';
 
             preview.src = href;
@@ -3147,14 +3234,14 @@ backdrop-filter: blur(1px);
             preview.style.display = 'block';
             requestAnimationFrame(() => {
                 preview.style.opacity = '1';
-            });            
+            });
 
             a.addEventListener('mouseleave', () => {
                 preview.style.display = 'none';
             }, { once: true });
         });
 
-        
+
 
 
         function renderPaging() {
@@ -3188,8 +3275,8 @@ backdrop-filter: blur(1px);
                 const dot = document.createElement('span');
                 dot.innerText = '...';
                 dot.style.margin = '0 5px';
+                bar.appendChild(createBtn(`1`, Math.min(currentPage, 1), false, currentPage === 1));
                 bar.appendChild(dot);
-                bar.appendChild(createBtn(`${startPage}`, Math.min(totalPage, startPage), false, currentPage === totalPage));
             }
 
             for (let i = startPage; i <= endPage; i++) {
@@ -3205,7 +3292,7 @@ backdrop-filter: blur(1px);
                 bar.appendChild(createBtn(`${totalPage}`, Math.max(totalPage, endPage), false, currentPage === totalPage));
             }
 
-            // 3. [다음 >], [맨뒤로 >>]            
+            // 3. [다음 >], [맨뒤로 >>]                        
             bar.appendChild(createBtn('>', Math.min(totalPage, currentPage + 1), false, currentPage === totalPage));
             bar.appendChild(createBtn('>>', totalPage, false, currentPage === totalPage));
         }
@@ -3219,7 +3306,7 @@ backdrop-filter: blur(1px);
         document.getElementById('vce-btn-export').onclick = () => {
             const checked = Array.from(document.querySelectorAll('.vce-row-cb:checked')).map(c => c.getAttribute('data-key'));
             if (checked.length === 0) return alert("항목을 선택하세요.");
-            const data = allResults.filter(i => checked.includes(String(i.url)));
+            const data = allResults.filter(i => checked.includes(String(i.realCode)));
             // 보기 좋게 정렬 (패턴키 기준)
             data.sort((a, b) => (a.realCode || "").localeCompare(b.realCode || ""));
 
@@ -3249,7 +3336,7 @@ backdrop-filter: blur(1px);
             // 4. 파일 다운로드 (파일명: exported_data.xlsx)
             XLSX.writeFile(workbook, "exported_data.xlsx");
         };
-        document.getElementById('vce-btn-allexport').onclick = () => {            
+        document.getElementById('vce-btn-allexport').onclick = () => {
             const data = allResults;
             // 보기 좋게 정렬 (패턴키 기준)
             data.sort((a, b) => (a.realCode || "").localeCompare(b.realCode || ""));
@@ -3280,11 +3367,18 @@ backdrop-filter: blur(1px);
             // 4. 파일 다운로드 (파일명: exported_data.xlsx)
             XLSX.writeFile(workbook, "exported_data.xlsx");
         };
+        document.getElementById('vce-btn-allDBExport').onclick = () => {
+            exportFullBackup();
+        };
+        document.getElementById('vce-btn-allDBImport').onclick = () => {
+            importFullBackup();
+        };
 
         document.getElementById('vce-close-x').onclick = () => {
             modal.style.display = 'none';
             overlay.style.display = 'none';
         };
+
 
 
 
@@ -3309,6 +3403,57 @@ backdrop-filter: blur(1px);
         });
 
 
+
+        let sortState = { column: null, asc: true };
+
+        function sortResults(column) {
+            if (sortState.column === column) {
+                sortState.asc = !sortState.asc;
+            } else {
+                sortState.column = column;
+                sortState.asc = true;
+            }
+
+            allResults.sort((a, b) => {
+                let valA, valB;
+
+                // --- 해상도(W) 특수 정렬 로직 ---
+                if (column === 'resolution.W') {
+                    valA = (a.resolution && a.resolution.W) ? parseInt(a.resolution.W) : 0;
+                    valB = (b.resolution && b.resolution.W) ? parseInt(b.resolution.W) : 0;
+                } else {
+                    // 일반적인 컬럼들
+                    valA = a[column] || "";
+                    valB = b[column] || "";
+                }
+
+                // 숫자 비교 (해상도는 숫자로 비교하는 게 정확합니다)
+                if (typeof valA === 'number' && typeof valB === 'number') {
+                    return sortState.asc ? valA - valB : valB - valA;
+                }
+
+                // 문자열 비교 (그 외)
+                valA = String(valA).toLowerCase();
+                valB = String(valB).toLowerCase();
+                return sortState.asc
+                    ? valA.localeCompare(valB, undefined, { numeric: true })
+                    : valB.localeCompare(valA, undefined, { numeric: true });
+            });
+
+            //currentPage = 1;
+            renderTable();
+        }
+
+        modal.querySelectorAll('th.sortable').forEach(th => {
+            th.onclick = () => {
+                const column = th.getAttribute('data-col');
+                sortResults(column);
+
+                // 시각적 피드백: 모든 헤더에서 active 제거 후 현재 헤더에 표시
+                modal.querySelectorAll('th.sortable').forEach(el => el.style.color = "");
+                th.style.color = "#00FF41";
+            };
+        });
 
 
         // 아이콘 클릭 시 열기 (기존 아이콘 코드에 연결)
@@ -3426,7 +3571,7 @@ backdrop-filter: blur(1px);
     function runWorker() {
         console.log('[VCE] Worker mode');
         FANZADIGITALBC = new BroadcastChannel("FANZADIGITALChannel");
-const currentPage = PageURL();
+        const currentPage = PageURL();
         async function requestTask() {
             const origin = new URL(location.href).origin;
             if (/^https:\/\/video\.dmm\.co\.jp\/$/.test(location.href)) {
@@ -3438,15 +3583,17 @@ const currentPage = PageURL();
                 await sleep(getRandomDelay());
                 const config = siteConfigs['FANZA_DIGITAL'];
                 if (config) {
-                    const result = await config.addDB();                    
-                    console.log('[VCE] 작업 완료', result, location.href);                    
+                    const result = await config.addDB();
+                    console.log('[VCE] 작업 완료', result, location.href);
                     FANZADIGITALBC.postMessage({
                         type: 'TASK_DONE',
                         url: location.href
                     });
                     await sleep(getRandomDelay());
-                    if(currentPage === PageURL()){
-                    location.reload();
+                    if (currentPage === PageURL()) {
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.click();
                     }
                 }
             }
