@@ -10,6 +10,7 @@
 // @match        https://video.dmm.co.jp
 // @resource     MAKER_MAP https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/DMM_MakerMap_2026-03-26.json
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
+// @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/MutilImagesDownloader.js
 // @require      https://cdn.jsdelivr.net/npm/sweetalert2@11.26.24/dist/sweetalert2.all.min.js
 // @require      https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
@@ -292,6 +293,7 @@ backdrop-filter: blur(1px);
     let statusEl = null;
     let autoContainer = null;
     let mapContainer = null;
+
 
     const DB_CONFIG = { name: "VideoCodeExtractorDB" };
     const DB_VERSION_KEY = "VideoCodeExtractorDB_LAST_DB_VERSION"; // GM에 저장할 키 이름
@@ -2965,7 +2967,7 @@ backdrop-filter: blur(1px);
         updateProcessingFANZADIGITAL();
         //updateProcessingStatus();
 
-        if (PageURL().startsWith('https://video.dmm.co.jp/av/content/')) {            
+        if (PageURL().startsWith('https://video.dmm.co.jp/av/content/')) {
             checkIcon('collectAndProcess');
         }
     }
@@ -3069,6 +3071,7 @@ backdrop-filter: blur(1px);
                         <button id="vce-unsel-all" class="vce-btn btn-grey">전체 해제</button>
                     </div>
                     <div style="display:flex; gap:4px;">
+                    <button id="vce-btn-imageZipexport" class="vce-btn btn-green">검색된 이미지 저장</button>
                         <button id="vce-btn-export" class="vce-btn btn-green">선택 항목 메타 저장</button>
                         <button id="vce-btn-allexport" class="vce-btn btn-green">모든 메타 저장</button>
                         <button id="vce-btn-allDBExport" class="vce-btn btn-green">DB 내려받기</button>
@@ -3318,6 +3321,27 @@ backdrop-filter: blur(1px);
         document.getElementById('vce-btn-clear').onclick = () => { queryInput.value = ''; performSearch(); };
         document.getElementById('vce-sel-all').onclick = () => document.querySelectorAll('.vce-row-cb').forEach(c => c.checked = true);
         document.getElementById('vce-unsel-all').onclick = () => document.querySelectorAll('.vce-row-cb').forEach(c => c.checked = false);
+
+        document.getElementById('vce-btn-imageZipexport').onclick = () => {
+            const checked = Array.from(document.querySelectorAll('.vce-row-cb:checked')).map(c => c.getAttribute('data-key'));
+            if (checked.length === 0) return alert("항목을 선택하세요.");
+            const data = allResults.filter(i => checked.includes(String(i.realCode)));
+            const ZipFileName = queryInput.value || 'Images';
+            // 보기 좋게 정렬 (패턴키 기준)
+            data.sort((a, b) => (a.realCode || "").localeCompare(b.realCode || ""));
+
+            const imagesDB = data.map(item => {
+                const fileName = `${item.realCode} ${item.title}`;
+                const limitedfileName = byteLengthOf(fileName, 240);
+                const ConvertfileName = FilenameConvert(limitedfileName)
+                const finalFileName =  `${ConvertfileName}_${new Date().toISOString().slice(0, 10)}`;                         
+                return {
+                    src: src,
+                    filename: finalFileName
+                };
+            });
+            generateZIP(imagesDB, ZipFileName);
+        };
 
         document.getElementById('vce-btn-export').onclick = () => {
             const checked = Array.from(document.querySelectorAll('.vce-row-cb:checked')).map(c => c.getAttribute('data-key'));
