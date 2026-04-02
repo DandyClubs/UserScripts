@@ -4,10 +4,9 @@
 // @version      6.0
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
-// @match        https://video.dmm.co.jp/av/list/?maker=*
+// @match        https://video.dmm.co.jp/av/list/*
 // @match        https://video.dmm.co.jp/av/maker/*
-// @match        https://video.dmm.co.jp/av/content/?id=*
-// @match        https://video.dmm.co.jp/av/list/?key=*
+// @match        https://video.dmm.co.jp/av/content/*
 // @match        https://video.dmm.co.jp
 // @resource     MAKER_MAP https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/DMM_MakerMap_2026-03-26.json
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
@@ -651,19 +650,23 @@ backdrop-filter: blur(1px);
         },
         FANZA_DIGITAL: {
             addDB: async () => {
-                let imageSrc
-                const el = document.querySelector('div[data-e2eid="sample-image-gallery"] a');                
-                const url = location.href;                
+                let imageSrc;
+                const el = document.querySelector('div[data-e2eid="sample-image-gallery"] a');
+                const url = location.href;
                 const contentId = GetParam(url, 'id').toLocaleLowerCase();
-                if (!contentId) return 'not contentId';
-                if (!/pl\.jpg/i.test(el.href)) {
+                if (!contentId || !el) return 'not contentId';
+                if (!/pl\.jpg/i.test(el?.href)) {
                     imageSrc = `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`;
-                }else{
+                } else {
                     imageSrc = el.href;
-                }               
+                }
                 const rawImage = imageSrc.split('?')[0];
-                await processWork(rawImage, url, 'FANZA_DIGITAL');
-                
+                const imageSourceKey = Object.keys(imageUrlsMap).find(key =>
+                    rawImage.startsWith(imageUrlsMap[key])
+                ) || "UNKNOWN";
+
+                await processWork(rawImage, url, imageSourceKey);
+
                 let existingMeta = await VceDB.get('imageMeta', rawImage);
                 if (existingMeta && existingMeta.resolutionState !== 'SUCCESS') {
                     const res = await fetchImageResolution(rawImage);
@@ -712,7 +715,7 @@ backdrop-filter: blur(1px);
                             };
                             await VceDB.save("codes", existingMeta.uniqueKey, codeData);
                         }
-                        return `SUCCESS` ;
+                        return `SUCCESS`;
                     }
                     return 'Last Setp FAIL';
                 }
@@ -1378,8 +1381,11 @@ backdrop-filter: blur(1px);
 
     let coverDownloadIcon = null;
 
-    async function checkIcon(config) {
+    async function checkIcon(where) {
         let guard = 0;
+        const config = siteConfigs['FANZA_DIGITAL'];
+        if (!config) return;
+
         const checkInterval = setInterval(() => {
             if (++guard > 5000) {
                 console.log('[Auto] guard 종료');
@@ -1395,6 +1401,12 @@ backdrop-filter: blur(1px);
                 element.parentElement.appendChild(coverDownloadIcon);
                 config.rawImageDownloader();
                 //console.log(coverDownloadIcon, element);
+
+
+                config.addDB().then((e) => {
+                    console.log(e, where);
+                });
+
 
                 // 중요: 감지에 성공하면 반드시 인터벌을 중단해야 합니다.
                 clearInterval(checkInterval);
@@ -1416,13 +1428,7 @@ backdrop-filter: blur(1px);
         }
 
         if (/video\.dmm\.co\.jp\/av\/content\/\?id/.test(newUrl)) {
-            const config = siteConfigs['FANZA_DIGITAL'];
-            if (config) {
-                config.addDB().then((e) => {
-                    console.log(e, `resetSessionCodes`);
-                });
-            }
-            checkIcon(config);
+            checkIcon('resetSessionCodes');
         }
         if (/video\.dmm\.co\.jp\/av\/maker\//.test(newUrl)) {
             mapContainer.style.display = 'flex';
@@ -1459,13 +1465,13 @@ backdrop-filter: blur(1px);
 
     async function processWork(imageSrc, linkUrl, reTry = false) {
 
-
         const contentId = GetParam(linkUrl, 'id').toLocaleLowerCase();
         if (!contentId) return false;
 
-
-        if (!/(pl|ps)\.jpg/i.test(linkUrl)){
+        if (!/(pl|ps)\.jpg/i.test(imageSrc)) {
             imageSrc = `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`;
+        } else {
+            imageSrc = imageSrc.replace(/ps\.jpg/i, 'pl.jpg');
         }
         const rawImage = imageSrc.split('?')[0];
 
@@ -2959,15 +2965,8 @@ backdrop-filter: blur(1px);
         updateProcessingFANZADIGITAL();
         //updateProcessingStatus();
 
-        if (PageURL().startsWith('https://video.dmm.co.jp/av/content/')) {
-            const config = siteConfigs['FANZA_DIGITAL'];
-            if (config) {
-                await sleep(getRandomDelay());
-                config.addDB().then((e) => {
-                    console.log(e, `collectAndProcess`);
-                });
-            }
-            checkIcon(config);
+        if (PageURL().startsWith('https://video.dmm.co.jp/av/content/')) {            
+            checkIcon('collectAndProcess');
         }
     }
 
@@ -3597,7 +3596,7 @@ backdrop-filter: blur(1px);
                     url: location.href
                 });
             } else {
-                await sleep(getRandomDelay() + 2000);
+                await sleep(getRandomDelay());
                 const config = siteConfigs['FANZA_DIGITAL'];
                 if (config) {
                     const result = await config.addDB();
