@@ -688,7 +688,8 @@ backdrop-filter: blur(1px);
                         await VceDB.save("imageMeta", rawImage, resData);
                     }
                 }
-                if (existingMeta && existingMeta.sourceSite === 'FANZA_DIGITAL') return 'FANZA_DIGITAL';
+                if (!existingMeta) return 'existingMeta not found';
+                if (existingMeta && existingMeta.sourceSite === 'FANZA_DIGITAL') return 'SUCCESS';
                 const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
                 const result = await parse(document.body);
                 if (!result || !result.realCode) return `result not fouund`;
@@ -697,38 +698,28 @@ backdrop-filter: blur(1px);
                 const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id');
                 if (!makerLabelCode) return 'makerLabelCode not found';
                 const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';
-                await sleep(1000);
-                existingMeta = await VceDB.get('imageMeta', rawImage);
-                if (existingMeta) {
-                    let metaData = {};
-                    if (result) {
-                        metaData = {
-                            ...result,
-                            makerLabel,
-                            makerLabelCode,
-                            rawMediaType,
-                            sourceSite: 'FANZA_DIGITAL',
-                            metaStatus: 'SUCCESS'
-                        };
-                        await VceDB.save("imageMeta", rawImage, metaData);
-                        console.log(metaData);
-                        updateDisplayList(false, 'addDB');
-                        const existingCode = await VceDB.get('codes', existingMeta.uniqueKey);
-                        if (existingCode && existingCode.codeStatus !== 'SUCCESS') {
-                            const codeData = {
-                                makerLabel,
-                                makerLabelCode,
-                                rawMediaType,
-                                sourceSite: 'FANZA_DIGITAL',
-                                codeStatus: 'SUCCESS'
-                            };
-                            await VceDB.save("codes", existingMeta.uniqueKey, codeData);
-                        }
-                        return `SUCCESS`;
-                    }
-                    return 'Last Setp FAIL';
+                const metaData = {
+                    ...result,
+                    makerLabel,
+                    makerLabelCode,
+                    rawMediaType,
+                    sourceSite: 'FANZA_DIGITAL',
+                    metaStatus: 'SUCCESS'
+                };
+                await VceDB.save("imageMeta", rawImage, metaData);
+                updateDisplayList(false, 'addDB');
+                const existingCode = await VceDB.get('codes', existingMeta.uniqueKey);
+                if (existingCode && existingCode.codeStatus !== 'SUCCESS') {
+                    const codeData = {
+                        makerLabel,
+                        makerLabelCode,
+                        rawMediaType,
+                        sourceSite: 'FANZA_DIGITAL',
+                        codeStatus: 'SUCCESS'
+                    };
+                    await VceDB.save("codes", existingMeta.uniqueKey, codeData);
                 }
-                return 'Not existingMeta';
+                return `SUCCESS`;
             },
             rawImageDownloader: () => {
                 const imageEl = document.querySelector('div.grid div.flex a picture source');
@@ -1390,37 +1381,32 @@ backdrop-filter: blur(1px);
 
     let coverDownloadIcon = null;
 
-    async function checkIcon(where) {
-        let guard = 0;
+    async function checkIcon(where, guard = 0) {
         const config = siteConfigs['FANZA_DIGITAL'];
         if (!config) return;
 
-        const checkInterval = setInterval(() => {
-            if (++guard > 5000) {
-                console.log('[Auto] guard 종료');
-                clearInterval(checkInterval);
-                return;
-            };
-            const element = document.querySelector('iframe[title]');
-            if (element) {
-                if (coverDownloadIcon) coverDownloadIcon.remove();
-                coverDownloadIcon = document.createElement('div');
-                coverDownloadIcon.classList.add('CoverDownload', 'fa-regular', 'fa-image');
-                coverDownloadIcon.style = `color: dodgerblue !important; bottom: 0; right: 0;`;
-                element.parentElement.appendChild(coverDownloadIcon);
-                config.rawImageDownloader();
-                //console.log(coverDownloadIcon, element);
-
-
-                config.addDB().then((e) => {
-                    console.log(e, where);
-                });
-
-
-                // 중요: 감지에 성공하면 반드시 인터벌을 중단해야 합니다.
-                clearInterval(checkInterval);
+        if (guard > 5000) {
+            console.log('[Auto] guard 종료');
+            return 'guard Time Out';
+        };
+        const element = document.querySelector('iframe[title]');
+        if (element) {
+            if (coverDownloadIcon) coverDownloadIcon.remove();
+            coverDownloadIcon = document.createElement('div');
+            coverDownloadIcon.classList.add('CoverDownload', 'fa-regular', 'fa-image');
+            coverDownloadIcon.style = `color: dodgerblue !important; bottom: 0; right: 0;`;
+            element.parentElement.appendChild(coverDownloadIcon);
+            config.rawImageDownloader();
+            const waitTime = Math.max(getRandomDelay(), getRandomDelay());
+            const found = await checkTable(config, waitTime);
+            if (found) {
+                config.addDB().then((e) => { console.log(e, where); });
             }
-        }, 1000); // 0.5초마다 체크
+        } else {
+            await sleep(500);
+            checkIcon(where, guard + 500);
+        }
+
     }
 
     const resetSessionCodes = () => {
@@ -3109,7 +3095,7 @@ backdrop-filter: blur(1px);
         </div>
     `;
         document.body.appendChild(modal);
-        
+
         // 1. 저장된 크기 불러오기 (값이 없으면 1200px, 높이는 auto)
         const savedSize = await localStorage.getItem(STORAGE_KEY);
         if (savedSize) {
@@ -3272,7 +3258,7 @@ backdrop-filter: blur(1px);
         function renderPaging() {
             const bar = document.getElementById('vce-paging-bar');
             bar.innerHTML = '';
-            const totalPage = Math.ceil(allResults.length / itemsPerPage);            
+            const totalPage = Math.ceil(allResults.length / itemsPerPage);
 
             const pageStep = 3; // 현재 페이지 앞뒤로 보여줄 번호 개수
 
@@ -3322,7 +3308,7 @@ backdrop-filter: blur(1px);
             // renderTable 상단에 추가하면 좋습니다.
             const totalCountInfo = document.getElementById('vce-total-count');
             if (totalCountInfo) totalCountInfo.innerText = `총 ${allResults.length}건`;
-            
+
         }
 
         // --- 버튼 이벤트들 ---
@@ -3343,7 +3329,7 @@ backdrop-filter: blur(1px);
             const imagesDB = data.map(item => {
                 const fileName = `${item.realCode} ${item.title}`;
                 const limitedfileName = byteLengthOf(fileName, 240);
-                const finalFileName = FilenameConvert(limitedfileName) + '.jpg';                
+                const finalFileName = FilenameConvert(limitedfileName) + '.jpg';
                 return {
                     src: item.url,
                     filename: finalFileName
@@ -3442,7 +3428,7 @@ backdrop-filter: blur(1px);
                 // 높이는 저장하지 않고 너비만 유지
                 localStorage.setItem(STORAGE_KEY, JSON.stringify({ width }));
             }
-        });        
+        });
         resizer.observe(modal);
 
 
@@ -3618,11 +3604,30 @@ backdrop-filter: blur(1px);
 
 
 
+    async function checkTable(config, waitTime, guard = 0) {
+        if (guard > waitTime) {
+            console.log('[Auto] guard 종료');
+            return false;
+        };
+        const infoArea = document.querySelector(config.InfoSelector);
+        if (infoArea) {
+            return true;
+        } else {
+            await sleep(500);
+            checkTable(config, waitTime, guard + 500);
+        }
+    }
+
     /*********************************************************
      * 워커 (자식탭)
      *********************************************************/
-    function runWorker() {
+    async function runWorker() {
         console.log('[VCE] Worker mode');
+        if (/エラーが発生しました/.test(document.body.textContent)) {
+            await sleep(20000);
+            location.reload(true);
+        }
+        const startTime = performance.now();
         FANZADIGITALBC = new BroadcastChannel("FANZADIGITALChannel");
         const currentPage = PageURL();
         async function requestTask() {
@@ -3630,27 +3635,33 @@ backdrop-filter: blur(1px);
             if (/^https:\/\/video\.dmm\.co\.jp\/$/.test(location.href)) {
                 FANZADIGITALBC.postMessage({
                     type: 'TASK_DONE',
-                    url: location.href
+                    url: location.href,
+                    result: 'Main Page'
                 });
             } else {
-                await sleep(getRandomDelay());
                 const config = siteConfigs['FANZA_DIGITAL'];
                 if (config) {
-                    const result = await config.addDB();
-                    console.log('[VCE] 작업 완료', result, location.href);
-                    if (result === 'SUCCESS') {
-                        FANZADIGITALBC.postMessage({
-                            type: 'TASK_DONE',
-                            url: location.href,
-                            result: result
+                    const waitTime = Math.max(getRandomDelay(), getRandomDelay());
+                    const found = await checkTable(config, waitTime);
+                    if (found) {
+                        const result = await config.addDB();
+                        console.log('[VCE] 작업 완료', result, location.href);
+                        if (result === 'SUCCESS') {
+                            const endTime = performance.now();
+                            const executionTime = `${endTime - startTime} ms`;
+                            await sleep(1000);
+                            FANZADIGITALBC.postMessage({
+                                type: 'TASK_DONE',
+                                url: location.href,
+                                result: `${result} -> ${executionTime}`
 
-                        });
-                    }
-                    await sleep(getRandomDelay() * 2);
-                    if (currentPage === PageURL()) {
-                        const link = document.createElement('a');
-                        link.href = location.href;
-                        link.click();
+                            });
+                        }
+                    } else {
+                        await sleep(getRandomDelay());
+                        if (currentPage === PageURL()) {
+                            location.reload(true);
+                        }
                     }
                 }
             }
@@ -3661,15 +3672,12 @@ backdrop-filter: blur(1px);
             const { type, url } = e.data || {};
             if (type === 'MOVE_TASK') {
                 console.log('[VCE] 이동:', url);
-                const link = document.createElement('a');
-                link.href = url;
-                link.click();
+                location.href = url;
             }
         };
 
         /******** 초기 진입 ********/
-        document.addEventListener('DOMContentLoaded', async () => {
-            console.log(isWorker());
+        window.addEventListener("load", async () => {
             await initializeMakerMap();
             requestTask();
         });
@@ -3679,7 +3687,7 @@ backdrop-filter: blur(1px);
     if (isWorker()) {
         runWorker();
     } else {
-        document.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener("load", () => {
             collectAndProcess();
             searchVCE();
         });
