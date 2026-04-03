@@ -3167,21 +3167,56 @@ backdrop-filter: blur(1px);
             } else {
                 const terms = val.split(/\s+/);
                 allResults = dbData.filter(item => {
+                    // terms는 ['abc', '001-100'] 형태라고 가정
                     return terms.every(term => {
-                        const rangeMatch = term.match(/^(\d+)-(\d+)$/);
-                        if (rangeMatch) {
-                            const s = parseInt(rangeMatch[1]), e = parseInt(rangeMatch[2]);
-                            const nums = (item.realCode || "").match(/\d+/g);
-                            return nums ? nums.some(n => { const v = parseInt(n); return v >= s && v <= e; }) : false;
+                        const parts = term.trim().split(/\s+/); // 공백 기준 분할
+                        const displayCodePart = parts[0].toLowerCase();
+                        const rangePart = parts[1]; // '001-100' 또는 undefined
+
+                        const realCode = (item.realCode || "").toLowerCase();
+                        const displayCode = (item.displayCode || "").toLowerCase();
+
+                        // 1. 기본적으로 displayCode가 포함되어 있는지 확인
+                        if (!displayCode.includes(displayCodePart)) return false;
+
+                        // 2. 만약 범위(001-100)가 입력되었다면 추가 검사
+                        if (rangePart) {
+                            const rangeMatch = rangePart.match(/^(\d+)-(\d+)$/);
+                            const singleMatch = rangePart.match(/^(\d+)$/); // 숫자 하나만 입력했을 때
+
+                            if (rangeMatch) {
+                                // 범위 로직 (start-end)
+                                const start = parseInt(rangeMatch[1]), end = parseInt(rangeMatch[2]);
+                                const match = realCode.match(new RegExp(`${escapeRegExp(displayCodePart)}(\\d+)`, 'i'));
+                                if (match) {
+                                    const v = parseInt(match[1]);
+                                    return v >= start && v <= end;
+                                }
+                            } else if (singleMatch) {
+                                // 단일 숫자 로직 (정확히 그 번호인지)
+                                const targetNum = parseInt(singleMatch[1]);
+                                const match = realCode.match(new RegExp(`${escapeRegExp(displayCodePart)}(\\d+)`, 'i'));
+                                if (match) {
+                                    return parseInt(match[1]) === targetNum;
+                                }
+                            }
+                            return false;
                         }
-                        return (item.realCode || "").toLowerCase().includes(term.toLowerCase());
+
+                        // 범위가 없으면 displayCode 매칭만으로 true
+                        return true;
                     });
                 });
+
+                // 정규식 특수문자 이스케이프 함수
+                function escapeRegExp(string) {
+                    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                }
             }
             currentPage = 1;
             renderTable();
         }
-
+        
         function renderTable() {
             // renderTable 상단에 추가하면 좋습니다.
             const tbody = document.getElementById('vce-table-body');
