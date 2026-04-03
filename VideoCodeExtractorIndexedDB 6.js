@@ -23,7 +23,7 @@
 // @grant        GM_deleteValue
 // @grant        GM_getResourceText
 // @grant        GM_xmlhttpRequest
-// @run-at       document-body
+// @run-at       document-end
 // @connect      dmm.co.jp
 // @connect      prestige-av.com
 // @connect      av-wiki.net
@@ -678,15 +678,15 @@ backdrop-filter: blur(1px);
 
                 let existingMeta = await VceDB.get('imageMeta', rawImage);
                 if (existingMeta && existingMeta.resolutionState !== 'SUCCESS') {
-                    const res = await fetchImageResolution(rawImage);
-                    let resData = {};
-                    if (res && res.width > 0) {
-                        resData = {
-                            resolution: { W: res.width, H: res.height },
-                            resolutionState: 'SUCCESS'
-                        };
-                        await VceDB.save("imageMeta", rawImage, resData);
-                    }
+                    fetchImageResolution(rawImage).then(async (res) => {
+                        if (res && res.width > 0) {
+                            const resData = {
+                                resolution: { W: res.width, H: res.height },
+                                resolutionState: 'SUCCESS'
+                            };
+                            await VceDB.save("imageMeta", rawImage, resData);
+                        }
+                    });
                 }
                 if (!existingMeta) return 'existingMeta not found';
                 if (existingMeta && existingMeta.sourceSite === 'FANZA_DIGITAL') return 'SUCCESS';
@@ -1383,7 +1383,7 @@ backdrop-filter: blur(1px);
 
     async function checkIcon(where, guard = 0) {
         const config = siteConfigs['FANZA_DIGITAL'];
-        if (!config) return;
+        if (!config) return false;
 
         if (guard > 5000) {
             console.log('[Auto] guard 종료');
@@ -1398,13 +1398,15 @@ backdrop-filter: blur(1px);
             element.parentElement.appendChild(coverDownloadIcon);
             config.rawImageDownloader();
             const waitTime = Math.max(getRandomDelay(), getRandomDelay());
-            const found = await checkTable(config, waitTime);
+            const found = await checkTable(waitTime);
             if (found) {
                 config.addDB().then((e) => { console.log(e, where); });
+                
             }
+            return true;
         } else {
-            await sleep(500);
-            checkIcon(where, guard + 500);
+            await sleep(1000);
+            return await checkIcon(where, guard + 1000);
         }
 
     }
@@ -3604,17 +3606,23 @@ backdrop-filter: blur(1px);
 
 
 
-    async function checkTable(config, waitTime, guard = 0) {
+    async function checkTable(waitTime, guard = 0) {
+        const config = siteConfigs['FANZA_DIGITAL'];
+        if (!config) return false;
+
         if (guard > waitTime) {
             console.log('[Auto] guard 종료');
-            return false;
+            return false; // 시간 초과 시 false 반환
         };
+
         const infoArea = document.querySelector(config.InfoSelector);
         if (infoArea) {
-            return true;
+            console.log(infoArea);
+            return true; // 요소를 찾으면 true 반환
         } else {
-            await sleep(500);
-            checkTable(config, waitTime, guard + 500);
+            await sleep(1000);
+            // ★ 중요: 반드시 return을 붙여야 하위 재귀의 결과를 상위로 전달합니다.
+            return await checkTable(waitTime, guard + 1000);
         }
     }
 
@@ -3623,14 +3631,14 @@ backdrop-filter: blur(1px);
      *********************************************************/
     async function runWorker() {
         console.log('[VCE] Worker mode');
-        if (/エラーが発生しました/.test(document.body.textContent)) {
-            await sleep(20000);
-            location.reload(true);
-        }
         const startTime = performance.now();
         FANZADIGITALBC = new BroadcastChannel("FANZADIGITALChannel");
         const currentPage = PageURL();
         async function requestTask() {
+            if (/エラーが発生しました/.test(document.body.textContent)) {
+                await sleep(20000);
+                location.reload(true);
+            }
             const origin = new URL(location.href).origin;
             if (/^https:\/\/video\.dmm\.co\.jp\/$/.test(location.href)) {
                 FANZADIGITALBC.postMessage({
@@ -3641,27 +3649,36 @@ backdrop-filter: blur(1px);
             } else {
                 const config = siteConfigs['FANZA_DIGITAL'];
                 if (config) {
+                    let executionTime, result;
                     const waitTime = Math.max(getRandomDelay(), getRandomDelay());
-                    const found = await checkTable(config, waitTime);
+                    const found = await checkTable(waitTime);
                     if (found) {
-                        const result = await config.addDB();
-                        console.log('[VCE] 작업 완료', result, location.href);
-                        if (result === 'SUCCESS') {
-                            const endTime = performance.now();
-                            const executionTime = `${endTime - startTime} ms`;
-                            await sleep(1000);
+                        config.addDB().then(async (e) => {
+                            if(e ==='SUCCESS'){
+                                result = e;
+                                console.log('[VCE] 작업 완료', result, location.href);
+                                const endTime = performance.now();
+                                executionTime = `${endTime - startTime} ms`;
+                                await sleep(1000);                                
+                                const send = `${result} -> ${executionTime}`;
+                                FANZADIGITALBC.postMessage({
+                                    type: 'TASK_DONE',
+                                    url: location.href,
+                                    result: send
+                                });
+                            } else (console.log(e));                        
+                        })
+                    } else {
+                        await sleep(getRandomDelay());
+                        if (currentPage === PageURL()) {                            
+                            const send = `${result} -> ${executionTime}`;
                             FANZADIGITALBC.postMessage({
                                 type: 'TASK_DONE',
                                 url: location.href,
-                                result: `${result} -> ${executionTime}`
-
+                                result: send
                             });
                         }
-                    } else {
-                        await sleep(getRandomDelay());
-                        if (currentPage === PageURL()) {
-                            location.reload(true);
-                        }
+
                     }
                 }
             }
@@ -3672,25 +3689,20 @@ backdrop-filter: blur(1px);
             const { type, url } = e.data || {};
             if (type === 'MOVE_TASK') {
                 console.log('[VCE] 이동:', url);
-                location.href = url;
+                location.href = url + `&dmmref=video_list`;
             }
         };
 
         /******** 초기 진입 ********/
-        window.addEventListener("load", async () => {
-            await initializeMakerMap();
-            requestTask();
-        });
-
+        await initializeMakerMap();
+        requestTask();
     }
 
     if (isWorker()) {
         runWorker();
     } else {
-        window.addEventListener("load", () => {
-            collectAndProcess();
-            searchVCE();
-        });
+        collectAndProcess();
+        searchVCE();
     }
 
 })();
