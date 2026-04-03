@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoCode & MetaData Extractor IndexedDB 고도화 6.0
 // @namespace    http://tampermonkey.net/
-// @version      6.1
+// @version      6.1.1
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/av/list/*
@@ -194,20 +194,22 @@ backdrop-filter: blur(1px);
 
 /* 테이블 스타일 */
 .vce-table-container { flex: 1; overflow-y: auto; background: #111; border: 1px solid #333; border-radius: 4px; }
-.vce-result-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.vce-result-table { width: 100%; border-collapse: collapse; font-size: 11px; overflow: hidden; }
 .vce-result-table th { position: sticky; top: 0; background: #222; color: #aaa; padding: 8px; border-bottom: 1px solid #444; text-align: center; text-wrap: nowrap;}
-.vce-result-table td { padding: 6px 8px; border-bottom: 1px solid #222; color: #eee; }
+.vce-result-table td { padding: 5px; border-bottom: 1px solid #222; color: #eee; }
 .vce-result-table tr:hover { background: #1a1a1a; }
 
 /* 페이징 */
-.vce-pagination { display: flex; justify-content: center; gap: 4px; margin-top: 10px; }
+.vce-pagination { display: flex; justify-content: center; gap: 4px; margin: 0 0 10px 0; }
 .vce-pagination button { background: #333; color: #ccc; border: 1px solid #444; padding: 3px 7px; font-size: 10px; cursor: pointer; border-radius: 2px; }
 .vce-pagination button.active { background: #2196F3; color: white; border-color: #2196F3; }
-.vce-result-table {
-	border-collapse: collapse;
-	font-size: 10px;
-}
 
+#vce-total-count {
+	text-align: center;
+	font-size: 12px;
+	margin: 0;
+	padding: 0;
+}
 .vce-table-container {
     overflow-y: auto;
     /* 스크롤이 끝에 도달했을 때 부모(body)로 전파되는 것을 방지 */
@@ -3319,7 +3321,7 @@ backdrop-filter: blur(1px);
             bar.appendChild(createBtn('>>', totalPage, false, currentPage === totalPage));
             // renderTable 상단에 추가하면 좋습니다.
             const totalCountInfo = document.getElementById('vce-total-count');
-            if (totalCountInfo) totalCountInfo.innerText = `(총 ${allResults.length}건)`;
+            if (totalCountInfo) totalCountInfo.innerText = `총 ${allResults.length}건`;
             
         }
 
@@ -3666,7 +3668,7 @@ backdrop-filter: blur(1px);
         };
 
         /******** 초기 진입 ********/
-        window.addEventListener('load', async () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             console.log(isWorker());
             await initializeMakerMap();
             requestTask();
@@ -3677,7 +3679,7 @@ backdrop-filter: blur(1px);
     if (isWorker()) {
         runWorker();
     } else {
-        window.addEventListener('load', async () => {
+        document.addEventListener('DOMContentLoaded', () => {
             collectAndProcess();
             searchVCE();
         });
