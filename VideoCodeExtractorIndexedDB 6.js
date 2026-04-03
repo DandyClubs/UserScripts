@@ -3635,7 +3635,7 @@ backdrop-filter: blur(1px);
         FANZADIGITALBC = new BroadcastChannel("FANZADIGITALChannel");
         const currentPage = PageURL();
         async function requestTask() {
-            if (/エラーが発生しました/.test(document.body.textContent)) {
+            if (/エラーが発生しました/gm.test(document.body.textContent)) {
                 await sleep(20000);
                 location.reload(true);
             }
