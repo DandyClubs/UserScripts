@@ -1401,7 +1401,7 @@ backdrop-filter: blur(1px);
             const found = await checkTable(waitTime);
             if (found) {
                 config.addDB().then((e) => { console.log(e, where); });
-                
+
             }
             return true;
         } else {
@@ -3649,29 +3649,29 @@ backdrop-filter: blur(1px);
             } else {
                 const config = siteConfigs['FANZA_DIGITAL'];
                 if (config) {
-                    let executionTime, result;
+                    let result;
                     const waitTime = Math.max(getRandomDelay(), getRandomDelay());
                     const found = await checkTable(waitTime);
                     if (found) {
                         config.addDB().then(async (e) => {
-                            if(e ==='SUCCESS'){
-                                result = e;
-                                console.log('[VCE] 작업 완료', result, location.href);
-                                const endTime = performance.now();
-                                executionTime = `${endTime - startTime} ms`;
-                                await sleep(1000);                                
-                                const send = `${result} -> ${executionTime}`;
-                                FANZADIGITALBC.postMessage({
-                                    type: 'TASK_DONE',
-                                    url: location.href,
-                                    result: send
-                                });
-                            } else (console.log(e));                        
-                        })
+                            result = e;
+                            console.log('[VCE] 작업 완료', result, location.href);
+                            const endTime = performance.now();
+                            const executionTime = `${endTime - startTime} ms`;
+                            await sleep(1000);
+                            const send = `${result} -> ${executionTime}`;
+                            FANZADIGITALBC.postMessage({
+                                type: 'TASK_DONE',
+                                url: location.href,
+                                result: send
+                            });
+                        });
                     } else {
                         await sleep(getRandomDelay());
-                        if (currentPage === PageURL()) {                            
-                            const send = `${result} -> ${executionTime}`;
+                        if (currentPage === PageURL()) {
+                            const endTime = performance.now();
+                            const executionTime = `${endTime - startTime} ms`;
+                            const send = result ? `${result} -> ${executionTime} ` : `${waitTime} 부족 -> ${executionTime} `;
                             FANZADIGITALBC.postMessage({
                                 type: 'TASK_DONE',
                                 url: location.href,
@@ -3689,7 +3689,7 @@ backdrop-filter: blur(1px);
             const { type, url } = e.data || {};
             if (type === 'MOVE_TASK') {
                 console.log('[VCE] 이동:', url);
-                location.href = url + `&dmmref=video_list`;
+                location.href = url;
             }
         };
 
@@ -3705,4 +3705,4 @@ backdrop-filter: blur(1px);
         searchVCE();
     }
 
-})();
+})();;;
