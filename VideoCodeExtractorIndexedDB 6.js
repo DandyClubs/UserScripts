@@ -253,6 +253,8 @@ backdrop-filter: blur(1px);
     // --- 모달 크기 저장 및 복원 (수정본) ---
     const STORAGE_KEY = 'vce_modal_size';
 
+    const replaceReg = /【独占】|【準新作】|【FANZA独占】|【配信専用】|【最新作】|【新作】|【先行公開】/g;
+
 
     const imageSelectorMap = {
         'video.dmm.co.jp': 'main ul li div[data-e2eid="content-card"] div.relative a[href*="/av/content/?id="] picture source[srcset^="https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/"]',
@@ -949,7 +951,7 @@ backdrop-filter: blur(1px);
                             const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
                             const result = parse(document.body);
                             if (!result || !result.realCode) return;
-                            result.title = result.title.replace(/【独占】|【準新作】|【FANZA独占】|【配信専用】/g, '').trim();
+                            result.title = result.title.replace(replaceReg, '').trim();
                             const fileName = `${result.realCode} ${result.title}`;
                             const limitedfileName = byteLengthOf(fileName, 240);
                             let finalFileName = FilenameConvert(limitedfileName);
@@ -2723,7 +2725,7 @@ backdrop-filter: blur(1px);
                     return {
                         メーカー: item.makerLabel,
                         メーカー品番: item.realCode,
-                        제목: item.title,
+                        제목: item.title.replace(replaceReg, '').trim(),
                         レーベル: item.label || '',
                         出演者: item.cast || '',
                         商品発売日: item.releaseDate,
@@ -3794,7 +3796,7 @@ backdrop-filter: blur(1px);
                 return {
                     メーカー: item.makerLabel,
                     メーカー品番: item.realCode,
-                    제목: item.title,
+                    제목: item.title.replace(replaceReg, '').trim(),
                     レーベル: item.label || '',
                     出演者: item.cast || '',
                     商品発売日: item.releaseDate,
@@ -3829,7 +3831,7 @@ backdrop-filter: blur(1px);
                 return {
                     メーカー: item.makerLabel,
                     メーカー品番: item.realCode,
-                    제목: item.title,
+                    제목: item.title.replace(replaceReg, '').trim(),
                     レーベル: item.label || '',
                     出演者: item.cast || '',
                     商品発売日: item.releaseDate,
