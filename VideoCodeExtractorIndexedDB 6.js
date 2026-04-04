@@ -279,7 +279,7 @@ backdrop-filter: blur(1px);
 
     const Logger = {
         // 환경 변수나 설정에 따라 로그 활성화 여부 결정
-        isEnabled: true,
+        isEnabled: false,
 
         info(message, data = "") {
             if (!this.isEnabled) return;
