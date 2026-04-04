@@ -255,7 +255,7 @@ backdrop-filter: blur(1px);
 
 
     const imageSelectorMap = {
-        'video.dmm.co.jp': 'main ul li div[data-e2eid="content-card"] a[href*="/av/content/?id="] picture source[srcset^="https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/"]',
+        'video.dmm.co.jp': 'main ul li div[data-e2eid="content-card"] div.relative a[href*="/av/content/?id="] picture source[srcset^="https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/"]',
     };
     const getImageSelector = () => {
         try {
@@ -321,7 +321,7 @@ backdrop-filter: blur(1px);
     let makerLabel = ""; // 전역 변수로 관리
     let listContainer = null;
     let countStatus = null; // 개수를 표시할 엘리먼트
-    let currentSessionCodes = new Set();
+    let currentSessionCodes = new Set();    
     let isShowAllMode = false;
     let filterText = "";
     let FANZADIGITAL = null;
@@ -918,18 +918,25 @@ backdrop-filter: blur(1px);
                 };
 
                 await VceDB.save("imageMeta", rawImage, metaData);
-                updateDisplayList(false, 'addDB');
                 const existingCode = await VceDB.get('codes', existingMeta.uniqueKey);
                 if (existingCode && existingCode.codeStatus !== 'SUCCESS') {
                     const codeData = {
                         makerLabel,
                         makerLabelCode,
                         rawMediaType,
+                        reTryData: {
+                            imageSrc: rawImage,
+                            linkUrl: `https://video.dmm.co.jp/av/content/?id=${contentId}`,
+                            makerLabelCode: makerLabelCode,
+                            rawMediaType: rawMediaType,
+                        },
                         sourceSite: 'FANZA_DIGITAL',
                         codeStatus: 'SUCCESS'
                     };
                     await VceDB.save("codes", existingMeta.uniqueKey, codeData);
+                    updateDisplayList(false, 'addDB');
                 }
+
                 return `SUCCESS`;
             },
             rawImageDownloader: () => {
@@ -1536,6 +1543,27 @@ backdrop-filter: blur(1px);
         }
     }
 
+
+    const queue = [];
+    let isProcessing = false;
+
+    function enqueue(task) {
+        queue.push(task);
+        runQueue();
+    }
+
+    async function runQueue() {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        while (queue.length > 0) {
+            const task = queue.shift();
+            await task();
+        }
+
+        isProcessing = false;
+    }
+
     const mutCallback = async () => {
         Logger.info('Page', PageURL());
         if (/^https:\/\/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+/.test(PageURL())) {
@@ -1548,8 +1576,9 @@ backdrop-filter: blur(1px);
                 el.classList.add(PROCESSED_CLASS);
                 const makerLabelCode = GetParam(PageURL(), 'maker');
                 const rawMediaType = GetParam(PageURL(), 'media_type');
-                await processWork(el.getAttribute('srcset'), el.closest('a').href, { makerLabelCode, rawMediaType }); // await 처리를 위해 변경됨
+                enqueue(() => processWork(el.getAttribute('srcset'), el.closest('a').href, { makerLabelCode, rawMediaType }));                
             }
+            
         }
     };
 
@@ -1679,6 +1708,7 @@ backdrop-filter: blur(1px);
             rawMediaType = '',
             reTry = false,
         } = options;
+
         //Logger.info('Input', {imageSrc, linkUrl, makerLabelCode, rawMediaType});
         let makerLabel = '';
         if (makerLabelCode && makerMap.has(makerLabelCode)) {
@@ -1698,7 +1728,7 @@ backdrop-filter: blur(1px);
             imageSrc = imageSrc.replace(/ps\.jpg/i, 'pl.jpg');
         }
         const rawImage = imageSrc.split('?')[0];
-
+        
         const majorsLabel = /\/(.*?)([a-z]{3,7}\d{4,7}|(KT|TS|SW|\d{2}ID[a-zA-Z]?|\d+T\d{2.3}[a-zA-Z]?))[v]?/i;
         if (!majorsLabel.test(rawImage)) {
             Logger.error('majorsLabel Test', { rawImage });
@@ -1723,7 +1753,7 @@ backdrop-filter: blur(1px);
 
         // --- [섹션 2: 코드 DB 중복 체크] ---
         const existingImage = await VceDB.get('imageMeta', rawImage);
-        if (existingImage) {            
+        if (existingImage) {
             Logger.info('existingImage Check', existingImage);
             return true;
         }
@@ -1788,48 +1818,37 @@ backdrop-filter: blur(1px);
             }
 
             const existinguniqueKey = await VceDB.get('codes', uniqueKey);
-            if (existinguniqueKey) {
-                if (rawMediaType && existinguniqueKey.rawMediaType !== rawMediaType) {
-                    await VceDB.save("codes", uniqueKey, {
-                        rawMediaType: rawMediaType,
-                    });
-                    Logger.info('existinguniqueKey Check', uniqueKey);
-                    return true;
-                }
-            }
-
-            if (currentSessionCodes.has(uniqueKey)) {
+            if (!existinguniqueKey || !currentSessionCodes.has(uniqueKey)) {
                 Logger.info('currentSessionCodes Check', uniqueKey);
-                return true;
+                currentSessionCodes.add(uniqueKey);
             }
-            currentSessionCodes.add(uniqueKey);
-
 
             const imageSourceKey = Object.keys(imageUrlsMap).find(key =>
                 rawImage.startsWith(imageUrlsMap[key])
             ) || "UNKNOWN";
-
-            await VceDB.save("codes", uniqueKey, {
-                displayCode: displayCode,
-                imageSourceKey: imageSourceKey,
-                reTryData: {
-                    imageSrc: rawImage,
-                    linkUrl: `https://video.dmm.co.jp/av/content/?id=${contentId}`,
+            
+            if (!existinguniqueKey) {
+                await VceDB.save("codes", uniqueKey, {
+                    displayCode: displayCode,
+                    imageSourceKey: imageSourceKey,
+                    reTryData: {
+                        imageSrc: rawImage,
+                        linkUrl: `https://video.dmm.co.jp/av/content/?id=${contentId}`,
+                        makerLabelCode: makerLabelCode,
+                        rawMediaType: rawMediaType,
+                    },
+                    contentId: contentId,
+                    prefix: prefix,
+                    padLen: padLen,
+                    suffix: suffix,
                     makerLabelCode: makerLabelCode,
+                    makerLabel: makerLabel,
                     rawMediaType: rawMediaType,
-                },
-                contentId: contentId,
-                prefix: prefix,
-                padLen: padLen,
-                suffix: suffix,
-                makerLabelCode: makerLabelCode,
-                makerLabel: makerLabel,
-                rawMediaType: rawMediaType,
-            });
-            if (!reTry) {
-                updateDisplayList(false, 'processWork');
+                });
+                updateDisplayList(false, 'processWork');    
+                updateCounts();            
+                return true;
             }
-            return true;
         }
         return false;
     }
@@ -1844,6 +1863,7 @@ backdrop-filter: blur(1px);
         let items = await new Promise(r => {
             db.transaction("codes").objectStore("codes").getAll().onsuccess = e => r(e.target.result);
         });
+
         if (!isShowAllMode) {
             items = items.filter(item => currentSessionCodes.has(item.id));
         }
@@ -1870,9 +1890,7 @@ backdrop-filter: blur(1px);
         items.forEach(itemData => {
             const key = itemData.id;
             const detailLabel = `${itemData.prefix && itemData.suffix ? itemData.prefix + ', ' + itemData.suffix : itemData.prefix || itemData.suffix || ''}`;
-            const idMatch = itemData.reTryData.imageSrc.match(/digital\/video\/([^\/]+)\//i);
-            const contentId = idMatch ? idMatch[1] : "";
-            const itemPageUrl = contentId ? `https://video.dmm.co.jp/av/content/?id=${contentId}` : "#";
+            const itemPageUrl = `https://video.dmm.co.jp/av/content/?id=${itemData.contentId}`;
             const row = document.createElement('div');
             const refreshIcon = `
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -1882,11 +1900,11 @@ backdrop-filter: blur(1px);
             row.style = "display:flex; align-items:center; border-bottom:1px solid #333; padding:6px 0; gap:8px;";
             row.innerHTML = `
                 <input type="checkbox" class="item-check" data-key="${key}" style="margin-left:5px; width:15px; height:15px; cursor:pointer; accent-color:#00FF41; appearance:auto;">
-                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; cursor:help;" title="${itemData.reTryData.imageSrc}">
+                <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; cursor:help;" title="${itemData.reTryData?.imageSrc || ''}">
                 <a href="${itemPageUrl}" target="_blank"><span style="color:#00FF41; font-family:monospace; font-size:12px;">${itemData.displayCode}</span></a>
                     ${detailLabel ? `<span style="color:white; font-size:10px; margin-left:5px;">[</span><span style="color:#00FF41; font-size:10px;">${detailLabel}</span><span style="color:white; font-size:10px;">]</span>` : ''}
                 </div>
-                <span style="color:white; font-size:10px;padding-left:5px;">[${itemData.makerLabelCode}] [ ${itemData.rawMediaType || ''} ]</span>
+                <span style="color:white; font-size:10px;padding-left:5px;">[ ${itemData.makerLabelCode} ] [ ${itemData.rawMediaType || ''} ]</span>
                 <button class="reset-btn" style="background:none; border:none; color:#aaa; cursor:pointer; display:flex; align-items:center; padding:0 5px;">${refreshIcon}</button>
             `;
 
@@ -1927,13 +1945,11 @@ backdrop-filter: blur(1px);
                     refreshQueueButton(); // 아래에서 정의할 버튼 갱신 함수
                 }
             };
-
             listContainer.appendChild(row);
         });
 
         if (shouldScroll) listContainer.scrollTop = listContainer.scrollHeight;
         else listContainer.scrollTop = currentScroll;
-
         updateCounts();
     }
 
@@ -2614,7 +2630,7 @@ backdrop-filter: blur(1px);
             const resetBtn = document.createElement('button');
             resetBtn.innerText = "DB 리셋";
             resetBtn.style.cssText = `padding:4px; background-color: #ff4d4d; background:#F44336; color:white; border:none; border-radius:6px; cursor:pointer; font-size:11px; font-weight:bold;`;
-            
+
 
             btnContainer.appendChild(dlBtn);
             btnContainer.appendChild(metaDlBtn);
@@ -2750,7 +2766,7 @@ backdrop-filter: blur(1px);
                     currentSessionCodes.clear();
                     clBtn.style = "display:none;";
                     buildBtn.style = "display:block;";
-                    updateDisplayList(false, 'clBtn');                    
+                    updateDisplayList(false, 'clBtn');
                 }
             };
             buildBtn.onclick = async () => {
@@ -3501,17 +3517,8 @@ backdrop-filter: blur(1px);
         const savedSize = await localStorage.getItem(STORAGE_KEY);
         if (savedSize) {
             const { width } = JSON.parse(savedSize);
-            modal.style.width = width + 'px';
-            modal.style.minWidth = '800px';
-        } else {
-            // 초기값이 없을 때: 너비 1200px, 화면 정중앙 배치
-            modal.style.width = '1200px';
-            modal.style.minWidth = '800px';
-            modal.style.left = '50%';
-            modal.style.top = '50%';
-            modal.style.transform = 'translate(-50%, -50%)';
-        }
-
+            modal.style.width = width + 'px';            
+        } 
         // 높이는 항상 콘텐츠에 맞게 (초기에는 auto)
         modal.style.height = 'auto';
         modal.style.maxHeight = '80vh'; // 화면을 넘지 않도록 최대 높이 제한
