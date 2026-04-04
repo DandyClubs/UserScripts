@@ -4153,11 +4153,9 @@ backdrop-filter: blur(1px);
     if (isWorker()) {
         runWorker();
     } else {
-        //runOnceAWeek('weekly_update_updateUniqueKey', updateUniqueKey);
+        runOnceAWeek('weekly_update_updateUniqueKey', updateUniqueKey);
         collectAndProcess();
         searchVCE();
-        // 'weekly_update'라는 이름 키(key)로 체크 시작
-
     }
 
 })();
