@@ -1886,7 +1886,7 @@ backdrop-filter: blur(1px);
                 <a href="${itemPageUrl}" target="_blank"><span style="color:#00FF41; font-family:monospace; font-size:12px;">${itemData.displayCode}</span></a>
                     ${detailLabel ? `<span style="color:white; font-size:10px; margin-left:5px;">[</span><span style="color:#00FF41; font-size:10px;">${detailLabel}</span><span style="color:white; font-size:10px;">]</span>` : ''}
                 </div>
-                <span style="color:white; font-size:10px;padding-left:5px;">[ ${itemData.rawMediaType || ''} ]</span>
+                <span style="color:white; font-size:10px;padding-left:5px;">[${itemData.makerLabelCode}] [ ${itemData.rawMediaType || ''} ]</span>
                 <button class="reset-btn" style="background:none; border:none; color:#aaa; cursor:pointer; display:flex; align-items:center; padding:0 5px;">${refreshIcon}</button>
             `;
 
