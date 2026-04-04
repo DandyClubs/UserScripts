@@ -1254,7 +1254,7 @@ const image = {
             },
             responseType: 'blob',
         });
-        console.log(response, response.status);
+        //console.log(response, response.status);
         return URL.createObjectURL(response.response);
     },
 

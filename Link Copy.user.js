@@ -499,7 +499,7 @@ const ThaiChar = /[ๅภถุึคตจขชๆไำพะัีรนย�
 const SearchID = /([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2,3}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})(.*)/;
 const MatchID = /^([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2,3}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}|FC2.+\d{6.8})(.*)/;
 const SearchFC2ID = /(^FC2.+\d{6,7})(.*)/i;
-const SearchIDRegExp = /^(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})|T\d{2}-\d{3})(?!(C_\d+|file\d+))(.*)$/;
+const SearchIDRegExp = /(\[\s?)?([a-zA-Z]{2,11}\d{1,4}-\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}|T\d{2}-\d{3})(?!C_\d+|file\d+)/i;
 const K2SRegExp = /(.*k2s\.cc\/file\/)(.*\/?)/;
 const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/;
 const extractID = /(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})|T\d{2}-\d{3})(?!(C_\d+|file\d+))/;
@@ -1730,45 +1730,67 @@ const siteRules = [
 
             console.log('파일명 찾기"', { DownloadArea });
             console.log(DownloadArea[0].querySelector('a[href*="https://katfile"]'));
-            const GetFileNameLink =
-                DownloadArea[0].querySelector('a[href*="https://katfile"]')?.href ||
-                DownloadArea[0].querySelector('a[href*="https://ddownload.com/"]')?.href || '';
+            const links = [
+                DownloadArea[0].querySelector('a[href*="katfile"]')?.href,
+                DownloadArea[0].querySelector('a[href*="ddownload.com"]')?.href,
+                DownloadArea[0].querySelector('a[href*="k2s.cc/file"]')?.href,
+            ].filter(Boolean);
+
+            const hasID = SearchIDRegExp.test(rawTitle);
+            const hasMaker = /^\[.*?\]/.test(rawTitle);
+            const hasJapanese = JapaneseChar.test(rawTitle);
+            const hasValidLink = links.length > 0;
 
             const needsFilenameFetch =
-                (!SearchIDRegExp.test(rawTitle) && !/^\[.*?\]/.test(rawTitle) && GetFileNameLink) ||
-                (!SearchIDRegExp.test(rawTitle) && !JapaneseChar.test(rawTitle) && GetFileNameLink);
+                !hasID &&
+                hasValidLink &&
+                (!hasMaker || !hasJapanese);
 
             console.log({ needsFilenameFetch });
 
+            function detectHost(url) {
+                if (/katfile/.test(url)) return 'katfile';
+                if (/ddownload/.test(url)) return 'ddl';
+                if (/k2s/.test(url)) return 'k2s';
+                return null;
+            }
+
             const rawIDMatch = SearchIDRegExp.exec(rawTitle) || '';
-            const rawID = rawIDMatch ? (rawIDMatch.groups ? rawIDMatch.groups[1] : rawIDMatch[1]) : '';
+            const rawID = rawIDMatch?.[2] || '';
             if (needsFilenameFetch) {
                 try {
-                    const service = /katfile/.test(GetFileNameLink)
-                        ? 'katfile'
-                        : /ddownload/.test(GetFileNameLink)
-                            ? 'ddl'
-                            : null;
-                    if (service) {
-                        const newTitle = await GetFileName(GetFileNameLink, service);
-                        console.log('GetFileName :', newTitle);
-                        const newIDMatch = SearchIDRegExp.exec(newTitle) || '';
-                        const newID = newIDMatch
-                            ? (newIDMatch.groups ? newIDMatch.groups[1] : newIDMatch.filter(Boolean)[1])
-                            : '';
+                    const tasks = links.map(link => {
+                        const host = detectHost(link);
+                        if (!host) return Promise.reject(new Error('Unknown host'));
 
-                        const cleandedRawTitle = rawTitle.replace(rawID, '').trim();
-                        const cleandedNewTitle = newTitle.replace(newID, '').trim();
-                        rebuildedText = `${rawID || newID} ${compareJapaneseCharacters(cleandedRawTitle, cleandedNewTitle)}`;
-                        const Maker = /^\[.*?\]\s/.exec(rebuildedText) || /^\[.*?\]\s/.exec(newTitle);
-                        if (Maker?.length) {
-                            rebuildedText = Maker + rebuildedText.replace(Maker[0], '');
-                        }
-                        copyOffsetArea.textContent = rebuildedText.trim();
-                        console.log('Rebuilded Text:', rebuildedText);
+                        return GetFileName(link, host).then(result => {
+                            console.log('SUCCESS:', host, link);
+                            return result;
+                        });
+                    });
+
+                    const newTitle = await Promise.any(tasks);
+
+                    console.log('GetFileName:', newTitle);
+
+                    const newIDMatch = SearchIDRegExp.exec(newTitle) || '';
+                    const newID = newIDMatch?.[2] || '';
+
+                    const cleandedRawTitle = rawTitle.replace(rawID, '').trim();
+                    const cleandedNewTitle = newTitle.replace(newID, '').trim();
+
+                    rebuildedText = `${rawID || newID} ${compareJapaneseCharacters(cleandedRawTitle, cleandedNewTitle)}`;
+
+                    const Maker = /^\[.*?\]\s/.exec(rebuildedText) || /^\[.*?\]\s/.exec(newTitle);
+                    if (Maker?.length) {
+                        rebuildedText = Maker[0] + rebuildedText.replace(Maker[0], '');
                     }
+
+                    copyOffsetArea.textContent = rebuildedText.trim();
+                    console.log('Rebuilded Text:', rebuildedText);
+
                 } catch (e) {
-                    console.error('Request failed', e);
+                    console.error('All requests failed', e);
                 }
             } else {
                 return rawTitle;
@@ -2111,7 +2133,10 @@ const hostConfigs = {
         // 추후 필요시 추가적인 로직을 handler 함수로 정의할 수 있습니다.
     },
     ddl: {
-        selector: 'div.name-info .name.position-relative h4',
+        selector: '.dl-file-name',
+    },
+    k2s: {
+        selector: 'p[data-testid="fileName"]',
     },
 };
 
@@ -3150,7 +3175,7 @@ async function CopyLink() {
 
                 // --- 1단계: 이미 고화질 주소(awsimgsrc)를 가지고 있는 경우 (즉시 학습 및 확정) ---
                 if (CoverImage && CoverImage.includes('awsimgsrc.dmm')) {
-                    finalCoverImage = CoverImage;                    
+                    finalCoverImage = CoverImage;
                     if (!DB_PREFIX_RULES[prefix] && !GM_getValue(prefix)) {
                         saveRuleFromUrl(CoverImage, prefix); // URL 파싱 저장 함수 (아래 별도 정의)
                     }
@@ -3184,7 +3209,7 @@ async function CopyLink() {
                         console.log(`%c[미등록 브랜드 탐색 결과] ${prefix} ${CoverImage || ''} ${result}`, "color: #FF9800;");
 
                         if (result.exists) {
-                            finalCoverImage = url;                            
+                            finalCoverImage = url;
                             // 학습 로직 (프록시 사용 여부와 상관없이 원본 URL의 메타데이터로 저장)
                             const learnedRule = candidates._meta?.[url];
                             if (learnedRule && !DB_PREFIX_RULES[prefix]) {
@@ -3198,11 +3223,11 @@ async function CopyLink() {
                         // [추가] 403 국가 제한이나 특정 사유로 차단된 경우 프록시 적용
                         else if (result.reason === 'Region restrictions' || result.status === 403) {
                             console.log(`%c[지역 제한 감지] ${url}`, "color: #FF5722;");
-                        }else{
+                        } else {
                             console.log(`%c[이미지 주소 오류] ${url}`, "color: #FF5722;");
-                        }                                                
+                        }
                     }
-                    if (!finalCoverImage){
+                    if (!finalCoverImage) {
                         console.log(`%c[미등록 브랜드 탐색 실패] ${prefix} ${CoverImage || ''}`, "color: #FF9800;");
                     }
                 }
