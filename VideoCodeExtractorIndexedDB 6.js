@@ -2050,6 +2050,7 @@ backdrop-filter: blur(1px);
                 // v1 key만 삭제 (안전)
                 if (existingKeys.has(oldKey)) {
                     await VceDB.delete("codes", oldKey);
+                    existingKeys.delete(oldKey);
                     deleted++;
                 }
             }

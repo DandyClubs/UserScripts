@@ -4,7 +4,7 @@
 // @description     Fully refactored with a rule pipeline for maximum clarity and maintainability.
 // @icon            https://cdn1.iconfinder.com/data/icons/feather-2/24/external-link-32.png
 // @icon64          https://cdn1.iconfinder.com/data/icons/feather-2/24/external-link-128.png
-// @run-at          document-body
+// @run-at          document-end
 // @include         *
 // @exclude         /qqupload.com/
 // @exclude         /drive.google.com/
@@ -140,6 +140,7 @@
         { site: /sis001\.com/, c: el => el.closest('tbody')?.getAttribute('id')?.match(/normalthread|stickthread/), a: 'NEW_TAB' },
         { site: /xxx-sharing\.net/, c: el => el.getAttribute('id')?.match(/thread_title/), a: 'NEW_TAB' },
         { site: /yandex\.com\/search/, c: el => el.classList.contains('OrganicTitle-Link') || el.closest('a.OrganicTitle-Link'), a: 'NEW_TAB' },
+        { site: /naughtyblog/, c: el => el.closest('a.post-link-overlay'), a: 'NEW_TAB' },
         { site: /.*/, c: el => el.closest('.infy-scroll-divider'), a: 'SAME_TAB' },
         { site: /.*/, c: (el, ctx) => !/google\.com\/search/.test(ctx.PageURL) && /\/bbs\/board\.php.*wr_id|category\/movie\/av/.test(el.href), a: 'REMOVE_TARGET' },
         { site: /^https:\/\/section\.cafe\.naver\.com\/ca-fe\/home\/search\/articles/, c: el => /cafe\.naver\.com\/.+\?iframe_url/.test(el.href), a: 'SAME_TAB' },
