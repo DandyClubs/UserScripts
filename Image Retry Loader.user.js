@@ -7,7 +7,7 @@
 // @match        *://*/*
 // @grant        GM_xmlhttpRequest
 // @connect      *
-// @run-at       document-start
+// @run-at       document-body
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_deleteValue
@@ -521,7 +521,7 @@
         });
     }
 
-    window.addEventListener("DOMContentLoaded", () => {
+    document.addEventListener("DOMContentLoaded", () => {
         cleanOldBadLinks();
         document.querySelectorAll('img').forEach(img => {
             if (isValidExternalImage(img)) {
