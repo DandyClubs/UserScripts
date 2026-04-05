@@ -899,8 +899,8 @@ backdrop-filter: blur(1px);
                         makerLabelCode,
                         rawMediaType,
                     }).then(async (re) => {
-                        const hasMeta = await VceDB.get('imageMeta', rawImage);                        
-                        const hasCode = await VceDB.get('codes', hasMeta?.uniqueKey);                        
+                        const hasMeta = await VceDB.get('imageMeta', rawImage);
+                        const hasCode = await VceDB.get('codes', hasMeta?.uniqueKey);
                         if (hasMeta?.resolutionState !== 'SUCCESS') {
                             fetchImageResolution(rawImage).then(async (res) => {
                                 if (res && res.width > 0) {
@@ -947,7 +947,7 @@ backdrop-filter: blur(1px);
                             codeStatus: 'SUCCESS'
                         };
 
-                        await VceDB.save("codes", hasCode?.uniqueKey || hasMeta?.uniqueKey, codeData);                        
+                        await VceDB.save("codes", hasCode?.uniqueKey || hasMeta?.uniqueKey, codeData);
                         return `SUCCESS`;
                     });
                 } catch (e) {
@@ -1555,29 +1555,49 @@ backdrop-filter: blur(1px);
    FANZA_DIGITAL 메타 정보 확인</span>
    `;
 
-            FANZADIGITAL.onclick = async () => {                
+            FANZADIGITAL.onclick = async () => {
+                if (isRunning) {
+                    startJob();
+                } else {
                     const result = await Swal.fire({
-                        customClass: { popup: 'swal2-popup-custom' },                        
+                        customClass: { popup: 'swal2-popup-custom' },
                         confirmButtonColor: '#2196F3',
                         cancelButtonColor: '#666',
                         background: '#fff',
                         color: '#1e1e1e',
                         title: '찾을 코드를 입력하세요',
                         input: 'text',
-                        inputLabel: '코드를 입력하세요 입력하지 않으면 전체를 작업합니다.',
-                        inputPlaceholder: '예: ABC',
+                        inputLabel: '영문 + 숫자만 입력 가능합니다',
+                        inputPlaceholder: '예: ABC, T38',
                         showCancelButton: true,
                         confirmButtonText: '확인',
-                        cancelButtonText: '취소'
+                        cancelButtonText: '취소',
+
+                        didOpen: () => {
+                            const input = Swal.getInput();
+
+                            input.addEventListener('input', () => {
+                                // 영문 + 숫자만 허용
+                                input.value = input.value.replace(/[^a-zA-Z0-9]/g, '');
+                            });
+                        },
+                        inputValidator: (value) => {
+                            if (!value) return null;
+                            if (!/^[a-zA-Z0-9]+$/.test(value)) {
+                                return '영문과 숫자만 입력 가능합니다';
+                            }
+                        }
                     });
 
                     if (result.isConfirmed) {
-                        const value = result.value;
+                        const value = result.value
+                            .replace(/[^a-zA-Z0-9]/g, '')
+                            .trim()
+                            .toUpperCase();
                         startJob(value);
                     }
                 }
-                
-            
+            };
         }
     }
 
@@ -4038,7 +4058,7 @@ backdrop-filter: blur(1px);
 
 
         taskQueue = await VceDB.getSchedulableTasks('imageMeta', 'meta');
-        if (code){
+        if (code) {
             taskQueue = taskQueue.filter(e => e.displayCode && e.displayCode.includes(code.toUpperCase()));
         }
         console.log('총 작업:', taskQueue.length);
@@ -4061,8 +4081,8 @@ backdrop-filter: blur(1px);
 
         function ensureWorker() {
             if (!workerWin || workerWin.closed) {
-                workerWin = window.open(location.origin, '_blank', 'width=1000, height=800'); // ✔️ 중요
-                workerWin.name = 'vce_worker';
+                workerWin = window.open(location.origin, '_blank', 'width=300, height=200'); // ✔️ 중요                
+                workerWin.name = 'vce_worker';                
                 return; // 👈 여기 중요
             }
         }
