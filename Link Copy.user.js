@@ -3241,16 +3241,17 @@ async function CopyLink() {
                     const coverLink = await CollectionCoverImage(finalCoverImage);
                     if (coverLink) collected = collected.concat(coverLink);
                 }
-
-                allLinks = collected;
-
-                const directOK = DirectCopy.test(PageURL) || AllowDirect;
-                if (directOK) {
-                    JDownloader(collected.join('\n'), `${CopyTitle}${Resolution || ''}`, PageURL);
-                }
-                noticeLines.push(`${CopyTitle}${Resolution || ''}`);
-                noticeLines.push(collected.join('\n'));
             }
+
+            allLinks = collected;
+
+            const directOK = DirectCopy.test(PageURL) || AllowDirect;
+            if (directOK) {
+                JDownloader(collected.join('\n'), `${CopyTitle}${Resolution || ''}`, PageURL);
+            }
+            noticeLines.push(`${CopyTitle}${Resolution || ''}`);
+            noticeLines.push(collected.join('\n'));
+
         } else {
             noticeLines.push('Empty Links');
             userClose = false;
