@@ -94,6 +94,13 @@ backdrop-filter: blur(1px);
     padding: 5px 15px !important; /* 버튼 크기 축소 */
 }
 
+div:where(.swal2-container) .swal2-input {
+	height: 1.75em;
+	padding: .25em;
+	width: 18ch;
+	margin: 1em auto 0;
+}
+
 .CoverDownload {
 	cursor: pointer;
 	text-shadow: 2px 4px 4px rgba(0,0,0,0.2),
@@ -211,7 +218,7 @@ backdrop-filter: blur(1px);
     overflow-y: auto;
     /* 스크롤이 끝에 도달했을 때 부모(body)로 전파되는 것을 방지 */
     overscroll-behavior: contain;
-}
+}    
 .vce-result-table th:nth-child(7) { width: 10ch; }
 .vce-result-table th:nth-child(8) { width: 10ch; }
     `);
@@ -918,10 +925,11 @@ backdrop-filter: blur(1px);
                             }
                         }
 
-                        if (!hasCode || !currentSessionCodes.has(hasMeta?.uniqueKey)) {
+                        if (!hasCode && !currentSessionCodes.has(hasMeta?.uniqueKey)) {
                             Logger.info('currentSessionCodes Check', hasMeta?.uniqueKey);
                             currentSessionCodes.add(hasMeta?.uniqueKey);
                         }
+
                         const metaData = {
                             ...result,
                             makerLabel,
@@ -1669,9 +1677,15 @@ backdrop-filter: blur(1px);
             const rawMediaType = GetParam(PageURL(), 'media_type');
             const makerLabelCode = GetParam(PageURL(), 'maker');
             if (!rawMediaType && !makerLabelCode) {
-                alertStatus.innerHTML = `<div style="color:#F44336; margin-bottom:5px; font-weight:bold;">❌ 추출할 <a href="https://video.dmm.co.jp/av/maker/">메이커 페이지</a>로 이동하여 선택하세요!</div>`;
+                alertStatus.innerHTML = `<div style="color:#F44336; margin-bottom:5px; font-weight:bold;">❌ 추출할 <a id="makergroup" ref="https://video.dmm.co.jp/av/maker/">메이커 페이지</a>로 이동하여 선택하세요!</div>`;
+                document.querySelector('a#makergroup').addEventListener('click', (e) => {
+                    e.stopPropagation(); // 🔥 body 이벤트 차단
+                });
             } else if (!rawMediaType) {
                 alertStatus.innerHTML = `<div style="color:#FF9800; margin-bottom:5px; font-weight:bold;">⚠️ ${makerLabelCode ? `<a id="choicetype" href="https://video.dmm.co.jp/av/list/?maker=${makerLabelCode}&media_type=2d">2D</a>를 선택하세요!</a>` : `제조사 리스트 페이지로 이동하세요!`}<br>❌ 페이지 주소가 맞지 않아 수집 중단.</div>`;
+                document.querySelector('a#choicetype').addEventListener('click', (e) => {
+                    e.stopPropagation(); // 🔥 body 이벤트 차단
+                });
             } else if (!makerLabelCode || makerLabel === "Unknown") {
                 alertStatus.innerHTML = `<div style="color:#F44336; margin-bottom:5px; font-weight:bold;">❌ 제작사 정보를 가져오지 못했습니다.</div>`;
             } else {
@@ -1883,7 +1897,7 @@ backdrop-filter: blur(1px);
 
                 const hasUniqueKey = await VceDB.get('codes', uniqueKey);
 
-                if (!hasUniqueKey || !currentSessionCodes.has(uniqueKey)) {
+                if (!hasUniqueKey && !currentSessionCodes.has(uniqueKey)) {
                     Logger.info('currentSessionCodes Check', uniqueKey);
                     currentSessionCodes.add(uniqueKey);
                 }
@@ -4082,7 +4096,7 @@ backdrop-filter: blur(1px);
         function ensureWorker() {
             if (!workerWin || workerWin.closed) {
                 workerWin = window.open(location.origin, '_blank', 'width=300, height=200'); // ✔️ 중요                
-                workerWin.name = 'vce_worker';                
+                workerWin.name = 'vce_worker';
                 return; // 👈 여기 중요
             }
         }
@@ -4182,7 +4196,7 @@ backdrop-filter: blur(1px);
                 const config = siteConfigs['FANZA_DIGITAL'];
                 if (config) {
                     let result;
-                    const waitTime = Math.max(getRandomDelay(), getRandomDelay());
+                    const waitTime = Math.max(getRandomDelay(), getRandomDelay()) + Math.min(getRandomDelay(), getRandomDelay());
                     const found = await checkTable(waitTime);
                     if (found) {
                         config.addDB().then(async (e) => {
