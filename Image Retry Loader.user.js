@@ -106,6 +106,7 @@
             img.addEventListener('error', onError);
 
             img.removeAttribute('loading');            
+            img.setAttribute('src', img.getAttribute('src')); 
         });
     }
 
@@ -521,7 +522,7 @@
         });
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
+    window.addEventListener("load", () => {
         cleanOldBadLinks();
         document.querySelectorAll('img').forEach(img => {
             if (isValidExternalImage(img)) {
