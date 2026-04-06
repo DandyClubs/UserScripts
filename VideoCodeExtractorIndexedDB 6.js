@@ -218,7 +218,7 @@ div:where(.swal2-container) .swal2-input {
     overflow-y: auto;
     /* 스크롤이 끝에 도달했을 때 부모(body)로 전파되는 것을 방지 */
     overscroll-behavior: contain;
-}    
+}
 .vce-result-table th:nth-child(7) { width: 10ch; }
 .vce-result-table th:nth-child(8) { width: 10ch; }
     `);
@@ -643,7 +643,7 @@ div:where(.swal2-container) .swal2-input {
                 sanitize(suffix),
                 sanitize(makerLabelCode),
                 zeroMaskContentId(contentId)
-            ].join("_");
+            ].join("|");
         }
 
         // ----------------------------
@@ -654,7 +654,16 @@ div:where(.swal2-container) .swal2-input {
                 return { valid: false, reason: "empty" };
             }
 
-            const parts = uniqueKey.split("_");
+            const parts = uniqueKey.split("|");
+
+            let displayCode, prefix;
+            if (/_[hnv]/.test(parts[0])) {
+                const dC = parts[0].split('_');
+                parts[0] = dC[0];
+                parts[1] = dC[1] + '_' + parts[1];
+                valid: false;
+            }
+
 
             // v2 (정상)
             if (parts.length === 6) {
@@ -678,29 +687,6 @@ div:where(.swal2-container) .swal2-input {
                     contentIdZero
                 };
             }
-
-            // v1 (구버전)
-            if (parts.length === 5) {
-                const [
-                    displayCode,
-                    prefix,
-                    padLenStr,
-                    suffix,
-                    contentIdZero
-                ] = parts;
-
-                return {
-                    valid: true,
-                    version: 1,
-                    displayCode,
-                    prefix,
-                    padLen: safeNumber(padLenStr),
-                    suffix,
-                    makerLabelCode: "",
-                    contentIdZero
-                };
-            }
-
             return { valid: false, reason: "invalid_format", raw: uniqueKey };
         }
 
@@ -896,72 +882,84 @@ div:where(.swal2-container) .swal2-input {
                     const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
                     const result = await parse(document.body);
                     if (!result || !result.realCode) return `result not fouund`;
+
                     if (/[a-zA-Z]*-\d{3}-\d{2}/i.test(result.realCode)) {
                         await VceDB.delete('imageMeta', 'url', rawImage);
                         Logger.info('Not Add Item', result.realCode);
                         return 'Not Add Item';
                     }
+
                     if (!result.makerLabel) return `makerLabel not found`;
                     const makerLabel = makerLabelReplaceMap[result.makerLabel] || result.makerLabel;
                     const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id');
                     if (!makerLabelCode) return 'makerLabelCode not found';
                     const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';
 
+                    for (const Regex of deletePattons) {
+                        if (Regex.test(result.realCode) && deleteMakerCodes.includes(makerLabelCode)) {
+                            return 'deletePattons';
+                        }
+                    }
+
                     return await processWork(rawImage, url, {
                         makerLabelCode,
                         rawMediaType,
                     }).then(async (re) => {
-                        const hasMeta = await VceDB.get('imageMeta', rawImage);
-                        const hasCode = await VceDB.get('codes', hasMeta?.uniqueKey);
-                        if (hasMeta?.resolutionState !== 'SUCCESS') {
-                            fetchImageResolution(rawImage).then(async (res) => {
-                                if (res && res.width > 0) {
-                                    const resData = {
-                                        resolution: { W: res.width, H: res.height },
-                                        resolutionState: 'SUCCESS'
-                                    };
-                                    await VceDB.save("imageMeta", rawImage, resData);
-                                }
-                            });
-                        }
-                        if (hasMeta?.sourceSite === 'FANZA_DIGITAL') {
-                            if (hasCode?.codeStatus === 'SUCCESS') {
-                                return 'SUCCESS';
+                        if (re) {
+                            const hasMeta = await VceDB.get('imageMeta', rawImage);
+                            const hasCode = await VceDB.get('codes', hasMeta?.uniqueKey);
+                            if (hasMeta?.resolutionState !== 'SUCCESS') {
+                                fetchImageResolution(rawImage).then(async (res) => {
+                                    if (res && res.width > 0) {
+                                        const resData = {
+                                            resolution: { W: res.width, H: res.height },
+                                            resolutionState: 'SUCCESS'
+                                        };
+                                        await VceDB.save("imageMeta", rawImage, resData);
+                                    }
+                                });
                             }
+                            if (hasMeta?.sourceSite === 'FANZA_DIGITAL') {
+                                if (hasCode?.codeStatus === 'SUCCESS') {
+                                    return 'SUCCESS';
+                                }
+                            }
+
+                            if (!hasCode && !currentSessionCodes.has(hasMeta?.uniqueKey)) {
+                                Logger.info('currentSessionCodes Check', hasMeta?.uniqueKey);
+                                currentSessionCodes.add(hasMeta?.uniqueKey);
+                            }
+
+                            const metaData = {
+                                ...result,
+                                makerLabel,
+                                makerLabelCode,
+                                rawMediaType,
+                                sourceSite: 'FANZA_DIGITAL',
+                                metaStatus: 'SUCCESS'
+                            };
+
+                            await VceDB.save("imageMeta", rawImage, metaData);
+
+                            const codeData = {
+                                makerLabel,
+                                makerLabelCode,
+                                rawMediaType,
+                                reTryData: {
+                                    imageSrc: rawImage,
+                                    linkUrl: `https://video.dmm.co.jp/av/content/?id=${contentId}`,
+                                    makerLabelCode: makerLabelCode,
+                                    rawMediaType: rawMediaType,
+                                },
+                                sourceSite: 'FANZA_DIGITAL',
+                                codeStatus: 'SUCCESS'
+                            };
+
+                            await VceDB.save("codes", hasCode?.uniqueKey || hasMeta?.uniqueKey, codeData);
+                            return `SUCCESS`;
+                        } else {
+                            return 'not Match Rules';
                         }
-
-                        if (!hasCode && !currentSessionCodes.has(hasMeta?.uniqueKey)) {
-                            Logger.info('currentSessionCodes Check', hasMeta?.uniqueKey);
-                            currentSessionCodes.add(hasMeta?.uniqueKey);
-                        }
-
-                        const metaData = {
-                            ...result,
-                            makerLabel,
-                            makerLabelCode,
-                            rawMediaType,
-                            sourceSite: 'FANZA_DIGITAL',
-                            metaStatus: 'SUCCESS'
-                        };
-
-                        await VceDB.save("imageMeta", rawImage, metaData);
-
-                        const codeData = {
-                            makerLabel,
-                            makerLabelCode,
-                            rawMediaType,
-                            reTryData: {
-                                imageSrc: rawImage,
-                                linkUrl: `https://video.dmm.co.jp/av/content/?id=${contentId}`,
-                                makerLabelCode: makerLabelCode,
-                                rawMediaType: rawMediaType,
-                            },
-                            sourceSite: 'FANZA_DIGITAL',
-                            codeStatus: 'SUCCESS'
-                        };
-
-                        await VceDB.save("codes", hasCode?.uniqueKey || hasMeta?.uniqueKey, codeData);
-                        return `SUCCESS`;
                     });
                 } catch (e) {
                     Logger.error('addDB error', e);
@@ -1040,6 +1038,13 @@ div:where(.swal2-container) .swal2-input {
             rawMediaType: ['コンテンツタイプ']
         },
     };
+
+
+    const deletePattons = [
+        /[a-zA-Z]*-\d{3}-\d{2}/i,
+        /[a-zA-Z]*-\d{3}-[a-zA-Z]-\d{2}/i,
+    ];
+    const deleteMakerCodes = ['45276'];
 
 
     const NumberFormatter = {
@@ -1860,7 +1865,7 @@ div:where(.swal2-container) .swal2-input {
                 const padLen = match[3].length;
                 const suffix = match[4];
                 const displayCode = code;
-                const uniqueKey = `${displayCode}_${prefix}_${padLen}_${suffix}_${makerLabelCode}_${contentId.replace(/\d/g, '0')}`;
+                const uniqueKey = `${displayCode}|${prefix}|${padLen}|${suffix}|${makerLabelCode}|${contentId.replace(/\d/g, '0')}`;
                 Logger.info('match', { prefix, code, padLen, suffix, displayCode, uniqueKey });
 
                 // --- [섹션 1: 이미지 메타 처리] ---
@@ -2047,18 +2052,119 @@ div:where(.swal2-container) .swal2-input {
 
         const keyPath = DB_SCHEMA["codes"].keyPath;
 
-        // 기존 codes key 목록
-        const existingKeys = new Set(
-            allCodes.map(v => v[keyPath])
-        );
-        const existingMakerLabel = new Set(
-            allMeta.filter(v => v.makerLabelCode)
-        );
+        const removeUpdatePromises = [];
+        const db = await VceDB.open();
+        const txR = db.transaction("imageMeta", "readwrite");
+        const storeR = txR.objectStore("imageMeta");
 
-        let created = 0;
-        let deleted = 0;
-        let updated = 0;
-        let skipped = 0;
+
+        for (const v of allMeta) {
+            if (v.uniqueKey.includes(`${v.displayCode}_`)) {
+                const parts = v.uniqueKey.match(/([a-zA-Z0-9]+)_([a-zA-Z]_\d+|.*)_(\d)_(.*)_(\d+)/i);
+                if (parts >= 4) {
+                    const contentIdZero = v.contentId.replace(/\d/g, '0');
+                    const makerLabelCode = v.makerLabelCode;
+                    const suffix = parts[4];
+                    const padLenStr = parts[3];
+                    const prefix = parts[2];
+                    const displayCode = v.displayCode;
+
+                    const newKey = `${displayCode}|${prefix}|${padLenStr}|${suffix}|${makerLabelCode}|${contentIdZero}`;
+                    await VceDB.save("imageMeta", v.imageSource, {
+                        uniqueKey: newKey
+                    });
+                }
+            }
+
+            for (const Regex of deletePattons) {
+                if (v.realCode && Regex.test(v.realCode) && deleteMakerCodes.has(v.makerLabelCode)) {
+                    console.log(v.realCode);
+                    const request = storeR.delete(v.url); // keyPath가 url인 경우
+
+                    // 프로미스 생성 및 배열 추가
+                    const p = new Promise((resolve, reject) => {
+                        request.onsuccess = () => resolve();
+                        request.onerror = () => reject(request.error);
+                    });
+                    removeUpdatePromises.push(p);
+                }
+            }
+        };
+
+        try {
+            await Promise.all(removeUpdatePromises);
+            console.log(`deletePattons 규칙에 의해 ${removeUpdatePromises.length}개의 데이터가 삭제되었습니다.`);
+        } catch (error) {
+            console.error("삭제 중 오류 발생:", error);
+        }
+
+        // 3. 트랜잭션이 완전히 끝날 때까지 기다리는 것이 더 안전함
+        await new Promise((resolve, reject) => {
+            txR.oncomplete = resolve;
+            txR.onerror = () => reject(txR.error);
+        });
+
+
+        // [Step 2: 삭제 후 최신 Meta 재로드]
+        const remainingMeta = await new Promise(r => {
+            db.transaction("imageMeta").objectStore("imageMeta").getAll().onsuccess = e => r(e.target.result);
+        });
+
+
+        // 🔥 수정: 이미지 객체 전체가 아니라, UniqueKey를 기준으로 '대표 이미지 1장'씩만 추출
+        const uniqueKeyMap = new Map();
+
+        remainingMeta.forEach(m => {
+            if (m.makerLabelCode && !uniqueKeyMap.has(m.uniqueKey)) {
+                uniqueKeyMap.set(m.uniqueKey, m);
+            }
+        });
+
+        // 이제 existingMakerLabel은 중복 없는 '작품 리스트'가 됩니다.
+        const existingMakerLabel = Array.from(uniqueKeyMap.values());
+
+        // [Step 3: Codes 정리]
+        // 삭제 작업 전 최신 codes 상태를 가져옴
+        const currentCodes = await VceDB.getAll("codes");
+        const currentCodeKeys = new Set(currentCodes.map(v => v[keyPath]));
+
+        // 현재 존재하는 메타들의 Key 집합
+        const metaKeys = new Set(uniqueKeyMap.keys());
+
+
+        // 메타가 하나도 없는 코드들만 골라내서 삭제
+        const keysToRemove = [...currentCodeKeys].filter(key => !metaKeys.has(key));
+        const keysToRemovePromises = [];
+        const txC = db.transaction("codes", "readwrite");
+        const storeC = txC.objectStore("codes");
+
+        if (keysToRemove.length > 0) {
+            keysToRemove.forEach(k => storeC.delete(k));
+            for (const k of keysToRemove) {
+                keysToRemovePromises.push(storeC.delete(k));
+                console.log(`${k} 빈 코드 항목이 정리`);
+            }
+        }
+
+        try {
+            await Promise.all(keysToRemovePromises);
+            console.log(`${keysToRemovePromises.length}개의 빈 코드 항목이 정리되었습니다.`);
+        } catch (error) {
+            console.error("삭제 중 오류 발생:", error);
+        }
+
+        // 3. 트랜잭션이 완전히 끝날 때까지 기다리는 것이 더 안전함
+        await new Promise((resolve, reject) => {
+            txC.oncomplete = resolve;
+            txC.onerror = () => reject(txR.error);
+        });
+
+        // [Step 4: 생성/업데이트 루프]
+        // 삭제가 완료된 후의 Key 상태를 다시 확인
+        const finalRemainingCodes = await VceDB.getAll("codes");
+        const finalKeys = new Set(finalRemainingCodes.map(v => v[keyPath]));
+
+        let created = 0, deleted = 0, updated = 0, skipped = 0;
 
         for (const obj of existingMakerLabel) {
 
@@ -2098,13 +2204,13 @@ div:where(.swal2-container) .swal2-input {
                 continue;
             }
 
-            const oldKey = UniqueKeyUtil.isLegacy(obj.uniqueKey) ? obj.uniqueKey : null;
-
+            const oldKey = obj.uniqueKey || null;
 
             // ----------------------------
             // 1️⃣ codes 없으면 생성
             // ----------------------------
-            if (!existingKeys.has(newKey)) {
+            if (!finalKeys.has(newKey)) {
+                console.log(newKey, oldKey);
 
                 await VceDB.save("codes", newKey, {
                     displayCode: obj.displayCode,
@@ -2127,7 +2233,7 @@ div:where(.swal2-container) .swal2-input {
                     rawMediaType: obj.rawMediaType || "",
                 });
 
-                existingKeys.add(newKey);
+                finalKeys.add(newKey);
                 created++;
             }
 
@@ -2136,9 +2242,9 @@ div:where(.swal2-container) .swal2-input {
             // ----------------------------
             if (oldKey && oldKey !== newKey) {
                 // v1 key만 삭제 (안전)
-                if (existingKeys.has(oldKey)) {
+                if (!isSameFormat(oldKey, newKey)) {
                     await VceDB.delete("codes", oldKey);
-                    existingKeys.delete(oldKey);
+                    currentCodeKeys.delete(oldKey);
                     deleted++;
                 }
             }
@@ -2146,13 +2252,15 @@ div:where(.swal2-container) .swal2-input {
             // ----------------------------
             // 3️⃣ imageMeta key 업데이트
             // ----------------------------
-            if (oldKey && oldKey !== newKey) {
-
-                await VceDB.save("imageMeta", obj.imageSource, {
-                    uniqueKey: newKey
-                });
-
-                updated++;
+            if (oldKey !== newKey) {
+                const replaceUniqueKeys = remainingMeta.filter(e => e.uniqueKey === oldKey);
+                for (const m of replaceUniqueKeys) {
+                    console.log(`${m.url} : ${oldKey} -> ${newKey}`);
+                    await VceDB.save("imageMeta", m.url, {
+                        uniqueKey: newKey
+                    });
+                    updated++;
+                }
             }
         }
 
@@ -2739,39 +2847,58 @@ div:where(.swal2-container) .swal2-input {
                 });
                 if (allMeta.length === 0) return alert("메타 데이터가 없습니다.");
 
+                // [Step 1] 삭제 대상 식별 및 imageMeta 삭제
+                const deletedCandidateKeys = new Set(); // 삭제된 메타의 uniqueKey 후보들
                 const removeUpdatePromises = [];
                 const txR = db.transaction("imageMeta", "readwrite");
                 const storeR = txR.objectStore("imageMeta");
 
-                // 1. for...of 문을 사용하여 비동기 제어를 명확히 함
                 for (const obj of allMeta) {
-                    // 정규식 테스트
-                    if (/[a-zA-Z]*-\d{3,4}-([a-z]?\d{2}|/i.test(obj.realCode)) {
-                        const request = storeR.delete(obj.url); // keyPath가 url인 경우
+                    for (const Regex of deletePattons) {
+                        if (Regex.test(obj.realCode) && deleteMakerCodes.includes(obj.makerLabelCode)) {
+                            const request = storeR.delete(obj.url);
+                            // 나중에 codes에서 지울지 말지 결정하기 위해 uniqueKey 보관
+                            deletedCandidateKeys.add(obj.uniqueKey);
 
-                        // 프로미스 생성 및 배열 추가
-                        const p = new Promise((resolve, reject) => {
-                            request.onsuccess = () => resolve();
-                            request.onerror = () => reject(request.error);
-                        });
-                        removeUpdatePromises.push(p);
+                            const p = new Promise((resolve, reject) => {
+                                request.onsuccess = () => resolve();
+                                request.onerror = () => reject(request.error);
+                            });
+                            removeUpdatePromises.push(p);
+                        }
                     }
                 }
 
-                // 2. 모든 삭제 요청이 완료될 때까지 대기
-                try {
-                    await Promise.all(removeUpdatePromises);
-                    console.log(`${removeUpdatePromises.length}개의 데이터가 삭제되었습니다.`);
-                } catch (error) {
-                    console.error("삭제 중 오류 발생:", error);
-                }
+                await Promise.all(removeUpdatePromises);
+                await new Promise(r => txR.oncomplete = r); // 삭제 트랜잭션 확정
+                console.log("메타 데이터 삭제 완료");
 
-                // 3. 트랜잭션이 완전히 끝날 때까지 기다리는 것이 더 안전함
-                await new Promise((resolve, reject) => {
-                    txR.oncomplete = resolve;
-                    txR.onerror = () => reject(txR.error);
+                // ---------------------------------------------------------
+
+                // [Step 2] 살아남은 메타 데이터 확인 및 codes 테이블 삭제
+                // 삭제 후 남은 전체 메타를 가져옵니다.
+                const remainingMeta = await new Promise(r => {
+                    db.transaction("imageMeta").objectStore("imageMeta").getAll().onsuccess = e => r(e.target.result);
                 });
-                
+
+                // 여전히 남아있는 uniqueKey들의 집합 생성
+                const remainingKeys = new Set(remainingMeta.map(m => m.uniqueKey));
+
+                // 삭제 후보(deletedCandidateKeys) 중, 남은 메타(remainingKeys)에 없는 것만 골라냄
+                const keysToRemoveFromCodes = [...deletedCandidateKeys].filter(key => !remainingKeys.has(key));
+
+                if (keysToRemoveFromCodes.length > 0) {
+                    const txC = db.transaction("codes", "readwrite");
+                    const storeC = txC.objectStore("codes");
+
+                    keysToRemoveFromCodes.forEach(key => {
+                        storeC.delete(key);
+                        currentSessionCodes.delete(key);
+                        console.log(`[codes 삭제] 연관된 메타가 없어 ${key} 항목을 삭제했습니다.`);
+                    });
+
+                    await new Promise(r => txC.oncomplete = r);
+                }
 
                 const updatedMeta = await new Promise(r => {
                     db.transaction("imageMeta").objectStore("imageMeta").getAll().onsuccess = e => r(e.target.result);
@@ -2790,7 +2917,7 @@ div:where(.swal2-container) .swal2-input {
 
 
                 const virtualKeyExtractor = (key) => {
-                    const parts = key.split('_');
+                    const parts = key.split('|');
                     // uniqueKey 구조: [displayCode, prefix, padLen, suffix, makerLabelCode, maskedContentId]
 
                     // makerLabelCode(인덱스 4)를 제외하고 다시 조립하여 가상 키 생성
@@ -2843,8 +2970,8 @@ div:where(.swal2-container) .swal2-input {
                 duplicateGroups.forEach(group => {
                     const codesInPattern = new Set(group.items.map(i => i.makerLabelCode));
                     specialPatternMap.set(group.commonPattern, codesInPattern);
-                });                
-                
+                });
+
                 allCodes.forEach(obj => {
                     // A의 key와 일치하는 B의 데이터들 필터링
                     const group = updatedMeta.filter(m => m.uniqueKey === obj.id);
@@ -2979,7 +3106,7 @@ div:where(.swal2-container) .swal2-input {
                 });
 
                 finalCodes.sort((a, b) => {
-                    // 1. 정렬 (maker → code → timestamp)                
+                    // 1. 정렬 (maker → code → timestamp)
                     const makerA = a.makerLabel || "기타";
                     const makerB = b.makerLabel || "기타";
 
@@ -4342,7 +4469,7 @@ div:where(.swal2-container) .swal2-input {
 
         function ensureWorker() {
             if (!workerWin || workerWin.closed) {
-                workerWin = window.open(location.origin, '_blank', 'width=600, height=300'); // ✔️ 중요                
+                workerWin = window.open(location.origin, '_blank', 'width=600, height=300'); // ✔️ 중요
                 workerWin.name = 'vce_worker';
                 return; // 👈 여기 중요
             }
@@ -4502,7 +4629,7 @@ div:where(.swal2-container) .swal2-input {
 
     if (isWorker()) {
         runWorker();
-    } else {
+    } else {        
         runOnceAWeek('weekly_update_updateUniqueKey', updateUniqueKey);
         collectAndProcess();
         searchVCE();
