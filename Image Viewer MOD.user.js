@@ -14,7 +14,7 @@
 // @exclude      https://www.google.com/search*
 // @exclude      https://challenges.cloudflare.com/*
 // @connect      *
-// @run-at       document-start
+// @run-at       document-body
 // @grant        GM_xmlhttpRequest
 // @grant        GM_openInTab
 // @grant		 GM_addStyle
@@ -1336,7 +1336,7 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("load", () => {
     viewerCSS();
     Start();
 }, { once: true });

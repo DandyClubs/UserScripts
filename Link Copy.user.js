@@ -708,7 +708,7 @@ function makeSearch() {
             class: 'RarBG',
             domain: 'rarbg.to',
             favicon: 'https://rargb.to/favicon.ico',
-            onClick: () => openInNewTab(`https://rargb.to/search/?search=${searchTitle}/`)
+            onClick: () => openInNewTab(`https://rargb.to/search/?search=${searchTitle}`)
         },
         {
             class: 'PornBB',

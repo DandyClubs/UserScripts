@@ -599,174 +599,6 @@ div:where(.swal2-container) .swal2-input {
         }
     }
 
-    /**
-* UniqueKey 구조 (v2)
-* displayCode_prefix_padLen_suffix_makerLabelCode_contentId(0치환)
-*
-* 예:
-* MFT_1_5__303191_1mft00000
-*/
-
-    const UniqueKeyUtil = (() => {
-
-        const VERSION = 2;
-
-        // ----------------------------
-        // 🔧 내부 유틸
-        // ----------------------------
-        const sanitize = (v) => (v ?? "").toString().trim();
-        const safeNumber = (v) => Number(v) || 0;
-
-        const zeroMaskContentId = (contentId) => {
-            return sanitize(contentId).replace(/\d/g, '0');
-        };
-
-        // ----------------------------
-        // 🏗️ 생성
-        // ----------------------------
-        function build({
-            displayCode,
-            prefix = "",
-            padLen = 0,
-            suffix = "",
-            makerLabelCode = "",
-            contentId
-        }) {
-            if (!displayCode || !contentId) {
-                throw new Error("build: displayCode / contentId 필수");
-            }
-
-            return [
-                sanitize(displayCode),
-                sanitize(prefix),
-                safeNumber(padLen),
-                sanitize(suffix),
-                sanitize(makerLabelCode),
-                zeroMaskContentId(contentId)
-            ].join("|");
-        }
-
-        // ----------------------------
-        // 🔍 파싱
-        // ----------------------------
-        function parse(uniqueKey) {
-            if (!uniqueKey || typeof uniqueKey !== "string") {
-                return { valid: false, reason: "empty" };
-            }
-
-            const parts = uniqueKey.split("|");
-
-            let displayCode, prefix;
-            if (/_[hnv]/.test(parts[0])) {
-                const dC = parts[0].split('_');
-                parts[0] = dC[0];
-                parts[1] = dC[1] + '_' + parts[1];
-                valid: false;
-            }
-
-
-            // v2 (정상)
-            if (parts.length === 6) {
-                const [
-                    displayCode,
-                    prefix,
-                    padLenStr,
-                    suffix,
-                    makerLabelCode,
-                    contentIdZero
-                ] = parts;
-
-                return {
-                    valid: true,
-                    version: 2,
-                    displayCode,
-                    prefix,
-                    padLen: safeNumber(padLenStr),
-                    suffix,
-                    makerLabelCode,
-                    contentIdZero
-                };
-            }
-            return { valid: false, reason: "invalid_format", raw: uniqueKey };
-        }
-
-        // ----------------------------
-        // ✅ 검증
-        // ----------------------------
-        function validate(uniqueKey) {
-            const parsed = parse(uniqueKey);
-
-            if (!parsed.valid) return parsed;
-
-            // 기본 필드 체크
-            if (!parsed.displayCode) return { valid: false, reason: "no_displayCode" };
-            if (parsed.padLen < 0) return { valid: false, reason: "invalid_padLen" };
-
-            // v2 필수 체크
-            if (parsed.version === 2 && !parsed.makerLabelCode) {
-                return { valid: false, reason: "no_makerLabelCode" };
-            }
-
-            return { valid: true, version: parsed.version };
-        }
-
-        // ----------------------------
-        // 🔄 변환 (v1 → v2)
-        // ----------------------------
-        function upgrade(oldKey, makerLabelCode, contentId) {
-            const parsed = parse(oldKey);
-
-            if (!parsed.valid) return null;
-
-            return build({
-                displayCode: parsed.displayCode,
-                prefix: parsed.prefix,
-                padLen: parsed.padLen,
-                suffix: parsed.suffix,
-                makerLabelCode: makerLabelCode,
-                contentId: contentId
-            });
-        }
-
-        // ----------------------------
-        // 🧪 비교
-        // ----------------------------
-        function isSameFormat(a, b) {
-            const pa = parse(a);
-            const pb = parse(b);
-
-            if (!pa.valid || !pb.valid) return false;
-
-            return (
-                pa.displayCode === pb.displayCode &&
-                pa.prefix === pb.prefix &&
-                pa.padLen === pb.padLen &&
-                pa.suffix === pb.suffix
-            );
-        }
-
-        // ----------------------------
-        // 🧹 구버전 판별
-        // ----------------------------
-        function isLegacy(uniqueKey) {
-            const parsed = parse(uniqueKey);
-            return parsed.valid && parsed.version === 1;
-        }
-
-        // ----------------------------
-        // 📦 공개 API
-        // ----------------------------
-        return {
-            VERSION,
-            build,
-            parse,
-            validate,
-            upgrade,
-            isSameFormat,
-            isLegacy
-        };
-    })();
-
     let FANZADIGITALBC = new BroadcastChannel("FANZADIGITALChannel");
 
     function findIdsByName(map, targetName, mode = 'id') {
@@ -891,8 +723,28 @@ div:where(.swal2-container) .swal2-input {
 
                     if (!result.makerLabel) return `makerLabel not found`;
                     const makerLabel = makerLabelReplaceMap[result.makerLabel] || result.makerLabel;
-                    const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id');
-                    if (!makerLabelCode) return 'makerLabelCode not found';
+                    let makerLabelCode = findIdsByName(makerMap, makerLabel, 'id');
+                    if (!makerLabelCode){
+                        const infoArea = document.querySelector(siteConfigs['FANZA_DIGITAL'].InfoSelector);
+                        if (infoArea){
+                            const makerUrl = infoArea.querySelector('a[href*="/av/list/?maker="]')?.href
+                            makerLabelCode = GetParam(makerUrl, 'maker');
+                        }                    
+                    } 
+                    if (makerLabelCode && makerLabel){
+                        const newData = { original: makerLabel, final: '' };
+                        // 메모리에 저장
+                        makerMap.set(makerLabelCode, newData);   
+                        const currentLocal = GM_getValue(LOCAL_MAKER_KEY, {});                     
+                        currentLocal[makerLabelCode] = newData;
+                        GM_setValue(LOCAL_MAKER_KEY, currentLocal);
+
+                        console.log(`[신규 메이커 저장] ${makerLabelCode}: ${makerLabel}`);
+
+                    }else{
+                        console.log('makerLabelCode not found');
+                        return 'makerLabelCode not found'
+                    }
                     const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';
 
                     for (const Regex of deletePattons) {
@@ -962,6 +814,7 @@ div:where(.swal2-container) .swal2-input {
                         }
                     });
                 } catch (e) {
+                    console.log(e);
                     Logger.error('addDB error', e);
                     return 'FAIL';
                 }
@@ -2046,6 +1899,92 @@ div:where(.swal2-container) .swal2-input {
         updateCounts();
     }
 
+
+    const UniqueKeyUtil = (() => {
+
+        const VERSION = 2;
+
+        // ----------------------------
+        // 🔧 내부 유틸
+        // ----------------------------
+        const sanitize = (v) => (v ?? "").toString().trim();
+        const safeNumber = (v) => Number(v) || 0;
+
+        const zeroMaskContentId = (contentId) => {
+            return sanitize(contentId).replace(/\d/g, '0');
+        };
+
+        // ----------------------------
+        // 🏗️ 생성
+        // ----------------------------
+        function build({
+            displayCode,
+            prefix = "",
+            padLen = 0,
+            suffix = "",
+            makerLabelCode = "",
+            contentId
+        }) {
+            if (!displayCode || !contentId) {
+                throw new Error("build: displayCode / contentId 필수");
+            }
+
+            return [
+                sanitize(displayCode),
+                sanitize(prefix),
+                safeNumber(padLen),
+                sanitize(suffix),
+                sanitize(makerLabelCode),
+                zeroMaskContentId(contentId)
+            ].join("|");
+        }
+
+        // ----------------------------
+        // 🔍 파싱
+        // ----------------------------
+        function parse(v) {
+            if (!v.uniqueKey || typeof v.uniqueKey !== "string") {
+                return { valid: false, reason: "empty" };
+            }
+
+            const parts = v.uniqueKey.split("|");
+
+            // v2 (정상)
+            if (parts.length === 6) {
+                const [
+                    displayCode,
+                    prefix,
+                    padLenStr,
+                    suffix,
+                    makerLabelCode,
+                    contentIdZero
+                ] = parts;
+
+                return {
+                    valid: true,
+                    version: 2,
+                    displayCode,
+                    prefix,
+                    padLen: safeNumber(padLenStr),
+                    suffix,
+                    makerLabelCode,
+                    contentIdZero
+                };
+            }
+            return { valid: false, reason: "invalid_format", raw: uniqueKey };
+        }
+
+        // ----------------------------
+        // 📦 공개 API
+        // ----------------------------
+        return {
+            VERSION,
+            build,
+            parse,
+        };
+    })();
+
+
     async function updateUniqueKey() {
         const allMeta = await VceDB.getAll("imageMeta");
         const allCodes = await VceDB.getAll("codes");
@@ -2164,6 +2103,9 @@ div:where(.swal2-container) .swal2-input {
         const finalRemainingCodes = await VceDB.getAll("codes");
         const finalKeys = new Set(finalRemainingCodes.map(v => v[keyPath]));
 
+        
+
+
         let created = 0, deleted = 0, updated = 0, skipped = 0;
 
         for (const obj of existingMakerLabel) {
@@ -2181,11 +2123,12 @@ div:where(.swal2-container) .swal2-input {
                 continue;
             }
 
-            const parsed = UniqueKeyUtil.parse(obj.uniqueKey);
+            const parsed = UniqueKeyUtil.parse(obj);
             const prefix = parsed.prefix;
             const padLen = parsed.padLen;
             const suffix = parsed.suffix;
 
+            const oldKey = obj.uniqueKey || null;
 
             // 🔥 new key 생성
             let newKey;
@@ -2204,13 +2147,10 @@ div:where(.swal2-container) .swal2-input {
                 continue;
             }
 
-            const oldKey = obj.uniqueKey || null;
-
             // ----------------------------
             // 1️⃣ codes 없으면 생성
             // ----------------------------
             if (!finalKeys.has(newKey)) {
-                console.log(newKey, oldKey);
 
                 await VceDB.save("codes", newKey, {
                     displayCode: obj.displayCode,
@@ -2240,11 +2180,11 @@ div:where(.swal2-container) .swal2-input {
             // ----------------------------
             // 2️⃣ 구버전 key 삭제
             // ----------------------------
-            if (oldKey && oldKey !== newKey) {
+            if (oldKey !== newKey) {
                 // v1 key만 삭제 (안전)
-                if (!isSameFormat(oldKey, newKey)) {
+                if (finalKeys.has(oldKey)) {
                     await VceDB.delete("codes", oldKey);
-                    currentCodeKeys.delete(oldKey);
+                    finalKeys.delete(oldKey);
                     deleted++;
                 }
             }
@@ -2252,10 +2192,9 @@ div:where(.swal2-container) .swal2-input {
             // ----------------------------
             // 3️⃣ imageMeta key 업데이트
             // ----------------------------
-            if (oldKey !== newKey) {
-                const replaceUniqueKeys = remainingMeta.filter(e => e.uniqueKey === oldKey);
-                for (const m of replaceUniqueKeys) {
-                    console.log(`${m.url} : ${oldKey} -> ${newKey}`);
+            if (oldKey && oldKey !== newKey) {
+
+                for (const m of remainingMeta) {
                     await VceDB.save("imageMeta", m.url, {
                         uniqueKey: newKey
                     });
@@ -4629,7 +4568,7 @@ div:where(.swal2-container) .swal2-input {
 
     if (isWorker()) {
         runWorker();
-    } else {        
+    } else {
         runOnceAWeek('weekly_update_updateUniqueKey', updateUniqueKey);
         collectAndProcess();
         searchVCE();
