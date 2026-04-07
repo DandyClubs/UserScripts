@@ -71,7 +71,7 @@
 // @grant        GM_getValue
 // @grant        GM_deleteValue
 // @grant        GM_listValues
-// @run-at       document-start
+// @run-at       document-body
 // @connect      *
 // @noframes
 // @license      MIT
@@ -465,7 +465,7 @@ window.addEventListener('storage', async (e) => {
 
 let currentConfig = null;
 
-document.addEventListener("DOMContentLoaded", async () => {
+window.addEventListener("load", async () => {
     console.log('Start Link Copy!');
     FontAwesomeCSS();
     FirstStep();
@@ -3194,7 +3194,11 @@ async function CopyLink() {
                             : pureNum;
 
                         const fileName = `${extraPrefix}${prefix.toLowerCase()}${formattedNum}${extraSuffix}`;
+                        const testUrl = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
+                        const result = await checkImageExistence(testUrl);
+                        if (result.exists) {
                         finalCoverImage = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
+                        }
                         console.log(`%c[규칙 기반 확정] ${prefix} → ${category}`, "color: #9E9E9E;");
                     }
                 }

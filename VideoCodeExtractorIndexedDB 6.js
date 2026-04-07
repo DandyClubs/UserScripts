@@ -759,18 +759,7 @@ div:where(.swal2-container) .swal2-input {
                     }).then(async (re) => {
                         if (re) {
                             const hasMeta = await VceDB.get('imageMeta', rawImage);
-                            const hasCode = await VceDB.get('codes', hasMeta?.uniqueKey);
-                            if (hasMeta?.resolutionState !== 'SUCCESS') {
-                                fetchImageResolution(rawImage).then(async (res) => {
-                                    if (res && res.width > 0) {
-                                        const resData = {
-                                            resolution: { W: res.width, H: res.height },
-                                            resolutionState: 'SUCCESS'
-                                        };
-                                        await VceDB.save("imageMeta", rawImage, resData);
-                                    }
-                                });
-                            }
+                            const hasCode = await VceDB.get('codes', hasMeta?.uniqueKey);                            
                             if (hasMeta?.sourceSite === 'FANZA_DIGITAL') {
                                 if (hasCode?.codeStatus === 'SUCCESS') {
                                     return 'SUCCESS';
@@ -790,6 +779,18 @@ div:where(.swal2-container) .swal2-input {
                                 sourceSite: 'FANZA_DIGITAL',
                                 metaStatus: 'SUCCESS'
                             };
+                            
+                            if (hasMeta?.resolutionState !== 'SUCCESS') {
+                                fetchImageResolution(rawImage).then(async (res) => {
+                                    if (res && res.width > 0) {
+                                        const resData = {
+                                            resolution: { W: res.width, H: res.height },
+                                            resolutionState: 'SUCCESS'
+                                        };
+                                        await VceDB.save("imageMeta", rawImage, resData);
+                                    }
+                                });
+                            }
 
                             await VceDB.save("imageMeta", rawImage, metaData);
 
