@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         VideoCode & MetaData Extractor IndexedDB 고도화 6.0
+// @name         VideoCode & MetaData Extractor IndexedDB 7.0
 // @namespace    http://tampermonkey.net/
-// @version      6.2
+// @version      7.0
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/*
@@ -180,7 +180,7 @@ div:where(.swal2-container) .swal2-input {
     background: #222; border-radius: 4px; border: 1px solid #333;
 }
 .vce-input-group { display: flex; gap: 5px; }
-.vce-input-group input {
+.vce-input-group input#vce-query {
     flex: 1; background: #111; color: #00FF41; border: 1px solid #444;
     padding: 6px; font-size: 12px; border-radius: 3px; outline: none; font-family: monospace;
 }
@@ -226,7 +226,7 @@ div:where(.swal2-container) .swal2-input {
     const imageUrlsMap = {
         'FANZA_DIGITAL': "https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/",
         'FANZA_MONO_DVD': "https://awsimgsrc.dmm.com/dig/mono/movie/",
-        'PRESTIGE': "https://www.prestige-av.com/api/media/goods/prestige/", // BGN045~072, CHN156~217, ABP398~999번, ABW001~279번
+        'PRESTIGE': "https://www.prestige-av.com/api/media/goods/prestige/", // BGN045~072, CHN156~217, ABP398~999번, ABW001~279번        
         'DMM': "https://pics.dmm.co.jp/mono/movie/adult/",
     };
 
@@ -601,6 +601,38 @@ div:where(.swal2-container) .swal2-input {
 
     let FANZADIGITALBC = new BroadcastChannel("FANZADIGITALChannel");
 
+    function checkImageExistence(src) {
+        const url = src;
+        return new Promise((resolve) => {
+            GM_xmlhttpRequest({
+                method: 'HEAD',
+                url: url,
+                timeout: 5000, // 5초 제한
+                onload: function (response) {
+                    const status = response.status;
+
+
+                    if (status >= 200 && status < 300) {
+                        console.log(`[ImageRetry] 이미지 존재 확인됨 (HTTP ${status}): ${url}`);
+                        resolve({ exists: true, reason: 'ok' });
+                    }
+                },
+                onerror: function () {
+                    console.error(`[ImageRetry] 요청 오류: ${url}`);
+                    resolve({ exists: false, reason: 'request_error' });
+                },
+                onabort: function () {
+                    console.error(`[ImageRetry] 요청 중단됨: ${url}`);
+                    resolve({ exists: false, reason: 'aborted' });
+                },
+                ontimeout: function () {
+                    console.error(`[ImageRetry] 요청 시간 초과: ${url}`);
+                    resolve({ exists: false, reason: 'timeout' });
+                }
+            });
+        });
+    }
+
     function findIdsByName(map, targetName, mode = 'id') {
         const resultIds = [];
 
@@ -626,6 +658,194 @@ div:where(.swal2-container) .swal2-input {
         makerLabel: 'メーカー',
     };
     const siteConfigs = {
+        DMMR: {
+            addDB: async (searchUrl, id) => {
+                try {
+                    const result = await domMeta(searchUrl, 'DMMR');
+                    if (!result) return { work: 'FAIL', reason: `result not fouund` };
+
+                    const contentId = searchUrl.match(/cid=(.*)\//)[1];
+                    const HQImage = `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${id}/${id}pl.jpg`;
+                    const { exists, reason, status = null } = await checkImageExistence(HQImage);
+                    let imageSrc;
+                    if (exists) {
+                        imageSrc = `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${id}/${id}pl.jpg`;
+                    } else {
+                        imageSrc = `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`;
+                    }
+                    const rawImage = imageSrc.split('?')[0];
+
+                    if (/[a-zA-Z]*-\d{3}-\d{2}/i.test(result.realCode)) {
+                        await VceDB.delete('imageMeta', 'url', rawImage);
+                        Logger.info('Not Add Item', result.realCode);
+                        return { work: 'FAIL', reason: 'Not Add Item' };
+                    }
+
+                    if (!result.makerLabel) return `makerLabel not found`;
+                    const makerLabel = makerLabelReplaceMap[result.makerLabel] || result.makerLabel;
+                    const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id');
+                    if (!makerLabelCode) return { work: 'FAIL', reason: `makerLabelCode not fouund` };
+                    if (makerLabelCode && makerLabel) {
+                        const newData = { original: makerLabel, final: '' };
+                        // 메모리에 저장
+                        makerMap.set(makerLabelCode, newData);
+                        const currentLocal = GM_getValue(LOCAL_MAKER_KEY, {});
+                        currentLocal[makerLabelCode] = newData;
+                        GM_setValue(LOCAL_MAKER_KEY, currentLocal);
+
+                        console.log(`[신규 메이커 저장] ${makerLabelCode}: ${makerLabel}`);
+
+                    }
+                    const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';
+
+                    for (const Regex of deletePattons) {
+                        if (Regex.test(result.realCode) && deleteMakerCodes.includes(makerLabelCode)) {
+                            return { work: 'FAIL', reason: 'deletePattons' };
+                        }
+                    }
+
+                    return await processWork(rawImage, searchUrl, {
+                        makerLabelCode,
+                        rawMediaType,
+                        ID: contentId
+                    }).then(async (re) => {
+                        if (re) {
+                            const hasMeta = await VceDB.get('imageMeta', rawImage);
+                            const hasCode = await VceDB.get('codes', hasMeta?.uniqueKey);
+                            if (hasMeta?.sourceSite === 'FANZA_DIGITAL') {
+                                if (hasCode?.codeStatus === 'SUCCESS') {
+                                    return { work: 'SUCCESS', dbData: hasMeta, rawImage };
+                                }
+                            }
+
+                            if (!hasCode && !currentSessionCodes.has(hasMeta?.uniqueKey)) {
+                                Logger.info('currentSessionCodes Check', hasMeta?.uniqueKey);
+                                currentSessionCodes.add(hasMeta?.uniqueKey);
+                            }
+
+                            const imageSourceKey = Object.keys(imageUrlsMap).find(key =>
+                                rawImage.startsWith(imageUrlsMap[key])
+                            ) || "UNKNOWN";
+
+                            const metaData = {
+                                ...result,
+                                makerLabel,
+                                makerLabelCode,
+                                rawMediaType,
+                                sourceSite: imageSourceKey,
+                                metaStatus: 'SUCCESS'
+                            };
+
+                            if (hasMeta?.resolutionState !== 'SUCCESS') {
+                                fetchImageResolution(rawImage).then(async (res) => {
+                                    if (res && res.width > 0) {
+                                        const resData = {
+                                            resolution: { W: res.width, H: res.height },
+                                            resolutionState: 'SUCCESS'
+                                        };
+                                        await VceDB.save("imageMeta", rawImage, resData);
+                                    }
+                                });
+                            }
+
+                            await VceDB.save("imageMeta", rawImage, metaData);
+
+                            const codeData = {
+                                makerLabel,
+                                makerLabelCode,
+                                rawMediaType,
+                                reTryData: {
+                                    imageSrc: rawImage,
+                                    linkUrl: searchUrl,
+                                    makerLabelCode: makerLabelCode,
+                                    rawMediaType: rawMediaType,
+                                },
+                                sourceSite: 'DMMR',
+                                codeStatus: 'SUCCESS'
+                            };
+
+                            await VceDB.save("codes", hasCode?.uniqueKey || hasMeta?.uniqueKey, codeData);
+                            return { work: 'SUCCESS', dbData: metaData, rawImage };
+                        } else {
+                            return { work: 'FAIL', reason: 'not Match Rules' };
+                        }
+                    });
+                } catch (e) {
+                    console.log(e);
+                    Logger.error('addDB error', e);
+                    return { work: 'FAIL', reason: e };
+                }
+            },
+            ContentIdBuilder: (data) => {
+                const urlsDB = [];
+                const withPrefix = data.prefix.toLowerCase();
+                const withSuffix = data.suffix.toLowerCase();
+                const extraID = /\d+ID$/i.test(data.displayCode) ? parseInt(data.displayCode) : null;
+                const extraIDX = /\d+IDX$/i.test(data.displayCode) ? parseInt(data.displayCode) : null;
+                if (extraID && extraID < 24) {
+                    const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55id24031
+                    const reMakeCode = data.displayCode.toLowerCase().replace(/(\d{2})([a-zA-Z]*)/i, '$2$1');
+                    const prefix = withPrefix + reMakeCode.toLowerCase();
+
+                    return [
+                        `${prefix}${short}`,
+                    ];
+                } else if (extraID && extraID >= 24) {
+                    const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55id25031
+                    const prefix = withPrefix + data.displayCode.toLowerCase();
+                    return [
+                        `${prefix}${short}`,
+                    ];
+                }
+                if (extraIDX) {
+                    const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55idx25031
+                    const prefix = withPrefix + data.displayCode.toLowerCase();
+                    return [
+                        `${prefix}${short}${withSuffix}`,
+                    ];
+                }
+                const extraHitma = data.displayCode.match(/hitma/i);
+                if (extraHitma) {
+                    const short = NumberFormatter.trimAndMinPad(data.number, 3);    //55hitma282
+                    const prefix = withPrefix + data.displayCode.toLowerCase();
+                    return [
+                        `${prefix}${short}`,
+                    ];
+                }
+
+                const short = NumberFormatter.trimAndMinPad(data.number, 3); // 001
+                const full = NumberFormatter.pad(data.number, data.padLen);   // 00001
+                const prefix = data.displayCode.split('-')[0].toLowerCase();
+                const addPrefix = withPrefix ? withPrefix + data.displayCode.toLowerCase() : null;
+
+                urlsDB.push(`${prefix}${short}`);
+                if (addPrefix) {
+                    urlsDB.push(`${addPrefix}${short}`);
+                    urlsDB.push(`${addPrefix}${full}`);
+                }
+                urlsDB.push(`${prefix}${full}`);
+                return urlsDB;
+            },
+            buildUrls: async (meta) => {
+                const data = await getCodeData(meta);
+                if (!data) return [];
+
+                const searchCodes = siteConfigs.DMM.ContentIdBuilder(data);
+                return searchCodes.map(cid =>
+                    `https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=${cid}r/`
+
+                );
+            },
+            titleSelector: 'div.page-detail div.area-headline div.hreview h1.item',
+            InfoSelector: 'div.page-detail table tbody tr td table',
+            realCodeKeys: ['品番'],
+            seriesKeys: ['シリーズ'],
+            labelKeys: ['レーベル'],
+            castKeys: ['出演者'],
+            releaseDateKeys: ['貸出開始日'],
+            makerLabel: ['メーカー'],
+            rawMediaType: ['コンテンツタイプ']
+        },
         DMM: {
             ContentIdBuilder: (data) => {
                 const urlsDB = [];
@@ -671,8 +891,8 @@ div:where(.swal2-container) .swal2-input {
 
                 urlsDB.push(`${prefix}${short}`);
                 if (addPrefix) {
-                    urlsDB.push(`${addPrefix}${full}`);
                     urlsDB.push(`${addPrefix}${short}`);
+                    urlsDB.push(`${addPrefix}${full}`);
                 }
                 urlsDB.push(`${prefix}${full}`);
                 return urlsDB;
@@ -683,7 +903,7 @@ div:where(.swal2-container) .swal2-input {
 
                 const searchCodes = siteConfigs.DMM.ContentIdBuilder(data);
                 return searchCodes.map(cid =>
-                    `https://www.dmm.co.jp/mono/dvd/-/detail/=/cid=${cid}/`
+                    `https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=${cid}r/`
                 );
             },
             titleSelector: 'div.page-detail div.area-headline div.hreview h1#title',
@@ -703,8 +923,10 @@ div:where(.swal2-container) .swal2-input {
                     const el = document.querySelector('div[data-e2eid="sample-image-gallery"] a');
                     const url = location.href;
                     const contentId = GetParam(url, 'id').toLocaleLowerCase();
-                    if (!contentId || !el) return 'not contentId';
-                    if (!/pl\.jpg/i.test(el?.href)) {
+                    if (!contentId || !el) return { work: 'FAIL', reason: 'not contentId' };
+                    if(!el.href){
+                        imageSrc = `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${contentId}/${contentId}pl.jpg`;
+                    }else if (!/pl\.jpg/i.test(el?.href)) {
                         imageSrc = `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`;
                     } else {
                         imageSrc = el.href;
@@ -713,7 +935,7 @@ div:where(.swal2-container) .swal2-input {
 
                     const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
                     const result = await parse(document.body);
-                    if (!result || !result.realCode) return `result not fouund`;
+                    if (!result || !result.realCode) return { work: 'FAIL', reason: `result not fouund` };
 
                     if (/[a-zA-Z]*-\d{3}-\d{2}/i.test(result.realCode)) {
                         await VceDB.delete('imageMeta', 'url', rawImage);
@@ -721,29 +943,29 @@ div:where(.swal2-container) .swal2-input {
                         return 'Not Add Item';
                     }
 
-                    if (!result.makerLabel) return `makerLabel not found`;
+                    if (!result.makerLabel) return { work: 'FAIL', reason: `makerLabel not found` };
                     const makerLabel = makerLabelReplaceMap[result.makerLabel] || result.makerLabel;
                     let makerLabelCode = findIdsByName(makerMap, makerLabel, 'id');
-                    if (!makerLabelCode){
+                    if (!makerLabelCode) {
                         const infoArea = document.querySelector(siteConfigs['FANZA_DIGITAL'].InfoSelector);
-                        if (infoArea){
-                            const makerUrl = infoArea.querySelector('a[href*="/av/list/?maker="]')?.href
+                        if (infoArea) {
+                            const makerUrl = infoArea.querySelector('a[href*="/av/list/?maker="]')?.href;
                             makerLabelCode = GetParam(makerUrl, 'maker');
-                        }                    
-                    } 
-                    if (makerLabelCode && makerLabel){
+                        }
+                    }
+                    if (makerLabelCode && makerLabel) {
                         const newData = { original: makerLabel, final: '' };
                         // 메모리에 저장
-                        makerMap.set(makerLabelCode, newData);   
-                        const currentLocal = GM_getValue(LOCAL_MAKER_KEY, {});                     
+                        makerMap.set(makerLabelCode, newData);
+                        const currentLocal = GM_getValue(LOCAL_MAKER_KEY, {});
                         currentLocal[makerLabelCode] = newData;
                         GM_setValue(LOCAL_MAKER_KEY, currentLocal);
 
                         console.log(`[신규 메이커 저장] ${makerLabelCode}: ${makerLabel}`);
 
-                    }else{
-                        console.log('makerLabelCode not found');
-                        return 'makerLabelCode not found'
+                    } else {
+                        //console.log('makerLabelCode not found');
+                        return { work: 'FAIL', reason: 'makerLabelCode not found' };
                     }
                     const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';
 
@@ -756,13 +978,14 @@ div:where(.swal2-container) .swal2-input {
                     return await processWork(rawImage, url, {
                         makerLabelCode,
                         rawMediaType,
+                        ID: contentId
                     }).then(async (re) => {
                         if (re) {
                             const hasMeta = await VceDB.get('imageMeta', rawImage);
-                            const hasCode = await VceDB.get('codes', hasMeta?.uniqueKey);                            
+                            const hasCode = await VceDB.get('codes', hasMeta?.uniqueKey);
                             if (hasMeta?.sourceSite === 'FANZA_DIGITAL') {
                                 if (hasCode?.codeStatus === 'SUCCESS') {
-                                    return 'SUCCESS';
+                                    return { work: 'SUCCESS', dbData: hasMeta, rawImage };
                                 }
                             }
 
@@ -770,16 +993,19 @@ div:where(.swal2-container) .swal2-input {
                                 Logger.info('currentSessionCodes Check', hasMeta?.uniqueKey);
                                 currentSessionCodes.add(hasMeta?.uniqueKey);
                             }
+                            const imageSourceKey = Object.keys(imageUrlsMap).find(key =>
+                                rawImage.startsWith(imageUrlsMap[key])
+                            ) || "UNKNOWN";
 
                             const metaData = {
                                 ...result,
                                 makerLabel,
                                 makerLabelCode,
                                 rawMediaType,
-                                sourceSite: 'FANZA_DIGITAL',
+                                sourceSite: imageSourceKey,
                                 metaStatus: 'SUCCESS'
                             };
-                            
+
                             if (hasMeta?.resolutionState !== 'SUCCESS') {
                                 fetchImageResolution(rawImage).then(async (res) => {
                                     if (res && res.width > 0) {
@@ -800,7 +1026,7 @@ div:where(.swal2-container) .swal2-input {
                                 rawMediaType,
                                 reTryData: {
                                     imageSrc: rawImage,
-                                    linkUrl: `https://video.dmm.co.jp/av/content/?id=${contentId}`,
+                                    linkUrl: url,
                                     makerLabelCode: makerLabelCode,
                                     rawMediaType: rawMediaType,
                                 },
@@ -809,15 +1035,15 @@ div:where(.swal2-container) .swal2-input {
                             };
 
                             await VceDB.save("codes", hasCode?.uniqueKey || hasMeta?.uniqueKey, codeData);
-                            return `SUCCESS`;
+                            return { work: 'SUCCESS', dbData: metaData, rawImage };
                         } else {
-                            return 'not Match Rules';
+                            return { work: 'FAIL', reason: 'not Match Rules' };
                         }
                     });
                 } catch (e) {
                     console.log(e);
                     Logger.error('addDB error', e);
-                    return 'FAIL';
+                    return { work: 'FAIL', reason: e };;
                 }
 
 
@@ -864,6 +1090,123 @@ div:where(.swal2-container) .swal2-input {
             rawMediaType: ['コンテンツタイプ']
         },
         AVWiki: {
+            addDB: async (searchUrl, id) => {
+                try {
+                    const result = await domMeta(searchUrl, 'DMMR');
+                    if (!result) return { work: 'FAIL', reason: `result not fouund` };
+
+                    const contentId = searchUrl.match(/cid=(.*)\//)[1];
+                    const HQImage = `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${id}/${id}pl.jpg`;
+                    const { exists, reason, status = null } = await checkImageExistence(HQImage);
+                    let imageSrc;
+                    if (exists) {
+                        imageSrc = `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${id}/${id}pl.jpg`;
+                    } else {
+                        imageSrc = `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`;
+                    }
+                    const rawImage = imageSrc.split('?')[0];
+
+                    if (/[a-zA-Z]*-\d{3}-\d{2}/i.test(result.realCode)) {
+                        await VceDB.delete('imageMeta', 'url', rawImage);
+                        Logger.info('Not Add Item', result.realCode);
+                        return { work: 'FAIL', reason: 'Not Add Item' };
+                    }
+
+                    if (!result.makerLabel) return `makerLabel not found`;
+                    const makerLabel = makerLabelReplaceMap[result.makerLabel] || result.makerLabel;
+                    const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id');
+                    if (!makerLabelCode) return { work: 'FAIL', reason: `makerLabelCode not fouund` };
+                    if (makerLabelCode && makerLabel) {
+                        const newData = { original: makerLabel, final: '' };
+                        // 메모리에 저장
+                        makerMap.set(makerLabelCode, newData);
+                        const currentLocal = GM_getValue(LOCAL_MAKER_KEY, {});
+                        currentLocal[makerLabelCode] = newData;
+                        GM_setValue(LOCAL_MAKER_KEY, currentLocal);
+
+                        console.log(`[신규 메이커 저장] ${makerLabelCode}: ${makerLabel}`);
+
+                    }
+                    const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';
+
+                    for (const Regex of deletePattons) {
+                        if (Regex.test(result.realCode) && deleteMakerCodes.includes(makerLabelCode)) {
+                            return { work: 'FAIL', reason: 'deletePattons' };
+                        }
+                    }
+
+                    return await processWork(rawImage, searchUrl, {
+                        makerLabelCode,
+                        rawMediaType,
+                        ID: contentId
+                    }).then(async (re) => {
+                        if (re) {
+                            const hasMeta = await VceDB.get('imageMeta', rawImage);
+                            const hasCode = await VceDB.get('codes', hasMeta?.uniqueKey);
+                            if (hasMeta?.sourceSite === 'FANZA_DIGITAL') {
+                                if (hasCode?.codeStatus === 'SUCCESS') {
+                                    return { work: 'SUCCESS', dbData: hasMeta, rawImage };
+                                }
+                            }
+
+                            if (!hasCode && !currentSessionCodes.has(hasMeta?.uniqueKey)) {
+                                Logger.info('currentSessionCodes Check', hasMeta?.uniqueKey);
+                                currentSessionCodes.add(hasMeta?.uniqueKey);
+                            }
+
+                            const imageSourceKey = Object.keys(imageUrlsMap).find(key =>
+                                rawImage.startsWith(imageUrlsMap[key])
+                            ) || "UNKNOWN";
+
+                            const metaData = {
+                                ...result,
+                                makerLabel,
+                                makerLabelCode,
+                                rawMediaType,
+                                sourceSite: imageSourceKey,
+                                metaStatus: 'SUCCESS'
+                            };
+
+                            if (hasMeta?.resolutionState !== 'SUCCESS') {
+                                fetchImageResolution(rawImage).then(async (res) => {
+                                    if (res && res.width > 0) {
+                                        const resData = {
+                                            resolution: { W: res.width, H: res.height },
+                                            resolutionState: 'SUCCESS'
+                                        };
+                                        await VceDB.save("imageMeta", rawImage, resData);
+                                    }
+                                });
+                            }
+
+                            await VceDB.save("imageMeta", rawImage, metaData);
+
+                            const codeData = {
+                                makerLabel,
+                                makerLabelCode,
+                                rawMediaType,
+                                reTryData: {
+                                    imageSrc: rawImage,
+                                    linkUrl: searchUrl,
+                                    makerLabelCode: makerLabelCode,
+                                    rawMediaType: rawMediaType,
+                                },
+                                sourceSite: 'AVWiki',
+                                codeStatus: 'SUCCESS'
+                            };
+
+                            await VceDB.save("codes", hasCode?.uniqueKey || hasMeta?.uniqueKey, codeData);
+                            return { work: 'SUCCESS', dbData: metaData, rawImage };
+                        } else {
+                            return { work: 'FAIL', reason: 'not Match Rules' };
+                        }
+                    });
+                } catch (e) {
+                    console.log(e);
+                    Logger.error('addDB error', e);
+                    return { work: 'FAIL', reason: e };
+                }
+            },
             ContentIdBuilder: (data) => {
                 const extraID = data.displayCode.match(/(\d+)ID/i);
                 if (extraID) return [];
@@ -927,10 +1270,10 @@ div:where(.swal2-container) .swal2-input {
         toDisplay(code) {
             if (!code) return '';
 
-            const match = code.match(/^([a-zA-Z]+)(\d+)([a-zA-Z]*)$/);
+            const match = code.match(/^[1]?([a-zA-Z]+)(\d+)([a-zA-Z]*)$/);
             if (!match) return code.toUpperCase();
 
-            return `${match[1].toUpperCase()}-${match[2]}${match[3].toLowerCase()}`;
+            return `${match[1].toUpperCase()}-${match[2]}${match[3].replace(/r$/i, '').toLowerCase()}`;
         }
     };
 
@@ -1005,6 +1348,7 @@ div:where(.swal2-container) .swal2-input {
                 .replace(/<[^>]*>/gi, ' ')
                 .replace(/▼すべて表示する.+/, '')
                 .replace(/\s+/g, ' ')
+                .replace(/----/g, '')
                 .trim();
         },
 
@@ -1506,7 +1850,8 @@ div:where(.swal2-container) .swal2-input {
                 el.classList.add(PROCESSED_CLASS);
                 const makerLabelCode = GetParam(PageURL(), 'maker');
                 const rawMediaType = GetParam(PageURL(), 'media_type');
-                enqueue(() => processWork(el.getAttribute('srcset'), el.closest('a').href, { makerLabelCode, rawMediaType }));
+                const contentId = GetParam(PageURL(), 'id');
+                enqueue(() => processWork(el.getAttribute('srcset'), el.closest('a').href, { makerLabelCode, rawMediaType, ID: contentId }));
             }
 
         }
@@ -1541,7 +1886,7 @@ div:where(.swal2-container) .swal2-input {
             const rawMediaType = GetParam(PageURL(), 'media_type');
             const makerLabelCode = GetParam(PageURL(), 'maker');
             if (!rawMediaType && !makerLabelCode) {
-                alertStatus.innerHTML = `<div style="color:#F44336; margin-bottom:5px; font-weight:bold;">❌ 추출할 <a id="makergroup" ref="https://video.dmm.co.jp/av/maker/">메이커 페이지</a>로 이동하여 선택하세요!</div>`;
+                alertStatus.innerHTML = `<div style="color:#F44336; margin-bottom:5px; font-weight:bold;">❌ 추출할 <a id="makergroup" href="https://video.dmm.co.jp/av/maker/">메이커 페이지</a>로 이동하여 선택하세요!</div>`;
                 document.querySelector('a#makergroup').addEventListener('click', (e) => {
                     e.stopPropagation(); // 🔥 body 이벤트 차단
                 });
@@ -1598,8 +1943,9 @@ div:where(.swal2-container) .swal2-input {
         if (/^https:\/\/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+/.test(newUrl)) {
             mutCallback(); // 즉시 한 번 실행
             updateCounts();
-        }
+        } else if (/https:\/\/www\.dmm\.co\.jp\/rental\/ppr\/-\/detail\/=\/cid=/.test(newUrl)) {
 
+        }
         if (/video\.dmm\.co\.jp\/av\/content\/\?id/.test(newUrl)) {
             const waitTime = Math.max(getRandomDelay(), getRandomDelay());
             checkIcon(waitTime, 'resetSessionCodes', 0);
@@ -1643,45 +1989,43 @@ div:where(.swal2-container) .swal2-input {
             makerLabelCode = '',
             rawMediaType = '',
             reTry = false,
+            ID
         } = options;
         try {
-            //Logger.info('Input', {imageSrc, linkUrl, makerLabelCode, rawMediaType});
+            Logger.info('Input', { imageSrc, linkUrl, makerLabelCode, rawMediaType });
             let makerLabel = '';
             if (makerLabelCode && makerMap.has(makerLabelCode)) {
                 const entry = makerMap.get(makerLabelCode);
                 makerLabel = entry.final || entry.original;
             }
 
-            const contentId = GetParam(linkUrl, 'id')?.toLocaleLowerCase();
-            if (!contentId) {
-                Logger.error('contentId Check', linkUrl);
-                return false;
-            }
-
             if (!/(pl|ps)\.jpg/i.test(imageSrc)) {
-                imageSrc = `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`;
+                imageSrc = `https://pics.dmm.co.jp/mono/movie/adult/${ID}/${ID}pl.jpg`;
             } else {
                 imageSrc = imageSrc.replace(/ps\.jpg/i, 'pl.jpg');
             }
             const rawImage = imageSrc.split('?')[0];
 
-            const majorsLabel = /\/(.*?)([a-z]{3,7}\d{4,7}|(KT|TS|SW|\d{2}ID[a-zA-Z]?|\d+T\d{2.3}[a-zA-Z]?))[v]?/i;
-            if (!majorsLabel.test(rawImage)) {
-                Logger.error('majorsLabel Test', { rawImage });
+            const pathSegments = rawImage.split('/');
+            const contentId = pathSegments[pathSegments.length - 2];
+
+            const majorsLabel = /(.*?)([a-z]{3,7}\d{3,7}|(KT|TS|SW|\d{2}ID[a-zA-Z]?|\d+T\d{2.3}[a-zA-Z]?))[v]?/i;
+            if (!majorsLabel.test(contentId)) {
+                Logger.error('majorsLabel Test', { contentId });
                 return false;
             }
 
             const skipPatterns = [
-                /\/\d+adi\d+/i, // 55adi00005
-                /\/yrnk([a-z]*)/, // yrnknkjdvaj yrnkmtndvaj스트리밍 dvaj
-                /\/\/td048.*dv\d+([a-z0-9]*?)\//, // td008dvaj0058, td048mtndv01598
-                /\/(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)\//,
-                /\/\d+jdxa\d+/i,
+                /\d+adi\d+/i, // 55adi00005
+                /yrnk([a-z]*)/, // yrnknkjdvaj yrnkmtndvaj스트리밍 dvaj
+                /td048.*dv\d+([a-z0-9]*?)/, // td008dvaj0058, td048mtndv01598
+                /(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)/,
+                /\d+jdxa\d+/i,
             ];
 
             for (const skipRegex of skipPatterns) {
-                if (skipRegex.test(rawImage)) {
-                    Logger.error('skipPatterns Test', { rawImage, skipRegex });
+                if (skipRegex.test(contentId)) {
+                    Logger.error('skipPatterns Test', { contentId, skipRegex });
                     return false;
                 }
             }
@@ -1697,20 +2041,20 @@ div:where(.swal2-container) .swal2-input {
             }
 
             const extractPatterns = [
-                /\/(\d+)(KT|TS|SW|\d{2}ID[a-zA-Z]?)(\d{5,})(.*?)\//i,                // 1sw01045 패턴
-                /\/(\d+)(T0?\d{2}[a-zA-Z]?)(\d{3,})(.*?)/i,                // 55t038024 패턴
-                /\/(.*)(d1clymax)(\d{5,})(.*?)\//,
-                /\/([a-z]*?)(dvaj|dvajbx)(\d{5,})(.*?)\//,
-                /\/(\d{2})(kt)(\d{5,})(.*?)\//,
-                /\/(\d{2})([t]\d{1})(\d{5,})(.*?)\//,
-                /\/(h_[h0-9]*?)(ss)(\d{3,})([a-z]*?)\//,
-                /\/(h_[h0-9]*?)([a-z]{3,})(\d{3,})([a-z]*?)\//,
-                /\/(\d*?)(ss)(\d{3,})([a-z]*?)\//,
-                /\/([0-9]*?)([a-z]+)(\d+)(.*?)\//,
+                /(\d+)(KT|TS|SW|\d{2}ID[a-zA-Z]?)(\d{5,})(.*?)/i,                // 1sw01045 패턴
+                /(\d+)(T0?\d{2}[a-zA-Z]?)(\d{3,})(.*?)/i,                // 55t038024 패턴
+                /(.*)(d1clymax)(\d{5,})(.*?)/,
+                /([a-z]*?)(dvaj|dvajbx)(\d{5,})(.*?)/,
+                /(\d{2})(kt)(\d{5,})(.*?)/,
+                /(\d{2})([t]\d{1})(\d{5,})(.*?)/,
+                /(h_[h0-9]*?)(ss)(\d{3,})([a-z]*?)/,
+                /(h_[h0-9]*?)([a-z]{3,})(\d{3,})([a-z]*?)/,
+                /(\d*?)(ss)(\d{3,})([a-z]*?)/,
+                /([0-9]*?)([a-z]+)(\d+)(.*?)/,
             ];
 
             let match = null;
-            for (const regex of extractPatterns) { match = rawImage.match(regex); if (match) break; }
+            for (const regex of extractPatterns) { match = contentId.match(regex); if (match) break; }
 
             Logger.info('match', match);
             if (match && makerLabelCode) {
@@ -1776,9 +2120,10 @@ div:where(.swal2-container) .swal2-input {
                         imageSourceKey: imageSourceKey,
                         reTryData: {
                             imageSrc: rawImage,
-                            linkUrl: `https://video.dmm.co.jp/av/content/?id=${contentId}`,
-                            makerLabelCode: makerLabelCode,
-                            rawMediaType: rawMediaType,
+                            linkUrl,
+                            makerLabelCode,
+                            rawMediaType,
+                            contentId
                         },
                         contentId: contentId,
                         prefix: prefix,
@@ -1790,8 +2135,8 @@ div:where(.swal2-container) .swal2-input {
                     });
                     updateDisplayList(false, 'processWork');
                     updateCounts();
-                    return true;
                 }
+                return true;
             }
             return false;
         } catch (e) {
@@ -2018,7 +2363,7 @@ div:where(.swal2-container) .swal2-input {
 
             for (const Regex of deletePattons) {
                 if (v.realCode && Regex.test(v.realCode) && deleteMakerCodes.has(v.makerLabelCode)) {
-                    console.log(v.realCode);
+                    //console.log(v.realCode);
                     const request = storeR.delete(v.url); // keyPath가 url인 경우
 
                     // 프로미스 생성 및 배열 추가
@@ -2104,7 +2449,7 @@ div:where(.swal2-container) .swal2-input {
         const finalRemainingCodes = await VceDB.getAll("codes");
         const finalKeys = new Set(finalRemainingCodes.map(v => v[keyPath]));
 
-        
+
 
 
         let created = 0, deleted = 0, updated = 0, skipped = 0;
@@ -2644,7 +2989,10 @@ div:where(.swal2-container) .swal2-input {
                     if (item && !queue.some(q => q.imageSrc === item.reTryData.imageSrc)) {
                         queue.push({
                             imageSrc,
-                            linkUrl
+                            linkUrl,
+                            makerLabelCode,
+                            rawMediaType,
+                            contentId
                         });
                         await VceDB.delete('codes', key);
                         await VceDB.deleteAll('imageMeta', 'uniqueKey', key);
@@ -2676,7 +3024,7 @@ div:where(.swal2-container) .swal2-input {
                 for (let i = 0; i < queue.length; i++) {
                     const t = queue[i];
                     btnRun.innerText = `처리 중 (${i + 1}/${queue.length})`;
-                    await processWork(t.imageSrc, t.linkUrl, { makerLabelCode, rawMediaType, reTry: true });
+                    await processWork(t.imageSrc, t.linkUrl, { makerLabelCode, rawMediaType, ID: contentId, reTry: true });
                 }
                 btnRun.disabled = false;
                 refreshQueueButton();
@@ -3561,9 +3909,7 @@ div:where(.swal2-container) .swal2-input {
 
         await autoLoop();
 
-        setState({ active: false });
-
-        console.log('[Lock] 해제');
+        setState({ active: false });       
 
     }
 
@@ -3852,10 +4198,12 @@ div:where(.swal2-container) .swal2-input {
         fileInput.click();
     }
 
+    let externalUpdateVirtualRow;
+
     async function searchVCE() {
         let allResults = [];
         let currentPage = 1;
-        const itemsPerPage = 50;
+        const itemsPerPage = 100;
 
         // 모달 생성
         const modal = document.createElement('div');
@@ -3866,13 +4214,17 @@ div:where(.swal2-container) .swal2-input {
             <button id="vce-close-x" style="background:none; border:none; color:#888; cursor:pointer; font-size:14px;">✕</button>
         </div>
         <div class="vce-content-wrapper">
-            <div class="vce-control-bar">
-                <div class="vce-input-group">
-                    <input type="text" id="vce-query" placeholder="예: ABC 100-200 (빈칸은 전체)">
-                    <button id="vce-btn-clear" class="vce-btn btn-grey">X</button>
-                    <button id="vce-btn-run-search" class="vce-btn btn-search">SEARCH</button>
-                </div>
-                <div style="display:flex; justify-content: space-between; align-items:center;">
+            <div class="vce-control-bar">               
+                    <div class="vce-input-group" style="overflow: visible !important;">                     
+                        <div class="vce-input-wrapper">
+                                <input type="text" id="vce-query" placeholder="예: ABC 100-200" style="width:100%;">                        
+                                <div id="vce-pattern-dropdown"></div>                        
+                        </div>
+                        <button id="vce-btn-clear" class="vce-btn btn-grey">X</button>
+                        <button id="vce-btn-run-search" class="vce-btn btn-search">SEARCH</button>
+                        <button id="vce-btn-generate" class="vce-btn btn-blue">GENERATE</button>                                                                   
+                    </div>
+                    <div style="display:flex; justify-content: space-between; align-items:center;">
                     <div style="display:flex; gap:4px;">
                         <button id="vce-sel-all" class="vce-btn btn-blue">전체 선택</button>
                         <button id="vce-unsel-all" class="vce-btn btn-grey">전체 해제</button>
@@ -3908,10 +4260,10 @@ div:where(.swal2-container) .swal2-input {
             <div id="vce-paging-bar" class="vce-pagination"></div>
         </div>
     `;
-        document.body.appendChild(modal);
+
 
         // 1. 저장된 크기 불러오기 (값이 없으면 1200px, 높이는 auto)
-        const savedSize = await localStorage.getItem(STORAGE_KEY);
+        const savedSize = localStorage.getItem(STORAGE_KEY);
         if (savedSize) {
             const { width } = JSON.parse(savedSize);
             modal.style.width = width + 'px';
@@ -3919,6 +4271,9 @@ div:where(.swal2-container) .swal2-input {
         // 높이는 항상 콘텐츠에 맞게 (초기에는 auto)
         modal.style.height = 'auto';
         modal.style.maxHeight = '80vh'; // 화면을 넘지 않도록 최대 높이 제한
+
+        document.body.appendChild(modal);
+
 
         const overlay = document.createElement('div');
         overlay.style = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.15); z-index:99;";
@@ -3955,6 +4310,116 @@ div:where(.swal2-container) .swal2-input {
             if (e.key === 'Escape') { queryInput.value = ''; performSearch(); }
         }, true);
 
+        document.getElementById('vce-btn-generate').onclick = async () => {
+            performGenerate();
+        };
+
+
+        const dropdownStyles = `
+    /* 입력창을 감싸는 컨테이너 */
+    .vce-input-wrapper { 
+        position: relative; 
+        flex: 1; 
+        display: flex; 
+        flex-direction: column; /* 추천창이 아래로 붙도록 설정 */
+    }
+
+    #vce-pattern-dropdown {
+        position: absolute;
+        top: 100%; /* 입력창 바로 아래 */
+        left: 0;
+        width: 70%;
+        min-width: 250px; /* 너무 좁아지지 않게 최소 너비 설정 */
+        background: #1e1e1e;
+        border: 1px solid #00FF41; /* 강조색으로 테두리 */
+        z-index: 9999; /* 최상단으로 올림 */
+        max-height: 400px;
+        overflow-y: auto;
+        display: none;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+        border-radius: 0 0 8px 8px;
+    }
+
+    .vce-dropdown-item {
+        display: flex;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid #333;
+        cursor: pointer;
+        color: #eee;
+        justify-content: space-between;
+    }
+
+    .vce-dropdown-item:hover { background: #2a2a2a; }    
+    
+`;
+
+        if (!document.getElementById('vce-dropdown-style')) {
+            const styleTag = document.createElement('style');
+            styleTag.id = 'vce-dropdown-style';
+            styleTag.innerHTML = dropdownStyles;
+            document.head.appendChild(styleTag);
+        }
+
+        const dropdown = document.getElementById('vce-pattern-dropdown');
+
+        // 입력창에 타이핑할 때 추천 목록 표시
+        queryInput.addEventListener('input', async () => {
+            const val = queryInput.value.trim().split(/\s+/)[0]; // 공백 앞부분(코드)만 추출
+            if (!val) {
+                dropdown.style.display = 'none';
+                return;
+            }
+
+            const db = await VceDB.open();
+            const allPatterns = await new Promise(r => {
+                db.transaction("codes", "readonly").objectStore("codes").getAll().onsuccess = e => {
+                    r(e.target.result.filter(c => c.displayCode.toUpperCase().includes(val.toUpperCase())));
+                };
+            });
+
+            renderDropdown(allPatterns);
+        });
+
+        function renderDropdown(patterns) {
+            const dropdown = document.getElementById('vce-pattern-dropdown');
+            if (patterns.length === 0) {
+                dropdown.style.display = 'none';
+                return;
+            }
+
+            dropdown.innerHTML = patterns.map((p, idx) => {
+                const ruleKey = `${p.prefix}|${p.padLen}|${p.suffix}`;
+                return `
+            <div class="vce-dropdown-item" data-rule="${ruleKey}" style="display:flex; align-items:center; padding:6px; cursor:pointer;">                
+                    <div style="font-weight:bold; font-size:14px; margin-bottom:4px; font-size:12px;">${p.displayCode} 
+                    <span style="font-weight:normal; color:#888; font-size:12px;">(${p.makerLabel})</span>
+                    <span style="font-weight:normal; color:#888; font-size:12px;">첫작품: <span style="font-family:monospace; color:#00FF41; background:#003310; padding:2px 6px; border-radius:4px; font-size:11px;">${p.minIndex}</span></span>
+                    <span style="font-weight:normal; color:#888; font-size:12px;">끝작품: <span style="font-family:monospace; color:#00FF41; background:#003310; padding:2px 6px; border-radius:4px; font-size:11px;">${p.maxIndex}</span></span>
+                    <span style="font-weight:normal; color:#888; font-size:12px;">해당작품: <span style="font-family:monospace; color:#00FF41; background:#003310; padding:2px 6px; border-radius:4px; font-size:11px;">[${p.actualNums || '전체'}]</span></span>
+                    </div>
+                    <br>
+                    <span class="vce-rule-tag" style="font-family:monospace; color:#00FF41; background:#003310; padding:2px 6px; border-radius:4px; font-size:11px;">
+                        Rule: ${p.prefix}${p.displayCode}${String(0).padStart(p.padLen, '0')}${p.suffix} 
+                    </span>                
+            </div>
+        `;
+            }).join('');
+
+            dropdown.style.display = 'block';
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.vce-input-wrapper')) {
+                    dropdown.style.display = 'none';
+                }
+            });
+
+            // [중요 1] 드롭다운 영역에서의 모든 마우스 이벤트가 부모(모달 드래그)로 가는 것을 원천 차단
+            dropdown.onmousedown = (e) => e.stopPropagation();
+            dropdown.onmouseup = (e) => e.stopPropagation();
+            dropdown.onclick = (e) => e.stopPropagation();
+        }
+
         async function performSearch() {
             const val = queryInput.value.trim();
             const db = await VceDB.open();
@@ -3968,57 +4433,280 @@ div:where(.swal2-container) .swal2-input {
             if (!val) {
                 allResults = dbData;
             } else {
-                const terms = val.split(/\s+/);
+                const parts = val.split(/\s+/);
+                const displayCodePart = parts[0]; // 검색어 (예: "T38")
+                const rangePart = parts[1];      // 범위 (예: "001-100")
+
                 allResults = dbData.filter(item => {
-                    // terms는 ['abc', '001-100'] 형태라고 가정
-                    return terms.every(term => {
-                        const parts = term.trim().split(/\s+/); // 공백 기준 분할
-                        const displayCodePart = parts[0].toLowerCase();
-                        const rangePart = parts[1]; // '001-100' 또는 undefined
+                    const realCode = item.realCode || "";
+                    const displayCode = item.displayCode || "";
 
-                        const realCode = (item.realCode || "").toLowerCase();
-                        const displayCode = (item.displayCode || "").toLowerCase();
+                    // 1. 우선 displayCode에 검색어가 포함되는지 확인 (대소문자 무시)
+                    if (!displayCode.toLowerCase().includes(displayCodePart.toLowerCase())) return false;
 
-                        // 1. 기본적으로 displayCode가 포함되어 있는지 확인
-                        if (!displayCode.includes(displayCodePart)) return false;
+                    // 2. 범위 검색이 있는 경우
+                    if (rangePart) {
+                        const rangeMatch = rangePart.match(/^(\d+)-(\d+)$/);
+                        const singleMatch = rangePart.match(/^(\d+)$/);
 
-                        // 2. 만약 범위(001-100)가 입력되었다면 추가 검사
-                        if (rangePart) {
-                            const rangeMatch = rangePart.match(/^(\d+)-(\d+)$/);
-                            const singleMatch = rangePart.match(/^(\d+)$/); // 숫자 하나만 입력했을 때
+                        // [핵심] displayCodePart 바로 뒤에 오는 숫자 뭉치를 찾는 정규식
+                        // 예: T38 뒤에 하이픈이 있든 없든 그 뒤의 첫 숫자를 잡음
+                        // escapeRegExp를 통해 특수문자 대응, [^0-9]*는 숫자 전까지의 기호 무시
+                        const regex = new RegExp(`${escapeRegExp(displayCodePart)}[^0-9]*(\\d+)`, 'i');
+                        const match = realCode.match(regex);
+
+                        if (match) {
+                            const extractedNum = parseInt(match[1]); // 찾아낸 숫자 (예: 001 -> 1)
 
                             if (rangeMatch) {
-                                // 범위 로직 (start-end)
                                 const start = parseInt(rangeMatch[1]), end = parseInt(rangeMatch[2]);
-                                const match = realCode.match(new RegExp(`${escapeRegExp(displayCodePart)}(\\d+)`, 'i'));
-                                if (match) {
-                                    const v = parseInt(match[1]);
-                                    return v >= start && v <= end;
-                                }
+                                return extractedNum >= start && extractedNum <= end;
                             } else if (singleMatch) {
-                                // 단일 숫자 로직 (정확히 그 번호인지)
-                                const targetNum = parseInt(singleMatch[1]);
-                                const match = realCode.match(new RegExp(`${escapeRegExp(displayCodePart)}(\\d+)`, 'i'));
-                                if (match) {
-                                    return parseInt(match[1]) === targetNum;
-                                }
+                                return extractedNum === parseInt(singleMatch[1]);
                             }
-                            return false;
                         }
+                        return false; // 숫자를 찾지 못하면 탈락
+                    }
 
-                        // 범위가 없으면 displayCode 매칭만으로 true
-                        return true;
-                    });
+                    return true;
                 });
-
-                // 정규식 특수문자 이스케이프 함수
-                function escapeRegExp(string) {
-                    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                }
             }
+
             currentPage = 1;
             renderTable();
         }
+
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function showPatternSelector(patterns, onConfirm) {
+            // 1. 전용 오버레이 생성 (메인 모달보다 위에 위치)
+            const selectorOverlay = document.createElement('div');
+            selectorOverlay.id = 'vce-selector-overlay';
+            selectorOverlay.style = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.7); z-index: 99999; display: flex;
+        align-items: center; justify-content: center;overscroll-behavior: contain;
+    `;
+
+            // 2. 선택창 컨테이너 생성
+            const selector = document.createElement('div');
+            selector.style = `
+        width: 450px; background: #1e1e1e; border: 1px solid #00FF41;
+        box-shadow: 0 0 30px rgba(0,255,65,0.2); color: white;
+        padding: 20px; border-radius: 12px; z-index: 9999;
+        display: flex; flex-direction: column;
+    `;
+
+            let html = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #333; padding-bottom:10px;">
+            <h3 style="margin:0; font-size:12px; color:#00FF41;">GENERATE PATTERN SELECT</h3>
+            <span style="font-size:12px; color:#888;">동일한 규칙의 패턴만 다중 선택 가능</span>
+        </div>
+        <div id="vce-pattern-list" style="max-height:200px; overflow-y:auto; margin-bottom:10px; border:1px solid #333; border-radius:4px; background:#111;overscroll-behavior: contain">
+    `;
+
+            patterns.forEach((p, idx) => {
+                const ruleKey = `${p.prefix}|${p.padLen}|${p.suffix}`;
+                html += `
+            <label class="vce-pattern-item" data-rule="${ruleKey}" style="display:flex; align-items:center; padding:5px; border-bottom:1px solid #222; cursor:pointer;">
+                <input type="checkbox" class="vce-pattern-cb" value="${idx}" style="margin-left:5px; width:15px; height:15px; cursor:pointer; accent-color:#00FF41; appearance:auto;">
+                <div class="vce-pattern-info">
+                    <div style="font-weight:bold; font-size:14px; margin-bottom:4px;">${p.displayCode} 
+                    <span style="font-weight:normal; color:#888; font-size:12px;">(${p.makerLabel})</span><br>
+                    <span style="font-weight:normal; color:#888; font-size:12px;">첫작품: <span style="font-family:monospace; color:#00FF41; background:#003310; padding:2px 6px; border-radius:4px; font-size:11px;">${p.minIndex}</span></span>
+                    <span style="font-weight:normal; color:#888; font-size:12px;">끝작품: <span style="font-family:monospace; color:#00FF41; background:#003310; padding:2px 6px; border-radius:4px; font-size:11px;">${p.maxIndex}</span></span>
+                    <span style="font-weight:normal; color:#888; font-size:12px;">해당작품: <span style="font-family:monospace; color:#00FF41; background:#003310; padding:2px 6px; border-radius:4px; font-size:11px;">[${p.actualNums || '전체'}]</span></span>
+                    <br><span class="vce-rule-tag" style="font-family:monospace; color:#00FF41; background:#003310; padding:2px 6px; border-radius:4px; font-size:11px;">
+                        Rule: ${p.prefix}${p.displayCode}${String(0).padStart(p.padLen, '0')}${p.suffix} 
+                    </span>
+                    </div>
+                </div>
+            </label>
+        `;
+            });
+
+            html += `</div>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+            <button id="vce-selector-cancel" class="vce-btn" style="background:#444; color:white; padding:8px 20px; border:none; border-radius:4px; cursor:pointer;">CANCEL</button>
+            <button id="vce-selector-ok" class="vce-btn" style="background:#00FF41; color:black; font-weight:bold; padding:8px 25px; border:none; border-radius:4px; cursor:pointer;">GENERATE NOW</button>
+        </div>
+    `;
+
+            selector.innerHTML = html;
+            selectorOverlay.appendChild(selector);
+            modal.appendChild(selectorOverlay);
+
+            const cbs = selector.querySelectorAll('.vce-pattern-cb');
+            const items = selector.querySelectorAll('.vce-pattern-item');
+
+            // 제약 조건: 첫 번째 선택한 것과 규칙이 다르면 비활성화
+            cbs.forEach(cb => {
+                cb.onchange = (e) => {
+                    const checked = Array.from(cbs).filter(c => c.checked);
+                    if (checked.length > 0) {
+                        const baseRule = checked[0].closest('.vce-pattern-item').dataset.rule;
+                        items.forEach(item => {
+                            if (item.dataset.rule !== baseRule) {
+                                item.style.opacity = '0.3';
+                                item.style.pointerEvents = 'none';
+                                item.querySelector('input').disabled = true;
+                            }
+                        });
+                    } else {
+                        items.forEach(item => {
+                            item.style.opacity = '1';
+                            item.style.pointerEvents = 'auto';
+                            item.querySelector('input').disabled = false;
+                        });
+                    }
+                };
+            });
+
+            // 확인 버튼
+            selector.querySelector('#vce-selector-ok').onclick = () => {
+                const selected = Array.from(cbs).filter(c => c.checked).map(c => patterns[c.value]);
+                if (selected.length === 0) return alert("패턴을 선택해주세요.");
+                onConfirm(selected);
+                selectorOverlay.remove();
+            };
+
+            // 취소 버튼
+            selector.querySelector('#vce-selector-cancel').onclick = () => selectorOverlay.remove();
+
+            // 오버레이 클릭 시 닫기 (선택사항)
+            selectorOverlay.onclick = (e) => {
+                if (e.target === selectorOverlay) selectorOverlay.remove();
+            };
+            // 내부 클릭 시 전파 방지
+            selector.onclick = (e) => e.stopPropagation();
+        }
+
+
+        /**
+ * @param {string} templateRealCode - DB에 있던 실제 예시 (예: "55T38-600v")
+ * @param {object} pattern - codes에서 가져온 규칙 {prefix, displayCode, suffix}
+ * @param {number} newNum - 생성할 번호 (예: 1)
+ */
+        /**
+         * @param {string} templateRealCode - 실제 DB 예시 (예: "55T38-600v")
+         * @param {string} displayCode - 기준점 (예: "T38")
+         * @param {number} newNum - 새 번호 (예: 1)
+         */
+        function generateByDisplayCode(templateRealCode, displayCode, newNum) {
+            if (!templateRealCode || !displayCode) return templateRealCode;
+
+            const dIdx = templateRealCode.indexOf(displayCode);
+            if (dIdx === -1) return templateRealCode; // displayCode가 없으면 변환 불가
+
+            // 1. displayCode를 기준으로 앞(Head)과 뒤(Remainder)를 나눕니다.
+            const head = templateRealCode.substring(0, dIdx); // 예: "55"
+            const remainder = templateRealCode.substring(dIdx + displayCode.length); // 예: "-600v"
+
+            // 2. remainder에서 첫 번째로 등장하는 숫자 뭉치를 찾습니다.
+            const match = remainder.match(/\d+/);
+            if (!match) {
+                // 숫자가 없다면 displayCode 뒤에 그냥 번호를 붙여서 반환 (최후의 수단)
+                return `${head}${displayCode}${String(newNum).padStart(3, '0')}`;
+            }
+
+            const originalNumStr = match[0]; // "600"
+            const numIdx = match.index;      // 숫자 시작 위치
+            const padLen = originalNumStr.length; // 원본 자리수 (3)
+
+            // 3. 숫자 앞부분(기호 등)과 뒷부분(접미사 등)을 나눕니다.
+            const midSymbol = remainder.substring(0, numIdx); // 예: "-"
+            const tail = remainder.substring(numIdx + originalNumStr.length); // 예: "v"
+
+            // 4. 새 숫자 패딩
+            const newNumStr = String(newNum).padStart(padLen, '0');
+
+            // 5. 최종 조립: [실제앞부분] + [displayCode] + [기호] + [새숫자] + [실제뒷부분]
+            return `${head}${displayCode}${midSymbol}${newNumStr}${tail}`;
+        }
+
+
+        async function performGenerate() {
+
+            const getMetaLists = new Set();
+            const val = queryInput.value.trim();
+            const match = val.match(/^([A-Z0-9-]+)\s+(\d+)-(\d+)$/i);
+            if (!match) return alert("입력 형식이 올바르지 않습니다. (예: T38 001-100)");
+
+            const [_, queryCode, startStr, endStr] = match;
+            const startNum = parseInt(startStr);
+            const endNum = parseInt(endStr);
+
+            const db = await VceDB.open();
+
+            // 1. codes 스토어에서 검색된 모든 패턴 가져오기
+            const allPatterns = await new Promise(r => {
+                db.transaction("codes", "readonly").objectStore("codes").getAll().onsuccess = e => {
+                    const filtered = e.target.result.filter(c =>
+                        c.displayCode.toUpperCase().includes(queryCode.toUpperCase())
+                    );
+                    r(filtered);
+                };
+            });
+
+            if (allPatterns.length === 0) return alert("등록된 패턴이 없습니다.");
+
+            // 2. 패턴 선택 UI 생성 및 표시
+            showPatternSelector(allPatterns, async (selectedPatterns) => {
+                if (selectedPatterns.length === 0) return;
+
+                const existingMeta = await new Promise(r => {
+                    db.transaction("imageMeta", "readonly").objectStore("imageMeta").getAll().onsuccess = e => {
+                        r(e.target.result || []);
+                    };
+                });
+
+                const generatedResults = [];
+
+                for (const pattern of selectedPatterns) {
+                    const { id, prefix, padLen, suffix, makerLabel, displayCode, contentId: baseContentId } = pattern;
+
+                    const targetItem = existingMeta.find(m =>
+                        m.uniqueKey === id && m.realCode && m.realCode.includes(displayCode)
+                    );
+
+                    // 값이 있을 때만 템플릿 생성 로직 실행
+
+                    for (let i = startNum; i <= endNum; i++) {
+                        const currentNumStr = String(i).padStart(padLen, '0');
+                        const expectedcontentId = `${prefix}${displayCode}${currentNumStr}${suffix}`.toLowerCase();
+                        const foundItem = existingMeta.find(m => m.uniqueKey === id && m.contentId === expectedcontentId.toLowerCase());
+                        const expectedRealCode = targetItem
+                            ? generateByDisplayCode(targetItem.realCode, displayCode, i)
+                            : `${displayCode}-${String(i).padStart(3, '0')}`; // 데이터 없으면 기본 포맷
+
+
+                        if (foundItem) {
+                            generatedResults.push(foundItem);
+                        } else {
+                            getMetaLists.add(expectedcontentId);
+                            generatedResults.push({
+                                displayCode: displayCode,
+                                realCode: expectedRealCode,
+                                makerLabel: makerLabel,
+                                title: `[생성예정]`,
+                                contentId: expectedcontentId,
+                                isVirtual: true,
+                                metaStatus: 'VIRTUAL'
+                            });
+                        }
+                    }
+                }
+
+                // 결과 반영 (중복 제거 포함)
+                allResults = Array.from(new Map(generatedResults.map(item => [item.realCode, item])).values());
+                currentPage = 1;
+                renderTable();
+                startJob(getMetaLists);
+            });
+        }
+
 
         function renderTable() {
             // renderTable 상단에 추가하면 좋습니다.
@@ -4027,6 +4715,11 @@ div:where(.swal2-container) .swal2-input {
             const start = (currentPage - 1) * itemsPerPage;
             allResults.slice(start, start + itemsPerPage).forEach(item => {
                 const tr = document.createElement('tr');
+                if (item.isVirtual) {
+                    tr.className = 'vce-row-virtual';
+                    tr.style.opacity = '.25';
+                }
+                tr.setAttribute('data-id', item.contentId);
                 tr.innerHTML = `
                 <td style="text-align:center;"><input type="checkbox" class="vce-row-cb" data-key="${item.url}" style="margin-left:5px; width:12px; height:12px; cursor:pointer; accent-color:#00FF41; appearance:auto;"></td>
                 <td style="white-space:nowrap;">${item.makerLabel || ''}</td>
@@ -4035,13 +4728,14 @@ div:where(.swal2-container) .swal2-input {
                 <td style="white-space:nowrap;">${item.label || ''}</td>
                 <td>${item.cast || ''}</td>
                 <td style="white-space:nowrap;">${item.releaseDate || ''}</td>
-                <td style="white-space:nowrap;">${item.resolution ? `<a class="vce-preview" href="${item.url}" target="_blank">${item.resolution.W}x${item.resolution.H}</a>` : ''}</td>
+                <td style="white-space:nowrap;">${item.resolution ? `<a class="vce-preview" href="${item.url}" target="_blank">${item.resolution.W}x${item.resolution.H}</a>` : ''}</td>                
             `;
                 tbody.appendChild(tr);
                 tr.querySelector('.vce-row-cb').addEventListener('click', (e) => {
                     e.stopPropagation(); // 🔥 body / row 이벤트 차단
                 });
             });
+
             renderPaging();
         }
 
@@ -4093,6 +4787,46 @@ div:where(.swal2-container) .swal2-input {
         });
 
 
+        /**
+         * @param {string} id - 작업 중인 항목의 uniqueKey (또는 id)
+         * @param {object} updates - 변경할 내용 (예: { metaStatus: 'SUCCESS', title: '완료됨' })
+         */
+        async function updateVirtualRow(id, updates) {
+            //console.log(id, updates)
+            // 1. 메모리 상의 데이터(allResults) 업데이트
+            const targetIndex = allResults.findIndex(item => item.contentId === id);
+
+            if (targetIndex !== -1) {
+                // 기존 데이터에 새로운 변경사항 덮어쓰기
+                const hasMeta = await VceDB.get('imageMeta', updates.rawImage);
+                //console.log(hasMeta);
+                if (hasMeta) {
+                    allResults[targetIndex] = { ...allResults[targetIndex], ...hasMeta };
+                    // 2. DOM(화면) 실시간 업데이트
+                    // 전체 renderTable()을 호출하는 대신, 해당 ID를 가진 TR만 찾아 수정합니다.
+                    const rowElement = document.querySelector(`tr[data-id="${id}"]`);
+                    //console.log(rowElement);
+                    if (rowElement) {
+                        rowElement.innerHTML = `
+                <td style="text-align:center;"><input type="checkbox" class="vce-row-cb" data-key="${hasMeta.url}" style="margin-left:5px; width:12px; height:12px; cursor:pointer; accent-color:#00FF41; appearance:auto;"></td>
+                <td style="white-space:nowrap;">${hasMeta.makerLabel || ''}</td>
+                <td style="color:#00FF41; font-family:monospace;white-space:nowrap;">${hasMeta.realCode || ''}</td>
+                <td>${hasMeta.title || ''}</td>
+                <td style="white-space:nowrap;">${hasMeta.label || ''}</td>
+                <td>${hasMeta.cast || ''}</td>
+                <td style="white-space:nowrap;">${hasMeta.releaseDate || ''}</td>
+                <td style="white-space:nowrap;">${hasMeta.resolution ? `<a class="vce-preview" href="${hasMeta.url}" target="_blank">${hasMeta.resolution.W}x${hasMeta.resolution.H}</a>` : ''}</td>                
+            `;
+                        // 상태 열(Cell)을 찾아 텍스트와 스타일 변경
+                        rowElement.classList.remove('vce-row-virtual');
+                        rowElement.style.opacity = '1';
+
+                    }
+                }
+            }
+        }
+
+        externalUpdateVirtualRow = updateVirtualRow;
 
 
         function renderPaging() {
@@ -4259,8 +4993,6 @@ div:where(.swal2-container) .swal2-input {
         };
 
 
-
-
         // 2. 크기 변경 감지 (너비만 저장)
         const resizer = new ResizeObserver(entries => {
             for (let entry of entries) {
@@ -4341,9 +5073,7 @@ div:where(.swal2-container) .swal2-input {
             modal.style.display = 'flex';
             overlay.style.display = 'block';
             performSearch();
-        };
-
-
+        };        
     }
 
 
@@ -4369,8 +5099,9 @@ div:where(.swal2-container) .swal2-input {
     let isRunning = false;
     let workerWin = null;
 
+    
 
-    async function startJob(code) {
+    async function startJob(data) {
         let jobCount = 0;
 
         if (isRunning) {
@@ -4385,10 +5116,32 @@ div:where(.swal2-container) .swal2-input {
         isRunning = true;
 
 
-        taskQueue = await VceDB.getSchedulableTasks('imageMeta', 'meta');
-        if (code) {
-            taskQueue = taskQueue.filter(e => e.displayCode && e.displayCode.includes(code.toUpperCase()));
+
+        // CASE A: 빈 값 (null, undefined, '') -> 전체 리스트 반환
+        if (!data || (typeof data === 'string' && data.trim() === '')) {
+            console.log("모드: 전체 리스트 작업");
+            taskQueue = await VceDB.getSchedulableTasks('imageMeta', 'meta');
         }
+
+        // CASE B: 작업 리스트가 들어온 경우 (Set 또는 Array)        
+        if (data instanceof Set || Array.isArray(data)) {
+            console.log("모드: 전달받은 특정 리스트 내에서만 작업");
+            data.forEach(id => {
+                // taskQueue에 넣을 형식으로 객체 구성
+                taskQueue.push({
+                    contentId: id,
+                });
+            });
+        }
+
+        // CASE C: 특정 문자열(평문)이 들어온 경우 -> 검색 필터링
+        if (typeof data === 'string') {
+            console.log(`모드: '${data}' 필터링 작업`);
+            const searchTerm = data.toLowerCase();
+            taskQueue = taskQueue.filter(e => e.displayCode && e.displayCode.includes(data.toUpperCase()));
+
+        }
+
         console.log('총 작업:', taskQueue.length);
 
         if (taskQueue.length === 0) {
@@ -4416,10 +5169,18 @@ div:where(.swal2-container) .swal2-input {
         }
 
         FANZADIGITALBC.onmessage = (e) => {
-            const { type } = e.data || {};
+            const { type, rawImage, work, contentId } = e.data || {};
             if (type === 'TASK_DONE') {
-                console.log('완료:', e.data.url, e.data.result);
+                console.log('완료:', e.data);                
+                if (work === 'SUCCESS' && rawImage) {                    
+                    externalUpdateVirtualRow(contentId, {
+                        isVirtual: false,      // 이제 실제 데이터가 됨
+                        rawImage,
+                    });
+                }
                 assignNext();
+            } else if (type === 'TASK_FAIL') {
+                console.log('실패:', e.data);                                
             }
         };
 
@@ -4443,14 +5204,15 @@ div:where(.swal2-container) .swal2-input {
                 jobCount = 0;
             }
             const task = taskQueue.shift();
-            const pathSegments = task.url.split('/');
-            const contentId = pathSegments[pathSegments.length - 2];
+            //const pathSegments = task.url.split('/');
+            //const contentId = pathSegments[pathSegments.length - 2];
+            const contentId = task.contentId;
             const workerUrl = `https://video.dmm.co.jp/av/content/?id=${contentId}`;
             updateProcessingFANZADIGITAL(taskQueue.length, contentId);
             //console.log(workerWin, workerUrl, contentId, taskQueue);
             FANZADIGITALBC.postMessage({
                 type: 'MOVE_TASK',
-                url: workerUrl
+                url: workerUrl,
             });
         }
 
@@ -4480,7 +5242,10 @@ div:where(.swal2-container) .swal2-input {
             console.log('[Auto] guard 종료');
             return false; // 시간 초과 시 false 반환
         };
-
+        const NotFound = document.querySelector('main div div h1');
+        if (NotFound && NotFound?.textContent === '404Not Found') {
+            return NotFound?.textContent;
+        }
         const infoArea = document.querySelector(config.InfoSelector);
         if (infoArea) {
             //console.log(infoArea);
@@ -4505,6 +5270,7 @@ div:where(.swal2-container) .swal2-input {
                 await sleep(20000);
                 location.reload(true);
             }
+
             const origin = new URL(location.href).origin;
             if (/^https:\/\/video\.dmm\.co\.jp\/$/.test(location.href)) {
                 FANZADIGITALBC.postMessage({
@@ -4515,36 +5281,125 @@ div:where(.swal2-container) .swal2-input {
             } else {
                 const config = siteConfigs['FANZA_DIGITAL'];
                 if (config) {
-                    let result;
+                    let work;
                     const waitTime = Math.max(getRandomDelay(), getRandomDelay()) + Math.min(getRandomDelay(), getRandomDelay());
                     const found = await checkTable(waitTime);
-                    if (found) {
-                        config.addDB().then(async (e) => {
-                            result = e;
-                            console.log('[VCE] 작업 완료', result, location.href);
+
+                    if (found === '404Not Found') {
+                        const regex = /00(?=\d{3}(?!\d))/;
+                        const contentId = GetParam(location.href, 'id').toLocaleLowerCase();
+                        const cid = contentId.replace(regex, '');
+                        const searchUrl = `https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=${cid}r/`;
+                        siteConfigs['DMMR'].addDB(searchUrl, contentId).then(async (e) => {
+                            console.log(e);
+                            work = e.work;
+                            console.log('[VCE] 작업 완료', e.work, location.href);
+                            const endTime = performance.now();
+                            const executionTime = `${endTime - startTime} ms`;                            
+                            const send = `${e.work} ${e.reason ? e.reason : ''} -> ${executionTime}`;
+                            if (e.work === 'SUCCESS') {
+                                FANZADIGITALBC.postMessage({
+                                    type: 'TASK_DONE',
+                                    url: location.href,
+                                    rawImage: e.rawImage,
+                                    workUrl: searchUrl,
+                                    contentId,
+                                    work: e.work,
+                                    result: send
+                                });
+                            } else {                                
+                                    FANZADIGITALBC.postMessage({
+                                        type: 'TASK_FAIL',
+                                        url: location.href,
+                                        rawImage: null,
+                                        workUrl: searchUrl,
+                                        result: send
+                                    });                                
+                                const regex = /00(?=\d{3}(?!\d))/;
+                                const contentId = GetParam(location.href, 'id').toLocaleLowerCase();
+                                const cid = contentId.split(regex)?.join('-').replace(/^[0-9]/, '');
+                                const searchAVWikiUrl = `https://av-wiki.net/${cid}/`;
+                                siteConfigs['AVWiki'].addDB(searchUrl, contentId).then(async (e) => {                                    
+                                    work = e.work;
+                                    console.log('[VCE] 작업 완료', e.work, location.href);
+                                    const endTime = performance.now();
+                                    const executionTime = `${endTime - startTime} ms`;                                    
+                                    const send = `${e.work} ${e.reason ? e.reason : ''} -> ${executionTime}`;
+                                    if (e.work === 'SUCCESS') {
+                                        FANZADIGITALBC.postMessage({
+                                            type: 'TASK_DONE',
+                                            url: location.href,
+                                            rawImage: e.rawImage,
+                                            contentId,
+                                            workUrl: searchAVWikiUrl,
+                                            work: e.work,
+                                            result: send
+                                        });
+                                    } else {
+                                        FANZADIGITALBC.postMessage({
+                                            type: 'TASK_DONE',
+                                            url: location.href,
+                                            rawImage: null,
+                                            workUrl: searchAVWikiUrl,
+                                            result: send
+
+                                        });
+                                    }
+                                });
+                            }
+                        });
+                    } else if (found) {
+                        let imageSrc;
+                        const el = document.querySelector('div[data-e2eid="sample-image-gallery"] a');
+                        const url = location.href;
+                        const contentId = GetParam(url, 'id').toLocaleLowerCase();
+                        if (!/pl\.jpg/i.test(el?.href)) {
+                            imageSrc = `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`;
+                        } else {
+                            imageSrc = el.href;
+                        }
+                        const rawImage = imageSrc.split('?')[0];
+
+                        config.addDB().then(async (e) => {                            
+                            work = e.work;
+                            console.log('[VCE] 작업 완료', e.work, location.href);
                             const endTime = performance.now();
                             const executionTime = `${endTime - startTime} ms`;
                             await sleep(1000);
-                            const send = `${result} -> ${executionTime}`;
-                            FANZADIGITALBC.postMessage({
-                                type: 'TASK_DONE',
-                                url: location.href,
-                                result: send
-                            });
+                            const send = `${e.work} ${e.reason ? e.reason : ''} -> ${executionTime}`;
+                            if (e.work === 'SUCCESS') {
+                                FANZADIGITALBC.postMessage({
+                                    type: 'TASK_DONE',
+                                    url: location.href,
+                                    rawImage: e.rawImage,
+                                    workUrl: location.href,
+                                    work: e.work,
+                                    contentId,
+                                    result: send
+                                });
+                            } else {
+                                FANZADIGITALBC.postMessage({
+                                    type: 'TASK_DONE',
+                                    url: location.href,
+                                    rawImage: null,
+                                    workUrl: location.href,
+                                    result: send
+                                });
+                            }
+
                         });
                     } else {
                         await sleep(getRandomDelay());
                         if (currentPage === PageURL()) {
                             const endTime = performance.now();
                             const executionTime = `${endTime - startTime} ms`;
-                            const send = result ? `${result} -> ${executionTime} ` : `${waitTime} 부족 -> ${executionTime} `;
+                            const send = work ? `${work} -> ${executionTime} ` : `${waitTime} 부족 -> ${executionTime} `;
                             FANZADIGITALBC.postMessage({
                                 type: 'TASK_DONE',
                                 url: location.href,
                                 result: send
                             });
                         }
-
                     }
                 }
             }
