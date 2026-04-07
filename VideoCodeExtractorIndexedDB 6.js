@@ -202,6 +202,16 @@ div:where(.swal2-container) .swal2-input {
 .vce-result-table th { position: sticky; top: 0; background: #222; color: #aaa; padding: 8px; border-bottom: 1px solid #444; text-align: center; text-wrap: nowrap;}
 .vce-result-table td { padding: 5px; border-bottom: 1px solid #222; color: #eee; }
 .vce-result-table tr:hover { background: #1a1a1a; }
+.vce-result-table tbody tr:hover .delete-btn {
+    visibility: visible !important;
+    opacity: 1 !important;
+    transition: opacity 0.2s, visibility 0.2s;
+}
+
+/* 선택사항: 버튼 자체에 호버했을 때 색상을 더 진하게 하고 싶다면 */
+.delete-btn:hover {
+    color: #666 !important;
+}
 
 /* 페이징 */
 .vce-pagination { display: flex; justify-content: center; gap: 4px; margin: 0 0 10px 0; }
@@ -288,7 +298,7 @@ div:where(.swal2-container) .swal2-input {
 
     const Logger = {
         // 환경 변수나 설정에 따라 로그 활성화 여부 결정
-        isEnabled: false,
+        isEnabled: true,
 
         info(message, data = "") {
             if (!this.isEnabled) return;
@@ -611,22 +621,25 @@ div:where(.swal2-container) .swal2-input {
                 onload: function (response) {
                     const status = response.status;
 
-
                     if (status >= 200 && status < 300) {
-                        console.log(`[ImageRetry] 이미지 존재 확인됨 (HTTP ${status}): ${url}`);
+                        console.log(`[VideoCode] 이미지 존재 확인됨 (HTTP ${status}): ${url}`);
                         resolve({ exists: true, reason: 'ok' });
                     }
+                    if (status === 200) {
+                        console.log('존재함');
+                    }
+
                 },
                 onerror: function () {
-                    console.error(`[ImageRetry] 요청 오류: ${url}`);
+                    console.error(`[VideoCode] 요청 오류: ${url}`);
                     resolve({ exists: false, reason: 'request_error' });
                 },
                 onabort: function () {
-                    console.error(`[ImageRetry] 요청 중단됨: ${url}`);
+                    console.error(`[VideoCode] 요청 중단됨: ${url}`);
                     resolve({ exists: false, reason: 'aborted' });
                 },
                 ontimeout: function () {
-                    console.error(`[ImageRetry] 요청 시간 초과: ${url}`);
+                    console.error(`[VideoCode] 요청 시간 초과: ${url}`);
                     resolve({ exists: false, reason: 'timeout' });
                 }
             });
@@ -671,7 +684,13 @@ div:where(.swal2-container) .swal2-input {
                     if (exists) {
                         imageSrc = `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${id}/${id}pl.jpg`;
                     } else {
-                        imageSrc = `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`;
+                        const regex = /00(?=\d{3}(?!\d))/;
+                        const cid = contentId.replace(regex, '');
+                        imageSrc = `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`;
+                        const { exists, reason, status = null } = await checkImageExistence(imageSrc);
+                        if (exists) {
+                            imageSrc = `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${id}/${id}pl.jpg`;
+                        }
                     }
                     const rawImage = imageSrc.split('?')[0];
 
@@ -736,16 +755,15 @@ div:where(.swal2-container) .swal2-input {
                                 metaStatus: 'SUCCESS'
                             };
 
-                            if (hasMeta?.resolutionState !== 'SUCCESS') {
-                                fetchImageResolution(rawImage).then(async (res) => {
-                                    if (res && res.width > 0) {
-                                        const resData = {
-                                            resolution: { W: res.width, H: res.height },
-                                            resolutionState: 'SUCCESS'
-                                        };
-                                        await VceDB.save("imageMeta", rawImage, resData);
-                                    }
-                                });
+                            if (hasMeta?.resolutionState !== 'SUCCESS' || !hasMeta?.resolution) {
+                                const res = await fetchImageResolution(rawImage);
+                                if (res && res.width > 0) {
+                                    const resData = {
+                                        resolution: { W: res.width, H: res.height },
+                                        resolutionState: 'SUCCESS'
+                                    };
+                                    await VceDB.save("imageMeta", rawImage, resData);
+                                }
                             }
 
                             await VceDB.save("imageMeta", rawImage, metaData);
@@ -924,13 +942,22 @@ div:where(.swal2-container) .swal2-input {
                     const url = location.href;
                     const contentId = GetParam(url, 'id').toLocaleLowerCase();
                     if (!contentId || !el) return { work: 'FAIL', reason: 'not contentId' };
-                    if(!el.href){
-                        imageSrc = `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${contentId}/${contentId}pl.jpg`;
-                    }else if (!/pl\.jpg/i.test(el?.href)) {
+                    const HQImage = `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${contentId}/${contentId}pl.jpg`;
+                    const { exists, reason, status = null } = await checkImageExistence(HQImage);
+                    if (exists) {
+                        imageSrc = HQImage;
+                    } else if (!/pl\.jpg/i.test(el?.href)) {
                         imageSrc = `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`;
                     } else {
-                        imageSrc = el.href;
+                        const regex = /00(?=\d{3}(?!\d))/;
+                        const cid = contentId.replace(regex, '');
+                        const testSrc = `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`;
+                        const { exists, reason, status = null } = await checkImageExistence(imageSrc);
+                        if (exists) {
+                            imageSrc = `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${id}/${id}pl.jpg`;
+                        }
                     }
+
                     const rawImage = imageSrc.split('?')[0];
 
                     const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
@@ -1006,16 +1033,15 @@ div:where(.swal2-container) .swal2-input {
                                 metaStatus: 'SUCCESS'
                             };
 
-                            if (hasMeta?.resolutionState !== 'SUCCESS') {
-                                fetchImageResolution(rawImage).then(async (res) => {
-                                    if (res && res.width > 0) {
-                                        const resData = {
-                                            resolution: { W: res.width, H: res.height },
-                                            resolutionState: 'SUCCESS'
-                                        };
-                                        await VceDB.save("imageMeta", rawImage, resData);
-                                    }
-                                });
+                            if (hasMeta?.resolutionState !== 'SUCCESS' || !hasMeta?.resolution) {
+                                const res = await fetchImageResolution(rawImage);
+                                if (res && res.width > 0) {
+                                    const resData = {
+                                        resolution: { W: res.width, H: res.height },
+                                        resolutionState: 'SUCCESS'
+                                    };
+                                    await VceDB.save("imageMeta", rawImage, resData);
+                                }
                             }
 
                             await VceDB.save("imageMeta", rawImage, metaData);
@@ -1167,16 +1193,15 @@ div:where(.swal2-container) .swal2-input {
                                 metaStatus: 'SUCCESS'
                             };
 
-                            if (hasMeta?.resolutionState !== 'SUCCESS') {
-                                fetchImageResolution(rawImage).then(async (res) => {
-                                    if (res && res.width > 0) {
-                                        const resData = {
-                                            resolution: { W: res.width, H: res.height },
-                                            resolutionState: 'SUCCESS'
-                                        };
-                                        await VceDB.save("imageMeta", rawImage, resData);
-                                    }
-                                });
+                            if (hasMeta?.resolutionState !== 'SUCCESS' || !hasMeta?.resolution) {
+                                const res = await fetchImageResolution(rawImage);
+                                if (res && res.width > 0) {
+                                    const resData = {
+                                        resolution: { W: res.width, H: res.height },
+                                        resolutionState: 'SUCCESS'
+                                    };
+                                    await VceDB.save("imageMeta", rawImage, resData);
+                                }
                             }
 
                             await VceDB.save("imageMeta", rawImage, metaData);
@@ -1513,12 +1538,18 @@ div:where(.swal2-container) .swal2-input {
     }
 
     function fetchImageResolution(url) {
+        console.log(url);
+        const imageSourceKey = Object.keys(imageUrlsMap).find(key =>
+            url.startsWith(imageUrlsMap[key])
+        ) || "UNKNOWN";
+
+        console.log(imageSourceKey);
         // 1. URL 확장자를 통해 필요한 바이트 크기 미리 계산
         const getExpectedRange = (url) => {
             const cleanUrl = url.split('?')[0];
             const lowerUrl = cleanUrl.toLowerCase();
             if (url.endsWith('f=webp')) {
-                return "0-5000"; // WebP는 약 5KB 정도
+                return "0-6000"; // WebP는 약 6KB 정도
             } else if (lowerUrl.endsWith('.png') || lowerUrl.endsWith('.gif')) {
                 return "0-1000"; // PNG/GIF는 1KB면 충분함
             } else if (lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) {
@@ -1527,13 +1558,15 @@ div:where(.swal2-container) .swal2-input {
                 return "0-5000"; // WebP는 약 5KB 정도
             }
         };
-
+        if (imageSourceKey === 'FANZA_DIGITAL') {
+            url = url + "?f=webp";
+        }
         const targetRange = getExpectedRange(url + "?f=webp");
 
         return new Promise((resolve) => {
             GM_xmlhttpRequest({
                 method: "GET",
-                url: url + "?f=webp",
+                url: url,
                 headers: {
                     "Range": `bytes=${targetRange}`,
                     "Referer": "https://video.dmm.co.jp/", // 정상 경로인 척 함
@@ -2092,16 +2125,15 @@ div:where(.swal2-container) .swal2-input {
                 */
                 });
 
-                fetchImageResolution(rawImage).then(async (res) => {
-                    let resData = {};
-                    if (res && res.width > 0) {
-                        resData = {
-                            resolution: { W: res.width, H: res.height },
-                            resolutionState: 'SUCCESS'
-                        };
-                        await VceDB.save("imageMeta", rawImage, resData);
-                    }
-                });
+                const res = await fetchImageResolution(rawImage);
+                let resData = {};
+                if (res && res.width > 0) {
+                    resData = {
+                        resolution: { W: res.width, H: res.height },
+                        resolutionState: 'SUCCESS'
+                    };
+                    await VceDB.save("imageMeta", rawImage, resData);
+                }
 
                 const hasUniqueKey = await VceDB.get('codes', uniqueKey);
 
@@ -2113,6 +2145,7 @@ div:where(.swal2-container) .swal2-input {
                 const imageSourceKey = Object.keys(imageUrlsMap).find(key =>
                     rawImage.startsWith(imageUrlsMap[key])
                 ) || "UNKNOWN";
+                Logger.info('imageSourceKey Check', imageSourceKey);
 
                 if (!hasUniqueKey?.displayCode) {
                     await VceDB.save("codes", uniqueKey, {
@@ -2185,7 +2218,7 @@ div:where(.swal2-container) .swal2-input {
             const itemPageUrl = `https://video.dmm.co.jp/av/content/?id=${itemData.contentId}`;
             const row = document.createElement('div');
             const refreshIcon = `
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M23 4v6h-6"></path>
                                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
                                 </svg>`;
@@ -3909,7 +3942,7 @@ div:where(.swal2-container) .swal2-input {
 
         await autoLoop();
 
-        setState({ active: false });       
+        setState({ active: false });
 
     }
 
@@ -4205,6 +4238,12 @@ div:where(.swal2-container) .swal2-input {
         let currentPage = 1;
         const itemsPerPage = 100;
 
+        const refreshIcon = `
+                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M23 4v6h-6"></path>
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                                </svg>`;
+
         // 모달 생성
         const modal = document.createElement('div');
         modal.id = 'vce-search-modal';
@@ -4227,7 +4266,7 @@ div:where(.swal2-container) .swal2-input {
                     <div style="display:flex; justify-content: space-between; align-items:center;">
                     <div style="display:flex; gap:4px;">
                         <button id="vce-sel-all" class="vce-btn btn-blue">전체 선택</button>
-                        <button id="vce-unsel-all" class="vce-btn btn-grey">전체 해제</button>
+                        <button id="vce-unsel-all" class="vce-btn btn-grey">전체 해제</button>                                                
                     </div>
                     <div style="display:flex; gap:4px;">
                     <button id="vce-btn-imageZipexport" class="vce-btn btn-green">검색된 모든 이미지 저장</button>
@@ -4251,6 +4290,7 @@ div:where(.swal2-container) .swal2-input {
                 <th class="sortable" data-col="cast" style="cursor:pointer;">배우 ↕</th>
                 <th class="sortable" data-col="releaseDate" style="cursor:pointer;">출시일 ↕</th>
                 <th class="sortable" data-col="resolution.W" style="cursor:pointer;">해상도 ↕</th>
+                <th class="sortable" data-col="url" style="cursor:pointer;">${refreshIcon}</th>
                         </tr>
                     </thead>
                     <tbody id="vce-table-body"></tbody>
@@ -4729,10 +4769,33 @@ div:where(.swal2-container) .swal2-input {
                 <td>${item.cast || ''}</td>
                 <td style="white-space:nowrap;">${item.releaseDate || ''}</td>
                 <td style="white-space:nowrap;">${item.resolution ? `<a class="vce-preview" href="${item.url}" target="_blank">${item.resolution.W}x${item.resolution.H}</a>` : ''}</td>                
+                <td syle="white-space:nowrap;"><button class="delete-btn"
+            data-key="${item.url}" 
+            style="display: flex; visibility: hidden; opacity: 0; background:none; border:none; color:#aaa; cursor:pointer; align-items:center; padding:0 5px;">
+        ${refreshIcon}
+    </button>
+    </td>                
             `;
                 tbody.appendChild(tr);
                 tr.querySelector('.vce-row-cb').addEventListener('click', (e) => {
                     e.stopPropagation(); // 🔥 body / row 이벤트 차단
+                });
+                const deleteBtn = tr.querySelector('.delete-btn');
+                deleteBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation(); // 🔥 body 이벤트 차단                    
+                    const button = e.target.closest('.delete-btn');
+                    if (!button) return;
+                    const key = button.getAttribute('data-key');
+                    if (confirm(`${item.realCode || ''} 항목을 삭제하시겠습니까?`)) {
+                        console.log(`${key} 삭제`);
+                        await VceDB.delete('imageMeta', key); // IndexedDB 삭제                        
+                        const findIndex = allResults.findIndex((item) => item.url === key);
+                        if (findIndex > -1) {
+                            allResults.splice(findIndex, 1);
+                        }
+                        tr.remove();
+                    }
+
                 });
             });
 
@@ -4896,6 +4959,7 @@ div:where(.swal2-container) .swal2-input {
                 alert("저장할 검색 결과가 없습니다.");
                 return;
             }
+            const data = allResults.filter(i => i.metaStatus === 'SUCCESS' && i.resolutionState === 'SUCCESS');
             const ZipFileName = queryInput.value ? `${queryInput.value.toUpperCase()}_${new Date().toISOString().slice(0, 10)}` : `Images_${new Date().toISOString().slice(0, 10)}`;
             // 보기 좋게 정렬 (패턴키 기준)
             data.sort((a, b) => (a.realCode || "").localeCompare(b.realCode || ""));
@@ -4945,8 +5009,8 @@ div:where(.swal2-container) .swal2-input {
             // 4. 파일 다운로드 (파일명: exported_data.xlsx)
             XLSX.writeFile(workbook, "exported_data.xlsx");
         };
-        document.getElementById('vce-btn-allexport').onclick = () => {
-            const data = allResults;
+        document.getElementById('vce-btn-allexport').onclick = async () => {
+            allResults = dbData;
             if (allResults.length === 0) {
                 alert("저장할 검색 결과가 없습니다.");
                 return;
@@ -5073,7 +5137,7 @@ div:where(.swal2-container) .swal2-input {
             modal.style.display = 'flex';
             overlay.style.display = 'block';
             performSearch();
-        };        
+        };
     }
 
 
@@ -5099,7 +5163,7 @@ div:where(.swal2-container) .swal2-input {
     let isRunning = false;
     let workerWin = null;
 
-    
+
 
     async function startJob(data) {
         let jobCount = 0;
@@ -5171,8 +5235,8 @@ div:where(.swal2-container) .swal2-input {
         FANZADIGITALBC.onmessage = (e) => {
             const { type, rawImage, work, contentId } = e.data || {};
             if (type === 'TASK_DONE') {
-                console.log('완료:', e.data);                
-                if (work === 'SUCCESS' && rawImage) {                    
+                console.log('완료:', e.data);
+                if (work === 'SUCCESS' && rawImage) {
                     externalUpdateVirtualRow(contentId, {
                         isVirtual: false,      // 이제 실제 데이터가 됨
                         rawImage,
@@ -5180,7 +5244,7 @@ div:where(.swal2-container) .swal2-input {
                 }
                 assignNext();
             } else if (type === 'TASK_FAIL') {
-                console.log('실패:', e.data);                                
+                console.log('실패:', e.data);
             }
         };
 
@@ -5295,7 +5359,7 @@ div:where(.swal2-container) .swal2-input {
                             work = e.work;
                             console.log('[VCE] 작업 완료', e.work, location.href);
                             const endTime = performance.now();
-                            const executionTime = `${endTime - startTime} ms`;                            
+                            const executionTime = `${endTime - startTime} ms`;
                             const send = `${e.work} ${e.reason ? e.reason : ''} -> ${executionTime}`;
                             if (e.work === 'SUCCESS') {
                                 FANZADIGITALBC.postMessage({
@@ -5307,23 +5371,23 @@ div:where(.swal2-container) .swal2-input {
                                     work: e.work,
                                     result: send
                                 });
-                            } else {                                
-                                    FANZADIGITALBC.postMessage({
-                                        type: 'TASK_FAIL',
-                                        url: location.href,
-                                        rawImage: null,
-                                        workUrl: searchUrl,
-                                        result: send
-                                    });                                
+                            } else {
+                                FANZADIGITALBC.postMessage({
+                                    type: 'TASK_FAIL',
+                                    url: location.href,
+                                    rawImage: null,
+                                    workUrl: searchUrl,
+                                    result: send
+                                });
                                 const regex = /00(?=\d{3}(?!\d))/;
                                 const contentId = GetParam(location.href, 'id').toLocaleLowerCase();
                                 const cid = contentId.split(regex)?.join('-').replace(/^[0-9]/, '');
                                 const searchAVWikiUrl = `https://av-wiki.net/${cid}/`;
-                                siteConfigs['AVWiki'].addDB(searchUrl, contentId).then(async (e) => {                                    
+                                siteConfigs['AVWiki'].addDB(searchUrl, contentId).then(async (e) => {
                                     work = e.work;
                                     console.log('[VCE] 작업 완료', e.work, location.href);
                                     const endTime = performance.now();
-                                    const executionTime = `${endTime - startTime} ms`;                                    
+                                    const executionTime = `${endTime - startTime} ms`;
                                     const send = `${e.work} ${e.reason ? e.reason : ''} -> ${executionTime}`;
                                     if (e.work === 'SUCCESS') {
                                         FANZADIGITALBC.postMessage({
@@ -5360,7 +5424,7 @@ div:where(.swal2-container) .swal2-input {
                         }
                         const rawImage = imageSrc.split('?')[0];
 
-                        config.addDB().then(async (e) => {                            
+                        config.addDB().then(async (e) => {
                             work = e.work;
                             console.log('[VCE] 작업 완료', e.work, location.href);
                             const endTime = performance.now();
