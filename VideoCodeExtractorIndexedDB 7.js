@@ -123,7 +123,7 @@ div:where(.swal2-container) .swal2-input {
     display: none;
     flex-direction: column;
     position: fixed;
-    z-index: 99999;
+    z-index: 9999;
     background: #1e1e1e;
     color: #eee;
     border: 1px solid #444;
