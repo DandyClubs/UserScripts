@@ -5020,17 +5020,16 @@ div:where(.swal2-container) .swal2-input {
             // 4. 파일 다운로드 (파일명: exported_data.xlsx)
             XLSX.writeFile(workbook, "exported_data.xlsx");
         };
-        document.getElementById('vce-btn-allexport').onclick = async () => {
-            allResults = dbData;
+        document.getElementById('vce-btn-allexport').onclick = async () => {                 
             if (allResults.length === 0) {
                 alert("저장할 검색 결과가 없습니다.");
                 return;
             }
             // 보기 좋게 정렬 (패턴키 기준)
-            data.sort((a, b) => (a.realCode || "").localeCompare(b.realCode || ""));
+            allResults.sort((a, b) => (a.realCode || "").localeCompare(b.realCode || ""));
 
 
-            const displayData = data.map(item => {
+            const displayData = allResults.map(item => {
                 return {
                     メーカー: item.makerLabel,
                     メーカー品番: item.realCode,
