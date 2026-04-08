@@ -5432,18 +5432,9 @@ div:where(.swal2-container) .swal2-input {
                                 });
                             }
                         });
-                    } else if (found) {
-                        let imageSrc;
-                        const el = document.querySelector('div[data-e2eid="sample-image-gallery"] a');
+                    } else if (found) {                                                
                         const url = location.href;
-                        const contentId = GetParam(url, 'id').toLocaleLowerCase();
-                        if (!/pl\.jpg/i.test(el?.href)) {
-                            imageSrc = `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`;
-                        } else {
-                            imageSrc = el.href;
-                        }
-                        const rawImage = imageSrc.split('?')[0];
-
+                        const contentId = GetParam(url, 'id').toLocaleLowerCase();                        
                         config.addDB().then(async (e) => {
                             work = e.work;
                             console.log('[VCE] 작업 완료', e.work, location.href);
