@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoCode & MetaData Extractor IndexedDB 7.0
 // @namespace    http://tampermonkey.net/
-// @version      7.1
+// @version      7.1.1
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/*
@@ -676,18 +676,16 @@ div:where(.swal2-container) .swal2-input {
                     if (!result.makerLabel) return `makerLabel not found`;
                     const makerLabel = makerLabelReplaceMap[result.makerLabel] || result.makerLabel;
                     const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id');
-                    if (!makerLabelCode) return { work: 'FAIL', reason: `makerLabelCode not fouund` };
-                    if (makerLabelCode && makerLabel) {
-                        const newData = { original: makerLabel, final: '' };
-                        // 메모리에 저장
-                        makerMap.set(makerLabelCode, newData);
-                        const currentLocal = GM_getValue(LOCAL_MAKER_KEY, {});
-                        currentLocal[makerLabelCode] = newData;
-                        GM_setValue(LOCAL_MAKER_KEY, currentLocal);
-
-                        console.log(`[신규 메이커 저장] ${makerLabelCode}: ${makerLabel}`);
-
+                    if (!makerLabelCode) {
+                        console.log(`[신규 메이커 발견] ${makerLabel}`);
+                        const currentLocal = GM_getValue('NEW_MAKER_KEY, []');
+                        if (!currentLocal.includes(makerLabel)) {
+                            currentLocal.push(makerLabel);
+                            GM_setValue(LOCAL_MAKER_KEY, currentLocal);
+                        }
+                        return { work: 'FAIL', reason: `makerLabelCode not fouund` };
                     }
+
                     const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';
 
                     for (const Regex of deletePattons) {
@@ -956,20 +954,16 @@ div:where(.swal2-container) .swal2-input {
                             makerLabelCode = GetParam(makerUrl, 'maker');
                         }
                     }
-                    if (makerLabelCode && makerLabel) {
-                        const newData = { original: makerLabel, final: '' };
-                        // 메모리에 저장
-                        makerMap.set(makerLabelCode, newData);
-                        const currentLocal = GM_getValue(LOCAL_MAKER_KEY, {});
-                        currentLocal[makerLabelCode] = newData;
-                        GM_setValue(LOCAL_MAKER_KEY, currentLocal);
-
-                        console.log(`[신규 메이커 저장] ${makerLabelCode}: ${makerLabel}`);
-
-                    } else {
-                        //console.log('makerLabelCode not found');
-                        return { work: 'FAIL', reason: 'makerLabelCode not found' };
+                    if (!makerLabelCode) {
+                        console.log(`[신규 메이커 발견] ${makerLabel}`);
+                        const currentLocal = GM_getValue('NEW_MAKER_KEY, []');
+                        if (!currentLocal.includes(makerLabel)) {
+                            currentLocal.push(makerLabel);
+                            GM_setValue(LOCAL_MAKER_KEY, currentLocal);
+                        }
+                        return { work: 'FAIL', reason: `makerLabelCode not fouund` };
                     }
+
                     const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';
 
                     for (const Regex of deletePattons) {
@@ -1126,18 +1120,16 @@ div:where(.swal2-container) .swal2-input {
                     if (!result.makerLabel) return `makerLabel not found`;
                     const makerLabel = makerLabelReplaceMap[result.makerLabel] || result.makerLabel;
                     const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id');
-                    if (!makerLabelCode) return { work: 'FAIL', reason: `makerLabelCode not fouund` };
-                    if (makerLabelCode && makerLabel) {
-                        const newData = { original: makerLabel, final: '' };
-                        // 메모리에 저장
-                        makerMap.set(makerLabelCode, newData);
-                        const currentLocal = GM_getValue(LOCAL_MAKER_KEY, {});
-                        currentLocal[makerLabelCode] = newData;
-                        GM_setValue(LOCAL_MAKER_KEY, currentLocal);
-
-                        console.log(`[신규 메이커 저장] ${makerLabelCode}: ${makerLabel}`);
-
+                    if (!makerLabelCode) {
+                        console.log(`[신규 메이커 발견] ${makerLabel}`);
+                        const currentLocal = GM_getValue('NEW_MAKER_KEY, []');
+                        if (!currentLocal.includes(makerLabel)) {
+                            currentLocal.push(makerLabel);
+                            GM_setValue(LOCAL_MAKER_KEY, currentLocal);
+                        }
+                        return { work: 'FAIL', reason: `makerLabelCode not fouund` };
                     }
+
                     const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';
 
                     for (const Regex of deletePattons) {
@@ -2395,15 +2387,15 @@ div:where(.swal2-container) .swal2-input {
                     const prefix = parts[2];
                     const displayCode = v.displayCode;
 
-                    const newKey = `${displayCode}|${prefix}|${padLenStr}|${suffix}|${makerLabelCode}|${contentIdZero}`;                
+                    const newKey = `${displayCode}|${prefix}|${padLenStr}|${suffix}|${makerLabelCode}|${contentIdZero}`;
                     await VceDB.save("imageMeta", v.imageSource, {
                         uniqueKey: newKey,
                         title: newTitle
                     });
-                }                
+                }
             }
 
-            if (v.title && replaceReg.test(v.title)){
+            if (v.title && replaceReg.test(v.title)) {
                 const newTitle = v.title?.replace(replaceReg, '').trim();
                 await VceDB.save("imageMeta", v.imageSource, {
                     title: newTitle
@@ -4144,7 +4136,7 @@ div:where(.swal2-container) .swal2-input {
     }
 
 
-    async function collectAndProcess() {       
+    async function collectAndProcess() {
 
         const autoStatus = getState();
         await createUI();
@@ -4314,8 +4306,8 @@ div:where(.swal2-container) .swal2-input {
 
 
         // 1. 저장된 크기 불러오기 (값이 없으면 1200px, 높이는 auto)
-        const savedSize = localStorage.getItem(STORAGE_KEY);
-        if (savedSize) {
+        const savedSize = GM_getValue(STORAGE_KEY, {});
+        if (savedSize && Object.keys(savedSize).length !== 0) {
             const { width } = JSON.parse(savedSize);
             modal.style.width = width + 'px';
         }
@@ -4680,7 +4672,7 @@ div:where(.swal2-container) .swal2-input {
 
         async function performGenerate() {
 
-            
+
             const val = queryInput.value.trim();
             const match = val.match(/^([A-Z0-9-]+)\s+(\d+)-(\d+)$/i);
             if (!match) return alert("입력 형식이 올바르지 않습니다. (예: T38 001-100)");
@@ -5022,7 +5014,7 @@ div:where(.swal2-container) .swal2-input {
             // 4. 파일 다운로드 (파일명: exported_data.xlsx)
             XLSX.writeFile(workbook, "exported_data.xlsx");
         };
-        document.getElementById('vce-btn-allexport').onclick = async () => {                 
+        document.getElementById('vce-btn-allexport').onclick = async () => {
             if (allResults.length === 0) {
                 alert("저장할 검색 결과가 없습니다.");
                 return;
@@ -5073,8 +5065,9 @@ div:where(.swal2-container) .swal2-input {
         const resizer = new ResizeObserver(entries => {
             for (let entry of entries) {
                 const { width } = entry.contentRect;
-                // 높이는 저장하지 않고 너비만 유지
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({ width }));
+                if (width > 800) {
+                    GM_setValue(STORAGE_KEY, JSON.stringify({ width }));
+                }
             }
         });
         resizer.observe(modal);
@@ -5171,7 +5164,7 @@ div:where(.swal2-container) .swal2-input {
         }
     }
 
-    
+
     let isRunning = false;
     let workerWin = null;
 
@@ -5430,9 +5423,9 @@ div:where(.swal2-container) .swal2-input {
                                 });
                             }
                         });
-                    } else if (found) {                                                
+                    } else if (found) {
                         const url = location.href;
-                        const contentId = GetParam(url, 'id').toLocaleLowerCase();                        
+                        const contentId = GetParam(url, 'id').toLocaleLowerCase();
                         config.addDB().then(async (e) => {
                             work = e.work;
                             console.log('[VCE] 작업 완료', e.work, location.href);
@@ -5492,17 +5485,17 @@ div:where(.swal2-container) .swal2-input {
         };
 
         /******** 초기 진입 ********/
-        
+
         requestTask();
     }
 
 
     initializeMakerMap();
 
-    if (isWorker()) {        
+    if (isWorker()) {
         runWorker();
     } else {
-        FontAwesomeCSS();    
+        FontAwesomeCSS();
         runOnceAWeek('weekly_update_updateUniqueKey', updateUniqueKey);
         collectAndProcess();
         searchVCE();
