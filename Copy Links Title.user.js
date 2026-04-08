@@ -811,6 +811,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         .replaceAll('"|：', '')
         .replace(/\*\*\*/g, '')
         .replace(/\n{2,}/g, '\n')
+        .replace('File Name:-', '')
         .trim()
         .split('\n')
         .filter(line => line.trim() && !/^(http|Download|Duration|Resolution|Categories|About)/i.test(line));
