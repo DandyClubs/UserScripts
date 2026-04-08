@@ -1945,7 +1945,7 @@ div:where(.swal2-container) .swal2-input {
             console.log(`[Auto] guard ${guard} 종료`);
             return 'guard Time Out';
         };
-        const element = document.querySelectorAll('iframe[title], button[data-e2eid="sample-movie-button"]');
+        const element = document.querySelectorAll('iframe[title], button[data-e2eid="sample-movie-button"], div picture source.rounded-lg');
         if (element.length > 0) {
             if (coverDownloadIcon) coverDownloadIcon.remove();
             coverDownloadIcon = document.createElement('div');
@@ -4682,7 +4682,7 @@ div:where(.swal2-container) .swal2-input {
 
         async function performGenerate() {
 
-            const getMetaLists = new Set();
+            
             const val = queryInput.value.trim();
             const match = val.match(/^([A-Z0-9-]+)\s+(\d+)-(\d+)$/i);
             if (!match) return alert("입력 형식이 올바르지 않습니다. (예: T38 001-100)");
@@ -4716,12 +4716,13 @@ div:where(.swal2-container) .swal2-input {
                 });
 
                 const generatedResults = [];
+                const getMetaLists = new Set();
 
                 for (const pattern of selectedPatterns) {
                     const { id, prefix, padLen, suffix, makerLabel, displayCode, contentId: baseContentId } = pattern;
 
                     const targetItem = existingMeta.find(m =>
-                        m.uniqueKey === id && m.realCode && m.realCode.includes(displayCode)
+                        m.uniqueKey === id && m.realCode && m.realCode.includes(displayCode) && m.metaStatus === 'SUCCESS'
                     );
 
                     // 값이 있을 때만 템플릿 생성 로직 실행
@@ -4745,7 +4746,6 @@ div:where(.swal2-container) .swal2-input {
                                 makerLabel: '',
                                 title: `[생성예정]`,
                                 contentId: expectedcontentId,
-                                isVirtual: true,                                
                             });
                         }
                     }
