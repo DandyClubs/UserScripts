@@ -270,7 +270,7 @@ div:where(.swal2-container) .swal2-input {
     // --- 모달 크기 저장 및 복원 (수정본) ---
     const STORAGE_KEY = 'vce_modal_size';
 
-    const replaceReg = /【独占】|【準新作】|【FANZA独占】|【配信専用】|【最新作】|【新作】|【先行公開】/g;
+    const replaceReg = /【独占】|【準新作】|【FANZA独占】|【配信専用】|【最新作】|【新作】|【先行公開】|【セール】/g;
 
 
     const imageSelectorMap = {
@@ -1383,7 +1383,7 @@ div:where(.swal2-container) .swal2-input {
             });
 
             if (result.title) {
-                result.title = result.title.replace(/【独占】|【準新作】|【FANZA独占】|【配信専用】/g, '').trim();
+                result.title = result.title.replace(replaceReg, '').trim();;
             }
             if (result.releaseDate) {
                 result.releaseDate = result.releaseDate.replace(/[\/\-_]/g, '.');
@@ -2395,11 +2395,19 @@ div:where(.swal2-container) .swal2-input {
                     const prefix = parts[2];
                     const displayCode = v.displayCode;
 
-                    const newKey = `${displayCode}|${prefix}|${padLenStr}|${suffix}|${makerLabelCode}|${contentIdZero}`;
+                    const newKey = `${displayCode}|${prefix}|${padLenStr}|${suffix}|${makerLabelCode}|${contentIdZero}`;                
                     await VceDB.save("imageMeta", v.imageSource, {
-                        uniqueKey: newKey
+                        uniqueKey: newKey,
+                        title: newTitle
                     });
-                }
+                }                
+            }
+
+            if (v.title && replaceReg.test(v.title)){
+                const newTitle = v.title?.replace(replaceReg, '').trim();
+                await VceDB.save("imageMeta", v.imageSource, {
+                    title: newTitle
+                });
             }
 
             for (const Regex of deletePattons) {
@@ -2489,9 +2497,6 @@ div:where(.swal2-container) .swal2-input {
         // 삭제가 완료된 후의 Key 상태를 다시 확인
         const finalRemainingCodes = await VceDB.getAll("codes");
         const finalKeys = new Set(finalRemainingCodes.map(v => v[keyPath]));
-
-
-
 
         let created = 0, deleted = 0, updated = 0, skipped = 0;
 
@@ -4737,11 +4742,10 @@ div:where(.swal2-container) .swal2-input {
                             generatedResults.push({
                                 displayCode: displayCode,
                                 realCode: expectedRealCode,
-                                makerLabel: makerLabel,
+                                makerLabel: '',
                                 title: `[생성예정]`,
                                 contentId: expectedcontentId,
-                                isVirtual: true,
-                                metaStatus: 'VIRTUAL'
+                                isVirtual: true,                                
                             });
                         }
                     }
