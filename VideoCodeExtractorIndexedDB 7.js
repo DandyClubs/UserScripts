@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoCode & MetaData Extractor IndexedDB 7.0
 // @namespace    http://tampermonkey.net/
-// @version      7.0
+// @version      7.1
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/*
@@ -3065,7 +3065,7 @@ div:where(.swal2-container) .swal2-input {
                 for (let i = 0; i < queue.length; i++) {
                     const t = queue[i];
                     btnRun.innerText = `처리 중 (${i + 1}/${queue.length})`;
-                    await processWork(t.imageSrc, t.linkUrl, { makerLabelCode, rawMediaType, ID: contentId, reTry: true });
+                    await processWork(t.imageSrc, t.linkUrl, { makerLabelCode, rawMediaType, contentId, reTry: true });
                 }
                 btnRun.disabled = false;
                 refreshQueueButton();
@@ -4763,7 +4763,7 @@ div:where(.swal2-container) .swal2-input {
             const start = (currentPage - 1) * itemsPerPage;
             allResults.slice(start, start + itemsPerPage).forEach(item => {
                 const tr = document.createElement('tr');
-                if (item.isVirtual) {
+                if (!item.url) {
                     tr.className = 'vce-row-virtual';
                     tr.style.opacity = '.25';
                 }
@@ -4865,14 +4865,17 @@ div:where(.swal2-container) .swal2-input {
         async function updateVirtualRow(id, updates) {
             //console.log(id, updates)
             // 1. 메모리 상의 데이터(allResults) 업데이트
+            const { DB, rawImage } = updates;
             const targetIndex = allResults.findIndex(item => item.contentId === id);
+            console.log(targetIndex, allResults.length, updates);
 
             if (targetIndex !== -1) {
                 // 기존 데이터에 새로운 변경사항 덮어쓰기
-                const hasMeta = await VceDB.get('imageMeta', updates.rawImage);
+                const hasMeta = await VceDB.get('imageMeta', rawImage);
                 //console.log(hasMeta);
                 if (hasMeta) {
-                    allResults[targetIndex] = { ...allResults[targetIndex], ...hasMeta };
+                    allResults[targetIndex] = { ...allResults[targetIndex], ...DB };
+                    console.log(allResults[targetIndex], hasMeta, allResults.length);
                     // 2. DOM(화면) 실시간 업데이트
                     // 전체 renderTable()을 호출하는 대신, 해당 ID를 가진 TR만 찾아 수정합니다.
                     const rowElement = document.querySelector(`tr[data-id="${id}"]`);
@@ -5167,13 +5170,16 @@ div:where(.swal2-container) .swal2-input {
         }
     }
 
-    let taskQueue = [];
+    
     let isRunning = false;
     let workerWin = null;
 
 
 
     async function startJob(data) {
+
+        let taskQueue = [];
+
         let jobCount = 0;
 
         if (isRunning) {
@@ -5241,13 +5247,14 @@ div:where(.swal2-container) .swal2-input {
         }
 
         FANZADIGITALBC.onmessage = (e) => {
-            const { type, rawImage, work, contentId } = e.data || {};
+            const { type, rawImage, work, contentId, DB } = e.data || {};
             if (type === 'TASK_DONE') {
                 console.log('완료:', e.data);
                 if (work === 'SUCCESS' && rawImage) {
                     externalUpdateVirtualRow(contentId, {
                         isVirtual: false,      // 이제 실제 데이터가 됨
                         rawImage,
+                        DB
                     });
                 }
                 assignNext();
@@ -5377,7 +5384,8 @@ div:where(.swal2-container) .swal2-input {
                                     workUrl: searchUrl,
                                     contentId,
                                     work: e.work,
-                                    result: send
+                                    result: send,
+                                    DB: e.dbData
                                 });
                             } else {
                                 FANZADIGITALBC.postMessage({
@@ -5405,7 +5413,8 @@ div:where(.swal2-container) .swal2-input {
                                             contentId,
                                             workUrl: searchAVWikiUrl,
                                             work: e.work,
-                                            result: send
+                                            result: send,
+                                            DB: e.dbData
                                         });
                                     } else {
                                         FANZADIGITALBC.postMessage({
@@ -5447,7 +5456,8 @@ div:where(.swal2-container) .swal2-input {
                                     workUrl: location.href,
                                     work: e.work,
                                     contentId,
-                                    result: send
+                                    result: send,
+                                    DB: e.dbData
                                 });
                             } else {
                                 FANZADIGITALBC.postMessage({
