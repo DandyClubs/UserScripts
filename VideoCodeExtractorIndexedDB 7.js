@@ -202,10 +202,9 @@ div:where(.swal2-container) .swal2-input {
 .vce-result-table th { position: sticky; top: 0; background: #222; color: #aaa; padding: 8px; border-bottom: 1px solid #444; text-align: center; text-wrap: nowrap;}
 .vce-result-table td { padding: 5px; border-bottom: 1px solid #222; color: #eee; }
 .vce-result-table tr:hover { background: #1a1a1a; }
-.vce-result-table tbody tr:hover .delete-btn {
-    visibility: visible !important;
+.vce-result-table tbody tr:hover .delete-btn {    
     opacity: 1 !important;
-    transition: opacity 0.2s, visibility 0.2s;
+    transition: opacity 0.2s;
 }
 
 /* 선택사항: 버튼 자체에 호버했을 때 색상을 더 진하게 하고 싶다면 */
@@ -2257,8 +2256,7 @@ div:where(.swal2-container) .swal2-input {
                             });
                             GM_setValue("process_queue", JSON.stringify(queue));
                             console.log(`[Queue Add] ${imageSrc}`);
-                        }
-                        console.log('aaaaa');
+                        }                        
                         // 2. DB 및 메모리에서 즉시 삭제
                         await VceDB.delete('codes', key);
                         await VceDB.deleteAll('imageMeta', 'uniqueKey', key);
@@ -2594,6 +2592,9 @@ div:where(.swal2-container) .swal2-input {
 업데이트: ${updated}
 스킵: ${skipped}
 `);
+
+        await getMinMax();
+
     }
 
     const makerMap = new Map();
@@ -2966,6 +2967,215 @@ div:where(.swal2-container) .swal2-input {
         return lines.join('\n');
     }
 
+    async function getMinMax() {
+
+        const db = await VceDB.open();
+        const allCodes = await new Promise(r => {
+            db.transaction("codes").objectStore("codes").getAll().onsuccess = e => r(e.target.result);
+        });
+        if (allCodes.length === 0) return alert("데이터가 없습니다.");
+
+        const MinMaxMeta = await new Promise(r => {
+            db.transaction("imageMeta").objectStore("imageMeta").getAll().onsuccess = e => r(e.target.result);
+        });
+
+        const txMinMax = db.transaction("codes", "readwrite"); // 🔥 삭제 작업 완료 후 생성!
+        const storeMinMax = txMinMax.objectStore("codes");
+        const firstUpdatePromises = [];
+
+        // 2. displayCode별 출현 빈도 계산 (전체 codes 테이블 기준)
+        const displayCodeCounts = allCodes.reduce((acc, curr) => {
+            acc[curr.displayCode] = (acc[curr.displayCode] || 0) + 1;
+            return acc;
+        }, {});
+
+
+        const virtualKeyExtractor = (key) => {
+            const parts = key.split('|');
+            // uniqueKey 구조: [displayCode, prefix, padLen, suffix, makerLabelCode, maskedContentId]
+
+            // makerLabelCode(인덱스 4)를 제외하고 다시 조립하여 가상 키 생성
+            return [
+                parts[0], // displayCode
+                parts[1], // prefix
+                parts[2], // padLen
+                parts[3], // suffix
+                // parts[4] 는 무시 (makerLabelCode)
+                parts[5]  // contentId (masked)
+            ].join('_');
+        };
+
+        const findDuplicateGroups = (Codes) => {
+            const groups = {};
+
+            Codes.forEach(item => {
+                const virtualKey = virtualKeyExtractor(item.id);
+
+                if (!groups[virtualKey]) {
+                    groups[virtualKey] = [];
+                }
+                groups[virtualKey].push(item);
+            });
+
+            // 2. 그룹화된 결과 중 makerLabelCode만 다른 경우 추출
+            const results = [];
+
+            for (const vKey in groups) {
+                const list = groups[vKey];
+
+                // 같은 가상 키를 가졌는데, 실제 makerLabelCode가 서로 다른 게 있는지 확인
+                const uniqueMakerCodes = new Set(list.map(i => i.makerLabelCode));
+
+                if (uniqueMakerCodes.size > 1) {
+                    // makerLabelCode가 2종류 이상 발견된 경우 리스트에 추가
+                    results.push({
+                        commonPattern: vKey,
+                        items: list
+                    });
+                }
+            }
+            return results;
+        };
+
+        const duplicateGroups = findDuplicateGroups(allCodes);
+
+        const specialPatternMap = new Map();
+        duplicateGroups.forEach(group => {
+            const codesInPattern = new Set(group.items.map(i => i.makerLabelCode));
+            specialPatternMap.set(group.commonPattern, codesInPattern);
+        });
+
+        allCodes.forEach(obj => {
+            // A의 key와 일치하는 B의 데이터들 필터링
+            const group = MinMaxMeta.filter(m => m.uniqueKey === obj.id);
+
+            if (group.length > 0) {
+                // 숫자 추출 로직
+                const p = obj.prefix;
+                const c = obj.displayCode.toLowerCase();
+                const s = obj.suffix;
+                const regex = new RegExp(`^${p}${c}|${s}$`, 'i');
+
+                const nums = group.map(m => {
+                    const cleanStr = m.contentId.replace(regex, '');
+                    const n = parseInt(cleanStr, 10);
+                    return isNaN(n) ? 1 : n;
+                });
+
+                const currentVKey = virtualKeyExtractor(obj.id);
+
+                let minNum, maxNum;
+
+                const isSpecialGroup = specialPatternMap.has(currentVKey) &&
+                    specialPatternMap.get(currentVKey).has(obj.makerLabelCode);
+
+                if (isSpecialGroup) {
+                    // 1. 특수 그룹: 실제 존재하는 번호만 추출해서 저장
+                    obj.actualNums = [...nums]
+                        .sort((a, b) => a - b)
+                        .map(num => NumberFormatter.trimAndMinPad(num, 3));
+
+                    // 특수 그룹은 실제 번호들의 최소/최대를 사용
+                    minNum = Math.min(...nums);
+                    maxNum = Math.max(...nums);
+                } else {
+                    // 2. 일반 그룹: actualNums를 저장하지 않음 (용량 절약)
+                    obj.actualNums = null;
+
+                    if (displayCodeCounts[obj.displayCode] === 1) {
+                        minNum = 1;
+                        maxNum = Math.max(...nums);
+                    } else if (obj.suffix) {
+                        obj.actualNums = [...nums]
+                            .sort((a, b) => a - b)
+                            .map(num => NumberFormatter.trimAndMinPad(num, 3));
+
+                        // 특수 그룹은 실제 번호들의 최소/최대를 사용
+                        minNum = Math.min(...nums);
+                        maxNum = Math.max(...nums);
+                    } else {
+                        minNum = Math.min(...nums);
+                        maxNum = Math.max(...nums);
+                    }
+                }
+
+                obj.minIndex = NumberFormatter.trimAndMinPad(minNum, 3);
+                obj.maxIndex = NumberFormatter.trimAndMinPad(maxNum, 3);
+
+                const request = storeMinMax.put(obj);
+                firstUpdatePromises.push(new Promise(r => request.onsuccess = r));
+            }
+        });
+
+
+        // 🔥 중요: 첫 번째 작업이 DB에 모두 반영될 때까지 대기
+        await Promise.all(firstUpdatePromises);
+        console.log("넘버링 업데이트 완료");
+
+        // [Step 2] 최신화된 데이터를 다시 가져와서 두 번째 작업(보정) 시작
+        const updatedCodes = await new Promise(r => {
+            db.transaction("codes").objectStore("codes").getAll().onsuccess = e => r(e.target.result);
+        });
+
+        const tx2 = db.transaction("codes", "readwrite");
+        const store2 = tx2.objectStore("codes");
+        const secondUpdatePromises = [];
+
+        const groupByDisplayAndMaker = (Codes) => {
+            const groups = {};
+
+            Codes.forEach(item => {
+                // 1. 두 코드를 조합하여 고유한 그룹 키 생성
+                const groupKey = `${item.displayCode}_${item.makerLabelCode}`;
+
+                // 2. 해당 키가 없으면 초기화
+                if (!groups[groupKey]) {
+                    groups[groupKey] = {
+                        displayCode: item.displayCode,
+                        makerLabelCode: item.makerLabelCode,
+                        items: []
+                    };
+                }
+
+                // 3. 그룹에 현재 아이템 추가
+                groups[groupKey].items.push(item);
+            });
+
+            // 4. 객체 형태를 배열로 변환하여 반환
+            return Object.values(groups);
+        };
+
+        const groupedResult = groupByDisplayAndMaker(updatedCodes);
+        const duplicateDisplayCodes = groupedResult.filter(group => group.items.length > 1);
+
+        duplicateDisplayCodes.forEach(group => {
+            let absoluteMin = Infinity;
+            let targetItem = null;
+
+            group.items.forEach(item => {
+                const currentMin = parseInt(item.minIndex, 10);
+                if (currentMin < absoluteMin) {
+                    absoluteMin = currentMin;
+                    targetItem = item;
+                }
+            });
+
+            if (targetItem) {
+                targetItem.minIndex = NumberFormatter.trimAndMinPad(1, 3);
+                const request = store2.put(targetItem);
+                secondUpdatePromises.push(new Promise(r => request.onsuccess = r));
+            }
+        });
+
+
+        // 🔥 중요: 두 번째 보정 작업 대기
+        await Promise.all(secondUpdatePromises);
+        console.log("보정 작업 완료");
+
+    }
+
+
+
     function createUI() {
         return new Promise((resolve) => {
             const panel = document.createElement('div');
@@ -3038,7 +3248,7 @@ div:where(.swal2-container) .swal2-input {
                     }
                 }
                 GM_setValue("process_queue", JSON.stringify(queue));
-                updateDisplayList(false, 'btnRetrySel');
+                //updateDisplayList(false, 'btnRetrySel');
                 refreshQueueButton();
             };
 
@@ -3060,13 +3270,18 @@ div:where(.swal2-container) .swal2-input {
                 btnRun.disabled = true;
 
                 for (let i = 0; i < queue.length; i++) {
-                    const t = queue[i];
+                    const { imageSrc,
+                        linkUrl,
+                        makerLabelCode,
+                        rawMediaType,
+                        contentId
+                    } = queue[i];
                     btnRun.innerText = `처리 중 (${i + 1}/${queue.length})`;
-                    await processWork(t.imageSrc, t.linkUrl, { makerLabelCode, rawMediaType, contentId, reTry: true });
+                    await processWork(imageSrc, linkUrl, { makerLabelCode, rawMediaType, contentId, reTry: true });
                 }
                 btnRun.disabled = false;
                 refreshQueueButton();
-                updateDisplayList(false, 'btnRunQueue');
+                //updateDisplayList(false, 'btnRunQueue');
             };
 
             const filterInput = controlBar.querySelector('#filterInput');
@@ -3226,204 +3441,7 @@ div:where(.swal2-container) .swal2-input {
                     await new Promise(r => txC.oncomplete = r);
                 }
 
-                const updatedMeta = await new Promise(r => {
-                    db.transaction("imageMeta").objectStore("imageMeta").getAll().onsuccess = e => r(e.target.result);
-                });
-
-                const tx1 = db.transaction("codes", "readwrite"); // 🔥 삭제 작업 완료 후 생성!
-                const store1 = tx1.objectStore("codes");
-                const firstUpdatePromises = [];
-
-
-                // 2. displayCode별 출현 빈도 계산 (전체 codes 테이블 기준)
-                const displayCodeCounts = allCodes.reduce((acc, curr) => {
-                    acc[curr.displayCode] = (acc[curr.displayCode] || 0) + 1;
-                    return acc;
-                }, {});
-
-
-                const virtualKeyExtractor = (key) => {
-                    const parts = key.split('|');
-                    // uniqueKey 구조: [displayCode, prefix, padLen, suffix, makerLabelCode, maskedContentId]
-
-                    // makerLabelCode(인덱스 4)를 제외하고 다시 조립하여 가상 키 생성
-                    return [
-                        parts[0], // displayCode
-                        parts[1], // prefix
-                        parts[2], // padLen
-                        parts[3], // suffix
-                        // parts[4] 는 무시 (makerLabelCode)
-                        parts[5]  // contentId (masked)
-                    ].join('_');
-                };
-
-                const findDuplicateGroups = (Codes) => {
-                    const groups = {};
-
-                    Codes.forEach(item => {
-                        const virtualKey = virtualKeyExtractor(item.id);
-
-                        if (!groups[virtualKey]) {
-                            groups[virtualKey] = [];
-                        }
-                        groups[virtualKey].push(item);
-                    });
-
-                    // 2. 그룹화된 결과 중 makerLabelCode만 다른 경우 추출
-                    const results = [];
-
-                    for (const vKey in groups) {
-                        const list = groups[vKey];
-
-                        // 같은 가상 키를 가졌는데, 실제 makerLabelCode가 서로 다른 게 있는지 확인
-                        const uniqueMakerCodes = new Set(list.map(i => i.makerLabelCode));
-
-                        if (uniqueMakerCodes.size > 1) {
-                            // makerLabelCode가 2종류 이상 발견된 경우 리스트에 추가
-                            results.push({
-                                commonPattern: vKey,
-                                items: list
-                            });
-                        }
-                    }
-
-                    return results;
-                };
-
-                const duplicateGroups = findDuplicateGroups(allCodes);
-
-                const specialPatternMap = new Map();
-                duplicateGroups.forEach(group => {
-                    const codesInPattern = new Set(group.items.map(i => i.makerLabelCode));
-                    specialPatternMap.set(group.commonPattern, codesInPattern);
-                });
-
-                allCodes.forEach(obj => {
-                    // A의 key와 일치하는 B의 데이터들 필터링
-                    const group = updatedMeta.filter(m => m.uniqueKey === obj.id);
-
-                    if (group.length > 0) {
-                        // 숫자 추출 로직
-                        const p = obj.prefix;
-                        const c = obj.displayCode.toLowerCase();
-                        const s = obj.suffix;
-                        const regex = new RegExp(`^${p}${c}|${s}$`, 'i');
-
-                        const nums = group.map(m => {
-                            const cleanStr = m.contentId.replace(regex, '');
-                            const n = parseInt(cleanStr, 10);
-                            return isNaN(n) ? 1 : n;
-                        });
-
-                        const currentVKey = virtualKeyExtractor(obj.id);
-
-                        let minNum, maxNum;
-
-                        const isSpecialGroup = specialPatternMap.has(currentVKey) &&
-                            specialPatternMap.get(currentVKey).has(obj.makerLabelCode);
-
-                        if (isSpecialGroup) {
-                            // 1. 특수 그룹: 실제 존재하는 번호만 추출해서 저장
-                            obj.actualNums = [...nums]
-                                .sort((a, b) => a - b)
-                                .map(num => NumberFormatter.trimAndMinPad(num, 3));
-
-                            // 특수 그룹은 실제 번호들의 최소/최대를 사용
-                            minNum = Math.min(...nums);
-                            maxNum = Math.max(...nums);
-                        } else {
-                            // 2. 일반 그룹: actualNums를 저장하지 않음 (용량 절약)
-                            obj.actualNums = null;
-
-                            if (displayCodeCounts[obj.displayCode] === 1) {
-                                minNum = 1;
-                                maxNum = Math.max(...nums);
-                            } else if (obj.suffix) {
-                                obj.actualNums = [...nums]
-                                    .sort((a, b) => a - b)
-                                    .map(num => NumberFormatter.trimAndMinPad(num, 3));
-
-                                // 특수 그룹은 실제 번호들의 최소/최대를 사용
-                                minNum = Math.min(...nums);
-                                maxNum = Math.max(...nums);
-                            } else {
-                                minNum = Math.min(...nums);
-                                maxNum = Math.max(...nums);
-                            }
-                        }
-
-                        obj.minIndex = NumberFormatter.trimAndMinPad(minNum, 3);
-                        obj.maxIndex = NumberFormatter.trimAndMinPad(maxNum, 3);
-
-                        const request = store1.put(obj);
-                        firstUpdatePromises.push(new Promise(r => request.onsuccess = r));
-                    }
-                });
-
-
-                // 🔥 중요: 첫 번째 작업이 DB에 모두 반영될 때까지 대기
-                await Promise.all(firstUpdatePromises);
-                console.log("첫 번째 넘버링 업데이트 완료");
-
-                // [Step 2] 최신화된 데이터를 다시 가져와서 두 번째 작업(보정) 시작
-                const updatedCodes = await new Promise(r => {
-                    db.transaction("codes").objectStore("codes").getAll().onsuccess = e => r(e.target.result);
-                });
-
-                const tx2 = db.transaction("codes", "readwrite");
-                const store2 = tx2.objectStore("codes");
-                const secondUpdatePromises = [];
-
-                const groupByDisplayAndMaker = (Codes) => {
-                    const groups = {};
-
-                    Codes.forEach(item => {
-                        // 1. 두 코드를 조합하여 고유한 그룹 키 생성
-                        const groupKey = `${item.displayCode}_${item.makerLabelCode}`;
-
-                        // 2. 해당 키가 없으면 초기화
-                        if (!groups[groupKey]) {
-                            groups[groupKey] = {
-                                displayCode: item.displayCode,
-                                makerLabelCode: item.makerLabelCode,
-                                items: []
-                            };
-                        }
-
-                        // 3. 그룹에 현재 아이템 추가
-                        groups[groupKey].items.push(item);
-                    });
-
-                    // 4. 객체 형태를 배열로 변환하여 반환
-                    return Object.values(groups);
-                };
-
-                const groupedResult = groupByDisplayAndMaker(updatedCodes);
-                const duplicateDisplayCodes = groupedResult.filter(group => group.items.length > 1);
-
-                duplicateDisplayCodes.forEach(group => {
-                    let absoluteMin = Infinity;
-                    let targetItem = null;
-
-                    group.items.forEach(item => {
-                        const currentMin = parseInt(item.minIndex, 10);
-                        if (currentMin < absoluteMin) {
-                            absoluteMin = currentMin;
-                            targetItem = item;
-                        }
-                    });
-
-                    if (targetItem) {
-                        targetItem.minIndex = NumberFormatter.trimAndMinPad(1, 3);
-                        const request = store2.put(targetItem);
-                        secondUpdatePromises.push(new Promise(r => request.onsuccess = r));
-                    }
-                });
-
-
-                // 🔥 중요: 두 번째 보정 작업 대기
-                await Promise.all(secondUpdatePromises);
-                console.log("두 번째 보정 작업 완료");
+                await getMinMax();
 
                 // [Step 3] 최종 결과 정렬 및 파일 생성
                 // 보정이 완료된 최종 데이터를 다시 가져옴
@@ -4503,6 +4521,9 @@ div:where(.swal2-container) .swal2-input {
 
                             if (rangeMatch) {
                                 const start = parseInt(rangeMatch[1]), end = parseInt(rangeMatch[2]);
+                                if (isNaN(start) || isNaN(end)) return alert("입력 형식이 올바르지 않습니다.");
+                                if (start > end) return alert("시작번호가 끝번호 보다 큽니다.");
+
                                 return extractedNum >= start && extractedNum <= end;
                             } else if (singleMatch) {
                                 return extractedNum === parseInt(singleMatch[1]);
@@ -4681,6 +4702,9 @@ div:where(.swal2-container) .swal2-input {
             const startNum = parseInt(startStr);
             const endNum = parseInt(endStr);
 
+            if(isNaN(startNum) || isNaN(endNum)) return alert("입력 형식이 올바르지 않습니다."); 
+            if(startNum > endNum) return alert("시작번호가 끝번호 보다 큽니다.");
+
             const db = await VceDB.open();
 
             // 1. codes 스토어에서 검색된 모든 패턴 가져오기
@@ -4770,10 +4794,10 @@ div:where(.swal2-container) .swal2-input {
                 <td style="white-space:nowrap;">${item.label || ''}</td>
                 <td>${item.cast || ''}</td>
                 <td style="white-space:nowrap;">${item.releaseDate || ''}</td>
-                <td style="white-space:nowrap;">${item.resolution ? `<a class="vce-preview" href="${item.url}" target="_blank">${item.resolution.W}x${item.resolution.H}</a>` : ''}</td>                
+                <td style="white-space:nowrap; text-align: center;">${item.resolution ? `<a class="vce-preview" href="${item.url}" target="_blank">${item.resolution.W}x${item.resolution.H}</a>` : ''}</td>                
                 <td syle="white-space:nowrap;"><button class="delete-btn"
             data-key="${item.url}" 
-            style="display: flex; visibility: hidden; opacity: 0; background:none; border:none; color:#aaa; cursor:pointer; align-items:center; padding:0 5px;">
+            style="display: flex; opacity: 0; background:none; border:none; color:#aaa; cursor:pointer; align-items:center; padding:0 5px;">
         ${refreshIcon}
     </button>
     </td>                
