@@ -4867,15 +4867,15 @@ div:where(.swal2-container) .swal2-input {
             // 1. 메모리 상의 데이터(allResults) 업데이트
             const { DB, rawImage } = updates;
             const targetIndex = allResults.findIndex(item => item.contentId === id);
-            console.log(targetIndex, allResults.length, updates);
+            //console.log(targetIndex, allResults.length, updates);
 
             if (targetIndex !== -1) {
                 // 기존 데이터에 새로운 변경사항 덮어쓰기
                 const hasMeta = await VceDB.get('imageMeta', rawImage);
                 //console.log(hasMeta);
                 if (hasMeta) {
-                    allResults[targetIndex] = { ...allResults[targetIndex], ...DB };
-                    console.log(allResults[targetIndex], hasMeta, allResults.length);
+                    allResults[targetIndex] = { ...allResults[targetIndex], ...hasMeta };
+                    //console.log(allResults[targetIndex], hasMeta, allResults.length);
                     // 2. DOM(화면) 실시간 업데이트
                     // 전체 renderTable()을 호출하는 대신, 해당 ID를 가진 TR만 찾아 수정합니다.
                     const rowElement = document.querySelector(`tr[data-id="${id}"]`);
