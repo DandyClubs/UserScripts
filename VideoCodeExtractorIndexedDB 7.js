@@ -4144,9 +4144,7 @@ div:where(.swal2-container) .swal2-input {
     }
 
 
-    async function collectAndProcess() {
-        FontAwesomeCSS();
-        await initializeMakerMap();
+    async function collectAndProcess() {       
 
         const autoStatus = getState();
         await createUI();
@@ -5494,13 +5492,17 @@ div:where(.swal2-container) .swal2-input {
         };
 
         /******** 초기 진입 ********/
-        await initializeMakerMap();
+        
         requestTask();
     }
 
-    if (isWorker()) {
+
+    initializeMakerMap();
+
+    if (isWorker()) {        
         runWorker();
     } else {
+        FontAwesomeCSS();    
         runOnceAWeek('weekly_update_updateUniqueKey', updateUniqueKey);
         collectAndProcess();
         searchVCE();
