@@ -828,7 +828,7 @@ async function Main() {
                 window.close();
             }
             else if (e.target.classList.contains('prev-icon')) {
-                const prev = titles[(index - 1) % titles.length];
+                const prev = titles[(index - 1 + titles.length) % titles.length];
                 scrollToTitlePx(prev.element, 80);
             }
             else if (e.target.classList.contains('next-icon')) {
