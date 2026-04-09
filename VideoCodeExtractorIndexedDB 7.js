@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoCode & MetaData Extractor IndexedDB 7.0
 // @namespace    http://tampermonkey.net/
-// @version      7.1.1
+// @version      7.2.2
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/*
@@ -171,6 +171,24 @@ div:where(.swal2-container) .swal2-input {
     font-weight: bold; font-size: 11px; color: #2196F3; letter-spacing: 1px;
 }
 
+
+/* 최소화 시 하단 중앙 바 스타일 */
+#vce-search-modal.vce-minimized {
+    position: fixed !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important; /* 가로 중앙 정렬 핵심 */
+    border-radius: 8px 8px 0 0 !important; /* 위쪽만 둥글게 */
+    box-shadow: 0 -4px 15px rgba(0,0,0,0.3);
+    z-index: 10001;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+/* 내용물 숨김 */
+#vce-search-modal.vce-minimized .vce-content-wrapper {
+    display: none !important;
+}
+
 /* 컨텐츠 영역 */
 .vce-content-wrapper { padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
 
@@ -233,7 +251,7 @@ div:where(.swal2-container) .swal2-input {
     `);
 
     const imageUrlsMap = {
-        'FANZA_DIGITAL': "https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/",
+        'FANZA_DIGITAL': "https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/",        
         'FANZA_MONO_DVD': "https://awsimgsrc.dmm.com/dig/mono/movie/",
         'PRESTIGE': "https://www.prestige-av.com/api/media/goods/prestige/", // BGN045~072, CHN156~217, ABP398~999번, ABW001~279번        
         'DMM': "https://pics.dmm.co.jp/mono/movie/adult/",
@@ -645,6 +663,7 @@ div:where(.swal2-container) .swal2-input {
                     const contentId = searchUrl.match(/cid=(.*)\//)[1];
                     const testImageUrl = [
                         `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${id}/${id}pl.jpg`,
+                        `https://awsimgsrc.dmm.com/dig/mono/movie/${id}/${id}pl.jpg`,
                         `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`,
                         `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`
                     ];
@@ -902,7 +921,13 @@ div:where(.swal2-container) .swal2-input {
         FANZA_DIGITAL: {
             addDB: async () => {
                 try {
-
+                    const infoArea = document.querySelector(siteConfigs['FANZA_DIGITAL'].InfoSelector);
+                    if (infoArea) {
+                        const more = infoArea.querySelector('tbody tr td span div button');
+                        if (more) {
+                            more.click();
+                        }
+                    }
                     const el = document.querySelector('div[data-e2eid="sample-image-gallery"] a');
                     const url = location.href;
                     const contentId = GetParam(url, 'id').toLocaleLowerCase();
@@ -911,6 +936,7 @@ div:where(.swal2-container) .swal2-input {
                     const cid = contentId.replace(regex, '');
                     const testImageUrl = [
                         `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${contentId}/${contentId}pl.jpg`,
+                        `https://awsimgsrc.dmm.com/dig/mono/movie/${contentId}/${contentId}pl.jpg`,
                         `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`,
                         `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`
                     ];
@@ -1048,7 +1074,7 @@ div:where(.swal2-container) .swal2-input {
                             const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
                             const result = parse(document.body);
                             if (!result || !result.realCode) return;
-                            result.title = result.title.replace(replaceReg, '').trim();
+                            result.title = result.title.replace(replaceReg, '').replace(`(${result.realCode.toLowerCase()})`, '').trim();
                             const fileName = `${result.realCode} ${result.title}`;
                             const limitedfileName = byteLengthOf(fileName, 240);
                             let finalFileName = FilenameConvert(limitedfileName);
@@ -1069,8 +1095,8 @@ div:where(.swal2-container) .swal2-input {
                     });
                 }
             },
-            titleSelector: 'h1.font-bold.text-2xl.inline.text-base',
-            InfoSelector: 'table.text-xs.shrink.table-fixed',
+            titleSelector: 'h1.font-bold.inline.text-base',
+            InfoSelector: 'table.table-fixed',
             realCodeKeys: ['メーカー品番'],
             seriesKeys: ['シリーズ'],
             labelKeys: ['レーベル'],
@@ -1089,6 +1115,7 @@ div:where(.swal2-container) .swal2-input {
                     const contentId = searchUrl.match(/cid=(.*)\//)[1];
                     const testImageUrl = [
                         `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${id}/${id}pl.jpg`,
+                        `https://awsimgsrc.dmm.com/dig/mono/movie/${id}/${id}pl.jpg`,
                         `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`,
                         `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`
                     ];
@@ -1340,12 +1367,26 @@ div:where(.swal2-container) .swal2-input {
         cleanText(el) {
             if (!el) return '';
 
-            return el.innerHTML
-                .replace(/<[^>]*>/gi, ' ')
+            const clone = el.cloneNode(true);
+
+            // 제거하고 싶은 요소를 선택해서 삭제합니다.
+            // '▼すべて表示하는' 링크나 버튼 등을 식별할 수 있는 선택자를 넣으세요.
+            const junkSelectors = [
+                '#a_performer',                
+                'script',
+                'style',                
+            ];
+
+            junkSelectors.forEach(selector => {
+                clone.querySelectorAll(selector).forEach(node => node.remove());
+            });
+            
+            return clone.innerHTML
+                .replace(/<[^>]*>/gi, '')
                 .replace(/▼すべて表示する.+/, '')
                 .replace(/\s+/g, ' ')
                 .replace(/----/g, '')
-                .trim();
+                .trim();                
         },
 
         get(map, keys) {
@@ -1374,7 +1415,7 @@ div:where(.swal2-container) .swal2-input {
             });
 
             if (result.title) {
-                result.title = result.title.replace(replaceReg, '').trim();;
+                result.title = result.title.replace(replaceReg, '').replace(`(${result.realCode.toLowerCase()})`, '').trim();;
             }
             if (result.releaseDate) {
                 result.releaseDate = result.releaseDate.replace(/[\/\-_]/g, '.');
@@ -2033,7 +2074,7 @@ div:where(.swal2-container) .swal2-input {
             const pathSegments = rawImage.split('/');
             const contentId = pathSegments[pathSegments.length - 2];
 
-            const majorsLabel = /(.*?)([a-z]{3,7}\d{3,7}|(KT|TS|SW|\d{2}ID[a-zA-Z]?|\d+T\d{2.3}[a-zA-Z]?))[v]?/i;
+            const majorsLabel = /(.*)([a-z]{3,7}\d{3,7}|(KT|TS|SW|\d{2}ID[a-zA-Z]*|\d+T\d{2.3}[a-zA-Z]*))[v]*/i;
             if (!majorsLabel.test(contentId)) {
                 Logger.error('majorsLabel Test', { contentId });
                 return false;
@@ -2042,8 +2083,8 @@ div:where(.swal2-container) .swal2-input {
             const skipPatterns = [
                 /\d+adi\d+/i, // 55adi00005
                 /yrnk([a-z]*)/, // yrnknkjdvaj yrnkmtndvaj스트리밍 dvaj
-                /td048.*dv\d+([a-z0-9]*?)/, // td008dvaj0058, td048mtndv01598
-                /(h_[0-9]*?)([vpjg])(\d{3,})([a-z]*?)/,
+                /td048.*dv\d+([a-z0-9]*)/, // td008dvaj0058, td048mtndv01598
+                /(h_[0-9]*)([vpjg])(\d{3,})([a-z]*)/,
                 /\d+jdxa\d+/i,
             ];
 
@@ -2065,16 +2106,15 @@ div:where(.swal2-container) .swal2-input {
             }
 
             const extractPatterns = [
-                /(\d+)(KT|TS|SW|\d{2}ID[a-zA-Z]?)(\d{5,})(.*?)/i,                // 1sw01045 패턴
-                /(\d+)(T0?\d{2}[a-zA-Z]?)(\d{3,})(.*?)/i,                // 55t038024 패턴
-                /(.*)(d1clymax)(\d{5,})(.*?)/,
-                /([a-z]*?)(dvaj|dvajbx)(\d{5,})(.*?)/,
-                /(\d{2})(kt)(\d{5,})(.*?)/,
-                /(\d{2})([t]\d{1})(\d{5,})(.*?)/,
-                /(h_[h0-9]*?)(ss)(\d{3,})([a-z]*?)/,
-                /(h_[h0-9]*?)([a-z]{3,})(\d{3,})([a-z]*?)/,
-                /(\d*?)(ss)(\d{3,})([a-z]*?)/,
-                /([0-9]*?)([a-z]+)(\d+)(.*?)/,
+                /(\d+)(KT|TS|SW)(\d{5,})(.*)/i,
+                /(\d+)(ID[a-zA-Z]?)(\d{5,})(.*)/,                  // 1sw01045 패턴
+                /(\d+)(T0?\d{2}[a-zA-Z]?)(\d{3,})(.*)/i,                // 55t038024 패턴
+                /(.*)(d1clymax)(\d{5,})(.*)/,
+                /([a-z]*)(dvaj|dvajbx)(\d{5,})(.*)/,                
+                /(\d{2})([t]\d{1})(\d{5,})(.*)/,
+                /(h_[h0-9]*)(ss)(\d{3,})([a-z]*)/,
+                /(h_[h0-9]*)([a-z]{3,})(\d{3,})([a-z]*)/,
+                /([0-9]*)([a-z]+)(\d+)(.*)/,
             ];
 
             let match = null;
@@ -2393,8 +2433,8 @@ div:where(.swal2-container) .swal2-input {
                 }
             }
 
-            if (v.title && replaceReg.test(v.title)) {
-                const newTitle = v.title?.replace(replaceReg, '').trim();
+            if (v.title && replaceReg.test(v.title) || v.title.toLowerCase().includes(v.realCode.toLowerCase())) {
+                const newTitle = v.title?.replace(replaceReg, '').replace(`(${v.realCode.toLowerCase()})`, '').trim();
                 await VceDB.save("imageMeta", v.imageSource, {
                     title: newTitle
                 });
@@ -3523,7 +3563,7 @@ div:where(.swal2-container) .swal2-input {
                     return {
                         メーカー: item.makerLabel,
                         メーカー品番: item.realCode,
-                        제목: item.title.replace(replaceReg, '').trim(),
+                        제목: item.title.replace(replaceReg, '').replace(`(${item.realCode.toLowerCase()})`, '').trim(),
                         レーベル: item.label || '',
                         出演者: item.cast || '',
                         商品発売日: item.releaseDate,
@@ -4265,13 +4305,22 @@ div:where(.swal2-container) .swal2-input {
                                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
                                 </svg>`;
 
+        const vceIcons = {
+            minimize: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
+            restore: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"></polyline><polyline points="9 21 3 21 3 15"></polyline><line x1="21" y1="3" x2="14" y2="10"></line><line x1="3" y1="21" x2="10" y2="14"></line></svg>`,
+            close: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`
+        };
+
         // 모달 생성
         const modal = document.createElement('div');
         modal.id = 'vce-search-modal';
         modal.innerHTML = `
         <div class="vce-modal-header" id="vce-drag-handle">
             <span>DATABASE EXPLORER</span>
-            <button id="vce-close-x" style="background:none; border:none; color:#888; cursor:pointer; font-size:14px;">✕</button>
+            <div>
+            <button id="vce-minimize-btn" style="background:none; border:none; color:#888; cursor:pointer; font-size:14px; margin-right:10px;">${vceIcons.minimize}</button>
+            <button id="vce-close-x" style="background:none; border:none; color:#888; cursor:pointer; font-size:14px;">${vceIcons.close}</button>
+            </div>
         </div>
         <div class="vce-content-wrapper">
             <div class="vce-control-bar">               
@@ -4340,17 +4389,91 @@ div:where(.swal2-container) .swal2-input {
         overlay.style = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.15); z-index:99;";
         document.body.appendChild(overlay);
 
-        // --- 드래그 로직 ---
+
+        // 2. 이벤트 리스너 함수 정의
+
+        const minimizeBtn = modal.querySelector('#vce-minimize-btn');
+
+
+        // 최소화 버튼 클릭 이벤트
+        minimizeBtn.addEventListener('click', (e) => {
+            e.stopPropagation(); // 헤더 드래그 이벤트 등으로 전파 방지
+            toggleMinimize(e);
+        });
+
+        // 최소화된 상태의 모달을 클릭하면 다시 복원
+        modal.addEventListener('click', (e) => {
+            if (modal.classList.contains('vce-minimized')) {
+                toggleMinimize(e);
+            }
+        });
+
+        // --- 수정된 드래그 로직 ---
         const handle = document.getElementById('vce-drag-handle');
         let isDragging = false, offset = { x: 0, y: 0 };
 
+        // 최소화/복원 토글 함수
+        const toggleMinimize = (e) => {
+            const isMinimized = modal.classList.toggle('vce-minimized');
+
+            if (isMinimized) {
+                // --- 최소화 모드 전환 ---
+                overlay.style.display = 'none'; // 배경 클릭 허용
+
+                // 현재 브라우저 높이에서 40px(헤더높이)을 뺀 위치 계산
+                const targetTop = window.innerHeight - 40;
+
+                modal.style.top = targetTop + 'px';
+                // 가로 위치는 CSS의 left: 50%와 transform이 처리하므로 left는 초기화
+                modal.style.left = '50%';
+                
+                minimizeBtn.innerHTML = vceIcons.restore;
+                minimizeBtn.title = "원래대로";
+
+            } else {
+                // --- 복원 모드 (원래 위치로) ---
+                overlay.style.display = 'block';
+
+                // 드래그했던 마지막 위치가 있다면 복원
+                if (modal.dataset.lastLeft) {
+                    modal.style.left = modal.dataset.lastLeft;
+                    modal.style.top = modal.dataset.lastTop;
+                    modal.style.transform = 'none'; // 드래그 모드일 땐 중앙정렬 해제
+                } else {
+                    // 위치 기록이 없다면 화면 중앙 배치
+                    modal.style.left = '50%';
+                    modal.style.top = '50%';
+                    modal.style.transform = 'translate(-50%, -50%)';
+                }
+
+                minimizeBtn.innerHTML = vceIcons.minimize;
+                minimizeBtn.title = "최소화";
+
+                // 저장된 원래 너비 복원
+                const savedSize = GM_getValue(STORAGE_KEY, {});
+                if (savedSize && Object.keys(savedSize).length !== 0) {
+                    const { width } = JSON.parse(savedSize);
+                    modal.style.width = width + 'px';
+                } else {
+                    modal.style.width = '1200px';
+                }
+
+                modal.style.height = 'auto';
+            }
+        };
+
+        // --- 드래그 로직 보완 ---
         handle.onmousedown = (e) => {
-            if (e.target.tagName === 'BUTTON') return;
+            if (e.target.tagName === 'BUTTON' || modal.classList.contains('vce-minimized')) return;
+
             isDragging = true;
             const rect = modal.getBoundingClientRect();
+
+            // 드래그 시작 시 transform 제거 (좌표 계산 정확도를 위해)
             modal.style.transform = 'none';
             modal.style.left = rect.left + 'px';
             modal.style.top = rect.top + 'px';
+
             offset.x = e.clientX - rect.left;
             offset.y = e.clientY - rect.top;
 
@@ -4358,10 +4481,15 @@ div:where(.swal2-container) .swal2-input {
                 if (isDragging) {
                     modal.style.left = (e.clientX - offset.x) + 'px';
                     modal.style.top = (e.clientY - offset.y) + 'px';
+
+                    // 위치 데이터 업데이트
+                    modal.dataset.lastLeft = modal.style.left;
+                    modal.dataset.lastTop = modal.style.top;
                 }
             };
             document.onmouseup = () => { isDragging = false; };
         };
+
 
         // --- 영문/숫자 입력 씹힘 방지 및 검색 ---
         const queryInput = document.getElementById('vce-query');
@@ -5017,7 +5145,7 @@ div:where(.swal2-container) .swal2-input {
                 return {
                     メーカー: item.makerLabel,
                     メーカー品番: item.realCode,
-                    제목: item.title.replace(replaceReg, '').trim(),
+                    제목: item.title.replace(replaceReg, '').replace(`(${item.realCode.toLowerCase()})`, '').trim(),
                     レーベル: item.label || '',
                     出演者: item.cast || '',
                     商品発売日: item.releaseDate,
@@ -5051,7 +5179,7 @@ div:where(.swal2-container) .swal2-input {
                 return {
                     メーカー: item.makerLabel,
                     メーカー品番: item.realCode,
-                    제목: item.title.replace(replaceReg, '').trim(),
+                    제목: item.title.replace(replaceReg, '').replace(`(${item.realCode.toLowerCase()})`, '').trim(),
                     レーベル: item.label || '',
                     出演者: item.cast || '',
                     商品発売日: item.releaseDate,

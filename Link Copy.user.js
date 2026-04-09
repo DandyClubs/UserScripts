@@ -71,7 +71,7 @@
 // @grant        GM_getValue
 // @grant        GM_deleteValue
 // @grant        GM_listValues
-// @run-at       document-body
+// @run-at       document-start
 // @connect      *
 // @noframes
 // @license      MIT
@@ -465,7 +465,7 @@ window.addEventListener('storage', async (e) => {
 
 let currentConfig = null;
 
-window.addEventListener("load", async () => {
+document.addEventListener("DOMContentLoaded", () => {
     console.log('Start Link Copy!');
     FontAwesomeCSS();
     FirstStep();
