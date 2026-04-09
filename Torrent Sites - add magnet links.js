@@ -18,7 +18,7 @@
 const commonStyle = `
     .DBCenterBox {
         top: 5px;
-        position: absolute;
+        position: fixed;
         max-width: max-content;
         font-style: initial !important;
         text-align: center;
