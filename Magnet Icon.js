@@ -297,13 +297,17 @@ async function init() {
     const concurrency = 3; // 동시 실행 개수
     const queue = [...wrappers]; // 복사본 생성
 
+    let resolveFirst;
+    const firstPromise = new Promise(res => resolveFirst = res);
+    const firstWrapper = wrappers[0];
+
     // 개별 wrapper를 처리하는 핵심 로직을 별도 함수로 분리
     const processWrapper = async (wrapper) => {
         try {
             const currentLoader = loaders.get(wrapper);
 
             // 1. 이미지 프리로딩
-            await preloadImageSizes(wrapper, currentLoader);
+            await smartImageLoader(wrapper, currentLoader);
 
             void wrapper.offsetWidth;
             // 2. 레이아웃 최적화 (scaleMap 및 minHeightMap 적용)
@@ -313,6 +317,11 @@ async function init() {
             if (currentLoader) currentLoader.remove();
             wrapper.classList.add('layout-done');
             wrapper.style.visibility = '';
+
+            if (wrapper === firstWrapper) {
+                resolveFirst();
+            }
+
         } catch (err) {
             console.error("Layout error:", err);
         }
@@ -328,10 +337,14 @@ async function init() {
         }
     });
 
-    // 3개의 일꾼이 모두 작업을 마칠 때까지 대기
-    await Promise.all(workers);
+    
+    
+    await firstPromise;
     scrollToTitlePx(firstScrollPos.element, 80);
-    // --- 3개 병렬 처리 로직 끝 ---
+
+    // 전체 완료는 따로
+    await Promise.all(workers);
+    
 
     console.log("모든 렌더링이 완료되었습니다.");
 }
