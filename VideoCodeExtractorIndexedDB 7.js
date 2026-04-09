@@ -251,7 +251,7 @@ div:where(.swal2-container) .swal2-input {
     `);
 
     const imageUrlsMap = {
-        'FANZA_DIGITAL': "https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/",        
+        'FANZA_DIGITAL': "https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/",
         'FANZA_MONO_DVD': "https://awsimgsrc.dmm.com/dig/mono/movie/",
         'PRESTIGE': "https://www.prestige-av.com/api/media/goods/prestige/", // BGN045~072, CHN156~217, ABP398~999번, ABW001~279번        
         'DMM': "https://pics.dmm.co.jp/mono/movie/adult/",
@@ -1372,21 +1372,21 @@ div:where(.swal2-container) .swal2-input {
             // 제거하고 싶은 요소를 선택해서 삭제합니다.
             // '▼すべて表示하는' 링크나 버튼 등을 식별할 수 있는 선택자를 넣으세요.
             const junkSelectors = [
-                '#a_performer',                
+                '#a_performer',
                 'script',
-                'style',                
+                'style',
             ];
 
             junkSelectors.forEach(selector => {
                 clone.querySelectorAll(selector).forEach(node => node.remove());
             });
-            
+
             return clone.innerHTML
                 .replace(/<[^>]*>/gi, '')
                 .replace(/▼すべて表示する.+/, '')
                 .replace(/\s+/g, ' ')
                 .replace(/----/g, '')
-                .trim();                
+                .trim();
         },
 
         get(map, keys) {
@@ -2050,12 +2050,16 @@ div:where(.swal2-container) .swal2-input {
     window.addEventListener('hashchange', resetSessionCodes);
 
     async function processWork(imageSrc, linkUrl, options = {}) {
+
         const {
             makerLabelCode = '',
             rawMediaType = '',
             reTry = false,
             ID
         } = options;
+
+
+
         try {
             Logger.info('Input', { imageSrc, linkUrl, makerLabelCode, rawMediaType });
             let makerLabel = '';
@@ -2074,18 +2078,28 @@ div:where(.swal2-container) .swal2-input {
             const pathSegments = rawImage.split('/');
             const contentId = pathSegments[pathSegments.length - 2];
 
-            const majorsLabel = /(.*)([a-z]{3,7}\d{3,7}|(KT|TS|SW|\d{2}ID[a-zA-Z]*|\d+T\d{2.3}[a-zA-Z]*))[v]*/i;
-            if (!majorsLabel.test(contentId)) {
-                Logger.error('majorsLabel Test', { contentId });
+            const majorsLabelPatterns = [
+                /.*[a-z]{3,7}\d{3,7}/i,
+                /.*(KT|TS|SW)[a-zA-Z]*\d{3,5}[v]*/i,
+                /.*[a-z]{3,7}\d{3,5}[v]*/i,
+                /.*\d{2}ID[a-zA-Z]*\d{3,7}[v]*/i,
+                /h_[h0-9]*[a-z]{2,}\d{3,}[a-z]*/i,
+            ];
+
+            const isMajorMatched = majorsLabelPatterns.some(regex => regex.test(contentId));
+            if (!isMajorMatched) {
+                console.error('majorsLabel fail', contentId);
                 return false;
             }
 
             const skipPatterns = [
-                /\d+adi\d+/i, // 55adi00005
-                /yrnk([a-z]*)/, // yrnknkjdvaj yrnkmtndvaj스트리밍 dvaj
-                /td048.*dv\d+([a-z0-9]*)/, // td008dvaj0058, td048mtndv01598
-                /(h_[0-9]*)([vpjg])(\d{3,})([a-z]*)/,
+                /h_\d+[a-z]{2}\d+[a-z]\d+/i,
+                /\d+adi\d+/i,
+                /yrnk([a-z]*)/i,
+                /td048.*dv\d+([a-z0-9]*)/i,
+                /(h_[0-9]*)([vpjg])(\d{3,})([a-z]*)/i,
                 /\d+jdxa\d+/i,
+                /([0-9]*)([a-z]+)(\d+)([a-z]\d{2})/i,
             ];
 
             for (const skipRegex of skipPatterns) {
@@ -2100,21 +2114,40 @@ div:where(.swal2-container) .swal2-input {
             if (hasMeta) {
                 const hasCode = hasMeta?.uniqueKey ? await VceDB.get('codes', hasMeta?.uniqueKey) : null;
                 if (hasCode && hasCode?.displayCode) {
+                    const p = hasCode.prefix;
+                    const c = hasCode.displayCode.toLowerCase();
+                    const s = hasCode.suffix;
+                    const num = (str) => {
+                        const cleanStr = str.replace(regex, '');
+                        const n = parseInt(cleanStr, 10);
+                        return isNaN(n) ? 1 : n;
+                    };
+
+                    const regex = new RegExp(`^${p}${c}|${s}$`, 'i');
+                    const numbering = num(hasMeta.contentId);
+                    if (numbering > 5000) {
+                        Logger.info('잘못된 넘버링', hasMeta.contentId);
+                        return false;
+                    }
+                    updateMinMax(hasCode, numbering);
+
                     Logger.info('hasMeta Check', { hasMeta, hasCode });
                     return true;
                 }
             }
 
             const extractPatterns = [
-                /(\d+)(KT|TS|SW)(\d{5,})(.*)/i,
-                /(\d+)(ID[a-zA-Z]?)(\d{5,})(.*)/,                  // 1sw01045 패턴
-                /(\d+)(T0?\d{2}[a-zA-Z]?)(\d{3,})(.*)/i,                // 55t038024 패턴
-                /(.*)(d1clymax)(\d{5,})(.*)/,
-                /([a-z]*)(dvaj|dvajbx)(\d{5,})(.*)/,                
-                /(\d{2})([t]\d{1})(\d{5,})(.*)/,
-                /(h_[h0-9]*)(ss)(\d{3,})([a-z]*)/,
-                /(h_[h0-9]*)([a-z]{3,})(\d{3,})([a-z]*)/,
-                /([0-9]*)([a-z]+)(\d+)(.*)/,
+                /(.*)(KT[a-zA-Z]*)(\d{3,5})(v*)/i,
+                /(.*)(TS[a-zA-Z]*)(\d{3,5})(v*)/i,
+                /(.*)(SW[a-zA-Z]*)(\d{3,5})(v*)/i,
+                /(.*)(\d{2}ID[a-zA-Z]?)(\d{5,})(.*)/i,
+                /(.*)(T0?\d{2}[a-zA-Z]?)(\d{3,})(.*)/i,
+                /(.*)(d1clymax)(\d{5,})(.*)/i,
+                /([a-z]*)(dvaj|dvajbx)(\d{5,})(.*)/i,
+                /(\d{2})(t\d{1})(\d{5,})(.*)/i,
+                /(h_[h0-9]*)(ss|sy|id)(\d{3,})([a-z]*)/i,
+                /(h_[h0-9]*)([a-z]{3,})(\d{3,})([a-z]*)/i,
+                /([0-9]*)([a-z]+)(\d+)(.*)/i
             ];
 
             let match = null;
@@ -2125,11 +2158,33 @@ div:where(.swal2-container) .swal2-input {
                 const prefix = match[1];
                 const code = match[2].replace(/(T)0?(\d{2})/, '$1$2').toUpperCase();
                 const padLen = match[3].length;
+                const numbering = match[3];
                 const suffix = match[4];
+
+                if (
+                    suffix !== '' &&
+                    !suffix.endsWith('ai') &&
+                    !/[rvz]$/i.test(suffix) &&
+                    !/re\d+$/i.test(suffix) &&
+                    !/\d{2}/i.test(code)
+                ) {
+                    Logger.info('skip suffix', suffix);
+                    return false; // skip
+                }
+
                 const displayCode = code;
                 const uniqueKey = `${displayCode}|${prefix}|${padLen}|${suffix}|${makerLabelCode}|${contentId.replace(/\d/g, '0')}`;
-                Logger.info('match', { prefix, code, padLen, suffix, displayCode, uniqueKey });
+                Logger.info('match', { prefix, code, padLen, suffix, displayCode, uniqueKey, numbering });
 
+                const num = (str) => {
+                    const n = parseInt(str, 10);
+                    return isNaN(n) ? 1 : n;
+                };
+
+                if (num(numbering) > 5000) {
+                    Logger.info('잘못된 넘버링', numbering);
+                    return false;
+                }
                 // --- [섹션 1: 이미지 메타 처리] ---
 
                 await VceDB.save("imageMeta", rawImage, {
@@ -2168,6 +2223,11 @@ div:where(.swal2-container) .swal2-input {
 
                 const hasUniqueKey = await VceDB.get('codes', uniqueKey);
 
+                if (hasUniqueKey) {
+                    updateMinMax(hasUniqueKey, numbering);
+                    return true;
+                }
+
                 if (!hasUniqueKey && !currentSessionCodes.has(uniqueKey)) {
                     Logger.info('currentSessionCodes Check', uniqueKey);
                     currentSessionCodes.add(uniqueKey);
@@ -2198,6 +2258,7 @@ div:where(.swal2-container) .swal2-input {
                         rawMediaType: rawMediaType,
                     });
                     updateDisplayList(false, 'processWork');
+                    updateMinMax(uniqueKey, numbering);
                     updateCounts();
                 }
                 return true;
@@ -2296,7 +2357,7 @@ div:where(.swal2-container) .swal2-input {
                             });
                             GM_setValue("process_queue", JSON.stringify(queue));
                             console.log(`[Queue Add] ${imageSrc}`);
-                        }                        
+                        }
                         // 2. DB 및 메모리에서 즉시 삭제
                         await VceDB.delete('codes', key);
                         await VceDB.deleteAll('imageMeta', 'uniqueKey', key);
@@ -3007,6 +3068,57 @@ div:where(.swal2-container) .swal2-input {
         return lines.join('\n');
     }
 
+    const virtualKeyExtractor = (key) => {
+        const parts = key.split('|');
+        // uniqueKey 구조: [displayCode, prefix, padLen, suffix, makerLabelCode, maskedContentId]
+
+        // makerLabelCode(인덱스 4)를 제외하고 다시 조립하여 가상 키 생성
+        return [
+            parts[0], // displayCode
+            parts[1], // prefix
+            parts[2], // padLen
+            parts[3], // suffix
+            // parts[4] 는 무시 (makerLabelCode)
+            parts[5]  // contentId (masked)
+        ].join('_');
+    };
+
+    const findDuplicateGroups = (Codes) => {
+        const groups = {};
+
+        Codes.forEach(item => {
+            const virtualKey = virtualKeyExtractor(item.id);
+
+            if (!groups[virtualKey]) {
+                groups[virtualKey] = [];
+            }
+            groups[virtualKey].push(item);
+        });
+
+        // 2. 그룹화된 결과 중 makerLabelCode만 다른 경우 추출
+        const results = [];
+
+        for (const vKey in groups) {
+            const list = groups[vKey];
+
+            // 같은 가상 키를 가졌는데, 실제 makerLabelCode가 서로 다른 게 있는지 확인
+            const uniqueMakerCodes = new Set(list.map(i => i.makerLabelCode));
+
+            if (uniqueMakerCodes.size > 1) {
+                // makerLabelCode가 2종류 이상 발견된 경우 리스트에 추가
+                results.push({
+                    commonPattern: vKey,
+                    items: list
+                });
+            }
+        }
+        return results;
+    };
+
+
+
+
+
     async function getMinMax() {
 
         const db = await VceDB.open();
@@ -3030,60 +3142,15 @@ div:where(.swal2-container) .swal2-input {
         }, {});
 
 
-        const virtualKeyExtractor = (key) => {
-            const parts = key.split('|');
-            // uniqueKey 구조: [displayCode, prefix, padLen, suffix, makerLabelCode, maskedContentId]
-
-            // makerLabelCode(인덱스 4)를 제외하고 다시 조립하여 가상 키 생성
-            return [
-                parts[0], // displayCode
-                parts[1], // prefix
-                parts[2], // padLen
-                parts[3], // suffix
-                // parts[4] 는 무시 (makerLabelCode)
-                parts[5]  // contentId (masked)
-            ].join('_');
-        };
-
-        const findDuplicateGroups = (Codes) => {
-            const groups = {};
-
-            Codes.forEach(item => {
-                const virtualKey = virtualKeyExtractor(item.id);
-
-                if (!groups[virtualKey]) {
-                    groups[virtualKey] = [];
-                }
-                groups[virtualKey].push(item);
-            });
-
-            // 2. 그룹화된 결과 중 makerLabelCode만 다른 경우 추출
-            const results = [];
-
-            for (const vKey in groups) {
-                const list = groups[vKey];
-
-                // 같은 가상 키를 가졌는데, 실제 makerLabelCode가 서로 다른 게 있는지 확인
-                const uniqueMakerCodes = new Set(list.map(i => i.makerLabelCode));
-
-                if (uniqueMakerCodes.size > 1) {
-                    // makerLabelCode가 2종류 이상 발견된 경우 리스트에 추가
-                    results.push({
-                        commonPattern: vKey,
-                        items: list
-                    });
-                }
-            }
-            return results;
-        };
+        const specialPatternMap = new Map();
 
         const duplicateGroups = findDuplicateGroups(allCodes);
 
-        const specialPatternMap = new Map();
         duplicateGroups.forEach(group => {
             const codesInPattern = new Set(group.items.map(i => i.makerLabelCode));
             specialPatternMap.set(group.commonPattern, codesInPattern);
         });
+
 
         allCodes.forEach(obj => {
             // A의 key와 일치하는 B의 데이터들 필터링
@@ -3096,11 +3163,12 @@ div:where(.swal2-container) .swal2-input {
                 const s = obj.suffix;
                 const regex = new RegExp(`^${p}${c}|${s}$`, 'i');
 
+                const errNumber = 5000;
                 const nums = group.map(m => {
                     const cleanStr = m.contentId.replace(regex, '');
                     const n = parseInt(cleanStr, 10);
                     return isNaN(n) ? 1 : n;
-                });
+                }).filter(n => n < errNumber);
 
                 const currentVKey = virtualKeyExtractor(obj.id);
 
@@ -3109,7 +3177,7 @@ div:where(.swal2-container) .swal2-input {
                 const isSpecialGroup = specialPatternMap.has(currentVKey) &&
                     specialPatternMap.get(currentVKey).has(obj.makerLabelCode);
 
-                if (isSpecialGroup) {
+                if (isSpecialGroup || s) {
                     // 1. 특수 그룹: 실제 존재하는 번호만 추출해서 저장
                     obj.actualNums = [...nums]
                         .sort((a, b) => a - b)
@@ -3214,6 +3282,139 @@ div:where(.swal2-container) .swal2-input {
 
     }
 
+    async function updateMinMax(code, numbering) {
+
+        const db = await VceDB.open();
+        const allCodes = await new Promise(r => {
+            db.transaction("codes").objectStore("codes").getAll().onsuccess = e => r(e.target.result);
+        });
+
+        const specialPatternMap = new Map();
+
+        const duplicateGroups = findDuplicateGroups(allCodes);
+
+        duplicateGroups.forEach(group => {
+            const codesInPattern = new Set(group.items.map(i => i.makerLabelCode));
+            specialPatternMap.set(group.commonPattern, codesInPattern);
+        });
+
+        const currentVKey = virtualKeyExtractor(code.id);
+
+        const isSpecialGroup = specialPatternMap.has(currentVKey) &&
+            specialPatternMap.get(currentVKey).has(obj.makerLabelCode);
+
+        const num = (numbering) => {
+            const n = parseInt(numbering, 10);
+            return isNaN(n) ? 1 : n;
+        };
+
+        const currentNumber = num(numbering);
+        const key = code.id;
+        const errNumber = 5000;
+        let actualNums = code.actualNums || [];
+
+        const codeMin = num(code.minIndex);
+        const codeMax = num(code.maxIndex);
+        let currentMin = code.minIndex;
+        let currentMax = code.maxIndex;
+        let addNumber;
+
+        if (currentNumber > errNumber) {
+            if (actualNums.length > 0) {
+                const errNum = actualNums.find(n => num(n) > errNumber);
+                if (codeMax > errNumber || currentMax > errNumber) {
+                    currentMax = NumberFormatter.trimAndMinPad(1, 3);
+                }
+                if (errNum) {
+                    const newActualNums = actualNums.filter(n => num(n) < errNumber);
+                    await VceDB.save("codes", key, {
+                        minIndex: currentMin,
+                        maxIndex: currentMax,
+                        actualNums: newActualNums
+                    });
+                }
+            }
+            return;
+        }
+
+        if (isSpecialGroup) {
+            const checkNumber = NumberFormatter.trimAndMinPad(currentNumber, 3);
+            if (!actualNums.includes(checkNumber)) {
+                addNumber = checkNumber;
+                actualNums.push(NumberFormatter.trimAndMinPad(currentNumber, 3));
+                actualNums.sort((a, b) => a - b);
+            }
+        } else if (code.suffix && (/[a-zA-Z]$/i.test(code.suffix) || /ai$/i.test(code.suffix))) {
+            const checkNumber = NumberFormatter.trimAndMinPad(currentNumber, 3);
+            if (!actualNums.includes(checkNumber)) {
+                addNumber = checkNumber;
+                actualNums.push(NumberFormatter.trimAndMinPad(currentNumber, 3));
+                actualNums.sort((a, b) => a - b);
+            }
+        } else {            
+            if (code.minIndex && code.maxIndex) {
+                if (actualNums && actualNums.length > 0) {
+                    currentMin = NumberFormatter.trimAndMinPad(currentNumber, 3);
+                } else if (code.suffix === '') {
+                    currentMin = NumberFormatter.trimAndMinPad(1, 3);
+                } else if (code.minIndex && codeMin > currentNumber) {
+                    currentMin = NumberFormatter.trimAndMinPad(currentNumber, 3);
+                } else if (code.maxIndex && codeMax < currentNumber) {
+                    currentMax = NumberFormatter.trimAndMinPad(currentNumber, 3);
+                } else {
+                    currentMin = NumberFormatter.trimAndMinPad(1, 3);
+                }
+
+            } else {
+                if (actualNums && actualNums.length > 0) {
+                    currentMin = NumberFormatter.trimAndMinPad(currentNumber, 3);
+                } 
+                if (code.suffix) {
+                    const checkNumber = NumberFormatter.trimAndMinPad(currentNumber, 3);
+                    if (!actualNums.includes(checkNumber)) {
+                        addNumber = checkNumber;
+                        actualNums.push(NumberFormatter.trimAndMinPad(currentNumber, 3));
+                        actualNums.sort((a, b) => a - b);
+                    }
+                    currentMin = NumberFormatter.trimAndMinPad(currentNumber, 3);
+                }else if (code.suffix === '') {
+                    currentMin = NumberFormatter.trimAndMinPad(1, 3);
+                } 
+                currentMax = NumberFormatter.trimAndMinPad(currentNumber, 3);
+            }            
+        }
+
+        if (actualNums.length === 0) {
+            actualNums = null;
+        } else {
+            const actualNumsMin = num(actualNums[0]);
+            const actualNumsMax = num(actualNums[actualNums.length - 1]);
+            if (actualNumsMin < currentNumber) {
+                currentMin = NumberFormatter.trimAndMinPad(actualNumsMin, 3);
+            } else if (actualNumsMax > currentNumber) {
+                currentMax = NumberFormatter.trimAndMinPad(actualNumsMax, 3);
+            }
+        }
+
+        const ArraysEqual = (arr1, arr2) => {
+            // 1. 길이 비교
+            if (arr1.length !== arr2.length) return false;
+
+            // 2. 모든 요소가 같은지 비교
+            return arr1.every((value, index) => value === arr2[index]);
+        };
+
+        if (code.minIndex !== currentMin || code.maxIndex !== currentMax || addNumber) {
+            const logAddNumber = addNumber ? `actualNums: ${actualNums} -> ${addNumber}` : '';
+            console.log(`갱신: ${key} current: ${NumberFormatter.trimAndMinPad(currentNumber, 3)} Min: ${code.minIndex} -> ${currentMin} Max: ${code.maxIndex} -> ${currentMax} ${logAddNumber}`);
+            await VceDB.save("codes", key, {
+                minIndex: currentMin,
+                maxIndex: currentMax,
+                actualNums
+            });
+        }
+
+    }
 
 
     function createUI() {
@@ -4426,7 +4627,7 @@ div:where(.swal2-container) .swal2-input {
                 modal.style.top = targetTop + 'px';
                 // 가로 위치는 CSS의 left: 50%와 transform이 처리하므로 left는 초기화
                 modal.style.left = '50%';
-                
+
                 minimizeBtn.innerHTML = vceIcons.restore;
                 minimizeBtn.title = "원래대로";
 
@@ -4581,7 +4782,7 @@ div:where(.swal2-container) .swal2-input {
                 const ruleKey = `${p.prefix}|${p.padLen}|${p.suffix}`;
                 return `
             <div class="vce-dropdown-item" data-rule="${ruleKey}" style="display:flex; align-items:center; padding:6px; cursor:pointer;">                
-                    <div style="font-weight:bold; font-size:14px; margin-bottom:4px; font-size:12px;">${p.displayCode} 
+                    <div style="font-weight:bold; font-size:14px; margin-bottom:4px; font-size:12px;overflow: hidden;">${p.displayCode} 
                     <span style="font-weight:normal; color:#888; font-size:12px;">(${p.makerLabel})</span>
                     <span style="font-weight:normal; color:#888; font-size:12px;">첫작품: <span style="font-family:monospace; color:#00FF41; background:#003310; padding:2px 6px; border-radius:4px; font-size:11px;">${p.minIndex || ''}</span></span>
                     <span style="font-weight:normal; color:#888; font-size:12px;">끝작품: <span style="font-family:monospace; color:#00FF41; background:#003310; padding:2px 6px; border-radius:4px; font-size:11px;">${p.maxIndex || ''}</span></span>
@@ -4830,8 +5031,8 @@ div:where(.swal2-container) .swal2-input {
             const startNum = parseInt(startStr);
             const endNum = parseInt(endStr);
 
-            if(isNaN(startNum) || isNaN(endNum)) return alert("입력 형식이 올바르지 않습니다."); 
-            if(startNum > endNum) return alert("시작번호가 끝번호 보다 큽니다.");
+            if (isNaN(startNum) || isNaN(endNum)) return alert("입력 형식이 올바르지 않습니다.");
+            if (startNum > endNum) return alert("시작번호가 끝번호 보다 큽니다.");
 
             const db = await VceDB.open();
 
