@@ -265,15 +265,26 @@ div.SearchBox {
 	position: absolute;	
 	display: inline-flex;
     margin: .25em;
-    gap: 5px;
+    gap: 10px;
 }
 
-img.Favicon {
+img.favicon {
 	width: auto !important;
 	height: 1.5em !important;
 	margin: .25em;
 	cursor: pointer;
-	box-shadow: rgba(0, 0, 0, 0.17) 0px -23px 25px 0px inset, rgba(0, 0, 0, 0.15) 0px -36px 30px 0px inset, rgba(0, 0, 0, 0.1) 0px -79px 40px 0px inset, rgba(0, 0, 0, 0.06) 0px 2px 1px, rgba(0, 0, 0, 0.09) 0px 4px 2px, rgba(0, 0, 0, 0.09) 0px 8px 4px, rgba(0, 0, 0, 0.09) 0px 16px 8px, rgba(0, 0, 0, 0.09) 0px 32px 16px;
+	border-radius: 6px;
+
+	background: linear-gradient(145deg, #ffffff, #e6e6e6);
+
+	box-shadow:
+		-2px -2px 4px rgba(255,255,255,0.8), /* 위쪽 빛 */
+		2px 4px 8px rgba(0,0,0,0.2);         /* 아래쪽 그림자 */
+}
+img.favicon:active {
+	box-shadow:
+		inset 2px 2px 4px rgba(0,0,0,0.2),
+		inset -2px -2px 4px rgba(255,255,255,0.8);
 }
 
 `);
@@ -714,18 +725,27 @@ function makeSearch() {
             class: 'PornBB',
             domain: 'pornbb.org',
             onClick: () => {
-                const strong = document.querySelector('div.post-content-single.clearfix p strong span');
-                const term = strong ? strong.innerText.replace(/^EARLY\sLEAK/, '').trim() : '';
-                openInNewTab(`https://www.pornbb.org/newsearch.php?search_keywords=${term}`);
+                openInNewTab(`https://www.pornbb.org/newsearch.php?search_keywords=${searchTitle}`);
+            }
+        },
+        {
+            class: 'xxxclub',
+            domain: 'xxxclub.to',
+            onClick: () => {
+                openInNewTab(`https://xxxclub.to/torrents/search/all/${searchTitle}`);
             }
         },
         {
             class: 'BT4G',
             domain: 'bt4g.org',
             onClick: () => {
+                /*
                 const strong = document.querySelector('div.post-content-single.clearfix p strong span');
-                const term = strong ? strong.innerText.replace(/^EARLY\sLEAK/, '').replace(/\s-\s/, ' ').trim() : '';
-                openInNewTab(`https://bt4g.org/search/${term}`);
+                const term = strong ? strong.innerText.replace(/^EARLY\sLEAK/, '').split(/-/)
+                .map((e, index) => index === 0 ? e.replace(/\s+/, '').trim() : e.trim())
+                .join(' ').trim() : '';
+                */
+                openInNewTab(`https://bt4g.org/search/${searchTitle}`);
             }
         }
     ];
@@ -2341,7 +2361,7 @@ function RefreshIcon(Run) {
     if (searchBox && copyOffsetArea) {
         // Get a reference to the SearchBox and Favicon elements
 
-        const favicon = document.querySelector('img.Favicon');
+        const favicon = document.querySelector('img.favicon');
         searchBox.style.maxWidth = rem(baseScale * 0.9 * 3);
         searchBox.style.top = `${Math.floor(copyOffsetArea.offsetTop + (copyOffsetArea.offsetHeight / 20))}px`;
         searchBox.style.left = `${Math.floor(copyOffsetArea.offsetLeft + copyOffsetArea.offsetWidth - searchBox.offsetWidth * 1.5)}px`;
@@ -3197,7 +3217,7 @@ async function CopyLink() {
                         const testUrl = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
                         const result = await checkImageExistence(testUrl);
                         if (result.exists) {
-                        finalCoverImage = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
+                            finalCoverImage = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
                         }
                         console.log(`%c[규칙 기반 확정] ${prefix} → ${category}`, "color: #9E9E9E;");
                     }

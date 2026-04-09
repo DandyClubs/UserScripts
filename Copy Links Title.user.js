@@ -800,7 +800,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         Title = `${Featuring} - ${Title}`;
     }
 
-    const replaceEx = /(Actress\sand\sTitle\sVideo|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re|^File\sName|Title)(\s?([::：-]*))?/i;
+    const replaceEx = /(Actress\sand\sTitle\sVideo|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re|^File\sName|Title|^File)(\s?([::：-]*))?/i;
     console.log({ Title });
     Title = Title ? Title.replace(replaceEx, '').trim() : '';
     console.log({Title});
@@ -812,6 +812,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         .replace(/\*\*\*/g, '')
         .replace(/\n{2,}/g, '\n')
         .replace('File Name:-', '')
+        .replace('File:-', '')
         .trim()
         .split('\n')
         .filter(line => line.trim() && !/^(http|Download|Duration|Resolution|Categories|About)/i.test(line));

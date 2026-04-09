@@ -165,7 +165,7 @@ GM_addStyle(`
 .image-masonry-item img {
     width: 100%;
     height: 100%;
-    object-fit: contain; /* 비율 유지하며 꽉 채우기 */
+    object-fit: cover; /* 비율 유지하며 꽉 채우기 */
     border-radius: 8px;
     display: block;
 }
