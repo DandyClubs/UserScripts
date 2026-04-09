@@ -663,9 +663,8 @@ div:where(.swal2-container) .swal2-input {
                     const contentId = searchUrl.match(/cid=(.*)\//)[1];
                     const testImageUrl = [
                         `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${id}/${id}pl.jpg`,
-                        `https://awsimgsrc.dmm.com/dig/mono/movie/${id}/${id}pl.jpg`,
-                        `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`,
-                        `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`
+                        `https://awsimgsrc.dmm.com/dig/mono/movie/${cid}/${cid}pl.jpg`,
+                        `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`,                        
                     ];
                     let resData = {};
                     let imageSrc;
@@ -936,9 +935,8 @@ div:where(.swal2-container) .swal2-input {
                     const cid = contentId.replace(regex, '');
                     const testImageUrl = [
                         `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${contentId}/${contentId}pl.jpg`,
-                        `https://awsimgsrc.dmm.com/dig/mono/movie/${contentId}/${contentId}pl.jpg`,
-                        `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`,
-                        `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`
+                        `https://awsimgsrc.dmm.com/dig/mono/movie/${cid}/${cid}pl.jpg`,
+                        `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`,                        
                     ];
                     let resData = {};
                     let imageSrc;
