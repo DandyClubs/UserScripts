@@ -284,8 +284,7 @@ async function init() {
     const loaders = new Map();
 
     for (const wrapper of wrappers) {
-        wrapper.style.visibility = 'visible';
-        const imgCount = wrapper.querySelectorAll("img").length;
+        wrapper.style.visibility = 'visible';       
 
         // 첨부파일 이미지 형태의 로더 생성
         wrapper.insertAdjacentHTML('beforebegin', `<div class="image-loader"><div class="progress-circle" style="--p: 0"></div></div>`);
@@ -311,7 +310,9 @@ async function init() {
 
             void wrapper.offsetWidth;
             // 2. 레이아웃 최적화 (scaleMap 및 minHeightMap 적용)
-            optimizeSingleLayout(wrapper);
+            const imgCount = wrapper.querySelectorAll('img').length;
+            const columnCount = imgCount > 2 ? 3 : 2;           
+            optimizeSingleLayout(wrapper, columnCount);
 
             // 3. UI 정리
             if (currentLoader) currentLoader.remove();
