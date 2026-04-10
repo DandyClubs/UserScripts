@@ -82,7 +82,7 @@ GM_addStyle(`
 .image-masonry-item img {
     width: 100%;
     height: 100%;
-    object-fit: contain; /* 비율 유지하며 꽉 채우기 */
+    object-fit: cover; /* 비율 유지하며 꽉 채우기 */
     border-radius: 8px;
     display: block;
 }
@@ -312,7 +312,7 @@ async function init() {
             // 2. 레이아웃 최적화 (scaleMap 및 minHeightMap 적용)
             const imgCount = wrapper.querySelectorAll('img').length;
             const columnCount = imgCount > 2 ? 3 : 2; 
-            const maxHeight = imgCount > 2 ? 500 : 600;           
+            const maxHeight = imgCount > 2 ? 500 : 800;           
             optimizeSingleLayout(wrapper, columnCount, maxHeight);
 
             // 3. UI 정리
