@@ -4766,8 +4766,7 @@ div:where(.swal2-container) .swal2-input {
         modal.style.height = 'auto';
         modal.style.maxHeight = '80vh'; // 화면을 넘지 않도록 최대 높이 제한
 
-        document.body.appendChild(modal);
-
+        document.body.appendChild(modal);        
 
         const overlay = document.createElement('div');
         overlay.style = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.15); z-index:99;";
@@ -5257,7 +5256,7 @@ div:where(.swal2-container) .swal2-input {
                     for (let i = startNum; i <= endNum; i++) {
                         const currentNumStr = String(i).padStart(padLen, '0');
                         const expectedcontentId = `${prefix}${displayCode}${currentNumStr}${suffix}`.toLowerCase();
-                        const foundItem = existingMeta.find(m => m.uniqueKey === id && m.contentId === expectedcontentId.toLowerCase());
+                        const foundItem = existingMeta.find(m => m.uniqueKey === id && m.contentId === expectedcontentId.toLowerCase() && m.metaStatus === 'SUCCESS');
                         const expectedRealCode = targetItem
                             ? generateByDisplayCode(targetItem.realCode, displayCode, i)
                             : `${displayCode}-${String(i).padStart(3, '0')}`; // 데이터 없으면 기본 포맷
@@ -5680,6 +5679,8 @@ div:where(.swal2-container) .swal2-input {
             overlay.style.display = 'block';
             performSearch();
         };
+
+        document.querySelector('#vce-query').focus();
     }
 
 
@@ -5711,6 +5712,7 @@ div:where(.swal2-container) .swal2-input {
     async function startJob(data) {
 
         let taskQueue = [];
+        let contentId = null;
 
         let jobCount = 0;
 
@@ -5769,50 +5771,17 @@ div:where(.swal2-container) .swal2-input {
                 workerWin = window.open(url, windowName, 'width=600,height=300');
                 return workerWin; // 새로 열렸을 때
             }
-            window.addEventListener('beforeunload', () => {
+            window.addEventListener('beforeunload', () => {                
                 workerWin?.close();
             });
 
             return workerWin; // 기존 창 재사용
         }
 
-        function handler(e) {
-            if (!/javlibrary\.com/.test(e.origin)) return;
-            const { type, url, result, ID } = e.data || {};
-            
 
-            if (type === 'WORKER_READY') {                
-                javlibraryWin.postMessage({
-                    type: 'Start',
-                }, e.origin);
-            } else if (type === 'TASK_Javlibrary') {
-                console.log('성공 Javlibrary');
-                FANZADIGITALBC.postMessage({
-                    type: 'AddDB_TASK',
-                    url,
-                    ID,
-                    result,
-                });
-                javlibraryWin.postMessage({
-                    type: 'Close',
-                }, e.origin);
-            } else if (type === 'TASK_Javlibrary_FAIL') {
-                console.log('실패 Javlibrary');
-                javlibraryWin.postMessage({
-                    type: 'Close',
-                }, e.origin);                
-                assignNext();
-            } else if (type === 'FAIL Selector'){
-                console.log('실패 FAIL Selector');
-                javlibraryWin.postMessage({
-                    type: 'Close',
-                }, e.origin);                
-                assignNext();
-            }
-        }
 
         FANZADIGITALBC.onmessage = (e) => {
-            const { type, rawImage, work, contentId, DB, ID } = e.data || {};
+            const { type, rawImage, work, DB, ID } = e.data || {};
             if (type === 'TASK_DONE') {
                 console.log('완료:', e.data);
                 if (work === 'SUCCESS' && rawImage) {
@@ -5826,9 +5795,41 @@ div:where(.swal2-container) .swal2-input {
                     console.log('ALL FAILED: Javlibrary 시도');
                     const regex = /00(?=\d{3}(?!\d))/;
                     const javlibrarCid = ID.split(regex)?.join('').replace(/^[0-9]/, '');
-                    const windowName = `JavlibraryWorker_${e.data.ID}`;
+                    const windowName = `JavlibraryWorker`;                    
                     const searchUrl = `https://www.javlibrary.com/ja/vl_searchbyid.php?keyword=${javlibrarCid}`;
                     javlibraryWin = window.open(searchUrl, windowName, 'width=600, height=300');
+                    GM_setValue('contentId', ID);                    
+
+                    function handler(e) {
+                        if (!/javlibrary\.com/.test(e.origin)) return;
+                        const { type, url, result, ID } = e.data || {};
+
+
+                        if (type === 'WORKER_READY') {
+                            javlibraryWin.postMessage({
+                                type: 'Start',
+                            }, 'https://www.javlibrary.com');
+                        } else if (type === 'TASK_Javlibrary') {
+                            console.log('성공 Javlibrary');
+                            FANZADIGITALBC.postMessage({
+                                type: 'AddDB_TASK',
+                                url,
+                                ID,
+                                result,
+                            });
+                            if (javlibraryWin && !javlibraryWin.closed) {
+                                javlibraryWin.close();
+                            }
+                        } else if (type === 'TASK_Javlibrary_FAIL' || type === 'FAIL Selector') {
+                            console.log(`실패: ${type}`);
+
+                            // 메시지를 보내지 말고 부모가 직접 닫아버립니다.
+                            if (javlibraryWin && !javlibraryWin.closed) {
+                                javlibraryWin.close();
+                            }
+                            assignNext();
+                        }
+                    }
                     window.addEventListener('message', handler);
                 } else {
                     assignNext();
@@ -5842,12 +5843,14 @@ div:where(.swal2-container) .swal2-input {
                 fanzaWin = null;
                 updateProcessingFANZADIGITAL(taskQueue.length, '');
                 FANZADIGITALBC.close();
+                GM_deleteValue('contentId');
                 return;
             }
         };
 
         async function assignNext() {
             if (!isRunning) return;
+            GM_deleteValue('contentId');
 
             if (taskQueue.length === 0) {
                 console.log('모든 작업 완료');
@@ -5855,7 +5858,7 @@ div:where(.swal2-container) .swal2-input {
                 isRunning = false;
                 fanzaWin = null;
                 updateProcessingFANZADIGITAL(taskQueue.length, '');
-                FANZADIGITALBC.close();
+                FANZADIGITALBC.close();                     
                 return;
             }
 
@@ -5868,7 +5871,8 @@ div:where(.swal2-container) .swal2-input {
             const task = taskQueue.shift();
             //const pathSegments = task.url.split('/');
             //const contentId = pathSegments[pathSegments.length - 2];
-            const contentId = task.contentId;
+            contentId = task.contentId;
+            GM_setValue('contentId', contentId);
             const workerUrl = `https://video.dmm.co.jp/av/content/?id=${contentId}`;
             updateProcessingFANZADIGITAL(taskQueue.length, contentId);
             //console.log(workerWin, workerUrl, contentId, taskQueue);
@@ -5888,6 +5892,9 @@ div:where(.swal2-container) .swal2-input {
 
     function isWorker() {
         return window.name === 'FanzaWin';
+    }
+    function isJavlibraryWorker() {
+        return window.name === 'JavlibraryWorker'; 
     }
 
     /*********************************************************
@@ -6107,8 +6114,32 @@ div:where(.swal2-container) .swal2-input {
     }
 
     async function runJavlibraryWorker() {
-        console.log('[VCE] Javlibrary Worker mode');
-        const preContentId = window.name.match(/JavlibraryWorker_(.*)/i)[1];
+        console.log('[VCE] Javlibrary Worker mode');       
+
+        // Cloudflare 체크박스가 있는지 확인 (간단한 예시)
+        if (document.querySelector('#challenge-running') || document.querySelector('#cf-challenge-running')) {
+            console.log("Cloudflare 대기 중...");
+            return; // 체크박스 통과 전에는 실행 중단
+        }
+
+        const preContentId = GM_getValue('contentId', '');
+        const targetOrigin = 'https://video.dmm.co.jp'; // 변수로 관리
+
+        // 부모 창(opener)이 존재하는지 반드시 확인
+        if (!window.opener) {
+            console.error("부모 창을 찾을 수 없습니다.");
+            return;
+        }
+
+        window.addEventListener('message', (e) => {
+            if (!/dmm\.co\.jp/.test(e.origin)) return;
+            console.log(e.data.type);
+            if (e.data.type === 'Start') {
+                requestTask();
+            } else if (e.data.type === 'Close') {
+                window.close();
+            }
+        });
 
         if (location.href.startsWith('https://www.javlibrary.com/ja/vl_searchbyid.php?keyword')) {
             const regex = /00(?=\d{3}(?!\d))/;
@@ -6120,16 +6151,14 @@ div:where(.swal2-container) .swal2-input {
                     type: 'FAIL Selector',                    
                     url: location.href,
                     result: 'No Item'
-                }, 'https://video.dmm.co.jp/');
+                }, targetOrigin);
                 return;
             };
             if (findUrl) {
                 location.href = findUrl;
                 return;
             }
-        }
-
-        const startTime = performance.now();
+        }       
 
         async function requestTask() {
 
@@ -6144,28 +6173,18 @@ div:where(.swal2-container) .swal2-input {
                     url: location.href,
                     ID: preContentId,
                     result
-                }, 'https://video.dmm.co.jp/');
+                }, targetOrigin);
             } else {
                 window.opener.postMessage({
                     type: 'TASK_Javlibrary_FAIL',
                     url: location.href,
                     result: 'No Item'
-                }, 'https://video.dmm.co.jp/');
+                }, targetOrigin);
             }
 
         }
-        window.addEventListener('message', (e) => {
-            if (!/dmm\.co\.jp/.test(e.origin)) return;
-            console.log(e.data.type);
-            if (e.data.type === 'Start') {
-
-                requestTask();
-            } else if (e.data.type === 'Close') {
-                self.close();
-            }
-        });
-
-        window.opener.postMessage({ type: 'WORKER_READY' }, 'https://video.dmm.co.jp/');
+        
+        window.opener.postMessage({ type: 'WORKER_READY' }, targetOrigin);
 
     }
 
@@ -6203,10 +6222,10 @@ div:where(.swal2-container) .swal2-input {
             return null;
         }
     }
-    console.log(window.name);
+    
     if (isWorker()) {
         runWorker();
-    } else if (/javlibrary/.test(location.href) && window.opener) {
+    } else if (isJavlibraryWorker()) {
         runJavlibraryWorker();
     } else {
         if (/javlibrary/.test(location.href)) return;
