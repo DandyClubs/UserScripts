@@ -4969,6 +4969,7 @@ div:where(.swal2-container) .swal2-input {
                     <span style="font-weight:normal; color:#888; font-size:12px;">(${p.makerLabel})</span>
                     <span style="font-weight:normal; color:#888; font-size:12px;">첫작품: <span style="font-family:monospace; color:#00FF41; background:#003310; padding:2px 6px; border-radius:4px; font-size:11px;">${p.minIndex || ''}</span></span>
                     <span style="font-weight:normal; color:#888; font-size:12px;">끝작품: <span style="font-family:monospace; color:#00FF41; background:#003310; padding:2px 6px; border-radius:4px; font-size:11px;">${p.maxIndex || ''}</span></span>
+                    <br>
                     <span style="font-weight:normal; color:#888; font-size:12px;">해당작품: <span style="font-family:monospace; color:#00FF41; background:#003310; padding:2px 6px; border-radius:4px; font-size:11px;">[${p.actualNums || '전체'}]</span></span>
                     </div>
                     <br>
@@ -5942,6 +5943,7 @@ div:where(.swal2-container) .swal2-input {
                 });
             } else {
                 const config = siteConfigs['FANZA_DIGITAL'];
+                const contentId = GetParam(location.href, 'id').toLowerCase();
                 if (config) {
                     const waitTime = Math.max(getRandomDelay(), getRandomDelay()) + Math.min(getRandomDelay(), getRandomDelay());
                     const found = await checkTable(waitTime);
@@ -5968,7 +5970,7 @@ div:where(.swal2-container) .swal2-input {
 
                             const e = await siteConfigs[targetSite].addDB(searchUrl, ID);
 
-                            const { rawImage, work, contentId, dbData, reason } = e || {};
+                            const { rawImage, work, dbData, reason } = e || {};
 
                             console.log('[VCE] 작업 완료', e.work, location.href);
 
@@ -5981,7 +5983,7 @@ div:where(.swal2-container) .swal2-input {
                                     type: 'TASK_DONE',
                                     url: location.href,
                                     rawImage: rawImage,
-                                    contentId,
+                                    contentId: ID,
                                     workUrl: searchUrl,
                                     work,
                                     result: send,
@@ -6018,8 +6020,8 @@ div:where(.swal2-container) .swal2-input {
                     } else if (found) {
                         const url = location.href;
                         config.addDB().then(async (e) => {
-                            const { rawImage, work, contentId, dbData, reason } = e || {};
-                            console.log('[VCE] 작업 완료', e.work, location.href);
+                            const { rawImage, work, dbData, reason } = e || {};
+                            console.log('[VCE] 작업 완료', work, location.href);
                             const endTime = performance.now();
                             const executionTime = `${endTime - startTime} ms`;
                             await sleep(1000);
@@ -6030,8 +6032,8 @@ div:where(.swal2-container) .swal2-input {
                                     url: location.href,
                                     rawImage: rawImage,
                                     workUrl: location.href,
-                                    work: work,
-                                    contentId,
+                                    work,
+                                    contentId: ID,
                                     result: send,
                                     DB: dbData
                                 });
@@ -6065,9 +6067,10 @@ div:where(.swal2-container) .swal2-input {
             if (type === 'AddDB_TASK') {
                 console.log('AddDB_TASK');                
                 const searchUrl = location.href;
+                const ID = GetParam(location.href, 'id').toLowerCase();
                 const e = await siteConfigs['Javlibrary'].addDB(searchUrl, ID, result);
 
-                const { rawImage, work, contentId, dbData, reason } = e || {};
+                const { rawImage, work, dbData, reason } = e || {};
 
                 console.log('[VCE] 작업 완료', work, location.href);
 
@@ -6080,7 +6083,7 @@ div:where(.swal2-container) .swal2-input {
                         type: 'TASK_DONE',
                         url: location.href,
                         rawImage: rawImage,
-                        contentId,
+                        contentId: ID,
                         workUrl: searchUrl,
                         work,
                         result: send,
