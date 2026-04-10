@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         VideoCode & MetaData Extractor IndexedDB 7.0
 // @namespace    http://tampermonkey.net/
-// @version      7.2.2
+// @version      7.3.2
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/*
@@ -660,16 +660,15 @@ div:where(.swal2-container) .swal2-input {
                     if (!result) return { work: 'FAIL', reason: `result not fouund` };
                     const regex = /00(?=\d{3}(?!\d))/;
                     const cid = id.replace(regex, '');
-                    const contentId = searchUrl.match(/cid=(.*)\//)[1];
+                    const contentId = id;
                     const testImageUrl = [
                         `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${id}/${id}pl.jpg`,
                         `https://awsimgsrc.dmm.com/dig/mono/movie/${cid}/${cid}pl.jpg`,
-                        `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`,                        
+                        `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`,
                     ];
                     let resData = {};
                     let imageSrc;
-                    for (const src of testImageUrl) {
-                        // 이미 실패 기록이 있는 URL은 스킵
+                    for (const src of testImageUrl) {                        
                         const { exists, reason, result } = await fetchImageResolution(src);
                         if (exists && result.width > 0 && result.height > 0) {
                             imageSrc = src;
@@ -936,7 +935,7 @@ div:where(.swal2-container) .swal2-input {
                     const testImageUrl = [
                         `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${contentId}/${contentId}pl.jpg`,
                         `https://awsimgsrc.dmm.com/dig/mono/movie/${cid}/${cid}pl.jpg`,
-                        `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`,                        
+                        `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`,
                     ];
                     let resData = {};
                     let imageSrc;
@@ -1106,14 +1105,14 @@ div:where(.swal2-container) .swal2-input {
         AVWiki: {
             addDB: async (searchUrl, id) => {
                 try {
-                    const result = await domMeta(searchUrl, 'DMMR');
+                    const result = await domMeta(searchUrl, 'AVWiki');
                     if (!result) return { work: 'FAIL', reason: `result not fouund` };
                     const regex = /00(?=\d{3}(?!\d))/;
                     const cid = id.replace(regex, '');
-                    const contentId = searchUrl.match(/cid=(.*)\//)[1];
+                    const contentId = id;
                     const testImageUrl = [
                         `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${id}/${id}pl.jpg`,
-                        `https://awsimgsrc.dmm.com/dig/mono/movie/${id}/${id}pl.jpg`,
+                        `https://awsimgsrc.dmm.com/dig/mono/movie/${cid}/${cid}pl.jpg`,
                         `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`,
                         `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`
                     ];
@@ -1245,7 +1244,7 @@ div:where(.swal2-container) .swal2-input {
                     `https://av-wiki.net/${cid}/`
                 );
             },
-            titleSelector: 'div.article-header h1.entry-title',
+            titleSelector: 'section.article-body div.blockquote-like p',
             InfoSelector: 'section.article-body dl.dltable',
             realCodeKeys: ['メーカー品番'],
             seriesKeys: ['シリーズ'],
@@ -1372,7 +1371,7 @@ div:where(.swal2-container) .swal2-input {
             const junkSelectors = [
                 '#a_performer',
                 'script',
-                'style',
+                'style',                
             ];
 
             junkSelectors.forEach(selector => {
@@ -1413,7 +1412,7 @@ div:where(.swal2-container) .swal2-input {
             });
 
             if (result.title) {
-                result.title = result.title.replace(replaceReg, '').replace(`(${result.realCode.toLowerCase()})`, '').trim();;
+                result.title = result.title.replace(replaceReg, '').replace(`(${result.realCode.toLowerCase()})`, '').replace(`【${result.realCode}】`, '').trim();
             }
             if (result.releaseDate) {
                 result.releaseDate = result.releaseDate.replace(/[\/\-_]/g, '.');
@@ -1439,7 +1438,7 @@ div:where(.swal2-container) .swal2-input {
             const map = ParserUtils.buildTableMap(table);
 
             const metaData = {
-                title: doc.querySelector(config.titleSelector)?.innerText.trim() || '',
+                title: doc.querySelector(config.titleSelector)?.textContent.trim() || '',
                 realCode: ParserUtils.get(map, config.realCodeKeys),
                 series: ParserUtils.get(map, config.seriesKeys),
                 label: ParserUtils.get(map, config.labelKeys),
@@ -1462,8 +1461,9 @@ div:where(.swal2-container) .swal2-input {
                 headers: { 'referer': url, 'origin': urlObj.origin },
                 onload: (res) => {
 
-                    if (res.status !== 200) {
-                        localStorage.setItem(`404_${url}`, res.status);
+                    
+                    if (res.status === 404) {
+                        setClearBad(url);
                         console.log(`[${siteName}] → ${url} → ${res.status}`);
                         return resolve(null);
                     }
@@ -1471,10 +1471,20 @@ div:where(.swal2-container) .swal2-input {
                     const doc = new DOMParser()
                         .parseFromString(res.responseText, "text/html");
 
+                    const removeSelectors = [
+                        `span.entry-subtitle`
+                    ];
+
+                    // 3. 해당 요소들을 DOM에서 완전히 삭제
+                    removeSelectors.forEach(selector => {
+                        doc.querySelectorAll(selector).forEach(node => node.remove());
+                    });
+
                     const config = siteConfigs[siteName];
                     const parse = createPostProcessor(config);
 
                     const result = parse(doc);
+                    
 
                     if (!result || !result.realCode) {
                         return resolve(null);
@@ -3349,7 +3359,7 @@ div:where(.swal2-container) .swal2-input {
                 actualNums.push(NumberFormatter.trimAndMinPad(currentNumber, 3));
                 actualNums.sort((a, b) => a - b);
             }
-        } else {            
+        } else {
             if (code.minIndex && code.maxIndex) {
                 if (actualNums && actualNums.length > 0) {
                     currentMin = NumberFormatter.trimAndMinPad(currentNumber, 3);
@@ -3366,7 +3376,7 @@ div:where(.swal2-container) .swal2-input {
             } else {
                 if (actualNums && actualNums.length > 0) {
                     currentMin = NumberFormatter.trimAndMinPad(currentNumber, 3);
-                } 
+                }
                 if (code.suffix) {
                     const checkNumber = NumberFormatter.trimAndMinPad(currentNumber, 3);
                     if (!actualNums.includes(checkNumber)) {
@@ -3375,11 +3385,11 @@ div:where(.swal2-container) .swal2-input {
                         actualNums.sort((a, b) => a - b);
                     }
                     currentMin = NumberFormatter.trimAndMinPad(currentNumber, 3);
-                }else if (code.suffix === '') {
+                } else if (code.suffix === '') {
                     currentMin = NumberFormatter.trimAndMinPad(1, 3);
-                } 
+                }
                 currentMax = NumberFormatter.trimAndMinPad(currentNumber, 3);
-            }            
+            }
         }
 
         if (actualNums.length === 0) {
@@ -5234,7 +5244,7 @@ div:where(.swal2-container) .swal2-input {
                 <td style="white-space:nowrap;">${hasMeta.label || ''}</td>
                 <td>${hasMeta.cast || ''}</td>
                 <td style="white-space:nowrap;">${hasMeta.releaseDate || ''}</td>
-                <td style="white-space:nowrap;">${hasMeta.resolution ? `<a class="vce-preview" href="${hasMeta.url}" target="_blank">${hasMeta.resolution.W}x${hasMeta.resolution.H}</a>` : ''}</td>                
+                <td style="white-space:nowrap;text-align: center;">${hasMeta.resolution ? `<a class="vce-preview" href="${hasMeta.url}" target="_blank">${hasMeta.resolution.W}x${hasMeta.resolution.H}</a>` : ''}</td>                
             `;
                         // 상태 열(Cell)을 찾아 텍스트와 스타일 변경
                         rowElement.classList.remove('vce-row-virtual');
@@ -5708,30 +5718,49 @@ div:where(.swal2-container) .swal2-input {
                     let work;
                     const waitTime = Math.max(getRandomDelay(), getRandomDelay()) + Math.min(getRandomDelay(), getRandomDelay());
                     const found = await checkTable(waitTime);
-
-                    if (found === '404Not Found') {
+                    let success = false;
+                    async function tryOther() {
                         const regex = /00(?=\d{3}(?!\d))/;
                         const contentId = GetParam(location.href, 'id').toLocaleLowerCase();
-                        const cid = contentId.replace(regex, '');
-                        const searchUrl = `https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=${cid}r/`;
-                        siteConfigs['DMMR'].addDB(searchUrl, contentId).then(async (e) => {
-                            console.log(e);
+                        const cid = contentId.replace(regex, '');                                                
+                        const avwikiCid = contentId.split(regex)?.join('-').replace(/^[0-9]/, '');
+                        const searchUrls = [
+                            `https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=${cid}r/`,
+                            `https://av-wiki.net/${avwikiCid}/`,
+                            `https://av-wiki.net/${contentId}/`
+                        ];
+                        const filtersUrls = searchUrls.filter(u => getClearBad(u));
+                        
+                        for (const searchUrl of filtersUrls) {
+                            let targetSite;
+                            if (searchUrl.startsWith('https://av-wiki.net/')) {
+                                targetSite = 'AVWiki';
+                            } else if (searchUrl.startsWith('https://www.dmm.co.jp/rental/')) {
+                                targetSite = 'DMMR';
+                            }
+
+                            const e = await siteConfigs[targetSite].addDB(searchUrl, contentId);
+
                             work = e.work;
                             console.log('[VCE] 작업 완료', e.work, location.href);
+
                             const endTime = performance.now();
                             const executionTime = `${endTime - startTime} ms`;
                             const send = `${e.work} ${e.reason ? e.reason : ''} -> ${executionTime}`;
+
                             if (e.work === 'SUCCESS') {
                                 FANZADIGITALBC.postMessage({
                                     type: 'TASK_DONE',
                                     url: location.href,
                                     rawImage: e.rawImage,
-                                    workUrl: searchUrl,
                                     contentId,
+                                    workUrl: searchUrl,
                                     work: e.work,
                                     result: send,
                                     DB: e.dbData
                                 });
+                                success = true;
+                                break; // ✅ 정상 동작                                        
                             } else {
                                 FANZADIGITALBC.postMessage({
                                     type: 'TASK_FAIL',
@@ -5740,40 +5769,23 @@ div:where(.swal2-container) .swal2-input {
                                     workUrl: searchUrl,
                                     result: send
                                 });
-                                const regex = /00(?=\d{3}(?!\d))/;
-                                const contentId = GetParam(location.href, 'id').toLocaleLowerCase();
-                                const cid = contentId.split(regex)?.join('-').replace(/^[0-9]/, '');
-                                const searchAVWikiUrl = `https://av-wiki.net/${cid}/`;
-                                siteConfigs['AVWiki'].addDB(searchUrl, contentId).then(async (e) => {
-                                    work = e.work;
-                                    console.log('[VCE] 작업 완료', e.work, location.href);
-                                    const endTime = performance.now();
-                                    const executionTime = `${endTime - startTime} ms`;
-                                    const send = `${e.work} ${e.reason ? e.reason : ''} -> ${executionTime}`;
-                                    if (e.work === 'SUCCESS') {
-                                        FANZADIGITALBC.postMessage({
-                                            type: 'TASK_DONE',
-                                            url: location.href,
-                                            rawImage: e.rawImage,
-                                            contentId,
-                                            workUrl: searchAVWikiUrl,
-                                            work: e.work,
-                                            result: send,
-                                            DB: e.dbData
-                                        });
-                                    } else {
-                                        FANZADIGITALBC.postMessage({
-                                            type: 'TASK_DONE',
-                                            url: location.href,
-                                            rawImage: null,
-                                            workUrl: searchAVWikiUrl,
-                                            result: send
-
-                                        });
-                                    }
-                                });
                             }
-                        });
+                        }
+                        if (!success) {
+                            const endTime = performance.now();
+                            const executionTime = `${endTime - startTime} ms`; 
+                            const send = `All FAILED Time :} -> ${executionTime}`;                           
+                            FANZADIGITALBC.postMessage({
+                                type: 'TASK_DONE',
+                                url: location.href,
+                                rawImage: null,
+                                work: 'ALL FAILED',
+                                result: send
+                            });
+                        }
+                    }
+                    if (found === '404Not Found') {
+                        await tryOther();
                     } else if (found) {
                         const url = location.href;
                         const contentId = GetParam(url, 'id').toLocaleLowerCase();
@@ -5807,17 +5819,7 @@ div:where(.swal2-container) .swal2-input {
 
                         });
                     } else {
-                        await sleep(getRandomDelay());
-                        if (currentPage === PageURL()) {
-                            const endTime = performance.now();
-                            const executionTime = `${endTime - startTime} ms`;
-                            const send = work ? `${work} -> ${executionTime} ` : `${waitTime} 부족 -> ${executionTime} `;
-                            FANZADIGITALBC.postMessage({
-                                type: 'TASK_DONE',
-                                url: location.href,
-                                result: send
-                            });
-                        }
+                        await tryOther();
                     }
                 }
             }
@@ -5843,13 +5845,45 @@ div:where(.swal2-container) .swal2-input {
 
     initializeMakerMap();
 
+    function setClearBad(url) {
+        const now = new Date();
+        const tomorrow = new Date(now);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+
+        // 만료 시간 기록
+        const data = {
+            expires: tomorrow.getTime() // ms 단위 timestamp
+        };
+
+        localStorage.setItem(url, JSON.stringify(data));
+    }
+
+    function getClearBad(url) {
+        const raw = localStorage.getItem(url);
+        if (!raw) return url;
+
+        try {
+            const data = JSON.parse(raw);
+            if (!data.expires) return url;
+            else if (Date.now() > data.expires) {
+                // 만료되었으면 삭제 후 null 반환
+                localStorage.removeItem(url);
+                return url;
+            }
+            return null;
+        } catch {
+            return null;
+        }
+    }
+
     if (isWorker()) {
         runWorker();
     } else {
         FontAwesomeCSS();
         runOnceAWeek('weekly_update_updateUniqueKey', updateUniqueKey);
         collectAndProcess();
-        searchVCE();
+        searchVCE();              
     }
 
 })();
