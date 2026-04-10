@@ -287,7 +287,7 @@ div:where(.swal2-container) .swal2-input {
     // --- 모달 크기 저장 및 복원 (수정본) ---
     const STORAGE_KEY = 'vce_modal_size';
 
-    const replaceReg = /【独占】|【準新作】|【FANZA独占】|【配信専用】|【最新作】|【新作】|【先行公開】|【セール】/g;
+    const replaceReg = /【独占】|【準新作】|【FANZA独占】|【配信専用】|【最新作】|【新作】|【先行公開】|【セール】|【予約】|【.*パンツまつり\d+％OFF.*】/g;
 
 
     const imageSelectorMap = {
@@ -668,7 +668,7 @@ div:where(.swal2-container) .swal2-input {
                     ];
                     let resData = {};
                     let imageSrc;
-                    for (const src of testImageUrl) {                        
+                    for (const src of testImageUrl) {
                         const { exists, reason, result } = await fetchImageResolution(src);
                         if (exists && result.width > 0 && result.height > 0) {
                             imageSrc = src;
@@ -1371,19 +1371,55 @@ div:where(.swal2-container) .swal2-input {
             const junkSelectors = [
                 '#a_performer',
                 'script',
-                'style',                
+                'style',
             ];
 
             junkSelectors.forEach(selector => {
                 clone.querySelectorAll(selector).forEach(node => node.remove());
             });
 
-            return clone.innerHTML
-                .replace(/<[^>]*>/gi, '')
-                .replace(/▼すべて表示する.+/, '')
-                .replace(/\s+/g, ' ')
-                .replace(/----/g, '')
+
+            let arrayText = [];
+
+            // 1. 컨테이너 내부의 모든 자식 노드를 확인
+            clone.childNodes.forEach(node => {
+                let text = "";
+
+                // 요소 노드(<a>, <span> 등)인 경우
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    // 제외할 버튼(id="a_performer")이나 스크립트 태그는 건너뜀
+                    if (node.tagName === 'SCRIPT') return;
+                    // performer_extends 내부의 텍스트도 포함해서 가져옴
+                    text = node.textContent.trim();
+                }
+                // 순수 텍스트 노드인 경우
+                else if (node.nodeType === Node.TEXT_NODE) {
+                    text = node.textContent.trim();
+                }
+
+                // 빈 문자열이 아니면 배열에 추가
+                if (text) {
+                    // 간혹 여러 이름이 한꺼번에 들어있는 경우 공백으로 분리
+                    const splitNames = text.split(/\s+/);
+                    arrayText.push(...splitNames);
+                }
+            });
+
+            // 2. 중복 제거 및 결과 합치기
+            const finalResult = [...new Set(arrayText)].join(' ');
+
+            return finalResult
+                .replace(/\s+/g, ' ')      // 과도한 공백 및 줄바꿈 정리
+                .replace(/----/g, '')      // 기존 로직의 구분선 제거
                 .trim();
+            /*
+        return clone.innerHTML
+            .replace(/<[^>]*>/gi, '')
+            .replace(/▼すべて表示する.+/, '')
+            .replace(/\s+/g, ' ')
+            .replace(/----/g, '')
+            .trim();
+            */
         },
 
         get(map, keys) {
@@ -1461,7 +1497,7 @@ div:where(.swal2-container) .swal2-input {
                 headers: { 'referer': url, 'origin': urlObj.origin },
                 onload: (res) => {
 
-                    
+
                     if (res.status === 404) {
                         setClearBad(url);
                         console.log(`[${siteName}] → ${url} → ${res.status}`);
@@ -1484,7 +1520,7 @@ div:where(.swal2-container) .swal2-input {
                     const parse = createPostProcessor(config);
 
                     const result = parse(doc);
-                    
+
 
                     if (!result || !result.realCode) {
                         return resolve(null);
@@ -5615,6 +5651,13 @@ div:where(.swal2-container) .swal2-input {
                 assignNext();
             } else if (type === 'TASK_FAIL') {
                 console.log('실패:', e.data);
+            } else if (type === 'TASK_CLOSE') {
+                workerWin.close();
+                isRunning = false;
+                workerWin = null;
+                updateProcessingFANZADIGITAL(taskQueue.length, '');
+                FANZADIGITALBC.close();
+                return;
             }
         };
 
@@ -5696,6 +5739,12 @@ div:where(.swal2-container) .swal2-input {
      *********************************************************/
     async function runWorker() {
         console.log('[VCE] Worker mode');
+        window.addEventListener('beforeunload', () => {
+            FANZADIGITALBC.postMessage({
+                type: 'TASK_CLOSE'
+            });
+        });
+
         const startTime = performance.now();
         FANZADIGITALBC = new BroadcastChannel("FANZADIGITALChannel");
         const currentPage = PageURL();
@@ -5722,7 +5771,7 @@ div:where(.swal2-container) .swal2-input {
                     async function tryOther() {
                         const regex = /00(?=\d{3}(?!\d))/;
                         const contentId = GetParam(location.href, 'id').toLocaleLowerCase();
-                        const cid = contentId.replace(regex, '');                                                
+                        const cid = contentId.replace(regex, '');
                         const avwikiCid = contentId.split(regex)?.join('-').replace(/^[0-9]/, '');
                         const searchUrls = [
                             `https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=${cid}r/`,
@@ -5730,7 +5779,7 @@ div:where(.swal2-container) .swal2-input {
                             `https://av-wiki.net/${contentId}/`
                         ];
                         const filtersUrls = searchUrls.filter(u => getClearBad(u));
-                        
+
                         for (const searchUrl of filtersUrls) {
                             let targetSite;
                             if (searchUrl.startsWith('https://av-wiki.net/')) {
@@ -5773,8 +5822,8 @@ div:where(.swal2-container) .swal2-input {
                         }
                         if (!success) {
                             const endTime = performance.now();
-                            const executionTime = `${endTime - startTime} ms`; 
-                            const send = `All FAILED Time :} -> ${executionTime}`;                           
+                            const executionTime = `${endTime - startTime} ms`;
+                            const send = `All FAILED Time :} -> ${executionTime}`;
                             FANZADIGITALBC.postMessage({
                                 type: 'TASK_DONE',
                                 url: location.href,
@@ -5883,7 +5932,7 @@ div:where(.swal2-container) .swal2-input {
         FontAwesomeCSS();
         runOnceAWeek('weekly_update_updateUniqueKey', updateUniqueKey);
         collectAndProcess();
-        searchVCE();              
+        searchVCE();
     }
 
 })();
