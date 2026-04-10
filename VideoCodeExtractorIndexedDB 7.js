@@ -5,6 +5,7 @@
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/*
+// @match        https://www.javlibrary.com/*
 // @resource     MAKER_MAP https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/DMM_MakerMap_2026-03-26.json
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/MutilImagesDownloader.js
@@ -1254,6 +1255,137 @@ div:where(.swal2-container) .swal2-input {
             makerLabel: ['メーカー'],
             rawMediaType: ['コンテンツタイプ']
         },
+        Javlibrary: {
+            addDB: async (searchUrl, id, data) => {
+                try {
+                    const regex = /00(?=\d{3}(?!\d))/;
+                    const contentId = id;
+                    const cid = id.replace(regex, '');
+                    const testImageUrl = [
+                        `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${id}/${id}pl.jpg`,
+                        `https://awsimgsrc.dmm.com/dig/mono/movie/${cid}/${cid}pl.jpg`,
+                        `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`,
+                    ];
+                    let resData = {};
+                    let imageSrc;
+                    for (const src of testImageUrl) {
+                        const { exists, reason, result } = await fetchImageResolution(src);
+                        if (exists && result.width > 0 && result.height > 0) {
+                            imageSrc = src;
+                            resData = {
+                                resolution: { W: result.width, H: result.height },
+                                resolutionState: 'SUCCESS'
+                            };
+                            break;
+                        }
+                        // 해당 URL 실패 시 다음 후보로 이동
+                        console.log(`[${result}] 결과 없음: ${src}`);
+                    }
+                    const rawImage = imageSrc.split('?')[0];
+
+                    if (/[a-zA-Z]*-\d{3}-\d{2}/i.test(data.realCode)) {
+                        await VceDB.delete('imageMeta', 'url', rawImage);
+                        Logger.info('Not Add Item', data.realCode);
+                        return { work: 'FAIL', reason: 'Not Add Item' };
+                    }
+
+                    if (!data.makerLabel) return `makerLabel not found`;
+                    const makerLabel = makerLabelReplaceMap[data.makerLabel] || data.makerLabel;
+                    const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id');
+                    if (!makerLabelCode) {
+                        console.log(`[신규 메이커 발견] ${makerLabel}`);
+                        const currentLocal = GM_getValue('NEW_MAKER_KEY, []');
+                        if (!currentLocal.includes(makerLabel)) {
+                            currentLocal.push(makerLabel);
+                            GM_setValue(LOCAL_MAKER_KEY, currentLocal);
+                        }
+                        return { work: 'FAIL', reason: `makerLabelCode not fouund` };
+                    }
+
+                    const rawMediaType = data.rawMediaType || /【VR】/.test(data.title) ? 'VR' : '2D';
+
+                    for (const Regex of deletePattons) {
+                        if (Regex.test(data.realCode) && deleteMakerCodes.includes(makerLabelCode)) {
+                            return { work: 'FAIL', reason: 'deletePattons' };
+                        }
+                    }
+
+                    return await processWork(rawImage, searchUrl, {
+                        makerLabelCode,
+                        rawMediaType,
+                        ID: contentId
+                    }).then(async (re) => {
+                        if (re) {
+                            const hasMeta = await VceDB.get('imageMeta', rawImage);
+                            const hasCode = await VceDB.get('codes', hasMeta?.uniqueKey);
+                            if (hasMeta?.sourceSite === 'FANZA_DIGITAL') {
+                                if (hasCode?.codeStatus === 'SUCCESS') {
+                                    return { work: 'SUCCESS', dbData: hasMeta, rawImage };
+                                }
+                            }
+
+                            if (!hasCode && !currentSessionCodes.has(hasMeta?.uniqueKey)) {
+                                Logger.info('currentSessionCodes Check', hasMeta?.uniqueKey);
+                                currentSessionCodes.add(hasMeta?.uniqueKey);
+                            }
+
+                            const imageSourceKey = Object.keys(imageUrlsMap).find(key =>
+                                rawImage.startsWith(imageUrlsMap[key])
+                            ) || "UNKNOWN";
+
+                            const metaData = {
+                                ...data,
+                                makerLabel,
+                                makerLabelCode,
+                                rawMediaType,
+                                sourceSite: imageSourceKey,
+                                metaStatus: 'SUCCESS'
+                            };
+
+                            if (hasMeta?.resolutionState !== 'SUCCESS' || !hasMeta?.resolution) {
+                                if (resData && resData.resolutionState === 'SUCCESS') {
+                                    await VceDB.save("imageMeta", rawImage, resData);
+                                }
+                            }
+
+                            await VceDB.save("imageMeta", rawImage, metaData);
+                            const codeData = {
+                                makerLabel,
+                                makerLabelCode,
+                                rawMediaType,
+                                reTryData: {
+                                    imageSrc: rawImage,
+                                    linkUrl: searchUrl,
+                                    makerLabelCode: makerLabelCode,
+                                    rawMediaType: rawMediaType,
+                                },
+                                sourceSite: 'Javlibrary',
+                                codeStatus: 'SUCCESS'
+                            };
+
+                            await VceDB.save("codes", hasCode?.uniqueKey || hasMeta?.uniqueKey, codeData);
+                            return { work: 'SUCCESS', dbData: metaData, rawImage };
+                        } else {
+                            return { work: 'FAIL', reason: 'not Match Rules' };
+                        }
+                    });
+                } catch (e) {
+                    console.log(e);
+                    Logger.error('addDB error', e);
+                    return { work: 'FAIL', reason: e };
+                }
+            },
+            titleSelector: 'div#video_title h3.post-title a',
+            InfoSelector: 'div#video_info',
+            realCodeKeys: ['品番'],
+            seriesKeys: ['シリーズ'],
+            labelKeys: ['レーベル'],
+            castKeys: ['出演者'],
+            releaseDateKeys: ['発売日'],
+            makerLabel: ['メーカー'],
+            rawMediaType: ['コンテンツタイプ']
+        },
+
     };
 
 
@@ -1341,7 +1473,7 @@ div:where(.swal2-container) .swal2-input {
             root.querySelectorAll('tr').forEach(tr => {
                 const cells = tr.querySelectorAll('th, td');
                 if (cells.length >= 2) {
-                    const key = cells[0].innerText.replace('：', '').trim();
+                    const key = cells[0].innerText.replace(/[：:]$/, '').trim();
                     const valueEl = cells[1];
                     map[key] = valueEl;
                 }
@@ -1448,7 +1580,10 @@ div:where(.swal2-container) .swal2-input {
             });
 
             if (result.title) {
-                result.title = result.title.replace(replaceReg, '').replace(`(${result.realCode.toLowerCase()})`, '').replace(`【${result.realCode}】`, '').trim();
+                result.title = result.title.replace(replaceReg, '')
+                    .replace(`(${result.realCode.toLowerCase()})`, '')
+                    .replace(`【${result.realCode}】`, '')
+                    .replace(new RegExp(`^${result.realCode}`), '').trim();
             }
             if (result.releaseDate) {
                 result.releaseDate = result.releaseDate.replace(/[\/\-_]/g, '.');
@@ -1506,6 +1641,7 @@ div:where(.swal2-container) .swal2-input {
 
                     const doc = new DOMParser()
                         .parseFromString(res.responseText, "text/html");
+
 
                     const removeSelectors = [
                         `span.entry-subtitle`
@@ -2119,8 +2255,11 @@ div:where(.swal2-container) .swal2-input {
             }
             const rawImage = imageSrc.split('?')[0];
 
-            const pathSegments = rawImage.split('/');
-            const contentId = pathSegments[pathSegments.length - 2];
+            //const pathSegments = rawImage.split('/');
+            //const contentId = pathSegments[pathSegments.length - 2];
+
+            const contentId = ID;
+
 
             const majorsLabelPatterns = [
                 /.*[a-z]{3,7}\d{3,7}/i,
@@ -5563,8 +5702,9 @@ div:where(.swal2-container) .swal2-input {
 
 
     let isRunning = false;
+    let fanzaWin = null;
+    let javlibraryWin = null;
     let workerWin = null;
-
 
 
     async function startJob(data) {
@@ -5574,9 +5714,9 @@ div:where(.swal2-container) .swal2-input {
         let jobCount = 0;
 
         if (isRunning) {
-            workerWin.close();
+            fanzaWin.close();
             isRunning = false;
-            workerWin = null;
+            fanzaWin = null;
             updateProcessingFANZADIGITAL(taskQueue.length, '');
             FANZADIGITALBC.close();
             return;
@@ -5606,7 +5746,6 @@ div:where(.swal2-container) .swal2-input {
         // CASE C: 특정 문자열(평문)이 들어온 경우 -> 검색 필터링
         if (typeof data === 'string') {
             console.log(`모드: '${data}' 필터링 작업`);
-            const searchTerm = data.toLowerCase();
             taskQueue = taskQueue.filter(e => e.displayCode && e.displayCode.includes(data.toUpperCase()));
 
         }
@@ -5622,23 +5761,57 @@ div:where(.swal2-container) .swal2-input {
 
         console.log('[VCE] Parent mode');
 
-        window.addEventListener('beforeunload', () => {
-            workerWin?.close();
-        });
-
-
         const origin = new URL(location.href).origin;
 
-        function ensureWorker() {
+        function ensureWorker(windowName, url) {
             if (!workerWin || workerWin.closed) {
-                workerWin = window.open(location.origin, '_blank', 'width=600, height=300'); // ✔️ 중요
-                workerWin.name = 'vce_worker';
-                return; // 👈 여기 중요
+                workerWin = window.open(url, windowName, 'width=600,height=300');
+                return workerWin; // 새로 열렸을 때
+            }
+            window.addEventListener('beforeunload', () => {
+                workerWin?.close();
+            });
+
+            return workerWin; // 기존 창 재사용
+        }
+
+        function handler(e) {
+            if (!/javlibrary\.com/.test(e.origin)) return;
+            const { type, url, result, ID } = e.data || {};
+            
+
+            if (type === 'WORKER_READY') {                
+                javlibraryWin.postMessage({
+                    type: 'Start',
+                }, e.origin);
+            } else if (type === 'TASK_Javlibrary') {
+                console.log('성공 Javlibrary');
+                FANZADIGITALBC.postMessage({
+                    type: 'AddDB_TASK',
+                    url,
+                    ID,
+                    result,
+                });
+                javlibraryWin.postMessage({
+                    type: 'Close',
+                }, e.origin);
+            } else if (type === 'TASK_Javlibrary_FAIL') {
+                console.log('실패 Javlibrary');
+                javlibraryWin.postMessage({
+                    type: 'Close',
+                }, e.origin);                
+                assignNext();
+            } else if (type === 'FAIL Selector'){
+                console.log('실패 FAIL Selector');
+                javlibraryWin.postMessage({
+                    type: 'Close',
+                }, e.origin);                
+                assignNext();
             }
         }
 
         FANZADIGITALBC.onmessage = (e) => {
-            const { type, rawImage, work, contentId, DB } = e.data || {};
+            const { type, rawImage, work, contentId, DB, ID } = e.data || {};
             if (type === 'TASK_DONE') {
                 console.log('완료:', e.data);
                 if (work === 'SUCCESS' && rawImage) {
@@ -5647,14 +5820,25 @@ div:where(.swal2-container) .swal2-input {
                         rawImage,
                         DB
                     });
+                    assignNext();
+                } else if (work === 'ALL FAILED') {
+                    console.log('ALL FAILED: Javlibrary 시도');
+                    const regex = /00(?=\d{3}(?!\d))/;
+                    const javlibrarCid = ID.split(regex)?.join('').replace(/^[0-9]/, '');
+                    const windowName = `JavlibraryWorker_${e.data.ID}`;
+                    const searchUrl = `https://www.javlibrary.com/ja/vl_searchbyid.php?keyword=${javlibrarCid}`;
+                    javlibraryWin = window.open(searchUrl, windowName, 'width=600, height=300');
+                    window.addEventListener('message', handler);
+                } else {
+                    assignNext();
                 }
-                assignNext();
+
             } else if (type === 'TASK_FAIL') {
                 console.log('실패:', e.data);
             } else if (type === 'TASK_CLOSE') {
-                workerWin.close();
+                fanzaWin.close();
                 isRunning = false;
-                workerWin = null;
+                fanzaWin = null;
                 updateProcessingFANZADIGITAL(taskQueue.length, '');
                 FANZADIGITALBC.close();
                 return;
@@ -5666,9 +5850,9 @@ div:where(.swal2-container) .swal2-input {
 
             if (taskQueue.length === 0) {
                 console.log('모든 작업 완료');
-                workerWin.close();
+                fanzaWin.close();
                 isRunning = false;
-                workerWin = null;
+                fanzaWin = null;
                 updateProcessingFANZADIGITAL(taskQueue.length, '');
                 FANZADIGITALBC.close();
                 return;
@@ -5693,8 +5877,8 @@ div:where(.swal2-container) .swal2-input {
             });
         }
 
-        ensureWorker();
-    }
+        fanzaWin = ensureWorker('FanzaWin', location.origin);
+    };
 
 
     /*********************************************************
@@ -5702,7 +5886,7 @@ div:where(.swal2-container) .swal2-input {
      *********************************************************/
 
     function isWorker() {
-        return window.name === 'vce_worker';
+        return window.name === 'FanzaWin';
     }
 
     /*********************************************************
@@ -5739,11 +5923,6 @@ div:where(.swal2-container) .swal2-input {
      *********************************************************/
     async function runWorker() {
         console.log('[VCE] Worker mode');
-        window.addEventListener('beforeunload', () => {
-            FANZADIGITALBC.postMessage({
-                type: 'TASK_CLOSE'
-            });
-        });
 
         const startTime = performance.now();
         FANZADIGITALBC = new BroadcastChannel("FANZADIGITALChannel");
@@ -5764,19 +5943,18 @@ div:where(.swal2-container) .swal2-input {
             } else {
                 const config = siteConfigs['FANZA_DIGITAL'];
                 if (config) {
-                    let work;
                     const waitTime = Math.max(getRandomDelay(), getRandomDelay()) + Math.min(getRandomDelay(), getRandomDelay());
                     const found = await checkTable(waitTime);
                     let success = false;
+                    const ID = GetParam(location.href, 'id').toLowerCase();
                     async function tryOther() {
                         const regex = /00(?=\d{3}(?!\d))/;
-                        const contentId = GetParam(location.href, 'id').toLocaleLowerCase();
-                        const cid = contentId.replace(regex, '');
-                        const avwikiCid = contentId.split(regex)?.join('-').replace(/^[0-9]/, '');
+                        const cid = ID.replace(regex, '');
+                        const avwikiCid = ID.split(regex)?.join('-').replace(/^[0-9]/, '');
                         const searchUrls = [
                             `https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=${cid}r/`,
                             `https://av-wiki.net/${avwikiCid}/`,
-                            `https://av-wiki.net/${contentId}/`
+                            `https://av-wiki.net/${ID}/`
                         ];
                         const filtersUrls = searchUrls.filter(u => getClearBad(u));
 
@@ -5788,25 +5966,26 @@ div:where(.swal2-container) .swal2-input {
                                 targetSite = 'DMMR';
                             }
 
-                            const e = await siteConfigs[targetSite].addDB(searchUrl, contentId);
+                            const e = await siteConfigs[targetSite].addDB(searchUrl, ID);
 
-                            work = e.work;
+                            const { rawImage, work, contentId, dbData, reason } = e || {};
+
                             console.log('[VCE] 작업 완료', e.work, location.href);
 
                             const endTime = performance.now();
                             const executionTime = `${endTime - startTime} ms`;
-                            const send = `${e.work} ${e.reason ? e.reason : ''} -> ${executionTime}`;
+                            const send = `${work} ${reason ? reason : ''} -> ${executionTime}`;
 
-                            if (e.work === 'SUCCESS') {
+                            if (work === 'SUCCESS') {
                                 FANZADIGITALBC.postMessage({
                                     type: 'TASK_DONE',
                                     url: location.href,
-                                    rawImage: e.rawImage,
+                                    rawImage: rawImage,
                                     contentId,
                                     workUrl: searchUrl,
-                                    work: e.work,
+                                    work,
                                     result: send,
-                                    DB: e.dbData
+                                    DB: dbData
                                 });
                                 success = true;
                                 break; // ✅ 정상 동작                                        
@@ -5829,6 +6008,7 @@ div:where(.swal2-container) .swal2-input {
                                 url: location.href,
                                 rawImage: null,
                                 work: 'ALL FAILED',
+                                ID,
                                 result: send
                             });
                         }
@@ -5837,24 +6017,23 @@ div:where(.swal2-container) .swal2-input {
                         await tryOther();
                     } else if (found) {
                         const url = location.href;
-                        const contentId = GetParam(url, 'id').toLocaleLowerCase();
                         config.addDB().then(async (e) => {
-                            work = e.work;
+                            const { rawImage, work, contentId, dbData, reason } = e || {};
                             console.log('[VCE] 작업 완료', e.work, location.href);
                             const endTime = performance.now();
                             const executionTime = `${endTime - startTime} ms`;
                             await sleep(1000);
-                            const send = `${e.work} ${e.reason ? e.reason : ''} -> ${executionTime}`;
-                            if (e.work === 'SUCCESS') {
+                            const send = `${work} ${reason ? reason : ''} -> ${executionTime}`;
+                            if (work === 'SUCCESS') {
                                 FANZADIGITALBC.postMessage({
                                     type: 'TASK_DONE',
                                     url: location.href,
-                                    rawImage: e.rawImage,
+                                    rawImage: rawImage,
                                     workUrl: location.href,
-                                    work: e.work,
+                                    work: work,
                                     contentId,
                                     result: send,
-                                    DB: e.dbData
+                                    DB: dbData
                                 });
                             } else {
                                 FANZADIGITALBC.postMessage({
@@ -5873,10 +6052,9 @@ div:where(.swal2-container) .swal2-input {
                 }
             }
         }
-
         /******** 메시지 수신 ********/
-        FANZADIGITALBC.onmessage = (e) => {
-            const { type, url } = e.data || {};
+        FANZADIGITALBC.onmessage = async (e) => {
+            const { type, url, result, ID } = e.data || {};
             if (type === 'MOVE_TASK') {
                 console.log('[VCE] 이동:', url);
                 //location.href = url;
@@ -5884,11 +6062,108 @@ div:where(.swal2-container) .swal2-input {
                 a.href = url;
                 a.click();
             }
+            if (type === 'AddDB_TASK') {
+                console.log('AddDB_TASK');                
+                const searchUrl = location.href;
+                const e = await siteConfigs['Javlibrary'].addDB(searchUrl, ID, result);
+
+                const { rawImage, work, contentId, dbData, reason } = e || {};
+
+                console.log('[VCE] 작업 완료', work, location.href);
+
+                const endTime = performance.now();
+                const executionTime = `${endTime - startTime} ms`;
+                const send = `${work} ${reason ? reason : ''} -> ${executionTime}`;
+
+                if (work === 'SUCCESS') {
+                    FANZADIGITALBC.postMessage({
+                        type: 'TASK_DONE',
+                        url: location.href,
+                        rawImage: rawImage,
+                        contentId,
+                        workUrl: searchUrl,
+                        work,
+                        result: send,
+                        DB: dbData
+                    });
+                } else {
+                    FANZADIGITALBC.postMessage({
+                        type: 'TASK_FAIL',
+                        url: location.href,
+                        rawImage: null,
+                        workUrl: searchUrl,
+                        result: send
+                    });
+                }
+            }
         };
 
         /******** 초기 진입 ********/
 
         requestTask();
+    }
+
+    async function runJavlibraryWorker() {
+        console.log('[VCE] Javlibrary Worker mode');
+        const preContentId = window.name.match(/JavlibraryWorker_(.*)/i)[1];
+
+        if (location.href.startsWith('https://www.javlibrary.com/ja/vl_searchbyid.php?keyword')) {
+            const regex = /00(?=\d{3}(?!\d))/;
+            const cid = preContentId.replace(regex, '');
+            const Selector = `img[src*="/${cid}/"]`;
+            const findUrl = document.querySelector(Selector)?.closest('a')?.href;
+            if (!findUrl) {
+                window.opener.postMessage({
+                    type: 'FAIL Selector',                    
+                    url: location.href,
+                    result: 'No Item'
+                }, 'https://video.dmm.co.jp/');
+                return;
+            };
+            if (findUrl) {
+                location.href = findUrl;
+                return;
+            }
+        }
+
+        const startTime = performance.now();
+
+        async function requestTask() {
+
+            const parse = createPostProcessor(siteConfigs['Javlibrary']);
+            const result = await parse(document.body);
+
+            console.log(result);
+
+            if (result.realCode) {
+                window.opener.postMessage({
+                    type: 'TASK_Javlibrary',
+                    url: location.href,
+                    ID: preContentId,
+                    result
+                }, 'https://video.dmm.co.jp/');
+            } else {
+                window.opener.postMessage({
+                    type: 'TASK_Javlibrary_FAIL',
+                    url: location.href,
+                    result: 'No Item'
+                }, 'https://video.dmm.co.jp/');
+            }
+
+        }
+        window.addEventListener('message', (e) => {
+            if (!/dmm\.co\.jp/.test(e.origin)) return;
+            console.log(e.data.type);
+            if (e.data.type === 'Start') {
+
+                requestTask();
+            } else if (e.data.type === 'Close') {
+                self.close();
+            }
+        });
+
+        window.opener.postMessage({ type: 'WORKER_READY' }, 'https://video.dmm.co.jp/');
+
     }
 
 
@@ -5925,10 +6200,13 @@ div:where(.swal2-container) .swal2-input {
             return null;
         }
     }
-
+    console.log(window.name);
     if (isWorker()) {
         runWorker();
+    } else if (/javlibrary/.test(location.href) && window.opener) {
+        runJavlibraryWorker();
     } else {
+        if (/javlibrary/.test(location.href)) return;
         FontAwesomeCSS();
         runOnceAWeek('weekly_update_updateUniqueKey', updateUniqueKey);
         collectAndProcess();

@@ -481,11 +481,14 @@ async function init() {
         try {
             const currentLoader = loaders.get(wrapper);
 
-            // 1. 이미지 프리로딩
-            await preloadImageSizes(wrapper, currentLoader);
-            // 2. 레이아웃 최적화 (scaleMap 및 minHeightMap 적용)
-            optimizeSingleLayout(wrapper, 2, 800);
+            await smartImageLoader(wrapper, currentLoader);
 
+            void wrapper.offsetWidth;
+            // 2. 레이아웃 최적화 (scaleMap 및 minHeightMap 적용)
+            const imgCount = wrapper.querySelectorAll('img').length;
+            const columnCount = imgCount > 2 ? 3 : 2;
+            const maxHeight = imgCount > 2 ? 500 : 800;
+            optimizeSingleLayout(wrapper, columnCount, maxHeight);
 
             // 3. UI 정리
             if (currentLoader) currentLoader.remove();
