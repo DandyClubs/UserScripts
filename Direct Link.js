@@ -497,6 +497,13 @@ const urlHandlers = {
             if (m) link.href = decodeURIComponent(m[1]).replace(/\&ver.*/, '');
         }
     },
+    'maxjav': {
+        selector: 'img[src*="https://i.maxjav.com/?url="]',
+        run: (el) => {
+            const m = el.src.match(/i\.maxjav\.com\/\?url=(.*)/);
+            if (m) el.src = decodeURIComponent(m[1]);
+        }
+    },
     'xhamster\\.com': {
         selector: 'a[href*="xhlive.cam/goto/"]',
         run: (link) => {

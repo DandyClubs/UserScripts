@@ -3183,7 +3183,7 @@ async function CopyLink() {
         let collected = await CollectionLinks(DownloadArea) || [];
 
         if (collected.length > 0) {
-            const codePattern = /([A-Z]{2,6})-?(\d+)([a-z]*)?/i;
+            const codePattern = /(\d{0,2}[a-zA-Z]{1,6}\d{0,2})-?(\d{3})([a-z]*)/i;
             const match = SearchFC2ID.test(CopyTitle) ? null : CopyTitle.match(codePattern);
 
             if (match) {
