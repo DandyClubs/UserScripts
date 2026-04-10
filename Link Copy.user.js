@@ -3215,7 +3215,7 @@ async function CopyLink() {
 
                         const fileName = `${extraPrefix}${prefix.toLowerCase()}${formattedNum}${extraSuffix}`;
                         const testUrl = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
-                        const result = await checkImageExistence(testUrl);
+                        const result = await fetchImageResolution(testUrl);
                         if (result.exists) {
                             finalCoverImage = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
                         }
@@ -3229,7 +3229,7 @@ async function CopyLink() {
                     const candidates = await generateUrlCandidates(code, CoverImage || '');
 
                     for (const url of candidates) {
-                        const result = await checkImageExistence(url);
+                        const result = await fetchImageResolution(url);
                         console.log(`%c[미등록 브랜드 탐색 결과] ${prefix} ${CoverImage || ''} ${result}`, "color: #FF9800;");
 
                         if (result.exists) {
