@@ -1,20 +1,19 @@
 // ==UserScript==
 // @name         VideoCode & MetaData Extractor IndexedDB 7.0
 // @namespace    http://tampermonkey.net/
-// @version      7.3.2
+// @version      7.5.2
 // @description  개수 표시 + IndexedDB 고도화
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/*
 // @match        https://www.javlibrary.com/*
-// @resource     MAKER_MAP https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/DMM_MakerMap_2026-03-26.json
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/MutilImagesDownloader.js
+// @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/MakerMap.js
 // @require      https://cdn.jsdelivr.net/npm/sweetalert2@11.26.24/dist/sweetalert2.all.min.js
 // @require      https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // @require      https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.min.js
 // @require      https://cdn.jsdelivr.net/npm/streamsaver@2.0.6/StreamSaver.min.js
-// @grant        GM_getResourceText
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -94,12 +93,15 @@ backdrop-filter: blur(1px);
 .swal2-styled {
     padding: 5px 15px !important; /* 버튼 크기 축소 */
 }
+div:where(.swal2-container) {
+	z-index: 99999;	
+}
 
 div:where(.swal2-container) .swal2-input {
 	height: 1.75em;
 	padding: .25em;
 	width: 18ch;
-	margin: 1em auto 0;
+	margin: 1em auto 0;    
 }
 
 .CoverDownload {
@@ -256,6 +258,7 @@ div:where(.swal2-container) .swal2-input {
         'FANZA_MONO_DVD': "https://awsimgsrc.dmm.com/dig/mono/movie/",
         'PRESTIGE': "https://www.prestige-av.com/api/media/goods/prestige/", // BGN045~072, CHN156~217, ABP398~999번, ABW001~279번        
         'DMM': "https://pics.dmm.co.jp/mono/movie/adult/",
+        'DMMR': "https://pics.dmm.co.jp/mono/movie/adult/",
     };
 
     const selectKeyPreFixMap = {
@@ -264,24 +267,7 @@ div:where(.swal2-container) .swal2-input {
         'prestige-av.com': 'PRESTIGE',
     };
 
-    const makerLabelReplaceMap = {
-        "SODクリエイト": "SOD",
-        "アイデアポケット": "IdeaPocket",
-        "アタッカーズ": "Attackers",
-        "エスワン ナンバーワンスタイル": "S1 NO.1 STYLE",
-        "エムズビデオグループ": "M’s video Group",
-        "オーロラプロジェクト・アネックス": "AuroraProjectAnnex",
-        "グローリークエスト": "GloryQuest",
-        "ケイ・エム・プロデュース": "KMP",
-        "ナチュラルハイ": "NaturalHigh",
-        "プレステージ": "Prestige",
-        "マックスエー": "MAX-A",
-        "マドンナ": "Madonna",
-        "ムーディーズ": "MOODYZ",
-        "メディアブランド": "MediaBrand",
-        "ワンズファクトリー": "WanzFactory",
-        "ワープエンタテインメント": "Waap",
-    };
+
 
     const PageURL = () => window.location !== window.parent.location ? document.referrer : document.location.href;
     const KEY_PREFIX = (url) => selectKeyPreFixMap[extractRootDomain(url)];
@@ -644,6 +630,60 @@ div:where(.swal2-container) .swal2-input {
         return null;
     }
 
+    /**
+* 사이트별 포맷팅 전략 정의
+* p: prefix, c: displayCode, s: suffix, n: numbering(숫자), l: padLen
+*/
+    const SITE_STRATEGIES = {
+        'DMMR': (p, c, s, n, l) => `${p}${c}${NumberFormatter.trimAndMinPad(n, 3)}${s}r`,
+        'DMM': (p, c, s, n, l) => `${p}${c}${NumberFormatter.trimAndMinPad(n, 3)}${s}`,
+        'FANZA_DIGITAL': (p, c, s, n, l) => `${p}${c}${NumberFormatter.pad(n, l)}${s}`,
+        'FANZA_MONO': (p, c, s, n, l) => `${p}${c}${NumberFormatter.trimAndMinPad(n, 3)}${s}`,
+        'AVWIKIS': (p, c, s, n, l) => `${c}-${NumberFormatter.trimAndMinPad(n, 3)}`,
+        'AVWIKIL': (p, c, s, n, l) => `${c}${NumberFormatter.pad(n, l)}`,
+        'JAVLIBRARY': (p, c, s, n, l) => `${c.replace(/^\d+/, '')}${NumberFormatter.trimAndMinPad(n, 3)}`,
+        // 기본값 (정의되지 않은 사이트일 경우)
+        'DEFAULT': (p, c, s, n, l, parts) => {
+            return [parts[0], parts[1], parts[2], parts[3], parts[5]].join('');
+        }
+    };
+
+    const virtualKeyMaker = (key, id, siteName) => {
+
+        try {
+            const parts = key.split('|');
+            // key 구조: displayCode|prefix|padLen|suffix|makerLabelCode|maskedContentId 
+            // parts 구조 [displayCode, prefix, padLen, suffix, makerLabelCode, maskedContentId] 
+            // id 구조 prefix + displaycode padLen만큼 0으로 채워진 숫자 suffix  예 55T3800001vai01
+            // id에서 prefix + displaycode 앞부분 이후 숫자만 추출 뒤의 suffix 제거
+
+            const [displayCode, prefix, padLen, suffix] = parts;
+            const p = prefix;
+            const c = displayCode.toLowerCase();
+            const s = suffix;
+            const regex = new RegExp(`^${p}${c}|${s}$`, 'i');
+            const num = (str) => {
+                const cleanStr = str.replace(regex, '');
+                const n = parseInt(cleanStr, 10);
+                return n;
+            };
+
+            const numbering = num(id);
+            if (isNaN(numbering)) throw new TypeError('숫자가 아닙니다.');
+
+            //A 사이트 ${prefix}${displayCode}${numbering.pad}$ 
+            //B 사이트 displayCode pad 3자리~4자리 넘버   
+            //C 사이트 prefix displayCode pad 3~4자리 넘버
+            // 2. 전략 맵에서 해당 사이트 로직 실행
+            const strategy = SITE_STRATEGIES[siteName.toUpperCase()] || SITE_STRATEGIES['DEFAULT'];
+
+            return strategy(prefix, displayCode, suffix, numbering, parseInt(padLen, 10), parts);
+
+        } catch (error) {
+            console.error(error);
+        }        
+    };
+
     const keyMap = {
         title: 'Title',
         realCode: '品番',
@@ -655,21 +695,30 @@ div:where(.swal2-container) .swal2-input {
     };
     const siteConfigs = {
         DMMR: {
-            addDB: async (searchUrl, id) => {
+            addDB: async (searchUrl) => {
                 try {
+                    const { key, id } = GM_getValue('WORK_TASK');
                     const result = await domMeta(searchUrl, 'DMMR');
                     if (!result) return { work: 'FAIL', reason: `result not fouund` };
-                    const regex = /00(?=\d{3}(?!\d))/;
-                    const cid = id.replace(regex, '');
-                    const contentId = id;
+                    const FANZA_DIGITAL_KEY = virtualKeyMaker(key, id, 'FANZA_DIGITAL');
+                    const FANZA_MONO_KEY = virtualKeyMaker(key, id, 'FANZA_MONO');
+                    const DMM_KEY = virtualKeyMaker(key, id, 'DMM');
+                    const contentId = id;                    
                     const testImageUrl = [
-                        `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${id}/${id}pl.jpg`,
-                        `https://awsimgsrc.dmm.com/dig/mono/movie/${cid}/${cid}pl.jpg`,
-                        `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`,
+                        `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${FANZA_DIGITAL_KEY}/${FANZA_DIGITAL_KEY}pl.jpg`,
+                        `https://awsimgsrc.dmm.com/dig/mono/movie/${FANZA_MONO_KEY}/${FANZA_MONO_KEY}pl.jpg`,
+                        `https://pics.dmm.co.jp/mono/movie/adult/${DMM_KEY}/${DMM_KEY}pl.jpg`,
                     ];
+
+                    
                     let resData = {};
                     let imageSrc;
                     for (const src of testImageUrl) {
+                        const checkMeta = await VceDB.get('imageMeta', src);
+                        if (checkMeta.resolutionState === 'SUCCESS' && checkMeta.resolution){
+                            imageSrc = checkMeta.url;                            
+                            break;
+                        }
                         const { exists, reason, result } = await fetchImageResolution(src);
                         if (exists && result.width > 0 && result.height > 0) {
                             imageSrc = src;
@@ -695,7 +744,7 @@ div:where(.swal2-container) .swal2-input {
                     const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id');
                     if (!makerLabelCode) {
                         console.log(`[신규 메이커 발견] ${makerLabel}`);
-                        const currentLocal = GM_getValue('NEW_MAKER_KEY, []');
+                        const currentLocal = GM_getValue('NEW_MAKER_KEY', '[]');
                         if (!currentLocal.includes(makerLabel)) {
                             currentLocal.push(makerLabel);
                             GM_setValue(LOCAL_MAKER_KEY, currentLocal);
@@ -714,7 +763,7 @@ div:where(.swal2-container) .swal2-input {
                     return await processWork(rawImage, searchUrl, {
                         makerLabelCode,
                         rawMediaType,
-                        ID: contentId
+                        contentId
                     }).then(async (re) => {
                         if (re) {
                             const hasMeta = await VceDB.get('imageMeta', rawImage);
@@ -848,6 +897,135 @@ div:where(.swal2-container) .swal2-input {
             rawMediaType: ['コンテンツタイプ']
         },
         DMM: {
+            addDB: async (searchUrl) => {
+                try {
+                    const { key, id } = GM_getValue('WORK_TASK');
+                    const result = await domMeta(searchUrl, 'DMM');
+                    if (!result) return { work: 'FAIL', reason: `result not fouund` };
+                    const FANZA_DIGITAL_KEY = virtualKeyMaker(key, id, 'FANZA_DIGITAL');
+                    const FANZA_MONO_KEY = virtualKeyMaker(key, id, 'FANZA_MONO');
+                    const DMM_KEY = virtualKeyMaker(key, id, 'DMM');
+                    const contentId = id;
+                    const testImageUrl = [
+                        `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${FANZA_DIGITAL_KEY}/${FANZA_DIGITAL_KEY}pl.jpg`,
+                        `https://awsimgsrc.dmm.com/dig/mono/movie/${FANZA_MONO_KEY}/${FANZA_MONO_KEY}pl.jpg`,
+                        `https://pics.dmm.co.jp/mono/movie/adult/${DMM_KEY}/${DMM_KEY}pl.jpg`,
+                    ];
+                    let resData = {};
+                    let imageSrc;
+                    for (const src of testImageUrl) {
+                        const checkMeta = await VceDB.get('imageMeta', src);
+                        if (checkMeta.resolutionState === 'SUCCESS' && checkMeta.resolution) {
+                            imageSrc = checkMeta.url;
+                            break;
+                        }
+                        const { exists, reason, result } = await fetchImageResolution(src);
+                        if (exists && result.width > 0 && result.height > 0) {
+                            imageSrc = src;
+                            resData = {
+                                resolution: { W: result.width, H: result.height },
+                                resolutionState: 'SUCCESS'
+                            };
+                            break;
+                        }
+                        // 해당 URL 실패 시 다음 후보로 이동
+                        console.log(`[${result}] 결과 없음: ${src}`);
+                    }
+                    const rawImage = imageSrc.split('?')[0];
+
+                    if (/[a-zA-Z]*-\d{3}-\d{2}/i.test(result.realCode)) {
+                        await VceDB.delete('imageMeta', 'url', rawImage);
+                        Logger.info('Not Add Item', result.realCode);
+                        return { work: 'FAIL', reason: 'Not Add Item' };
+                    }
+
+                    if (!result.makerLabel) return `makerLabel not found`;
+                    const makerLabel = makerLabelReplaceMap[result.makerLabel] || result.makerLabel;
+                    const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id');
+                    if (!makerLabelCode) {
+                        console.log(`[신규 메이커 발견] ${makerLabel}`);
+                        const currentLocal = GM_getValue('NEW_MAKER_KEY', '[]');
+                        if (!currentLocal.includes(makerLabel)) {
+                            currentLocal.push(makerLabel);
+                            GM_setValue(LOCAL_MAKER_KEY, currentLocal);
+                        }
+                        return { work: 'FAIL', reason: `makerLabelCode not fouund` };
+                    }
+
+                    const rawMediaType = result.rawMediaType || /【VR】/.test(result.title) ? 'VR' : '2D';
+
+                    for (const Regex of deletePattons) {
+                        if (Regex.test(result.realCode) && deleteMakerCodes.includes(makerLabelCode)) {
+                            return { work: 'FAIL', reason: 'deletePattons' };
+                        }
+                    }
+
+                    return await processWork(rawImage, searchUrl, {
+                        makerLabelCode,
+                        rawMediaType,
+                        contentId
+                    }).then(async (re) => {
+                        if (re) {
+                            const hasMeta = await VceDB.get('imageMeta', rawImage);
+                            const hasCode = await VceDB.get('codes', hasMeta?.uniqueKey);
+                            if (hasMeta?.sourceSite === 'FANZA_DIGITAL') {
+                                if (hasCode?.codeStatus === 'SUCCESS') {
+                                    return { work: 'SUCCESS', dbData: hasMeta, rawImage };
+                                }
+                            }
+
+                            if (!hasCode && !currentSessionCodes.has(hasMeta?.uniqueKey)) {
+                                Logger.info('currentSessionCodes Check', hasMeta?.uniqueKey);
+                                currentSessionCodes.add(hasMeta?.uniqueKey);
+                            }
+
+                            const imageSourceKey = Object.keys(imageUrlsMap).find(key =>
+                                rawImage.startsWith(imageUrlsMap[key])
+                            ) || "UNKNOWN";
+
+                            const metaData = {
+                                ...result,
+                                makerLabel,
+                                makerLabelCode,
+                                rawMediaType,
+                                sourceSite: imageSourceKey,
+                                metaStatus: 'SUCCESS'
+                            };
+
+                            if (hasMeta?.resolutionState !== 'SUCCESS' || !hasMeta?.resolution) {
+                                if (resData && resData.resolutionState === 'SUCCESS') {
+                                    await VceDB.save("imageMeta", rawImage, resData);
+                                }
+                            }
+
+                            await VceDB.save("imageMeta", rawImage, metaData);
+
+                            const codeData = {
+                                makerLabel,
+                                makerLabelCode,
+                                rawMediaType,
+                                reTryData: {
+                                    imageSrc: rawImage,
+                                    linkUrl: searchUrl,
+                                    makerLabelCode: makerLabelCode,
+                                    rawMediaType: rawMediaType,
+                                },
+                                sourceSite: 'DMM',
+                                codeStatus: 'SUCCESS'
+                            };
+
+                            await VceDB.save("codes", hasCode?.uniqueKey || hasMeta?.uniqueKey, codeData);
+                            return { work: 'SUCCESS', dbData: metaData, rawImage };
+                        } else {
+                            return { work: 'FAIL', reason: 'not Match Rules' };
+                        }
+                    });
+                } catch (e) {
+                    console.log(e);
+                    Logger.error('addDB error', e);
+                    return { work: 'FAIL', reason: e };
+                }
+            },
             ContentIdBuilder: (data) => {
                 const urlsDB = [];
                 const withPrefix = data.prefix.toLowerCase();
@@ -941,6 +1119,11 @@ div:where(.swal2-container) .swal2-input {
                     let resData = {};
                     let imageSrc;
                     for (const src of testImageUrl) {
+                        const checkMeta = await VceDB.get('imageMeta', src);
+                        if (checkMeta.resolutionState === 'SUCCESS' && checkMeta.resolution) {
+                            imageSrc = checkMeta.url;
+                            break;
+                        }
                         // 이미 실패 기록이 있는 URL은 스킵
                         const { exists, reason, result } = await fetchImageResolution(src);
                         if (exists && result.width > 0 && result.height > 0) {
@@ -979,7 +1162,7 @@ div:where(.swal2-container) .swal2-input {
                     }
                     if (!makerLabelCode) {
                         console.log(`[신규 메이커 발견] ${makerLabel}`);
-                        const currentLocal = GM_getValue('NEW_MAKER_KEY, []');
+                        const currentLocal = GM_getValue('NEW_MAKER_KEY', '[]');
                         if (!currentLocal.includes(makerLabel)) {
                             currentLocal.push(makerLabel);
                             GM_setValue(LOCAL_MAKER_KEY, currentLocal);
@@ -998,7 +1181,7 @@ div:where(.swal2-container) .swal2-input {
                     return await processWork(rawImage, url, {
                         makerLabelCode,
                         rawMediaType,
-                        ID: contentId
+                        contentId
                     }).then(async (re) => {
                         if (re) {
                             const hasMeta = await VceDB.get('imageMeta', rawImage);
@@ -1104,22 +1287,28 @@ div:where(.swal2-container) .swal2-input {
             rawMediaType: ['コンテンツタイプ']
         },
         AVWiki: {
-            addDB: async (searchUrl, id) => {
+            addDB: async (searchUrl) => {
                 try {
+                    const { key, id } = GM_getValue('WORK_TASK');
                     const result = await domMeta(searchUrl, 'AVWiki');
                     if (!result) return { work: 'FAIL', reason: `result not fouund` };
-                    const regex = /00(?=\d{3}(?!\d))/;
-                    const cid = id.replace(regex, '');
+                    const FANZA_DIGITAL_KEY = virtualKeyMaker(key, id, 'FANZA_DIGITAL');
+                    const FANZA_MONO_KEY = virtualKeyMaker(key, id, 'FANZA_MONO');
+                    const DMM_KEY = virtualKeyMaker(key, id, 'DMM');
                     const contentId = id;
                     const testImageUrl = [
-                        `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${id}/${id}pl.jpg`,
-                        `https://awsimgsrc.dmm.com/dig/mono/movie/${cid}/${cid}pl.jpg`,
-                        `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`,
-                        `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`
+                        `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${FANZA_DIGITAL_KEY}/${FANZA_DIGITAL_KEY}pl.jpg`,
+                        `https://awsimgsrc.dmm.com/dig/mono/movie/${FANZA_MONO_KEY}/${FANZA_MONO_KEY}pl.jpg`,
+                        `https://pics.dmm.co.jp/mono/movie/adult/${DMM_KEY}/${DMM_KEY}pl.jpg`,
                     ];
                     let resData = {};
                     let imageSrc;
                     for (const src of testImageUrl) {
+                        const checkMeta = await VceDB.get('imageMeta', src);
+                        if (checkMeta.resolutionState === 'SUCCESS' && checkMeta.resolution) {
+                            imageSrc = checkMeta.url;
+                            break;
+                        }
                         // 이미 실패 기록이 있는 URL은 스킵
                         const { exists, reason, result } = await fetchImageResolution(src);
                         if (exists && result.width > 0 && result.height > 0) {
@@ -1146,7 +1335,7 @@ div:where(.swal2-container) .swal2-input {
                     const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id');
                     if (!makerLabelCode) {
                         console.log(`[신규 메이커 발견] ${makerLabel}`);
-                        const currentLocal = GM_getValue('NEW_MAKER_KEY, []');
+                        const currentLocal = GM_getValue('NEW_MAKER_KEY', '[]');
                         if (!currentLocal.includes(makerLabel)) {
                             currentLocal.push(makerLabel);
                             GM_setValue(LOCAL_MAKER_KEY, currentLocal);
@@ -1165,7 +1354,7 @@ div:where(.swal2-container) .swal2-input {
                     return await processWork(rawImage, searchUrl, {
                         makerLabelCode,
                         rawMediaType,
-                        ID: contentId
+                        contentId
                     }).then(async (re) => {
                         if (re) {
                             const hasMeta = await VceDB.get('imageMeta', rawImage);
@@ -1256,19 +1445,29 @@ div:where(.swal2-container) .swal2-input {
             rawMediaType: ['コンテンツタイプ']
         },
         Javlibrary: {
-            addDB: async (searchUrl, id, data) => {
+            addDB: async (searchUrl, options = {}) => {
                 try {
-                    const regex = /00(?=\d{3}(?!\d))/;
+                    const {
+                        data = result,
+                    } = options;
+                    const { key, id } = GM_getValue('WORK_TASK');
+                    const FANZA_DIGITAL_KEY = virtualKeyMaker(key, id, 'FANZA_DIGITAL');
+                    const FANZA_MONO_KEY = virtualKeyMaker(key, id, 'FANZA_MONO');
+                    const DMM_KEY = virtualKeyMaker(key, id, 'DMM');
                     const contentId = id;
-                    const cid = id.replace(regex, '');
                     const testImageUrl = [
-                        `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${id}/${id}pl.jpg`,
-                        `https://awsimgsrc.dmm.com/dig/mono/movie/${cid}/${cid}pl.jpg`,
-                        `https://pics.dmm.co.jp/mono/movie/adult/${cid}/${cid}pl.jpg`,
+                        `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${FANZA_DIGITAL_KEY}/${FANZA_DIGITAL_KEY}pl.jpg`,
+                        `https://awsimgsrc.dmm.com/dig/mono/movie/${FANZA_MONO_KEY}/${FANZA_MONO_KEY}pl.jpg`,
+                        `https://pics.dmm.co.jp/mono/movie/adult/${DMM_KEY}/${DMM_KEY}pl.jpg`,
                     ];
                     let resData = {};
                     let imageSrc;
                     for (const src of testImageUrl) {
+                        const checkMeta = await VceDB.get('imageMeta', src);
+                        if (checkMeta.resolutionState === 'SUCCESS' && checkMeta.resolution) {
+                            imageSrc = checkMeta.url;
+                            break;
+                        }
                         const { exists, reason, result } = await fetchImageResolution(src);
                         if (exists && result.width > 0 && result.height > 0) {
                             imageSrc = src;
@@ -1294,7 +1493,7 @@ div:where(.swal2-container) .swal2-input {
                     const makerLabelCode = findIdsByName(makerMap, makerLabel, 'id');
                     if (!makerLabelCode) {
                         console.log(`[신규 메이커 발견] ${makerLabel}`);
-                        const currentLocal = GM_getValue('NEW_MAKER_KEY, []');
+                        const currentLocal = GM_getValue('NEW_MAKER_KEY', '[]');
                         if (!currentLocal.includes(makerLabel)) {
                             currentLocal.push(makerLabel);
                             GM_setValue(LOCAL_MAKER_KEY, currentLocal);
@@ -1313,7 +1512,7 @@ div:where(.swal2-container) .swal2-input {
                     return await processWork(rawImage, searchUrl, {
                         makerLabelCode,
                         rawMediaType,
-                        ID: contentId
+                        contentId
                     }).then(async (re) => {
                         if (re) {
                             const hasMeta = await VceDB.get('imageMeta', rawImage);
@@ -2032,7 +2231,7 @@ div:where(.swal2-container) .swal2-input {
                         inputPlaceholder: '예: ABC, T38',
                         showCancelButton: true,
                         confirmButtonText: '확인',
-                        cancelButtonText: '취소',
+                        cancelButtonText: '취소',                        
 
                         didOpen: () => {
                             const input = Swal.getInput();
@@ -2095,8 +2294,8 @@ div:where(.swal2-container) .swal2-input {
                 el.classList.add(PROCESSED_CLASS);
                 const makerLabelCode = GetParam(PageURL(), 'maker');
                 const rawMediaType = GetParam(PageURL(), 'media_type');
-                const contentId = GetParam(PageURL(), 'id');
-                enqueue(() => processWork(el.getAttribute('srcset'), el.closest('a').href, { makerLabelCode, rawMediaType, ID: contentId }));
+                const contentId = GetParam(el.closest('a').href, 'id').toLowerCase();
+                enqueue(() => processWork(el.getAttribute('srcset'), el.closest('a').href, { makerLabelCode, rawMediaType, contentId }));
             }
 
         }
@@ -2234,8 +2433,8 @@ div:where(.swal2-container) .swal2-input {
         const {
             makerLabelCode = '',
             rawMediaType = '',
+            contentId,
             reTry = false,
-            ID
         } = options;
 
 
@@ -2249,16 +2448,14 @@ div:where(.swal2-container) .swal2-input {
             }
 
             if (!/(pl|ps)\.jpg/i.test(imageSrc)) {
-                imageSrc = `https://pics.dmm.co.jp/mono/movie/adult/${ID}/${ID}pl.jpg`;
+                imageSrc = `https://pics.dmm.co.jp/mono/movie/adult/${contentId}/${contentId}pl.jpg`;
             } else {
                 imageSrc = imageSrc.replace(/ps\.jpg/i, 'pl.jpg');
             }
             const rawImage = imageSrc.split('?')[0];
 
             //const pathSegments = rawImage.split('/');
-            //const contentId = pathSegments[pathSegments.length - 2];
-
-            const contentId = ID;
+            //const contentId = pathSegments[pathSegments.length - 2];            
 
 
             const majorsLabelPatterns = [
@@ -2323,8 +2520,8 @@ div:where(.swal2-container) .swal2-input {
                 /(.*)(KT[a-zA-Z]*)(\d{3,5})(v*)/i,
                 /(.*)(TS[a-zA-Z]*)(\d{3,5})(v*)/i,
                 /(.*)(SW[a-zA-Z]*)(\d{3,5})(v*)/i,
-                /(.*)(\d{2}ID[a-zA-Z]?)(\d{5,})(.*)/i,
-                /(.*)(T0?\d{2}[a-zA-Z]?)(\d{3,})(.*)/i,
+                /(.*)(\d{2}ID[a-zA-Z]*)(\d{5,})(.*)/i,
+                /(\d+)(T0*\d{2}[a-zA-Z]*)(\d{3,})(.*)/i,
                 /(.*)(d1clymax)(\d{5,})(.*)/i,
                 /([a-z]*)(dvaj|dvajbx)(\d{5,})(.*)/i,
                 /(\d{2})(t\d{1})(\d{5,})(.*)/i,
@@ -2371,13 +2568,13 @@ div:where(.swal2-container) .swal2-input {
                 // --- [섹션 1: 이미지 메타 처리] ---
 
                 await VceDB.save("imageMeta", rawImage, {
-                    displayCode: displayCode, // Index
-                    uniqueKey: uniqueKey, // Index
-                    makerLabelCode: makerLabelCode,
-                    makerLabel: makerLabel,
-                    rawMediaType: rawMediaType,
-                    imageSource: rawImage,
-                    contentId: contentId, // Index
+                    displayCode, // Index
+                    uniqueKey, // Index
+                    makerLabelCode,
+                    makerLabel,
+                    rawMediaType,
+                    rawImage,
+                    contentId, // Index
                     //스케줄 작업으로 처리하는 값들
                     /*
                 title: '',
@@ -2422,9 +2619,9 @@ div:where(.swal2-container) .swal2-input {
                 Logger.info('imageSourceKey Check', imageSourceKey);
 
                 if (!hasUniqueKey?.displayCode) {
-                    await VceDB.save("codes", uniqueKey, {
-                        displayCode: displayCode,
-                        imageSourceKey: imageSourceKey,
+                    const data = {
+                        displayCode,
+                        imageSourceKey,
                         reTryData: {
                             imageSrc: rawImage,
                             linkUrl,
@@ -2432,16 +2629,17 @@ div:where(.swal2-container) .swal2-input {
                             rawMediaType,
                             contentId
                         },
-                        contentId: contentId,
-                        prefix: prefix,
-                        padLen: padLen,
-                        suffix: suffix,
-                        makerLabelCode: makerLabelCode,
-                        makerLabel: makerLabel,
-                        rawMediaType: rawMediaType,
-                    });
+                        contentId,
+                        prefix,
+                        padLen,
+                        suffix,
+                        makerLabelCode,
+                        makerLabel,
+                        rawMediaType,
+                    }
+                    await VceDB.save("codes", uniqueKey, data);
                     updateDisplayList(false, 'processWork');
-                    updateMinMax(uniqueKey, numbering);
+                    updateMinMax(data, numbering);
                     updateCounts();
                 }
                 return true;
@@ -2529,7 +2727,7 @@ div:where(.swal2-container) .swal2-input {
                     // 1. 대기열(Queue)에 객체 형태로 추가
 
                     if (confirm(`${itemData.displayCode} 항목을 삭제하시겠습니까?`)) {
-                        let queue = JSON.parse(GM_getValue("process_queue", "[]"));
+                        let queue = GM_getValue("process_queue", []);
                         if (!queue.some(q => q.imageSrc === imageSrc)) {
                             queue.push({
                                 imageSrc,
@@ -2538,7 +2736,7 @@ div:where(.swal2-container) .swal2-input {
                                 rawMediaType,
                                 contentId
                             });
-                            GM_setValue("process_queue", JSON.stringify(queue));
+                            GM_setValue("process_queue", queue);
                             console.log(`[Queue Add] ${imageSrc}`);
                         }
                         // 2. DB 및 메모리에서 즉시 삭제
@@ -2885,23 +3083,17 @@ div:where(.swal2-container) .swal2-input {
 
     function initializeMakerMap() {
         try {
-            if (typeof GM_getResourceText !== "undefined") {
-                const resourceText = GM_getResourceText("MAKER_MAP");
-                if (resourceText) {
-                    const externalData = JSON.parse(resourceText);
+            Object.entries(makerMapData).forEach(([id, originalName]) => {
+                // 변경 이름이 있으면 가져오고, 없으면 null 혹은 원래 이름을 넣습니다.
+                const makerName = makerLabelReplaceMap[originalName] || '';
 
-                    Object.entries(externalData).forEach(([id, originalName]) => {
-                        // 변경 이름이 있으면 가져오고, 없으면 null 혹은 원래 이름을 넣습니다.
-                        const makerName = makerLabelReplaceMap[originalName] || '';
+                // Map에 객체 형태로 저장: [ID, { 원래이름, 변경이름 }]
+                makerMap.set(id, {
+                    original: originalName,
+                    final: makerName
+                });
+            });
 
-                        // Map에 객체 형태로 저장: [ID, { 원래이름, 변경이름 }]
-                        makerMap.set(id, {
-                            original: originalName,
-                            final: makerName
-                        });
-                    });
-                }
-            }
             // 2. GM_getValue로 저장된 로컬 데이터 로드 및 병합
             const localData = GM_getValue(LOCAL_MAKER_KEY, {});
             Object.entries(localData).forEach(([id, data]) => {
@@ -3263,7 +3455,7 @@ div:where(.swal2-container) .swal2-input {
             parts[3], // suffix
             // parts[4] 는 무시 (makerLabelCode)
             parts[5]  // contentId (masked)
-        ].join('_');
+        ].join('|');
     };
 
     const findDuplicateGroups = (Codes) => {
@@ -3474,6 +3666,13 @@ div:where(.swal2-container) .swal2-input {
 
         const specialPatternMap = new Map();
 
+        // 2. displayCode별 출현 빈도 계산 (전체 codes 테이블 기준)
+        const displayCodeCounts = allCodes.reduce((acc, curr) => {
+            acc[curr.displayCode] = (acc[curr.displayCode] || 0) + 1;
+            return acc;
+        }, {});
+
+
         const duplicateGroups = findDuplicateGroups(allCodes);
 
         duplicateGroups.forEach(group => {
@@ -3494,109 +3693,71 @@ div:where(.swal2-container) .swal2-input {
         const currentNumber = num(numbering);
         const key = code.id;
         const errNumber = 5000;
-        let actualNums = code.actualNums || [];
 
-        const codeMin = num(code.minIndex);
-        const codeMax = num(code.maxIndex);
-        let currentMin = code.minIndex;
-        let currentMax = code.maxIndex;
-        let addNumber;
+        // 1. 실제 번호 목록 초기화 (null이나 undefined 대비)
+        let actualNums = Array.isArray(code.actualNums) ? [...code.actualNums] : [];
 
+        // 2. 현재 min/max를 숫자로 변환하여 가져오되, 없으면 현재 번호를 기준으로 설정
+        let currentMinNum = code.minIndex ? num(code.minIndex) : currentNumber;
+        let currentMaxNum = code.maxIndex ? num(code.maxIndex) : currentNumber;
+
+        // 에러 번호 처리 로직
         if (currentNumber > errNumber) {
             if (actualNums.length > 0) {
-                const errNum = actualNums.find(n => num(n) > errNumber);
-                if (codeMax > errNumber || currentMax > errNumber) {
-                    currentMax = NumberFormatter.trimAndMinPad(1, 3);
-                }
-                if (errNum) {
-                    const newActualNums = actualNums.filter(n => num(n) < errNumber);
+                const hasErr = actualNums.some(n => num(n) > errNumber);
+                if (hasErr || num(code.maxIndex) > errNumber) {
+                    const filtered = actualNums.filter(n => num(n) < errNumber);
+                    const newMax = filtered.length > 0 ? filtered[filtered.length - 1] : NumberFormatter.trimAndMinPad(1, 3);
                     await VceDB.save("codes", key, {
-                        minIndex: currentMin,
-                        maxIndex: currentMax,
-                        actualNums: newActualNums
+                        minIndex: code.minIndex || NumberFormatter.trimAndMinPad(1, 3),
+                        maxIndex: newMax,
+                        actualNums: filtered
                     });
                 }
             }
             return;
         }
 
-        if (isSpecialGroup) {
-            const checkNumber = NumberFormatter.trimAndMinPad(currentNumber, 3);
-            if (!actualNums.includes(checkNumber)) {
-                addNumber = checkNumber;
-                actualNums.push(NumberFormatter.trimAndMinPad(currentNumber, 3));
-                actualNums.sort((a, b) => a - b);
-            }
-        } else if (code.suffix && (/[a-zA-Z]$/i.test(code.suffix) || /ai$/i.test(code.suffix))) {
-            const checkNumber = NumberFormatter.trimAndMinPad(currentNumber, 3);
-            if (!actualNums.includes(checkNumber)) {
-                addNumber = checkNumber;
-                actualNums.push(NumberFormatter.trimAndMinPad(currentNumber, 3));
-                actualNums.sort((a, b) => a - b);
+        let addNumber = null;
+        // 3. 특수 그룹 또는 Suffix 조건 처리 (actualNums 추가)
+        const isSuffixSpecial = code.suffix && (/[a-zA-Z]$/i.test(code.suffix) || /ai$/i.test(code.suffix));
+
+        if (isSpecialGroup || isSuffixSpecial) {
+            const checkNumberStr = NumberFormatter.trimAndMinPad(currentNumber, 3);
+            if (!actualNums.includes(checkNumberStr)) {
+                addNumber = checkNumberStr;
+                actualNums.push(checkNumberStr);
+                actualNums.sort((a, b) => num(a) - num(b));
+
+                // actualNums 기반으로 min/max 재계산
+                currentMinNum = Math.min(currentMinNum, num(actualNums[0]));
+                currentMaxNum = Math.max(currentMaxNum, num(actualNums[actualNums.length - 1]));
             }
         } else {
-            if (code.minIndex && code.maxIndex) {
-                if (actualNums && actualNums.length > 0) {
-                    currentMin = NumberFormatter.trimAndMinPad(currentNumber, 3);
-                } else if (code.suffix === '') {
-                    currentMin = NumberFormatter.trimAndMinPad(1, 3);
-                } else if (code.minIndex && codeMin > currentNumber) {
-                    currentMin = NumberFormatter.trimAndMinPad(currentNumber, 3);
-                } else if (code.maxIndex && codeMax < currentNumber) {
-                    currentMax = NumberFormatter.trimAndMinPad(currentNumber, 3);
-                } else {
-                    currentMin = NumberFormatter.trimAndMinPad(1, 3);
-                }
-
+            // 4. 일반적인 Min/Max 비교 로직 (더 직관적으로 변경)
+            if (displayCodeCounts[code.displayCode] === 1) {
+                currentMinNum = Math.min(currentMinNum, 1, currentNumber);
             } else {
-                if (actualNums && actualNums.length > 0) {
-                    currentMin = NumberFormatter.trimAndMinPad(currentNumber, 3);
-                }
-                if (code.suffix) {
-                    const checkNumber = NumberFormatter.trimAndMinPad(currentNumber, 3);
-                    if (!actualNums.includes(checkNumber)) {
-                        addNumber = checkNumber;
-                        actualNums.push(NumberFormatter.trimAndMinPad(currentNumber, 3));
-                        actualNums.sort((a, b) => a - b);
-                    }
-                    currentMin = NumberFormatter.trimAndMinPad(currentNumber, 3);
-                } else if (code.suffix === '') {
-                    currentMin = NumberFormatter.trimAndMinPad(1, 3);
-                }
-                currentMax = NumberFormatter.trimAndMinPad(currentNumber, 3);
+                currentMinNum = Math.min(currentMinNum, currentNumber);
             }
+            currentMaxNum = Math.max(currentMaxNum, currentNumber);
         }
 
-        if (actualNums.length === 0) {
-            actualNums = null;
-        } else {
-            const actualNumsMin = num(actualNums[0]);
-            const actualNumsMax = num(actualNums[actualNums.length - 1]);
-            if (actualNumsMin < currentNumber) {
-                currentMin = NumberFormatter.trimAndMinPad(actualNumsMin, 3);
-            } else if (actualNumsMax > currentNumber) {
-                currentMax = NumberFormatter.trimAndMinPad(actualNumsMax, 3);
-            }
-        }
+        // 최종 포맷팅
+        const finalMin = NumberFormatter.trimAndMinPad(currentMinNum, 3);
+        const finalMax = NumberFormatter.trimAndMinPad(currentMaxNum, 3);
+        const finalActualNums = actualNums.length > 0 ? actualNums : null;
 
-        const ArraysEqual = (arr1, arr2) => {
-            // 1. 길이 비교
-            if (arr1.length !== arr2.length) return false;
-
-            // 2. 모든 요소가 같은지 비교
-            return arr1.every((value, index) => value === arr2[index]);
-        };
-
-        if (code.minIndex !== currentMin || code.maxIndex !== currentMax || addNumber) {
-            const logAddNumber = addNumber ? `actualNums: ${actualNums} -> ${addNumber}` : '';
-            console.log(`갱신: ${key} current: ${NumberFormatter.trimAndMinPad(currentNumber, 3)} Min: ${code.minIndex} -> ${currentMin} Max: ${code.maxIndex} -> ${currentMax} ${logAddNumber}`);
+        // 5. 변경사항이 있을 때만 저장
+        if (code.minIndex !== finalMin || code.maxIndex !== finalMax || addNumber) {
+            const logAddNumber = addNumber ? `actualNums: ${actualNums} -> ${addNumber}` : '';            
+            console.log(`갱신 [${key}]: ${code.minIndex}->${finalMin}, ${code.maxIndex}->${finalMax} ${logAddNumber}`);
             await VceDB.save("codes", key, {
-                minIndex: currentMin,
-                maxIndex: currentMax,
-                actualNums
+                minIndex: finalMin,
+                maxIndex: finalMax,
+                actualNums: finalActualNums
             });
         }
-
     }
 
 
@@ -3654,7 +3815,7 @@ div:where(.swal2-container) .swal2-input {
                 const selected = listContainer.querySelectorAll('.item-check:checked');
                 if (selected.length === 0) return alert("항목을 선택해주세요.");
 
-                let queue = JSON.parse(GM_getValue("process_queue", "[]"));
+                let queue = GM_getValue("process_queue", []);
                 for (const cb of selected) {
                     const key = cb.dataset.key;
                     const item = await VceDB.get('codes', key);
@@ -3671,7 +3832,7 @@ div:where(.swal2-container) .swal2-input {
                         currentSessionCodes.delete(key);
                     }
                 }
-                GM_setValue("process_queue", JSON.stringify(queue));
+                GM_setValue("process_queue", queue);
                 //updateDisplayList(false, 'btnRetrySel');
                 refreshQueueButton();
             };
@@ -3688,9 +3849,9 @@ div:where(.swal2-container) .swal2-input {
             // 대기열 실행 클릭 이벤트
             const btnRun = retryGroup.querySelector('#btnRunQueue');
             btnRun.onclick = async () => {
-                const queue = JSON.parse(GM_getValue("process_queue", "[]"));
+                const queue = GM_getValue("process_queue", []);
                 if (queue.length === 0) return;
-                GM_setValue("process_queue", "[]"); // 즉시 비우기
+                GM_setValue("process_queue", []); // 즉시 비우기
                 btnRun.disabled = true;
 
                 for (let i = 0; i < queue.length; i++) {
@@ -4172,7 +4333,7 @@ div:where(.swal2-container) .swal2-input {
 
 
     function refreshQueueButton() {
-        const queue = JSON.parse(GM_getValue("process_queue", "[]"));
+        const queue = GM_getValue("process_queue", []);
         const group = document.getElementById('retry-group');
         const btn = document.getElementById('btnRunQueue');
 
@@ -4766,7 +4927,7 @@ div:where(.swal2-container) .swal2-input {
         modal.style.height = 'auto';
         modal.style.maxHeight = '80vh'; // 화면을 넘지 않도록 최대 높이 제한
 
-        document.body.appendChild(modal);        
+        document.body.appendChild(modal);
 
         const overlay = document.createElement('div');
         overlay.style = "display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.15); z-index:99;";
@@ -5204,8 +5365,6 @@ div:where(.swal2-container) .swal2-input {
 
 
         async function performGenerate() {
-
-
             const val = queryInput.value.trim();
             const match = val.match(/^([A-Z0-9-]+)\s+(\d+)-(\d+)$/i);
             if (!match) return alert("입력 형식이 올바르지 않습니다. (예: T38 001-100)");
@@ -5265,7 +5424,10 @@ div:where(.swal2-container) .swal2-input {
                         if (foundItem) {
                             generatedResults.push(foundItem);
                         } else {
-                            getMetaLists.add(expectedcontentId);
+                            getMetaLists.add({
+                                key: id,
+                                id: expectedcontentId
+                            });
                             generatedResults.push({
                                 displayCode: displayCode,
                                 realCode: expectedRealCode,
@@ -5709,6 +5871,8 @@ div:where(.swal2-container) .swal2-input {
     let workerWin = null;
 
 
+
+
     async function startJob(data) {
 
         let taskQueue = [];
@@ -5732,24 +5896,35 @@ div:where(.swal2-container) .swal2-input {
         // CASE A: 빈 값 (null, undefined, '') -> 전체 리스트 반환
         if (!data || (typeof data === 'string' && data.trim() === '')) {
             console.log("모드: 전체 리스트 작업");
-            taskQueue = await VceDB.getSchedulableTasks('imageMeta', 'meta');
+            const allTask = await VceDB.getSchedulableTasks('imageMeta', 'meta');
+            taskQueue = allTask.map(e => {
+                return {
+                    key: e.uniqueKey,
+                    id: e.contentId
+                };
+            });
         }
 
         // CASE B: 작업 리스트가 들어온 경우 (Set 또는 Array)        
         if (data instanceof Set || Array.isArray(data)) {
             console.log("모드: 전달받은 특정 리스트 내에서만 작업");
-            data.forEach(id => {
-                // taskQueue에 넣을 형식으로 객체 구성
-                taskQueue.push({
-                    contentId: id,
-                });
+            data.forEach(e => {
+                // taskQueue에 넣을 형식으로 객체 구성                
+                taskQueue.push(e);
             });
         }
 
         // CASE C: 특정 문자열(평문)이 들어온 경우 -> 검색 필터링
         if (typeof data === 'string') {
             console.log(`모드: '${data}' 필터링 작업`);
-            taskQueue = taskQueue.filter(e => e.displayCode && e.displayCode.includes(data.toUpperCase()));
+            const allTasks = await VceDB.getSchedulableTasks('imageMeta', 'meta');
+            taskQueue = allTasks.filter(e => e.displayCode && e.displayCode.includes(data.toUpperCase()))
+                .map(e => {
+                    return {
+                        key: e.uniqueKey,
+                        id: e.contentId
+                    };
+                });;
 
         }
 
@@ -5764,6 +5939,19 @@ div:where(.swal2-container) .swal2-input {
 
         console.log('[VCE] Parent mode');
 
+        const TIMEOUT_MS = 5000;
+        let connectionTimer = null;
+
+        function startConnectionCheck(windowName, url) {
+            // 기존 타이머가 있다면 초기화
+            if (connectionTimer) clearTimeout(connectionTimer);
+
+            connectionTimer = setTimeout(() => {
+                console.warn("응답 없음: 재연결 시도 중...");
+                reconnect(windowName, url);
+            }, TIMEOUT_MS);
+        }
+
         const origin = new URL(location.href).origin;
 
         function ensureWorker(windowName, url) {
@@ -5771,14 +5959,70 @@ div:where(.swal2-container) .swal2-input {
                 workerWin = window.open(url, windowName, 'width=600,height=300');
                 return workerWin; // 새로 열렸을 때
             }
-            window.addEventListener('beforeunload', () => {                
+            window.addEventListener('beforeunload', () => {
                 workerWin?.close();
-            });
-
+            });            
             return workerWin; // 기존 창 재사용
         }
 
+        function reconnect(windowName, url) {
+            // 자식 창이 닫혀있지 않다면 다시 호출하여 포커스 및 참조 업데이트
+            if (windowName) {
+                // 이미 열린 창이 리다이렉트되어 연결이 끊겼어도, 
+                // 같은 이름('WORKER_WINDOW')으로 호출하면 브라우저가 해당 창을 다시 제어할 수 있게 해줍니다.
+                windowName = window.open('', windowName);
 
+                // 페이지가 아예 먹통이거나 길을 잃었을 경우를 대비해 URL로 다시 보낼 수도 있습니다.
+                if (windowName.location.href === 'about:blank') {
+                    windowName.location.href = url;
+                }
+            } else {
+                windowName = window.open(url, windowName, 'width=600, height=500');
+            }
+            startConnectionCheck(windowName, url); // 다시 타이머 시작
+        }
+
+        function handler(e) {
+            if (!/javlibrary\.com/.test(e.origin)) return;
+            const { type, url, result, ID } = e.data || {};
+
+            // 중요: 어떤 메시지를 받든 처리 후에는 리스너를 즉시 제거하여 중복 실행 방지
+            if (['WORKER_READY', 'TASK_Javlibrary', 'TASK_Javlibrary_FAIL', 'FAIL Selector'].includes(type)) {
+                // 필요한 처리가 끝나면 리스너 제거 (성공/실패 모두)
+                if (type !== 'WORKER_READY') {
+                    window.removeEventListener('message', handler);
+                    // 타이머 제거 (연결 성공)
+                    if (connectionTimer) {
+                        clearTimeout(connectionTimer);
+                        connectionTimer = null;
+                    }
+                }
+            }
+
+            if (type === 'WORKER_READY') {
+                javlibraryWin.postMessage({
+                    type: 'Start',
+                }, 'https://www.javlibrary.com');
+            } else if (type === 'TASK_Javlibrary') {
+                console.log('성공 Javlibrary', result);
+                FANZADIGITALBC.postMessage({
+                    type: 'AddDB_TASK',
+                    url,
+                    ID,
+                    result,
+                });
+                if (javlibraryWin && !javlibraryWin.closed) {
+                    javlibraryWin.close();
+                }
+            } else if (type === 'TASK_Javlibrary_FAIL' || type === 'FAIL Selector') {
+                console.log(`실패: ${type}`);
+                // 메시지를 보내지 말고 부모가 직접 닫아버립니다.
+                if (javlibraryWin && !javlibraryWin.closed) {
+                    javlibraryWin.close();
+                }
+                assignNext();
+            }
+        }
 
         FANZADIGITALBC.onmessage = (e) => {
             const { type, rawImage, work, DB, ID } = e.data || {};
@@ -5793,43 +6037,13 @@ div:where(.swal2-container) .swal2-input {
                     assignNext();
                 } else if (work === 'ALL FAILED') {
                     console.log('ALL FAILED: Javlibrary 시도');
-                    const regex = /00(?=\d{3}(?!\d))/;
-                    const javlibrarCid = ID.split(regex)?.join('').replace(/^[0-9]/, '');
-                    const windowName = `JavlibraryWorker`;                    
-                    const searchUrl = `https://www.javlibrary.com/ja/vl_searchbyid.php?keyword=${javlibrarCid}`;
-                    javlibraryWin = window.open(searchUrl, windowName, 'width=600, height=300');
-                    GM_setValue('contentId', ID);                    
+                    const { key, id } = GM_getValue('WORK_TASK');
+                    const JAVLIBRARY_KEY = virtualKeyMaker(key, id, 'JAVLIBRARY');
+                    const windowName = `JavlibraryWorker`;
+                    const searchUrl = `https://www.javlibrary.com/ja/vl_searchbyid.php?keyword=${JAVLIBRARY_KEY}`;
+                    javlibraryWin = window.open(searchUrl, windowName, 'width=600, height=500');
+                    startConnectionCheck(windowName, searchUrl);
 
-                    function handler(e) {
-                        if (!/javlibrary\.com/.test(e.origin)) return;
-                        const { type, url, result, ID } = e.data || {};
-
-
-                        if (type === 'WORKER_READY') {
-                            javlibraryWin.postMessage({
-                                type: 'Start',
-                            }, 'https://www.javlibrary.com');
-                        } else if (type === 'TASK_Javlibrary') {
-                            console.log('성공 Javlibrary');
-                            FANZADIGITALBC.postMessage({
-                                type: 'AddDB_TASK',
-                                url,
-                                ID,
-                                result,
-                            });
-                            if (javlibraryWin && !javlibraryWin.closed) {
-                                javlibraryWin.close();
-                            }
-                        } else if (type === 'TASK_Javlibrary_FAIL' || type === 'FAIL Selector') {
-                            console.log(`실패: ${type}`);
-
-                            // 메시지를 보내지 말고 부모가 직접 닫아버립니다.
-                            if (javlibraryWin && !javlibraryWin.closed) {
-                                javlibraryWin.close();
-                            }
-                            assignNext();
-                        }
-                    }
                     window.addEventListener('message', handler);
                 } else {
                     assignNext();
@@ -5837,52 +6051,50 @@ div:where(.swal2-container) .swal2-input {
 
             } else if (type === 'TASK_FAIL') {
                 console.log('실패:', e.data);
-            } else if (type === 'TASK_CLOSE') {
-                fanzaWin.close();
-                isRunning = false;
-                fanzaWin = null;
-                updateProcessingFANZADIGITAL(taskQueue.length, '');
-                FANZADIGITALBC.close();
-                GM_deleteValue('contentId');
-                return;
             }
         };
 
+
+        let isProcessing = false; // 중복 실행 방지 플래그
         async function assignNext() {
-            if (!isRunning) return;
-            GM_deleteValue('contentId');
+            if (!isRunning || isProcessing) return;
+            isProcessing = true; // 락(Lock) 설정           
 
-            if (taskQueue.length === 0) {
-                console.log('모든 작업 완료');
-                fanzaWin.close();
-                isRunning = false;
-                fanzaWin = null;
-                updateProcessingFANZADIGITAL(taskQueue.length, '');
-                FANZADIGITALBC.close();                     
-                return;
+            try {
+                if (taskQueue.length === 0) {
+                    console.log('모든 작업 완료');
+                    fanzaWin.close();
+                    isRunning = false;
+                    fanzaWin = null;
+                    updateProcessingFANZADIGITAL(taskQueue.length, '');
+                    FANZADIGITALBC.close();
+                    GM_deleteValue('WORK_TASK');
+                    return;
+                }
+
+                jobCount++;
+
+                if (jobCount > 15) {
+                    await sleep(getRandomDelay());
+                    jobCount = 0;
+                }
+                const task = taskQueue.shift();
+                //const pathSegments = task.url.split('/');
+                //const contentId = pathSegments[pathSegments.length - 2];
+                contentId = task.id;
+                GM_setValue('WORK_TASK', task);
+                const workerUrl = `https://video.dmm.co.jp/av/content/?id=${contentId}`;
+                updateProcessingFANZADIGITAL(taskQueue.length, contentId);
+                //console.log(workerWin, workerUrl, contentId, taskQueue);
+                FANZADIGITALBC.postMessage({
+                    type: 'MOVE_TASK',
+                    url: workerUrl,
+                });
+            } finally {
+                isProcessing = false; // 작업 지시 후 플래그 해제
             }
-
-            jobCount++;
-
-            if (jobCount > 15) {
-                await sleep(getRandomDelay());
-                jobCount = 0;
-            }
-            const task = taskQueue.shift();
-            //const pathSegments = task.url.split('/');
-            //const contentId = pathSegments[pathSegments.length - 2];
-            contentId = task.contentId;
-            GM_setValue('contentId', contentId);
-            const workerUrl = `https://video.dmm.co.jp/av/content/?id=${contentId}`;
-            updateProcessingFANZADIGITAL(taskQueue.length, contentId);
-            //console.log(workerWin, workerUrl, contentId, taskQueue);
-            FANZADIGITALBC.postMessage({
-                type: 'MOVE_TASK',
-                url: workerUrl,
-            });
         }
-
-        fanzaWin = ensureWorker('FanzaWin', location.origin);
+        fanzaWin = ensureWorker('FanzaWin', location.origin);        
     };
 
 
@@ -5894,7 +6106,7 @@ div:where(.swal2-container) .swal2-input {
         return window.name === 'FanzaWin';
     }
     function isJavlibraryWorker() {
-        return window.name === 'JavlibraryWorker'; 
+        return window.name === 'JavlibraryWorker';
     }
 
     /*********************************************************
@@ -5957,13 +6169,16 @@ div:where(.swal2-container) .swal2-input {
                     let success = false;
                     const ID = GetParam(location.href, 'id').toLowerCase();
                     async function tryOther() {
-                        const regex = /00(?=\d{3}(?!\d))/;
-                        const cid = ID.replace(regex, '');
-                        const avwikiCid = ID.split(regex)?.join('-').replace(/^[0-9]/, '');
+                        const { key, id } = GM_getValue('WORK_TASK');
+                        const DMMR_KEY = virtualKeyMaker(key, id, 'DMMR');
+                        const DMM_KEY = virtualKeyMaker(key, id, 'DMM');
+                        const AVWIKIS_KEY = virtualKeyMaker(key, id, 'AVWIKIS');
+                        const AVWIKIL_KEY = virtualKeyMaker(key, id, 'AVWIKIL');
                         const searchUrls = [
-                            `https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=${cid}r/`,
-                            `https://av-wiki.net/${avwikiCid}/`,
-                            `https://av-wiki.net/${ID}/`
+                            `https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=${DMMR_KEY}/`,
+                            `https://www.dmm.co.jp/mono/dvd/-/detail/=/cid=${DMM_KEY}/`,
+                            `https://av-wiki.net/${AVWIKIS_KEY}/`,
+                            `https://av-wiki.net/${AVWIKIL_KEY}/`
                         ];
                         const filtersUrls = searchUrls.filter(u => getClearBad(u));
 
@@ -5973,9 +6188,11 @@ div:where(.swal2-container) .swal2-input {
                                 targetSite = 'AVWiki';
                             } else if (searchUrl.startsWith('https://www.dmm.co.jp/rental/')) {
                                 targetSite = 'DMMR';
+                            } else if (searchUrl.startsWith('https://www.dmm.co.jp/mono/')) {
+                                targetSite = 'DMM';
                             }
 
-                            const e = await siteConfigs[targetSite].addDB(searchUrl, ID);
+                            const e = await siteConfigs[targetSite].addDB(searchUrl);
 
                             const { rawImage, work, dbData, reason } = e || {};
 
@@ -5990,7 +6207,7 @@ div:where(.swal2-container) .swal2-input {
                                     type: 'TASK_DONE',
                                     url: location.href,
                                     rawImage: rawImage,
-                                    contentId: ID,
+                                    contentId,
                                     workUrl: searchUrl,
                                     work,
                                     result: send,
@@ -6040,7 +6257,7 @@ div:where(.swal2-container) .swal2-input {
                                     rawImage: rawImage,
                                     workUrl: location.href,
                                     work,
-                                    contentId: ID,
+                                    contentId,
                                     result: send,
                                     DB: dbData
                                 });
@@ -6072,10 +6289,10 @@ div:where(.swal2-container) .swal2-input {
                 a.click();
             }
             if (type === 'AddDB_TASK') {
-                console.log('AddDB_TASK');                
+                console.log('AddDB_TASK');
                 const searchUrl = location.href;
                 const ID = GetParam(location.href, 'id').toLowerCase();
-                const e = await siteConfigs['Javlibrary'].addDB(searchUrl, ID, result);
+                const e = await siteConfigs['Javlibrary'].addDB(searchUrl, { result });
 
                 const { rawImage, work, dbData, reason } = e || {};
 
@@ -6114,7 +6331,7 @@ div:where(.swal2-container) .swal2-input {
     }
 
     async function runJavlibraryWorker() {
-        console.log('[VCE] Javlibrary Worker mode');       
+        console.log('[VCE] Javlibrary Worker mode');
 
         // Cloudflare 체크박스가 있는지 확인 (간단한 예시)
         if (document.querySelector('#challenge-running') || document.querySelector('#cf-challenge-running')) {
@@ -6122,7 +6339,6 @@ div:where(.swal2-container) .swal2-input {
             return; // 체크박스 통과 전에는 실행 중단
         }
 
-        const preContentId = GM_getValue('contentId', '');
         const targetOrigin = 'https://video.dmm.co.jp'; // 변수로 관리
 
         // 부모 창(opener)이 존재하는지 반드시 확인
@@ -6131,24 +6347,15 @@ div:where(.swal2-container) .swal2-input {
             return;
         }
 
-        window.addEventListener('message', (e) => {
-            if (!/dmm\.co\.jp/.test(e.origin)) return;
-            console.log(e.data.type);
-            if (e.data.type === 'Start') {
-                requestTask();
-            } else if (e.data.type === 'Close') {
-                window.close();
-            }
-        });
-
         if (location.href.startsWith('https://www.javlibrary.com/ja/vl_searchbyid.php?keyword')) {
-            const regex = /00(?=\d{3}(?!\d))/;
-            const cid = preContentId.replace(regex, '');
-            const Selector = `img[src*="/${cid}/"]`;
+            const { key, id } = GM_getValue('WORK_TASK');
+            if (!key || !id) return console.error("작업 데이터가 없습니다.");
+            const DMM_KEY = virtualKeyMaker(key, id, 'DMM');
+            const Selector = `img[src*="/${DMM_KEY}/"]`;
             const findUrl = document.querySelector(Selector)?.closest('a')?.href;
             if (!findUrl) {
                 window.opener.postMessage({
-                    type: 'FAIL Selector',                    
+                    type: 'FAIL Selector',
                     url: location.href,
                     result: 'No Item'
                 }, targetOrigin);
@@ -6158,7 +6365,7 @@ div:where(.swal2-container) .swal2-input {
                 location.href = findUrl;
                 return;
             }
-        }       
+        }
 
         async function requestTask() {
 
@@ -6181,9 +6388,16 @@ div:where(.swal2-container) .swal2-input {
                     result: 'No Item'
                 }, targetOrigin);
             }
-
         }
-        
+
+        window.addEventListener('message', (e) => {
+            if (!/dmm\.co\.jp/.test(e.origin)) return;
+            console.log(e.data.type);
+            if (e.data.type === 'Start') {
+                requestTask();
+            }
+        });
+
         window.opener.postMessage({ type: 'WORKER_READY' }, targetOrigin);
 
     }
@@ -6222,13 +6436,18 @@ div:where(.swal2-container) .swal2-input {
             return null;
         }
     }
-    
+
     if (isWorker()) {
         runWorker();
     } else if (isJavlibraryWorker()) {
         runJavlibraryWorker();
     } else {
-        if (/javlibrary/.test(location.href)) return;
+        if (/javlibrary/.test(location.href)){
+            function reconnectPopup() {
+                popup = window.open('', 'myPopup');
+            }
+            return;
+        } 
         FontAwesomeCSS();
         runOnceAWeek('weekly_update_updateUniqueKey', updateUniqueKey);
         collectAndProcess();
