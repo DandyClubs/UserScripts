@@ -274,7 +274,7 @@ div:where(.swal2-container) .swal2-input {
     // --- 모달 크기 저장 및 복원 (수정본) ---
     const STORAGE_KEY = 'vce_modal_size';
 
-    const replaceReg = /【独占】|【準新作】|【FANZA独占】|【配信専用】|【最新作】|【新作】|【先行公開】|【セール】|【予約】|【.*パンツまつり\d+％OFF.*】/g;
+    const replaceReg = /【独占】|【準新作】|【FANZA独占】|【配信専用】|【最新作】|【新作】|【先行公開】|【セール】|【予約】|【.*パンツまつり\d+％OFF.*】|.*ブランドストア\d+％OFF.*/g;
 
 
     const imageSelectorMap = {
@@ -630,6 +630,12 @@ div:where(.swal2-container) .swal2-input {
         return null;
     }
 
+
+    const bulkReplace = (str, map) => {
+        const pattern = new RegExp(Object.keys(map).sort((a, b) => b.length - a.length).join('|'), 'g');
+        return str.replace(pattern, matched => map[matched]);
+    };
+
     /**
 * 사이트별 포맷팅 전략 정의
 * p: prefix, c: displayCode, s: suffix, n: numbering(숫자), l: padLen
@@ -681,7 +687,7 @@ div:where(.swal2-container) .swal2-input {
 
         } catch (error) {
             console.error(error);
-        }        
+        }
     };
 
     const keyMap = {
@@ -703,20 +709,20 @@ div:where(.swal2-container) .swal2-input {
                     const FANZA_DIGITAL_KEY = virtualKeyMaker(key, id, 'FANZA_DIGITAL');
                     const FANZA_MONO_KEY = virtualKeyMaker(key, id, 'FANZA_MONO');
                     const DMM_KEY = virtualKeyMaker(key, id, 'DMM');
-                    const contentId = id;                    
+                    const contentId = id;
                     const testImageUrl = [
                         `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${FANZA_DIGITAL_KEY}/${FANZA_DIGITAL_KEY}pl.jpg`,
                         `https://awsimgsrc.dmm.com/dig/mono/movie/${FANZA_MONO_KEY}/${FANZA_MONO_KEY}pl.jpg`,
                         `https://pics.dmm.co.jp/mono/movie/adult/${DMM_KEY}/${DMM_KEY}pl.jpg`,
                     ];
 
-                    
+
                     let resData = {};
                     let imageSrc;
                     for (const src of testImageUrl) {
                         const checkMeta = await VceDB.get('imageMeta', src);
-                        if (checkMeta.resolutionState === 'SUCCESS' && checkMeta.resolution){
-                            imageSrc = checkMeta.url;                            
+                        if (checkMeta.resolutionState === 'SUCCESS' && checkMeta.resolution) {
+                            imageSrc = checkMeta.url;
                             break;
                         }
                         const { exists, reason, result } = await fetchImageResolution(src);
@@ -1255,7 +1261,7 @@ div:where(.swal2-container) .swal2-input {
                             const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL']);
                             const result = parse(document.body);
                             if (!result || !result.realCode) return;
-                            result.title = result.title.replace(replaceReg, '').replace(`(${result.realCode.toLowerCase()})`, '').trim();
+                            result.title = result.title;
                             const fileName = `${result.realCode} ${result.title}`;
                             const limitedfileName = byteLengthOf(fileName, 240);
                             let finalFileName = FilenameConvert(limitedfileName);
@@ -1779,7 +1785,8 @@ div:where(.swal2-container) .swal2-input {
             });
 
             if (result.title) {
-                result.title = result.title.replace(replaceReg, '')
+                result.title = bulkReplace(result.title, replaceTextMap)
+                    .replace(replaceReg, '')
                     .replace(`(${result.realCode.toLowerCase()})`, '')
                     .replace(`【${result.realCode}】`, '')
                     .replace(new RegExp(`^${result.realCode}`), '').trim();
@@ -2231,7 +2238,7 @@ div:where(.swal2-container) .swal2-input {
                         inputPlaceholder: '예: ABC, T38',
                         showCancelButton: true,
                         confirmButtonText: '확인',
-                        cancelButtonText: '취소',                        
+                        cancelButtonText: '취소',
 
                         didOpen: () => {
                             const input = Swal.getInput();
@@ -2636,7 +2643,7 @@ div:where(.swal2-container) .swal2-input {
                         makerLabelCode,
                         makerLabel,
                         rawMediaType,
-                    }
+                    };
                     await VceDB.save("codes", uniqueKey, data);
                     updateDisplayList(false, 'processWork');
                     updateMinMax(data, numbering);
@@ -2869,14 +2876,17 @@ div:where(.swal2-container) .swal2-input {
 
                     const newKey = `${displayCode}|${prefix}|${padLenStr}|${suffix}|${makerLabelCode}|${contentIdZero}`;
                     await VceDB.save("imageMeta", v.imageSource, {
-                        uniqueKey: newKey,
-                        title: newTitle
+                        uniqueKey: newKey
                     });
                 }
             }
+            const pattern = new RegExp(Object.keys(replaceTextMap).sort((a, b) => b.length - a.length).join('|'), 'g');
+            if (v.title && (pattern.test(v.title) || replaceReg.test(v.title) || v.title.toLowerCase().includes(v.realCode.toLowerCase()))) {
+                const newTitle = bulkReplace(v.title, replaceTextMap).replace(replaceReg, '').replace(`(${v.realCode.toLowerCase()})`, '').trim();
 
-            if (v.title && replaceReg.test(v.title) || v.title.toLowerCase().includes(v.realCode.toLowerCase())) {
-                const newTitle = v.title?.replace(replaceReg, '').replace(`(${v.realCode.toLowerCase()})`, '').trim();
+                if (/[●○〇]/.test(v.title)){
+                    console.log(`${v.realCode} ${v.title} -> ${newTitle}`);
+                }
                 await VceDB.save("imageMeta", v.imageSource, {
                     title: newTitle
                 });
@@ -3750,7 +3760,7 @@ div:where(.swal2-container) .swal2-input {
 
         // 5. 변경사항이 있을 때만 저장
         if (code.minIndex !== finalMin || code.maxIndex !== finalMax || addNumber) {
-            const logAddNumber = addNumber ? `actualNums: ${actualNums} -> ${addNumber}` : '';            
+            const logAddNumber = addNumber ? `actualNums: ${actualNums} -> ${addNumber}` : '';
             console.log(`갱신 [${key}]: ${code.minIndex}->${finalMin}, ${code.maxIndex}->${finalMax} ${logAddNumber}`);
             await VceDB.save("codes", key, {
                 minIndex: finalMin,
@@ -4108,7 +4118,7 @@ div:where(.swal2-container) .swal2-input {
                     return {
                         メーカー: item.makerLabel,
                         メーカー品番: item.realCode,
-                        제목: item.title.replace(replaceReg, '').replace(`(${item.realCode.toLowerCase()})`, '').trim(),
+                        제목: item.title,
                         レーベル: item.label || '',
                         出演者: item.cast || '',
                         商品発売日: item.releaseDate,
@@ -5691,7 +5701,7 @@ div:where(.swal2-container) .swal2-input {
                 return {
                     メーカー: item.makerLabel,
                     メーカー品番: item.realCode,
-                    제목: item.title.replace(replaceReg, '').replace(`(${item.realCode.toLowerCase()})`, '').trim(),
+                    제목: item.title,
                     レーベル: item.label || '',
                     出演者: item.cast || '',
                     商品発売日: item.releaseDate,
@@ -5725,7 +5735,7 @@ div:where(.swal2-container) .swal2-input {
                 return {
                     メーカー: item.makerLabel,
                     メーカー品番: item.realCode,
-                    제목: item.title.replace(replaceReg, '').replace(`(${item.realCode.toLowerCase()})`, '').trim(),
+                    제목: item.title,
                     レーベル: item.label || '',
                     出演者: item.cast || '',
                     商品発売日: item.releaseDate,
@@ -5961,7 +5971,7 @@ div:where(.swal2-container) .swal2-input {
             }
             window.addEventListener('beforeunload', () => {
                 workerWin?.close();
-            });            
+            });
             return workerWin; // 기존 창 재사용
         }
 
@@ -6094,7 +6104,7 @@ div:where(.swal2-container) .swal2-input {
                 isProcessing = false; // 작업 지시 후 플래그 해제
             }
         }
-        fanzaWin = ensureWorker('FanzaWin', location.origin);        
+        fanzaWin = ensureWorker('FanzaWin', location.origin);
     };
 
 
@@ -6442,12 +6452,9 @@ div:where(.swal2-container) .swal2-input {
     } else if (isJavlibraryWorker()) {
         runJavlibraryWorker();
     } else {
-        if (/javlibrary/.test(location.href)){
-            function reconnectPopup() {
-                popup = window.open('', 'myPopup');
-            }
+        if (/javlibrary/.test(location.href)) {
             return;
-        } 
+        }
         FontAwesomeCSS();
         runOnceAWeek('weekly_update_updateUniqueKey', updateUniqueKey);
         collectAndProcess();
