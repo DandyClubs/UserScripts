@@ -2645,8 +2645,9 @@ div:where(.swal2-container) .swal2-input {
                         rawMediaType,
                     };
                     await VceDB.save("codes", uniqueKey, data);
+                    const addedKey = await VceDB.get("codes", uniqueKey);
                     updateDisplayList(false, 'processWork');
-                    updateMinMax(data, numbering);
+                    updateMinMax(addedKey, numbering);
                     updateCounts();
                 }
                 return true;
