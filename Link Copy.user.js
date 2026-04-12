@@ -2923,7 +2923,7 @@ async function CollectionLinks(DownloadArea) {
 
     // 2e) Additional site-specific tweaks (blogjav, javarchive, etc.)
     if (/blogjav/.test(RootDomain)) {
-        links = links.filter(a => !/\.(mp4|mkv)$/i.test(a.textContent));
+        //links = links.filter(a => !/\.(mp4|mkv)$/i.test(a.textContent));
         const getDownloadLinks = (links) => {
             const priorityPatterns = [/2160p|4K/i, /1080p|1080\.mp4/i];
             let finalLinks = [];
@@ -3181,6 +3181,8 @@ async function CopyLink() {
     // 1) If no temporary links waiting, gather fresh links    
     if (pageLinksDB.length === 0) {
         let collected = await CollectionLinks(DownloadArea) || [];
+
+        console.log('CopyLink', collected);
 
         if (collected.length > 0) {
             const codePattern = /(\d{0,2}[a-zA-Z]{1,6}\d{0,2})-?(\d{3})([a-z]*)/i;

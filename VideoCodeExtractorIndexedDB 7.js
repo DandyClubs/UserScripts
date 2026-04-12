@@ -708,8 +708,7 @@ div:where(.swal2-container) .swal2-input {
                     if (!result) return { work: 'FAIL', reason: `result not fouund` };
                     const FANZA_DIGITAL_KEY = virtualKeyMaker(key, id, 'FANZA_DIGITAL');
                     const FANZA_MONO_KEY = virtualKeyMaker(key, id, 'FANZA_MONO');
-                    const DMM_KEY = virtualKeyMaker(key, id, 'DMM');
-                    const contentId = id;
+                    const DMM_KEY = virtualKeyMaker(key, id, 'DMM');                    
                     const testImageUrl = [
                         `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${FANZA_DIGITAL_KEY}/${FANZA_DIGITAL_KEY}pl.jpg`,
                         `https://awsimgsrc.dmm.com/dig/mono/movie/${FANZA_MONO_KEY}/${FANZA_MONO_KEY}pl.jpg`,
@@ -768,8 +767,7 @@ div:where(.swal2-container) .swal2-input {
 
                     return await processWork(rawImage, searchUrl, {
                         makerLabelCode,
-                        rawMediaType,
-                        contentId
+                        rawMediaType,                        
                     }).then(async (re) => {
                         if (re) {
                             const hasMeta = await VceDB.get('imageMeta', rawImage);
@@ -1184,8 +1182,7 @@ div:where(.swal2-container) .swal2-input {
 
                     return await processWork(rawImage, url, {
                         makerLabelCode,
-                        rawMediaType,
-                        
+                        rawMediaType,                        
                     }).then(async (re) => {
                         if (re) {
                             const hasMeta = await VceDB.get('imageMeta', rawImage);
@@ -2691,7 +2688,7 @@ div:where(.swal2-container) .swal2-input {
         items.forEach(itemData => {
             const key = itemData.id;
             const detailLabel = `${itemData.prefix && itemData.suffix ? itemData.prefix + ', ' + itemData.suffix : itemData.prefix || itemData.suffix || ''}`;
-            const itemPageUrl = `https://video.dmm.co.jp/av/content/?id=${itemData.contentId}`;
+            const itemPageUrl = itemData.reTryData?.linkUrl || '';
             const row = document.createElement('div');
             const refreshIcon = `
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -2702,7 +2699,7 @@ div:where(.swal2-container) .swal2-input {
             row.innerHTML = `
                 <input type="checkbox" class="item-check" data-key="${key}" style="margin-left:5px; width:15px; height:15px; cursor:pointer; accent-color:#00FF41; appearance:auto;">
                 <div style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; cursor:help;" title="${itemData.reTryData?.imageSrc || ''}">
-                <a href="${itemPageUrl}" target="_blank"><span style="color:#00FF41; font-family:monospace; font-size:12px;">${itemData.displayCode}</span></a>
+                <a href="${itemPageUrl || ''}" target="_blank"><span style="color:#00FF41; font-family:monospace; font-size:12px;">${itemData.displayCode}</span></a>
                     ${detailLabel ? `<span style="color:white; font-size:10px; margin-left:5px;">[</span><span style="color:#00FF41; font-size:10px;">${detailLabel}</span><span style="color:white; font-size:10px;">]</span>` : ''}
                 </div>
                 <span style="color:white; font-size:10px;padding-left:5px;">[ ${itemData.makerLabelCode} ] [ ${itemData.rawMediaType || ''} ]</span>
