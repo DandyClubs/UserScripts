@@ -813,8 +813,8 @@ div:where(.swal2-container) .swal2-input {
                                 reTryData: {
                                     imageSrc: rawImage,
                                     linkUrl: searchUrl,
-                                    makerLabelCode: makerLabelCode,
-                                    rawMediaType: rawMediaType,
+                                    makerLabelCode,
+                                    rawMediaType,
                                 },
                                 sourceSite: 'DMMR',
                                 codeStatus: 'SUCCESS'
@@ -910,8 +910,7 @@ div:where(.swal2-container) .swal2-input {
                     if (!result) return { work: 'FAIL', reason: `result not fouund` };
                     const FANZA_DIGITAL_KEY = virtualKeyMaker(key, id, 'FANZA_DIGITAL');
                     const FANZA_MONO_KEY = virtualKeyMaker(key, id, 'FANZA_MONO');
-                    const DMM_KEY = virtualKeyMaker(key, id, 'DMM');
-                    const contentId = id;
+                    const DMM_KEY = virtualKeyMaker(key, id, 'DMM');                    
                     const testImageUrl = [
                         `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${FANZA_DIGITAL_KEY}/${FANZA_DIGITAL_KEY}pl.jpg`,
                         `https://awsimgsrc.dmm.com/dig/mono/movie/${FANZA_MONO_KEY}/${FANZA_MONO_KEY}pl.jpg`,
@@ -968,8 +967,7 @@ div:where(.swal2-container) .swal2-input {
 
                     return await processWork(rawImage, searchUrl, {
                         makerLabelCode,
-                        rawMediaType,
-                        contentId
+                        rawMediaType,                        
                     }).then(async (re) => {
                         if (re) {
                             const hasMeta = await VceDB.get('imageMeta', rawImage);
@@ -1013,8 +1011,8 @@ div:where(.swal2-container) .swal2-input {
                                 reTryData: {
                                     imageSrc: rawImage,
                                     linkUrl: searchUrl,
-                                    makerLabelCode: makerLabelCode,
-                                    rawMediaType: rawMediaType,
+                                    makerLabelCode,
+                                    rawMediaType,
                                 },
                                 sourceSite: 'DMM',
                                 codeStatus: 'SUCCESS'
@@ -1187,7 +1185,7 @@ div:where(.swal2-container) .swal2-input {
                     return await processWork(rawImage, url, {
                         makerLabelCode,
                         rawMediaType,
-                        contentId
+                        
                     }).then(async (re) => {
                         if (re) {
                             const hasMeta = await VceDB.get('imageMeta', rawImage);
@@ -1230,8 +1228,8 @@ div:where(.swal2-container) .swal2-input {
                                 reTryData: {
                                     imageSrc: rawImage,
                                     linkUrl: url,
-                                    makerLabelCode: makerLabelCode,
-                                    rawMediaType: rawMediaType,
+                                    makerLabelCode,
+                                    rawMediaType,
                                 },
                                 sourceSite: 'FANZA_DIGITAL',
                                 codeStatus: 'SUCCESS'
@@ -1300,8 +1298,7 @@ div:where(.swal2-container) .swal2-input {
                     if (!result) return { work: 'FAIL', reason: `result not fouund` };
                     const FANZA_DIGITAL_KEY = virtualKeyMaker(key, id, 'FANZA_DIGITAL');
                     const FANZA_MONO_KEY = virtualKeyMaker(key, id, 'FANZA_MONO');
-                    const DMM_KEY = virtualKeyMaker(key, id, 'DMM');
-                    const contentId = id;
+                    const DMM_KEY = virtualKeyMaker(key, id, 'DMM');                    
                     const testImageUrl = [
                         `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${FANZA_DIGITAL_KEY}/${FANZA_DIGITAL_KEY}pl.jpg`,
                         `https://awsimgsrc.dmm.com/dig/mono/movie/${FANZA_MONO_KEY}/${FANZA_MONO_KEY}pl.jpg`,
@@ -1359,8 +1356,7 @@ div:where(.swal2-container) .swal2-input {
 
                     return await processWork(rawImage, searchUrl, {
                         makerLabelCode,
-                        rawMediaType,
-                        contentId
+                        rawMediaType,                        
                     }).then(async (re) => {
                         if (re) {
                             const hasMeta = await VceDB.get('imageMeta', rawImage);
@@ -1404,8 +1400,8 @@ div:where(.swal2-container) .swal2-input {
                                 reTryData: {
                                     imageSrc: rawImage,
                                     linkUrl: searchUrl,
-                                    makerLabelCode: makerLabelCode,
-                                    rawMediaType: rawMediaType,
+                                    makerLabelCode,
+                                    rawMediaType,
                                 },
                                 sourceSite: 'AVWiki',
                                 codeStatus: 'SUCCESS'
@@ -1459,8 +1455,7 @@ div:where(.swal2-container) .swal2-input {
                     const { key, id } = GM_getValue('WORK_TASK');
                     const FANZA_DIGITAL_KEY = virtualKeyMaker(key, id, 'FANZA_DIGITAL');
                     const FANZA_MONO_KEY = virtualKeyMaker(key, id, 'FANZA_MONO');
-                    const DMM_KEY = virtualKeyMaker(key, id, 'DMM');
-                    const contentId = id;
+                    const DMM_KEY = virtualKeyMaker(key, id, 'DMM');                    
                     const testImageUrl = [
                         `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${FANZA_DIGITAL_KEY}/${FANZA_DIGITAL_KEY}pl.jpg`,
                         `https://awsimgsrc.dmm.com/dig/mono/movie/${FANZA_MONO_KEY}/${FANZA_MONO_KEY}pl.jpg`,
@@ -1517,8 +1512,7 @@ div:where(.swal2-container) .swal2-input {
 
                     return await processWork(rawImage, searchUrl, {
                         makerLabelCode,
-                        rawMediaType,
-                        contentId
+                        rawMediaType,                        
                     }).then(async (re) => {
                         if (re) {
                             const hasMeta = await VceDB.get('imageMeta', rawImage);
@@ -1561,8 +1555,8 @@ div:where(.swal2-container) .swal2-input {
                                 reTryData: {
                                     imageSrc: rawImage,
                                     linkUrl: searchUrl,
-                                    makerLabelCode: makerLabelCode,
-                                    rawMediaType: rawMediaType,
+                                    makerLabelCode,
+                                    rawMediaType,
                                 },
                                 sourceSite: 'Javlibrary',
                                 codeStatus: 'SUCCESS'
@@ -2300,9 +2294,8 @@ div:where(.swal2-container) .swal2-input {
             for (const el of targets) {
                 el.classList.add(PROCESSED_CLASS);
                 const makerLabelCode = GetParam(PageURL(), 'maker');
-                const rawMediaType = GetParam(PageURL(), 'media_type');
-                const contentId = GetParam(el.closest('a').href, 'id').toLowerCase();
-                enqueue(() => processWork(el.getAttribute('srcset'), el.closest('a').href, { makerLabelCode, rawMediaType, contentId }));
+                const rawMediaType = GetParam(PageURL(), 'media_type');                
+                enqueue(() => processWork(el.getAttribute('srcset'), el.closest('a').href, { makerLabelCode, rawMediaType }));
             }
 
         }
@@ -2439,8 +2432,7 @@ div:where(.swal2-container) .swal2-input {
 
         const {
             makerLabelCode = '',
-            rawMediaType = '',
-            contentId,
+            rawMediaType = '',            
             reTry = false,
         } = options;
 
@@ -2459,10 +2451,12 @@ div:where(.swal2-container) .swal2-input {
             } else {
                 imageSrc = imageSrc.replace(/ps\.jpg/i, 'pl.jpg');
             }
+            
             const rawImage = imageSrc.split('?')[0];
 
-            //const pathSegments = rawImage.split('/');
-            //const contentId = pathSegments[pathSegments.length - 2];            
+
+            const pathSegments = rawImage.split('/');
+            const contentId = pathSegments[pathSegments.length - 2];            
 
 
             const majorsLabelPatterns = [
@@ -2471,6 +2465,7 @@ div:where(.swal2-container) .swal2-input {
                 /.*[a-z]{3,7}\d{3,5}[v]*/i,
                 /.*\d{2}ID[a-zA-Z]*\d{3,7}[v]*/i,
                 /h_[h0-9]*[a-z]{2,}\d{3,}[a-z]*/i,
+                /\d{2}t\d{2}\d{3,5}/i
             ];
 
             const isMajorMatched = majorsLabelPatterns.some(regex => regex.test(contentId));
@@ -2527,14 +2522,14 @@ div:where(.swal2-container) .swal2-input {
                 /(.*)(KT[a-zA-Z]*)(\d{3,5})(v*)/i,
                 /(.*)(TS[a-zA-Z]*)(\d{3,5})(v*)/i,
                 /(.*)(SW[a-zA-Z]*)(\d{3,5})(v*)/i,
-                /(.*)(\d{2}ID[a-zA-Z]*)(\d{5,})(.*)/i,
-                /(\d+)(T0*\d{2}[a-zA-Z]*)(\d{3,})(.*)/i,
-                /(.*)(d1clymax)(\d{5,})(.*)/i,
-                /([a-z]*)(dvaj|dvajbx)(\d{5,})(.*)/i,
-                /(\d{2})(t\d{1})(\d{5,})(.*)/i,
-                /(h_[h0-9]*)(ss|sy|id)(\d{3,})([a-z]*)/i,
-                /(h_[h0-9]*)([a-z]{3,})(\d{3,})([a-z]*)/i,
-                /([0-9]*)([a-z]+)(\d+)(.*)/i
+                /(.*)(\d{2}ID[a-zA-Z]*)(\d{3,})(.*)/i,                
+                /(.*)(d1clymax)(\d{3,5})(.*)/i,
+                /([a-z]*)(dvaj|dvajbx)(\d{3,5})(.*)/i,
+                /(\d{2})(T0*\d{2}[a-zA-Z]*)(\d{3,5})(.*)/i,
+                /(\d{2})(T\d{2})(\d{3,5})(.*)/i,
+                /(h_[h0-9]*)(ss|sy|id)(\d{3,5})([a-z]*)/i,
+                /(h_[h0-9]*)([a-z]{3,})(\d{3,5})([a-z]*)/i,
+                /([0-9]*)([a-z]+)(\d{3,5})(.*)/i
             ];
 
             let match = null;
