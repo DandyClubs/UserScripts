@@ -109,6 +109,7 @@ GM_addStyle(`
         border-radius: .25em !important;
         -webkit-box-sizing: border-box !important;
         box-sizing: border-box !important;
+        z-index: 9999 !important;
     }
 
     .ToTop {
