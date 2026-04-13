@@ -510,11 +510,55 @@ const ThaiChar = /[ๅภถุึคตจขชๆไำพะัีรนย�
 const SearchID = /([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2,3}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})(.*)/;
 const MatchID = /^([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2,3}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}|FC2.+\d{6.8})(.*)/;
 const SearchFC2ID = /(^FC2.+\d{6,7})(.*)/i;
-const SearchIDRegExp = /(\[\s?)?([a-zA-Z]{2,11}\d{1,4}-\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}|T\d{2}-\d{3})(?!C_\d+|file\d+)/i;
 const K2SRegExp = /(.*k2s\.cc\/file\/)(.*\/?)/;
 const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/;
-const extractID = /(\[\s?)?(?=([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2})|T\d{2}-\d{3})(?!(C_\d+|file\d+))/;
 const ID3D = /(MCB3DBD-\d+)(.*)$/i;
+
+
+
+const SearchIDRegExp = (str) => {
+    let match = '';
+
+    const skipPatterns = [
+        /C_\d+|file\d+/i
+    ];
+
+    for (const skipRegex of skipPatterns) {
+        if (skipRegex.test(str)) {
+            console.error('skipPatterns Test', { str, skipRegex });
+            return '';
+        }
+    }
+
+    const extractPatterns = [
+        /(.*)(KT[a-zA-Z]*)(-)?(\d{3,5})(v*)/i,
+        /(.*)(TS[a-zA-Z]*)(-)?(\d{3,5})(v*)/i,
+        /(.*)(SW[a-zA-Z]*)(-)?(\d{3,5})(v*)/i,
+        /(.*)(\d{2}ID[a-zA-Z]*)(-)?(\d{3,})(.*)/i,
+        /(.*)(d1clymax)(\d{3,5})(-)?(.*)/i,
+        /([a-zA-Z]*)(dvaj|dvajbx)(-)?(\d{3,5})(.*)/i,
+        /(\d{2})(T0*\d{2}[a-zA-Z]*)(-)?(\d{3,5})(.*)/i,
+        /(\d{2})(T\d{2})(-)?(\d{3,5})(.*)/i,
+        /(h_[h0-9]*)(ss|sy|id)(-)?(\d{3,5})([a-z]*)/i,
+        /(h_[h0-9]*)([a-zA-Z]{3,})(-)?(\d{3,5})([a-z]*)/i,
+        /([0-9]*)([a-zA-Z]+)(-)?(\d{3,5})(.*)/i
+    ];
+
+
+    for (const regex of extractPatterns) {
+        match = str.match(regex);
+        if (match) break;
+    }
+    if (match) {
+        const code = match[2];
+        const part = match[3];
+        const number = match[4];
+        return `${code}${part || ''}${number}`;
+    }
+    else return '';
+
+};
+
 
 let GetDirect, AllCollectionLinks = [];
 
@@ -1571,11 +1615,11 @@ const siteConfigs = [
                         Title = `${fcId} ${InfoArea[0]}`;
                     } else {
                         let cleanIDTitle, cleanIDInfoTitle, compareInfoAreaID, newTitle;
-                        let infoTitle = InfoArea.find(line => line.match(SearchIDRegExp)) || '';
-                        let entryID = Title.match(SearchIDRegExp)?.[2] || '';
+                        let infoTitle = InfoArea.find(line => SearchIDRegExp(line)) || '';
+                        let entryID = SearchIDRegExp(Title) || '';
                         let infoAreaID;
                         if (infoTitle && entryID) {
-                            infoAreaID = infoTitle?.match(SearchIDRegExp)?.[2] || '';
+                            infoAreaID = SearchIDRegExp(infoTitle);
                             cleanIDTitle = Title.replace(entryID, '').trim();
                             cleanIDInfoTitle = infoTitle.replace(infoAreaID, '').trim();
                         } else {
@@ -1756,7 +1800,7 @@ const siteRules = [
                 DownloadArea[0].querySelector('a[href*="k2s.cc/file"]')?.href,
             ].filter(Boolean);
 
-            const hasID = SearchIDRegExp.test(rawTitle);
+            const hasID = SearchIDRegExp(rawTitle);
             const hasMaker = /^\[.*?\]/.test(rawTitle);
             const hasJapanese = JapaneseChar.test(rawTitle);
             const hasValidLink = links.length > 0;
@@ -1775,8 +1819,7 @@ const siteRules = [
                 return null;
             }
 
-            const rawIDMatch = SearchIDRegExp.exec(rawTitle) || '';
-            const rawID = rawIDMatch?.[2] || '';
+            const rawID = SearchIDRegExp(rawTitle);
             if (needsFilenameFetch) {
                 try {
                     const tasks = links.map(link => {
@@ -1793,8 +1836,7 @@ const siteRules = [
 
                     console.log('GetFileName:', newTitle);
 
-                    const newIDMatch = SearchIDRegExp.exec(newTitle) || '';
-                    const newID = newIDMatch?.[2] || '';
+                    const newID = SearchIDRegExp(newTitle);
 
                     const cleandedRawTitle = rawTitle.replace(rawID, '').trim();
                     const cleandedNewTitle = newTitle.replace(newID, '').trim();
@@ -3007,7 +3049,7 @@ async function UpdateDB(Target, UrlTitle) {
     PackageName = UrlTitle || '';
     //console.log(`UpdateDB ${Target} ${UrlTitle}`)
     if (Target.match(K2SRegExp)) {
-        Target = Target.match(K2SRegExp)[1] + Target.match(K2SRegExp)[2].slice(0, 18);
+        Target = Target.match(K2SRegExp)[1] + Target.match(K2SRegExp)[2].split('/')[0];
     }
     console.log({ Target, UrlTitle });
     /*
@@ -3220,6 +3262,11 @@ async function CopyLink() {
                         const result = await fetchImageResolution(testUrl);
                         if (result.exists) {
                             finalCoverImage = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
+                            const HQImage = document.createElement('a');
+                            HQImage.style = "display:none !important;";
+                            HQImage.classList.add('HQImage');
+                            HQImage.href = finalCoverImage;
+                            DownloadArea[0].appendChild(HQImage);
                         }
                         console.log(`%c[규칙 기반 확정] ${prefix} → ${category}`, "color: #9E9E9E;");
                     }
@@ -3241,6 +3288,11 @@ async function CopyLink() {
                             if (learnedRule && !DB_PREFIX_RULES[prefix]) {
                                 if (!GM_getValue(prefix)) {
                                     GM_setValue(prefix, learnedRule);
+                                    const HQImage = document.createElement('a');
+                                    HQImage.style = "display:none !important;";
+                                    HQImage.classList.add('HQImage');
+                                    HQImage.href = finalCoverImage;
+                                    DownloadArea[0].appendChild(HQImage);
                                     console.log(`%c[학습 완료] ${prefix} ${learnedRule} 저장됨`, "color: cyan;");
                                 }
                             }
@@ -3256,8 +3308,7 @@ async function CopyLink() {
                     if (!finalCoverImage) {
                         console.log(`%c[미등록 브랜드 탐색 실패] ${prefix} ${CoverImage || ''}`, "color: #FF9800;");
                     }
-                }
-
+                }                
                 // --- 최종 처리: 수집 목록 추가 ---
                 if (!finalCoverImage && CoverImage && !/imagetwist\.com/.test(CoverImage)) {
                     finalCoverImage = CoverImage;
@@ -3382,7 +3433,7 @@ function listToDo(areas, type = 'Default') {
         let target = el.href;
         const k2s = el.href.match(K2SRegExp);
         if (k2s) {
-            target = k2s[1] + k2s[2].slice(0, 18);
+            target = k2s[1] + k2s[2].split('/')[0];
         }
 
         if (!todo.includes(target)) {
