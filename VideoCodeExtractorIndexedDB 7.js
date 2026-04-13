@@ -249,8 +249,14 @@ div:where(.swal2-container) .swal2-input {
     /* 스크롤이 끝에 도달했을 때 부모(body)로 전파되는 것을 방지 */
     overscroll-behavior: contain;
 }
-.vce-result-table th:nth-child(7) { width: 10ch; }
-.vce-result-table th:nth-child(8) { width: 10ch; }
+.vce-result-table th:nth-child(1) {  text-align: center; width: 40px; }
+.vce-result-table th:nth-child(2) { width: 14ch; }
+.vce-result-table th:nth-child(3) { width: 12ch; }    
+.vce-result-table th:nth-child(4) { width: 120ch; }
+.vce-result-table th:nth-child(6) { width: 40ch; }
+.vce-result-table th:nth-child(7) {  min-width: 10ch; max-width: 10ch;}
+.vce-result-table th:nth-child(8) {  min-width: 9ch; max-width: 9ch; }
+.vce-result-table th:nth-child(9) {  width: 30px; }
     `);
 
     const imageUrlsMap = {
@@ -1835,14 +1841,20 @@ div:where(.swal2-container) .swal2-input {
                     if (headerSpan) {
                         // 1. <span> 태그 기반의 헤더가 존재하는 경우 (출연자, 품번, 발매일 등)
                         const key = headerSpan.innerText.replace(/[：:]$/, '').trim();
+                        if (key === '出演者') {
+                            // p 태그 내의 모든 'a' 태그들의 텍스트를 모으거나, 
+                            // p 태그 전체에서 header를 제외한 텍스트를 가져옵니다.
+                            // 여기서는 질문하신 의도대로 '다음 텍스트나 a의 텍스트'를 위해 p 자체를 보냅니다.
+                            map[key] = p.nextElementSibling;
+                        } else {
+                            // 데이터 추출을 위해 복제 후 헤더만 삭제
+                            const valueClone = p.cloneNode(true);
+                            const headerInClone = valueClone.querySelector('span.header');
+                            if (headerInClone) headerInClone.remove();
 
-                        // 데이터 추출을 위해 복제 후 헤더만 삭제
-                        const valueClone = p.cloneNode(true);
-                        const headerInClone = valueClone.querySelector('span.header');
-                        if (headerInClone) headerInClone.remove();
-
-                        // 텍스트 노드나 <a> 태그 등이 섞여 있어도 cleanText가 알아서 처리함
-                        map[key] = valueClone;
+                            // 텍스트 노드나 <a> 태그 등이 섞여 있어도 cleanText가 알아서 처리함
+                            map[key] = valueClone;
+                        }
 
                     } else {
                         // 2. <span> 헤더가 없는 일반적인 p 태그 처리 (기존 로직 유지)
@@ -1850,13 +1862,13 @@ div:where(.swal2-container) .swal2-input {
                         if (cells.length >= 2) {
                             const key = cells[0].innerText.replace(/[：:]$/, '').trim();
                             map[key] = cells[1];
-                        } else if (p.innerText.includes(':')) {
+                        } else if (/[：:]$/.test(p.innerText)) {
                             // 태그가 아예 없고 "키: 값" 형태의 텍스트만 있는 경우 대응
-                            const parts = p.innerText.split(':');
+                            const parts = p.innerText.split(/[：:]$/);
                             const key = parts[0].trim();
                             // 임시 span을 만들어 value로 저장 (cleanText와의 호환성을 위해)
                             const tempSpan = document.createElement('span');
-                            tempSpan.innerText = parts.slice(1).join(':').trim();
+                            tempSpan.innerText = parts.slice(1).join(' ').trim();
                             map[key] = tempSpan;
                         }
                     }
@@ -1876,7 +1888,7 @@ div:where(.swal2-container) .swal2-input {
                 '#a_performer',
                 'script',
                 'style',
-                '.idol-box',
+                'ul:has(.idol-box)',
             ];
 
             junkSelectors.forEach(selector => {
@@ -1910,7 +1922,6 @@ div:where(.swal2-container) .swal2-input {
                 }
             });
 
-            console.log(arrayText, clone.childNodes, clone);
             // 2. 중복 제거 및 결과 합치기
             const finalResult = [...new Set(arrayText)].join(' ');
 
@@ -5600,7 +5611,7 @@ div:where(.swal2-container) .swal2-input {
 
                     for (let i = startNum; i <= endNum; i++) {
                         const currentNumStr = String(i).padStart(padLen, '0');
-                        const expectedcontentId = `${prefix}${displayCode.toLowerCase()}${currentNumStr}${suffix}`.toLowerCase();                        
+                        const expectedcontentId = `${prefix}${displayCode.toLowerCase()}${currentNumStr}${suffix}`.toLowerCase();
                         const foundItem = existingMeta.find(m => expectedcontentId === m.contentId && m.metaStatus === 'SUCCESS');
                         const expectedRealCode = targetItem
                             ? generateByDisplayCode(targetItem.realCode, displayCode, i)
@@ -5657,9 +5668,9 @@ div:where(.swal2-container) .swal2-input {
                 <td>${item.title || ''}</td>
                 <td style="white-space:nowrap;">${item.label || ''}</td>
                 <td>${item.cast || ''}</td>
-                <td style="white-space:nowrap;">${item.releaseDate || ''}</td>
+                <td style="white-space:nowrap; text-align: center;">${item.releaseDate || ''}</td>
                 <td style="white-space:nowrap; text-align: center;">${item.resolution ? `<a class="vce-preview" href="${item.url}" target="_blank">${item.resolution.W}x${item.resolution.H}</a>` : ''}</td>                
-                <td syle="white-space:nowrap;"><button class="delete-btn"
+                <td syle="white-space:nowrap; text-align: center;"><button class="delete-btn"
             data-key="${item.url}" 
             style="display: flex; opacity: 0; background:none; border:none; color:#aaa; cursor:pointer; align-items:center; padding:0 5px;">
         ${refreshIcon}
@@ -6252,7 +6263,7 @@ div:where(.swal2-container) .swal2-input {
             try {
                 if (taskQueue.length === 0) {
                     console.log('모든 작업 완료');
-                    //fanzaWin.close();
+                    fanzaWin.close();
                     isRunning = false;
                     fanzaWin = null;
                     updateProcessingFANZADIGITAL(taskQueue.length, '');
@@ -6552,6 +6563,7 @@ div:where(.swal2-container) .swal2-input {
                     url: location.href,
                     result: 'No Item'
                 }, targetOrigin);
+                self.close();
                 return;
             };
             if (findUrl) {
@@ -6580,6 +6592,7 @@ div:where(.swal2-container) .swal2-input {
                     url: location.href,
                     result: 'No Item'
                 }, targetOrigin);
+                self.close();
             }
         }
 
