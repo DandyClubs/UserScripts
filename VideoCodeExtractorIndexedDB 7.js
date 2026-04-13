@@ -6,6 +6,7 @@
 // @author       DancyClubs
 // @match        https://video.dmm.co.jp/*
 // @match        https://www.javlibrary.com/*
+// @match        https://www.dmm.co.jp/mono/dvd/*
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/MutilImagesDownloader.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/MakerMap.js
@@ -285,6 +286,7 @@ div:where(.swal2-container) .swal2-input {
 
     const imageSelectorMap = {
         'video.dmm.co.jp': 'main ul li div[data-e2eid="content-card"] div.relative a[href*="/av/content/?id="] picture source[srcset^="https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/"]',
+        'dmm.co.jp': 'ul#list li.list-wrap div.box-top p.tmb a span.img img',
     };
     const getImageSelector = () => {
         try {
@@ -2489,7 +2491,50 @@ div:where(.swal2-container) .swal2-input {
                 const rawMediaType = GetParam(PageURL(), 'media_type');
                 enqueue(() => processWork(el.getAttribute('srcset'), el.closest('a').href, { makerLabelCode, rawMediaType }));
             }
+        }
+        else if (/^https:\/\/www\.dmm\.co\.jp\/mono\/dvd\/-\/list\/=\/article=maker\/id=\d+/.test(PageURL())) {
+            imageSelector = getImageSelector();
+            if (!imageSelector) return;
+            const targets = document.querySelectorAll(`${imageSelector}:not(.${PROCESSED_CLASS})`);
+            Logger.info('targets', targets);
+            if (targets.length === 0) return;
+            const matchmaker = PageURL().match(/maker\/id=(\d+)\//i);
+            if (!matchmaker) return;
+            const makerLabelCode = matchmaker[1];
 
+            for (const el of targets) {
+                el.classList.add(PROCESSED_CLASS);
+                const link = el.closest('a').href;
+                const matchCid = link.match(/\/cid=(.+)\//);
+                if (!matchCid) return;
+                const cid = matchCid[1];
+
+                if (/^(tk|dk|9|k9|77|88|7)|(bod|dod)$|tkt/i.test(cid)) return;
+                const parts = cid.match(/([a-z0-9]*)(\d{3})(.*)/);
+
+                const [_, prefix, number, suffix] = parts;
+
+                const contentId = `${prefix}${number.padStart(5, '0')}${suffix}`;
+
+                const testImageUrl = [
+                    `https://awsimgsrc.dmm.co.jp/pics_dig/digital/video/${contentId}/${contentId}pl.jpg`,
+                    `https://awsimgsrc.dmm.com/dig/mono/movie/${cid}/${cid}pl.jpg`,
+
+                ];
+                let imageSrc;
+                for (const src of testImageUrl) {
+                    const { exists, reason, result } = await fetchImageResolution(src);
+
+                    if (exists && result.width > 0 && result.height > 0) {
+                        imageSrc = src;
+                        break;
+                    }
+                    imageSrc = el.src;
+                }
+                const rawImage = imageSrc.split('?')[0];
+
+                enqueue(() => processWork(rawImage, link, { makerLabelCode }));
+            }
         }
     };
 
@@ -2580,7 +2625,8 @@ div:where(.swal2-container) .swal2-input {
             mutCallback(); // 즉시 한 번 실행
             updateCounts();
         } else if (/https:\/\/www\.dmm\.co\.jp\/rental\/ppr\/-\/detail\/=\/cid=/.test(newUrl)) {
-
+            mutCallback(); // 즉시 한 번 실행
+            updateCounts();
         }
         if (/video\.dmm\.co\.jp\/av\/content\/\?id/.test(newUrl)) {
             const waitTime = Math.max(getRandomDelay(), getRandomDelay());
@@ -4942,6 +4988,14 @@ div:where(.swal2-container) .swal2-input {
         await createUI();
 
         if (/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+&media_type=.*/.test(PageURL())) {
+            Logger.info('page', PageURL());
+            mutCallback();
+            if (autoStatus.active) {
+                startAuto();
+            }
+            const observer = new MutationObserver(mutCallback);
+            observer.observe(document.body, { childList: true, subtree: true });
+        } else if (/^https:\/\/www\.dmm\.co\.jp\/mono\/dvd\/-\/list\/=\/article=maker\/id=\d+/.test(PageURL())) {
             Logger.info('page', PageURL());
             mutCallback();
             if (autoStatus.active) {
