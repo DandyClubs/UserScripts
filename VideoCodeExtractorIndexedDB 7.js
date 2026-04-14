@@ -3346,8 +3346,13 @@ div:where(.swal2-container) .swal2-input {
             // 2. GM_getValue로 저장된 로컬 데이터 로드 및 병합
             const localData = GM_getValue(LOCAL_MAKER_KEY, {});
             Object.entries(localData).forEach(([id, data]) => {
-                makerMap.set(id, data); // 외부 리소스보다 로컬 데이터(수정본)를 우선함
+                if (makerMap.has(id)) {
+                    localData.remove(id);
+                } else {
+                    makerMap.set(id, data); // 외부 리소스보다 로컬 데이터(수정본)를 우선함
+                }
             });
+            GM_setValue(LOCAL_MAKER_KEY, localData);
         } catch (e) {
             console.warn("[initializeMakerMap] 외부리소스 로딩 실패", e);
         }
@@ -3597,7 +3602,7 @@ div:where(.swal2-container) .swal2-input {
 
         const makerNodes = doc.querySelectorAll('li a[href*="/av/list/?maker="] p.line-clamp-2.text-ellipsis, div.maker-text a[href*="article=maker/id="], td a[href*="article=maker/id="]');
         if (makerNodes.length === 0) {
-            consolw.warn("저장할 메이커 데이터가 없습니다.");
+            console.warn("저장할 메이커 데이터가 없습니다.");
             return;
         }
         makerNodes.forEach(node => {
@@ -3643,19 +3648,24 @@ div:where(.swal2-container) .swal2-input {
             // 치환 맵(makerLabelReplaceMap)에 있으면 치환된 이름을, 없으면 원래 이름을 사용
 
             const makerName = (typeof makerLabelReplaceMap !== 'undefined' && makerLabelReplaceMap[originalName])
-                || originalName;
+                || '';
 
+            const entry = makerMap.get(id);
             if (!makerMap.has(id)) {
-                const entry = makerMap.get(id);
-                if (makerName !== entry?.final) {
-                    const newData = { original: originalName, final: makerName};
+                if (makerName !== entry?.original || makerName !== entry?.final) {
+                    const newData = { original: originalName, final: makerName };
                     const currentLocal = GM_getValue(LOCAL_MAKER_KEY, {});
                     currentLocal[id] = newData;
                     GM_setValue(LOCAL_MAKER_KEY, currentLocal);
                     console.log(`[신규 메이커 저장] ${id}: ${makerName}`);
                 }
             }
-            saveMakerMap.set(id, makerName);
+            if (makerMap.has(id)) {
+                saveMakerMap.set(id, entry.original);
+            } else {
+                saveMakerMap.set(id, originalName);
+            }
+
         });
 
         // 이하 JSON 변환 및 다운로드 로직은 동일
@@ -4633,7 +4643,7 @@ div:where(.swal2-container) .swal2-input {
                             url,
                             headers: { 'referer': url, 'origin': urlObj.origin },
                             onload: (res) => {
-                                if (res.status === 404) {                                    
+                                if (res.status === 404) {
                                     return resolve(null);
                                 }
 
