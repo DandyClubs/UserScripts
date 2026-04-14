@@ -775,6 +775,7 @@ function makeSearch() {
         {
             class: 'xxxclub',
             domain: 'xxxclub.to',
+            favicon: `https://xxxclub.to/assets/icons/favicon.ico`,
             onClick: () => {
                 openInNewTab(`https://xxxclub.to/torrents/search/all/${searchTitle}`);
             }
