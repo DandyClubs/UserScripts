@@ -6210,7 +6210,7 @@ div:where(.swal2-container) .swal2-input {
 
         function ensureWorker(windowName, url) {
             if (!workerWin || workerWin.closed) {
-                workerWin = window.open(url, windowName, 'width=600,height=300');
+                workerWin = window.open(url, windowName, 'width=600, height=300');
                 return workerWin; // 새로 열렸을 때
             }
             window.addEventListener('beforeunload', () => {
