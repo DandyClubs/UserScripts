@@ -2509,7 +2509,7 @@ div:where(.swal2-container) .swal2-input {
                 if (!matchCid) return;
                 const cid = matchCid[1];
 
-                if (/^(tk|dk|9|k9|77|88|7)|(bod|dod)$|tkt/i.test(cid)) return;
+                if (/^(tk|dk|9|k9|77|88|7|pb)|(bod|dod)$|118(gw|.*tk)/i.test(cid)) return;
                 const parts = cid.match(/([a-z0-9]*)(\d{3})(.*)/);
 
                 const [_, prefix, number, suffix] = parts;
