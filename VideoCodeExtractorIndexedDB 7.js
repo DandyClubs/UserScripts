@@ -116,6 +116,11 @@ div:where(.swal2-container) .swal2-input {
     position: absolute;
 }
 
+
+.map-container {
+	text-align: center;
+}
+
 #vce-search-icon {
     position: fixed; top: 10px; right: 10px; z-index: 9999;
     cursor: pointer; font-size: 16px; background: #fff; border-radius: 50%; padding: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);
@@ -2632,8 +2637,9 @@ div:where(.swal2-container) .swal2-input {
             const waitTime = Math.max(getRandomDelay(), getRandomDelay());
             checkIcon(waitTime, 'resetSessionCodes', 0);
         }
-        if (/video\.dmm\.co\.jp\/av\/maker\//.test(newUrl)) {
+        if (/video\.dmm\.co\.jp\/av\/maker\//.test(newUrl) || /dmm\.co\.jp\/mono\/dvd\/-\/maker\//.test(newUrl)) {
             mapContainer.style.display = 'flex';
+            extraMakerMap();
         } else {
             mapContainer.style.display = 'none';
         }
@@ -3584,10 +3590,14 @@ div:where(.swal2-container) .swal2-input {
             setTimeout(() => findMakerLabel(retryCount + 1), 1000);
         }
     }
-    function extraMakerMap() {
-        const makerNodes = document.querySelectorAll('li a[href*="/av/list/?maker="] p.line-clamp-2.text-ellipsis, div.maker-text a.bold');
+
+
+    function extraMakerMap(doc = document) {
+        const newAdd = new Map();
+
+        const makerNodes = doc.querySelectorAll('li a[href*="/av/list/?maker="] p.line-clamp-2.text-ellipsis, div.maker-text a[href*="article=maker/id="], td a[href*="article=maker/id="]');
         if (makerNodes.length === 0) {
-            alert("저장할 메이커 데이터가 없습니다.");
+            consolw.warn("저장할 메이커 데이터가 없습니다.");
             return;
         }
         makerNodes.forEach(node => {
@@ -3608,6 +3618,7 @@ div:where(.swal2-container) .swal2-input {
                 }
 
                 if (makerId && makerName) {
+                    newAdd.set(makerId, makerName);
                     addMakerMap.set(makerId, makerName);
                 }
             } catch (e) {
@@ -3615,7 +3626,7 @@ div:where(.swal2-container) .swal2-input {
             }
         });
 
-        console.log(`[extraMakerMap] 메이커 맵 구성 완료: ${addMakerMap.size}개 항목`);
+        console.log(`[extraMakerMap] 메이커 맵 구성 완료: 총 ${addMakerMap.size}개 항목 <- 새로 추가된 ${newAdd.size}개 항목`);
     }
     function saveMakerMapToFile() {
         if (addMakerMap.size === 0) {
@@ -3636,12 +3647,12 @@ div:where(.swal2-container) .swal2-input {
 
             if (!makerMap.has(id)) {
                 const entry = makerMap.get(id);
-                if (makerName !== entry.final) {
-                    const newData = { original: label, final: makerName };
+                if (makerName !== entry?.final) {
+                    const newData = { original: originalName, final: makerName};
                     const currentLocal = GM_getValue(LOCAL_MAKER_KEY, {});
                     currentLocal[id] = newData;
                     GM_setValue(LOCAL_MAKER_KEY, currentLocal);
-                    console.log(`[신규 메이커 저장] ${id}: ${makerlName}`);
+                    console.log(`[신규 메이커 저장] ${id}: ${makerName}`);
                 }
             }
             saveMakerMap.set(id, makerName);
@@ -4048,7 +4059,7 @@ div:where(.swal2-container) .swal2-input {
 
             // 2. `${}`를 사용하여 버튼에 삽입
             controlBar.innerHTML = `
-            <div style="display:flex; align-items:center; gap:4px;">
+            <div style="display:flex; text-align:center; gap:4px;">
                 <button id="btnSelectAll" style="background:#2196F3; color:white; ${commonBtnStyle}">전체 선택</button>
                 <button id="btnUnselectAll" style="background:#666; color:white; ${commonBtnStyle}">전체 해제</button>
                 <button id="delSelected" style="background:#444; color:#ff4d4d; ${commonBtnStyle}">선택 삭제</button>
@@ -4187,7 +4198,7 @@ div:where(.swal2-container) .swal2-input {
             panel.appendChild(listContainer);
 
             const btnContainer = document.createElement('div');
-            btnContainer.style = "display:grid; grid-template-columns: repeat(4,auto); gap:5px;";
+            btnContainer.style = "display:grid; grid-template-columns: repeat(4,auto); gap:5px; text-align:center;";
 
             // 1. 기존 품번(Codes) 다운로드 버튼
             const dlBtn = document.createElement('button');
@@ -4551,15 +4562,103 @@ div:where(.swal2-container) .swal2-input {
 
             mapContainer = document.createElement('div');
             mapContainer.classList.add('map-container');
-            mapContainer.style = "display:none; gap:5px;";
+            mapContainer.style = "display:none; gap:5px; text-align:center;";
 
             if (/video\.dmm\.co\.jp\/av\/maker\//.test(PageURL()) || /dmm\.co\.jp\/mono\/dvd\/-\/maker\//.test(PageURL())) {
-                mapContainer.style = "display:flex; gap:5px;";
+                mapContainer.style = "display:flex; gap:5px; text-align:center;";
             }
             const extraBtn = document.createElement('button');
             extraBtn.innerText = "메이커 맵 수집";
-            extraBtn.style = "flex:1;margin-top:5px; padding:5px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;";
-            extraBtn.onclick = extraMakerMap;
+            extraBtn.style = "flex:1; margin-top:5px; padding:5px; background:#2196F3; color:white; border:none; border-radius:4px; cursor:pointer; font-size:11px;";
+            if (/video\.dmm\.co\.jp\/av\/maker\//.test(PageURL())) {
+                extraBtn.onclick = extraMakerMap;
+            } else if (/dmm\.co\.jp\/mono\/dvd\/-\/maker\//.test(PageURL())) {
+
+                const lists = [
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=a/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=i/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=u/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=e/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=o/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ka/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ki/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ku/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ke/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ko/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=sa/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=si/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=su/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=se/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=so/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ta/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ti/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=tu/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=te/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=to/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=na/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ni/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=nu/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ne/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=no/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ha/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=hi/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=hu/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=he/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ho/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ma/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=mi/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=mu/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=me/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=mo/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ya/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=yu/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=yo/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ra/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ri/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ru/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=re/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=ro/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=wa/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=wo/`,
+                    `https://www.dmm.co.jp/mono/dvd/-/maker/=/keyword=nn/`,
+
+                ];
+
+                async function dom(url) {
+                    const urlObj = new URL(url);
+                    return new Promise((resolve, reject) => {
+                        GM_xmlhttpRequest({
+                            method: "GET",
+                            url,
+                            headers: { 'referer': url, 'origin': urlObj.origin },
+                            onload: (res) => {
+                                if (res.status === 404) {                                    
+                                    return resolve(null);
+                                }
+
+                                const doc = new DOMParser()
+                                    .parseFromString(res.responseText, "text/html");
+
+                                resolve(doc);
+                            },
+                            onerror: () => resolve(null),
+                            ontimeout: () => resolve(null)
+                        });
+                    });
+                }
+
+                extraBtn.onclick = async () => {
+                    for (const url of lists) {
+                        extraBtn.innerText = "메이커 맵 수집 중...";
+                        const doc = await dom(url);
+                        if (doc) {
+                            extraMakerMap(doc);
+                        }
+                    }
+                    extraBtn.innerText = "메이커 맵 수집 완료";
+                };
+            }
 
             const saveBtn = document.createElement('button');
             saveBtn.innerText = "메이커 맵 저장";
