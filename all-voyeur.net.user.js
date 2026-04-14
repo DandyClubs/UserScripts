@@ -532,7 +532,7 @@ function extractText(DOMElement) {
     return Array.from(DOMElement.childNodes)
         .filter(child => child.textContent?.trim())
         .map(child => {            
-            const text = child.textContent.trim();
+            const text = child.textContent.trim();            
             const isTitle = /<h[12].+<\/h[12]>/s.test(child.outerHTML) || /<div class="title-04">\s*<div class="red"/s.test(child.outerHTML);
             if (isTitle) {
                 return 'GetTitle :' + text.trim();
