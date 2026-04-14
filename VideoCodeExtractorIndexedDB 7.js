@@ -3585,18 +3585,27 @@ div:where(.swal2-container) .swal2-input {
         }
     }
     function extraMakerMap() {
-        const makerNodes = document.querySelectorAll('li a[href*="/av/list/?maker="] p.line-clamp-2.text-ellipsis');
+        const makerNodes = document.querySelectorAll('li a[href*="/av/list/?maker="] p.line-clamp-2.text-ellipsis, div.maker-text a.bold');
         if (makerNodes.length === 0) {
             alert("저장할 메이커 데이터가 없습니다.");
             return;
         }
         makerNodes.forEach(node => {
             try {
-                const link = node.closest('li a');
-                const url = new URL(link.href, window.location.origin);
-                const makerId = url.searchParams.get('maker');
-                // .line-clamp-2.text-ellipsis 클래스를 가진 텍스트 추출
-                const makerName = link.querySelector('p.line-clamp-2.text-ellipsis')?.innerText.trim();
+                let makerId, makerName;
+                if (/video\.dmm\.co\.jp\/av\/maker\//.test(PageURL())) {
+                    const link = node.closest('li a');
+                    const url = new URL(link.href, window.location.origin);
+                    makerId = url.searchParams.get('maker');
+                    // .line-clamp-2.text-ellipsis 클래스를 가진 텍스트 추출
+                    makerName = link.querySelector('p.line-clamp-2.text-ellipsis')?.innerText.trim();
+                } else if (/dmm\.co\.jp\/mono\/dvd\/-\/maker\//.test(PageURL())) {
+                    const link = node.closest('a');
+                    const getId = (link) => /article=maker\/id=(\d+)/i.exec(link.href);
+                    makerId = getId(link)[1];
+                    // .line-clamp-2.text-ellipsis 클래스를 가진 텍스트 추출
+                    makerName = link?.innerText.trim();
+                }
 
                 if (makerId && makerName) {
                     addMakerMap.set(makerId, makerName);
@@ -4544,7 +4553,7 @@ div:where(.swal2-container) .swal2-input {
             mapContainer.classList.add('map-container');
             mapContainer.style = "display:none; gap:5px;";
 
-            if (/video\.dmm\.co\.jp\/av\/maker\//.test(PageURL())) {
+            if (/video\.dmm\.co\.jp\/av\/maker\//.test(PageURL()) || /dmm\.co\.jp\/mono\/dvd\/-\/maker\//.test(PageURL())) {
                 mapContainer.style = "display:flex; gap:5px;";
             }
             const extraBtn = document.createElement('button');
