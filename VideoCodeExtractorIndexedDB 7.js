@@ -738,7 +738,7 @@ div:where(.swal2-container) .swal2-input {
                             imageSrc = checkMeta.url;
                             break;
                         }
-                        const { exists, reason, result } = await fetchImageResolution(src);
+                        const { exists, reason, result } = await fetchImageResolution(src, 'DMMR AddDB');
                         if (exists && result.width > 0 && result.height > 0) {
                             imageSrc = src;
                             resData = {
@@ -936,7 +936,7 @@ div:where(.swal2-container) .swal2-input {
                             imageSrc = checkMeta.url;
                             break;
                         }
-                        const { exists, reason, result } = await fetchImageResolution(src);
+                        const { exists, reason, result } = await fetchImageResolution(src, 'DMM AddDB');
                         if (exists && result.width > 0 && result.height > 0) {
                             imageSrc = src;
                             resData = {
@@ -1141,7 +1141,7 @@ div:where(.swal2-container) .swal2-input {
                             break;
                         }
                         // 이미 실패 기록이 있는 URL은 스킵
-                        const { exists, reason, result } = await fetchImageResolution(src);
+                        const { exists, reason, result } = await fetchImageResolution(src, 'FANZA_DIGITAL AddDB');
                         if (exists && result.width > 0 && result.height > 0) {
                             imageSrc = src;
                             resData = {
@@ -1324,7 +1324,7 @@ div:where(.swal2-container) .swal2-input {
                             break;
                         }
                         // 이미 실패 기록이 있는 URL은 스킵
-                        const { exists, reason, result } = await fetchImageResolution(src);
+                        const { exists, reason, result } = await fetchImageResolution(src, 'AVWiki AddDB');
                         if (exists && result.width > 0 && result.height > 0) {
                             imageSrc = src;
                             resData = {
@@ -1480,7 +1480,7 @@ div:where(.swal2-container) .swal2-input {
                             imageSrc = checkMeta.url;
                             break;
                         }
-                        const { exists, reason, result } = await fetchImageResolution(src);
+                        const { exists, reason, result } = await fetchImageResolution(src, 'Javlibrary AddDB');
                         if (exists && result.width > 0 && result.height > 0) {
                             imageSrc = src;
                             resData = {
@@ -1617,8 +1617,7 @@ div:where(.swal2-container) .swal2-input {
                             imageSrc = checkMeta.url;
                             break;
                         }
-                        // 이미 실패 기록이 있는 URL은 스킵
-                        const { exists, reason, result } = await fetchImageResolution(src);
+                        const { exists, reason, result } = await fetchImageResolution(src, 'javBus AddDB');
                         if (exists && result.width > 0 && result.height > 0) {
                             imageSrc = src;
                             resData = {
@@ -2128,8 +2127,9 @@ div:where(.swal2-container) .swal2-input {
         return null;
     }
 
-    function fetchImageResolution(url) {
+    function fetchImageResolution(url, where) {
 
+        //console.log('fetchImageResolution', url, where)
         const cleanUrl = url.split('?')[0];
         const finalUrl = cleanUrl.toLowerCase();
 
@@ -2329,7 +2329,7 @@ div:where(.swal2-container) .swal2-input {
 
             updateProcessingStatus(requestMetaMap.size, requestResMap.size);
 
-            const { exists, reason, result } = await fetchImageResolution(src);
+            const { exists, reason, result } = await fetchImageResolution(src, 'doRes');
             let resData = {};
             if (exists && result.width > 0 && result.height > 0) {
                 resData = {
@@ -2482,6 +2482,8 @@ div:where(.swal2-container) .swal2-input {
         isProcessing = false;
     }
 
+    const mutCallbackItems = new Set();
+
     const mutCallback = async () => {
         Logger.info('Page', PageURL());
         if (/^https:\/\/video\.dmm\.co\.jp\/av\/list\/\?maker=\d+/.test(PageURL())) {
@@ -2497,7 +2499,7 @@ div:where(.swal2-container) .swal2-input {
                 enqueue(() => processWork(el.getAttribute('srcset'), el.closest('a').href, { makerLabelCode, rawMediaType }));
             }
         }
-        else if (/^https:\/\/www\.dmm\.co\.jp\/mono\/dvd\/-\/list\/=\/article=maker\/id=\d+/.test(PageURL())) {
+        else if (/^https:\/\/www\.dmm\.co\.jp\/mono\/dvd\/-\/list\/=\/article=maker\/id=\d+/.test(PageURL())) {            
             imageSelector = getImageSelector();
             if (!imageSelector) return;
             const targets = document.querySelectorAll(`${imageSelector}:not(.${PROCESSED_CLASS})`);
@@ -2506,15 +2508,20 @@ div:where(.swal2-container) .swal2-input {
             const matchmaker = PageURL().match(/maker\/id=(\d+)\//i);
             if (!matchmaker) return;
             const makerLabelCode = matchmaker[1];
+            
 
             for (const el of targets) {
                 el.classList.add(PROCESSED_CLASS);
                 const link = el.closest('a').href;
                 const matchCid = link.match(/\/cid=(.+)\//);
-                if (!matchCid) return;
+                if (!matchCid) continue;
                 const cid = matchCid[1];
+                if (mutCallbackItems.has(cid)) continue;
+                mutCallbackItems.add(cid);
 
-                if (/^(tk|dk|9|k9|77|88|7|pb)|(bod|dod)$|118(gw|.*tk)/i.test(cid)) return;
+
+                if (/^(tk|dk|9|k9|77|88|7|pb|4k|8)[a-z]|(bod|dod)$|118(gw|.*tk)/i.test(cid)) continue;
+                
                 const parts = cid.match(/([a-z0-9]*)(\d{3})(.*)/);
 
                 const [_, prefix, number, suffix] = parts;
@@ -2527,18 +2534,24 @@ div:where(.swal2-container) .swal2-input {
 
                 ];
                 let imageSrc;
+                let resolution, resolutionState;
                 for (const src of testImageUrl) {
-                    const { exists, reason, result } = await fetchImageResolution(src);
-
+                    const hasMeta = await VceDB.get('imageMeta', src);
+                    if (hasMeta) break;
+                    const { exists, reason, result } = await fetchImageResolution(src, 'mutCallback');                    
                     if (exists && result.width > 0 && result.height > 0) {
                         imageSrc = src;
+                        resolution = { W: result.width, H: result.height},
+                        resolutionState = 'SUCCESS';
                         break;
                     }
                     imageSrc = el.src;
                 }
-                const rawImage = imageSrc.split('?')[0];
+                if (imageSrc) {
+                    const rawImage = imageSrc.split('?')[0];
 
-                enqueue(() => processWork(rawImage, link, { makerLabelCode }));
+                    enqueue(() => processWork(rawImage, link, { makerLabelCode, resolution, resolutionState }));
+                }
             }
         }
     };
@@ -2677,6 +2690,8 @@ div:where(.swal2-container) .swal2-input {
         const {
             makerLabelCode = '',
             rawMediaType = '',
+            resolution,
+            resolutionState,
             reTry = false,
         } = options;
 
@@ -2835,14 +2850,23 @@ div:where(.swal2-container) .swal2-input {
                 const doc = parser.parseFromString(res.responseText, "text/html");
                 */
                 });
-
-                const { exists, reason, result } = await fetchImageResolution(rawImage);
                 let resData = {};
-                if (exists && result.width > 0 && result.height > 0) {
+                if (resolution && resolutionState) {
                     resData = {
-                        resolution: { W: result.width, H: result.height },
-                        resolutionState: 'SUCCESS'
+                        resolution,
+                        resolutionState
                     };
+                } else {
+                    const { exists, reason, result } = await fetchImageResolution(rawImage, 'processWork');
+
+                    if (exists && result.width > 0 && result.height > 0) {
+                        resData = {
+                            resolution: { W: result.width, H: result.height },
+                            resolutionState: 'SUCCESS'
+                        };
+                    }
+                }
+                if (resData) {
                     await VceDB.save("imageMeta", rawImage, resData);
                 }
 
@@ -3345,14 +3369,23 @@ div:where(.swal2-container) .swal2-input {
 
             // 2. GM_getValue로 저장된 로컬 데이터 로드 및 병합
             const localData = GM_getValue(LOCAL_MAKER_KEY, {});
+            let isUpdated = false; // 변경 사항이 있는지 추적
+
             Object.entries(localData).forEach(([id, data]) => {
                 if (makerMap.has(id)) {
-                    localData.remove(id);
+                    // 이미 외부 리소스(makerMap)에 존재하는 ID라면 로컬 데이터에서 삭제
+                    delete localData[id];
+                    isUpdated = true;
                 } else {
-                    makerMap.set(id, data); // 외부 리소스보다 로컬 데이터(수정본)를 우선함
+                    // 존재하지 않는다면 로컬 데이터를 맵에 추가
+                    makerMap.set(id, data);
                 }
             });
-            GM_setValue(LOCAL_MAKER_KEY, localData);
+
+            // 데이터에 변경(삭제)이 발생했을 때만 다시 저장하여 성능 최적화
+            if (isUpdated) {
+                GM_setValue(LOCAL_MAKER_KEY, localData);
+            }
         } catch (e) {
             console.warn("[initializeMakerMap] 외부리소스 로딩 실패", e);
         }
@@ -3956,7 +3989,7 @@ div:where(.swal2-container) .swal2-input {
         const currentVKey = virtualKeyExtractor(code.id);
 
         const isSpecialGroup = specialPatternMap.has(currentVKey) &&
-            specialPatternMap.get(currentVKey).has(obj.makerLabelCode);
+            specialPatternMap.get(currentVKey).has(code.makerLabelCode);
 
         const num = (numbering) => {
             const n = parseInt(numbering, 10);
