@@ -1986,9 +1986,6 @@ div:where(.swal2-container) .swal2-input {
             if (result.label && /DOCPREMIUM/i.test(result.label)) {
                 result.label = result.label.replace(/DOCPREMIUM/i, 'DOC PREMIUM').trim();
             }
-            if (result.makerLabel && /SODクリエイト/i.test(result.makerLabel)) {
-                result.makerLabel = result.makerLabel.replace(/SODクリエイト/i, 'SOD').trim();
-            }
             // series 없으면 label fallback
             if (!result.series && result.label) {
                 result.series = result.label;
@@ -2491,15 +2488,18 @@ div:where(.swal2-container) .swal2-input {
             if (!imageSelector) return;
             const targets = document.querySelectorAll(`${imageSelector}:not(.${PROCESSED_CLASS})`);
             Logger.info('targets', targets);
+
             if (targets.length === 0) return;
             for (const el of targets) {
                 el.classList.add(PROCESSED_CLASS);
+            }
+            for (const el of targets) {
                 const makerLabelCode = GetParam(PageURL(), 'maker');
                 const rawMediaType = GetParam(PageURL(), 'media_type');
                 enqueue(() => processWork(el.getAttribute('srcset'), el.closest('a').href, { makerLabelCode, rawMediaType }));
             }
         }
-        else if (/^https:\/\/www\.dmm\.co\.jp\/mono\/dvd\/-\/list\/=\/article=maker\/id=\d+/.test(PageURL())) {            
+        else if (/^https:\/\/www\.dmm\.co\.jp\/mono\/dvd\/-\/list\/=\/article=maker\/id=\d+/.test(PageURL())) {
             imageSelector = getImageSelector();
             if (!imageSelector) return;
             const targets = document.querySelectorAll(`${imageSelector}:not(.${PROCESSED_CLASS})`);
@@ -2508,10 +2508,11 @@ div:where(.swal2-container) .swal2-input {
             const matchmaker = PageURL().match(/maker\/id=(\d+)\//i);
             if (!matchmaker) return;
             const makerLabelCode = matchmaker[1];
-            
-
             for (const el of targets) {
                 el.classList.add(PROCESSED_CLASS);
+            }
+
+            for (const el of targets) {
                 const link = el.closest('a').href;
                 const matchCid = link.match(/\/cid=(.+)\//);
                 if (!matchCid) continue;
@@ -2519,9 +2520,10 @@ div:where(.swal2-container) .swal2-input {
                 if (mutCallbackItems.has(cid)) continue;
                 mutCallbackItems.add(cid);
 
+                const getLimitText = el.getAttribute('alt');
+                if (getLimitText && /【FANZA限定】|【数量限定】|【ベストヒッツ】/.test(getLimitText)) continue;
+                if (/^(ka|kc|d\d)|^(ka|kc|tk|dk|9|k9|77|88|7|pb|4k|8)[a-z]|(bod|dod|ec|br|tk)$|118(gw|.*tk)/i.test(cid)) continue;
 
-                if (/^(tk|dk|9|k9|77|88|7|pb|4k|8)[a-z]|(bod|dod)$|118(gw|.*tk)/i.test(cid)) continue;
-                
                 const parts = cid.match(/([a-z0-9]*)(\d{3})(.*)/);
 
                 const [_, prefix, number, suffix] = parts;
@@ -2538,11 +2540,11 @@ div:where(.swal2-container) .swal2-input {
                 for (const src of testImageUrl) {
                     const hasMeta = await VceDB.get('imageMeta', src);
                     if (hasMeta) break;
-                    const { exists, reason, result } = await fetchImageResolution(src, 'mutCallback');                    
+                    const { exists, reason, result } = await fetchImageResolution(src, 'mutCallback');
                     if (exists && result.width > 0 && result.height > 0) {
                         imageSrc = src;
-                        resolution = { W: result.width, H: result.height},
-                        resolutionState = 'SUCCESS';
+                        resolution = { W: result.width, H: result.height },
+                            resolutionState = 'SUCCESS';
                         break;
                     }
                     imageSrc = el.src;
@@ -2720,7 +2722,7 @@ div:where(.swal2-container) .swal2-input {
 
             const majorsLabelPatterns = [
                 /.*[a-z]{3,7}\d{3,7}/i,
-                /.*(KT|TS|SW)[a-zA-Z]*\d{3,5}[v]*/i,
+                /.*(KT|TS|SW|BF)[a-zA-Z]*\d{3,5}[v]*/i,
                 /.*[a-z]{3,7}\d{3,5}[v]*/i,
                 /.*\d{2}ID[a-zA-Z]*\d{3,7}[v]*/i,
                 /h_[h0-9]*[a-z]{2,}\d{3,}[a-z]*/i,
@@ -2780,7 +2782,7 @@ div:where(.swal2-container) .swal2-input {
             const extractPatterns = [
                 /(.*)(KT[a-zA-Z]*)(\d{3,5})(v*)/i,
                 /(.*)(TS[a-zA-Z]*)(\d{3,5})(v*)/i,
-                /(.*)(SW[a-zA-Z]*)(\d{3,5})(v*)/i,
+                /(\d+)(SW[a-zA-Z]*)(\d{3,5})(v*)/i,
                 /(.*)(\d{2}ID[a-zA-Z]*)(\d{3,})(.*)/i,
                 /([a-z]*)(dvaj|dvajbx)(\d{3,5})(.*)/i,
                 /(\d{2})(T0*\d{2}[a-zA-Z]*)(\d{3,5})(.*)/i,
