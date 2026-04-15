@@ -670,7 +670,7 @@ div:where(.swal2-container) .swal2-input {
     const SITE_STRATEGIES = {
         'DMMR': (p, c, s, n, l) => `${p}${c}${NumberFormatter.trimAndMinPad(n, 3)}${s}r`,
         'DMM': (p, c, s, n, l) => `${p}${c}${NumberFormatter.trimAndMinPad(n, 3)}${s}`,
-        'FANZA_DIGITAL': (p, c, s, n, l) => `${p}${c}${NumberFormatter.pad(n, l)}${s}`,
+        'FANZA_DIGITAL': (p, c, s, n, l) => `${p}${c}${NumberFormatter.pad(n, 5)}${s}`,
         'FANZA_MONO': (p, c, s, n, l) => `${p}${c}${NumberFormatter.trimAndMinPad(n, 3)}${s}`,
         'AVWIKIS': (p, c, s, n, l) => `${c}-${NumberFormatter.trimAndMinPad(n, 3)}`,
         'AVWIKIL': (p, c, s, n, l) => `${c}${NumberFormatter.pad(n, l)}`,
@@ -760,7 +760,7 @@ div:where(.swal2-container) .swal2-input {
                             break;
                         }
                         // 해당 URL 실패 시 다음 후보로 이동
-                        console.log(`[${reason}] 결과 없음: ${src}`);
+                        console.log(`[${result || reason}] 결과 없음: ${src}`);
                     }
 
                     const rawImage = imageSrc?.split('?')[0] || null;
@@ -965,7 +965,7 @@ div:where(.swal2-container) .swal2-input {
                             break;
                         }
                         // 해당 URL 실패 시 다음 후보로 이동
-                        console.log(`[${result}] 결과 없음: ${src}`);
+                        console.log(`[${result || reason}] 결과 없음: ${src}`);
                     }
                     const rawImage = imageSrc?.split('?')[0] || null;
                     if (!rawImage) return { work: 'FAIL', reason: `rawImage not fouund` };
@@ -1176,7 +1176,7 @@ div:where(.swal2-container) .swal2-input {
                             break;
                         }
                         // 해당 URL 실패 시 다음 후보로 이동
-                        console.log(`[${result}] 결과 없음: ${src}`);
+                        console.log(`[${result || reason}] 결과 없음: ${src}`);
                     }
 
                     const rawImage = imageSrc?.split('?')[0] || null;
@@ -1360,7 +1360,7 @@ div:where(.swal2-container) .swal2-input {
                             break;
                         }
                         // 해당 URL 실패 시 다음 후보로 이동
-                        console.log(`[${result}] 결과 없음: ${src}`);
+                        console.log(`[${result || reason}] 결과 없음: ${src}`);
                     }
                     const rawImage = imageSrc?.split('?')[0] || null;
                     if (!rawImage) return { work: 'FAIL', reason: `rawImage not fouund` };
@@ -1516,7 +1516,7 @@ div:where(.swal2-container) .swal2-input {
                             break;
                         }
                         // 해당 URL 실패 시 다음 후보로 이동
-                        console.log(`[${result}] 결과 없음: ${src}`);
+                        console.log(`[${result || reason}] 결과 없음: ${src}`);
                     }
                     const rawImage = imageSrc?.split('?')[0] || null;
                     if (!rawImage) return { work: 'FAIL', reason: `rawImage not fouund` };
@@ -1639,7 +1639,6 @@ div:where(.swal2-container) .swal2-input {
                     let imageSrc;
                     for (const src of testImageUrl) {
                         const checkMeta = await VceDB.get('imageMeta', src);
-
                         if (checkMeta?.resolutionState === 'SUCCESS' && checkMeta?.resolution) {
                             imageSrc = checkMeta.url;
                             break;
@@ -1652,9 +1651,8 @@ div:where(.swal2-container) .swal2-input {
                                 resolutionState: 'SUCCESS'
                             };
                             break;
-                        }
-                        // 해당 URL 실패 시 다음 후보로 이동
-                        console.log(`[${result}] 결과 없음: ${src}`);
+                        }                        
+                        console.log(`[${result || reason}] 결과 없음: ${src}`);
                     }
                     const rawImage = imageSrc?.split('?')[0] || null;
                     if (!rawImage) return { work: 'FAIL', reason: `rawImage not fouund` };
@@ -2073,7 +2071,6 @@ div:where(.swal2-container) .swal2-input {
                 url,
                 headers: { 'referer': url, 'origin': urlObj.origin },
                 onload: (res) => {
-
 
                     if (res.status === 404) {
                         setClearBad(url);
@@ -6312,7 +6309,7 @@ div:where(.swal2-container) .swal2-input {
 
     let isRunning = false;
     let workerDMMWindow = null;
-    
+
 
 
     /*********************************************************
@@ -6323,13 +6320,13 @@ div:where(.swal2-container) .swal2-input {
         return window.name === 'wokerDMMWin';
     }
 
-    
+
     async function startJob(data) {
 
         let taskQueue = [];
         let contentId = null;
 
-        
+
         let isProcessing = false; // 중복 실행 방지 플래그
 
         if (isRunning) {
@@ -6396,7 +6393,7 @@ div:where(.swal2-container) .swal2-input {
 
         console.log('[VCE] Parent mode');
 
-        
+
         function ensureWorker(windowName, url) {
             if (!workerDMMWindow || workerDMMWindow.closed) {
                 workerDMMWindow = window.open(url, windowName, 'width=600, height=300');
@@ -6416,9 +6413,10 @@ div:where(.swal2-container) .swal2-input {
             return workerDMMWindow; // 기존 창 재사용
         }
 
-        
+
         async function assignNext() {
-            if (isProcessing) return;
+            if (!isRunning) return;
+            if (isProcessing) return;            
             isProcessing = true; // 락(Lock) 설정           
 
             try {
@@ -6431,7 +6429,7 @@ div:where(.swal2-container) .swal2-input {
                     GM_deleteValue('WORK_TASK');
                     return;
                 }
-                
+
                 const task = taskQueue.shift();
                 //const pathSegments = task.url.split('/');
                 //const contentId = pathSegments[pathSegments.length - 2];
@@ -6457,7 +6455,7 @@ div:where(.swal2-container) .swal2-input {
                     await trySelf(parentOrigin);
                 }
             } finally {
-                isProcessing = false; // 작업 지시 후 플래그 해제
+                if (isRunning) isProcessing = false; // 작업 지시 후 플래그 해제
             }
         }
 
@@ -6469,9 +6467,9 @@ div:where(.swal2-container) .swal2-input {
             const AVWIKIS_KEY = virtualKeyMaker(key, id, 'AVWIKIS');
             const AVWIKIL_KEY = virtualKeyMaker(key, id, 'AVWIKIL');
             const JAVBUS_KEY = virtualKeyMaker(key, id, 'JAVBUS');
-            const searchUrls = [
-                `https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=${DMMR_KEY}/`,
+            const searchUrls = [                
                 `https://www.dmm.co.jp/mono/dvd/-/detail/=/cid=${DMM_KEY}/`,
+                `https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=${DMMR_KEY}/`,
                 `https://av-wiki.net/${AVWIKIS_KEY}/`,
                 `https://av-wiki.net/${AVWIKIL_KEY}/`,
                 `https://www.javbus.com/ja/${JAVBUS_KEY}`
@@ -6484,10 +6482,10 @@ div:where(.swal2-container) .swal2-input {
                 let targetSite;
                 if (searchUrl.startsWith('https://av-wiki.net/')) {
                     targetSite = 'AVWiki';
-                } else if (searchUrl.startsWith('https://www.dmm.co.jp/rental/')) {
-                    targetSite = 'DMMR';
                 } else if (searchUrl.startsWith('https://www.dmm.co.jp/mono/')) {
                     targetSite = 'DMM';
+                } else if (searchUrl.startsWith('https://www.dmm.co.jp/rental/')) {
+                    targetSite = 'DMMR';
                 } else if (searchUrl.startsWith('https://www.javbus.com')) {
                     targetSite = 'JavBus';
                 }
@@ -6496,7 +6494,7 @@ div:where(.swal2-container) .swal2-input {
 
                 const { rawImage, work, dbData, reason } = e || {};
 
-                console.log('[VCE] 작업 완료', e.work, searchUrl);
+                console.log('[VCE] 작업 완료', work, dbData || reason, searchUrl);
 
                 const endTime = performance.now();
                 const executionTime = `${endTime - startTime} ms`;
@@ -6512,7 +6510,7 @@ div:where(.swal2-container) .swal2-input {
                 }
             }
 
-            isProcessing = false;
+            if (isRunning) isProcessing = false;
             assignNext();
 
         }
@@ -6604,9 +6602,9 @@ div:where(.swal2-container) .swal2-input {
             const AVWIKIS_KEY = virtualKeyMaker(key, id, 'AVWIKIS');
             const AVWIKIL_KEY = virtualKeyMaker(key, id, 'AVWIKIL');
             const JAVBUS_KEY = virtualKeyMaker(key, id, 'JAVBUS');
-            const searchUrls = [
-                `https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=${DMMR_KEY}/`,
+            const searchUrls = [                
                 `https://www.dmm.co.jp/mono/dvd/-/detail/=/cid=${DMM_KEY}/`,
+                `https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=${DMMR_KEY}/`,
                 `https://av-wiki.net/${AVWIKIS_KEY}/`,
                 `https://av-wiki.net/${AVWIKIL_KEY}/`,
                 `https://www.javbus.com/ja/${JAVBUS_KEY}`
@@ -6631,7 +6629,7 @@ div:where(.swal2-container) .swal2-input {
 
                 const { rawImage, work, dbData, reason } = e || {};
 
-                console.log('[VCE] 작업 완료', e.work, searchUrl);
+                console.log('[VCE] 작업 완료', work, dbData || reason, searchUrl);
 
                 const endTime = performance.now();
                 const executionTime = `${endTime - startTime} ms`;
@@ -6698,7 +6696,7 @@ div:where(.swal2-container) .swal2-input {
                         const url = location.href;
                         config.addDB().then(async (e) => {
                             const { rawImage, work, dbData, reason } = e || {};
-                            console.log('[VCE] 작업 완료', work, location.href);
+                            console.log('[VCE] 작업 완료', work, dbData || reason, location.href);
                             const endTime = performance.now();
                             const executionTime = `${endTime - startTime} ms`;
                             await sleep(1000);
