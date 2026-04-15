@@ -649,6 +649,20 @@ div:where(.swal2-container) .swal2-input {
         return str.replace(pattern, matched => map[matched]);
     };
 
+
+    const extractPatterns = [
+        /(.*)(KT[a-zA-Z]*)(\d{3,5})(v*)/i,
+        /(.*)(TS[a-zA-Z]*)(\d{3,5})(v*)/i,
+        /(\d+)(SW[a-zA-Z]*)(\d{3,5})(v*)/i,
+        /(.*)(\d{2}ID[a-zA-Z]*)(\d{3,})(.*)/i,
+        /([a-z]*)(dvaj|dvajbx)(\d{3,5})(.*)/i,
+        /(\d{2})(T0*\d{2}[a-zA-Z]*)(\d{3,5})(.*)/i,
+        /(\d{2})(T\d{2})(\d{3,5})(.*)/i,
+        /(h_[h0-9]*)(ss|sy|id)(\d{3,5})([a-z]*)/i,
+        /(h_[h0-9]*)([a-z]{3,})(\d{3,5})([a-z]*)/i,
+        /([0-9]*)([a-z]+)(\d{3,5})(.*)/i
+    ];
+
     /**
 * 사이트별 포맷팅 전략 정의
 * p: prefix, c: displayCode, s: suffix, n: numbering(숫자), l: padLen
@@ -728,8 +742,6 @@ div:where(.swal2-container) .swal2-input {
                         `https://awsimgsrc.dmm.com/dig/mono/movie/${FANZA_MONO_KEY}/${FANZA_MONO_KEY}pl.jpg`,
                         `https://pics.dmm.co.jp/mono/movie/adult/${DMM_KEY}/${DMM_KEY}pl.jpg`,
                     ];
-
-
                     let resData = {};
                     let imageSrc;
                     for (const src of testImageUrl) {
@@ -739,7 +751,7 @@ div:where(.swal2-container) .swal2-input {
                             break;
                         }
                         const { exists, reason, result } = await fetchImageResolution(src, 'DMMR AddDB');
-                        if (exists && result.width > 0 && result.height > 0) {
+                        if (exists && result.width > 90 && result.height > 90) {
                             imageSrc = src;
                             resData = {
                                 resolution: { W: result.width, H: result.height },
@@ -750,7 +762,14 @@ div:where(.swal2-container) .swal2-input {
                         // 해당 URL 실패 시 다음 후보로 이동
                         console.log(`[${result}] 결과 없음: ${src}`);
                     }
-                    const rawImage = imageSrc.split('?')[0];
+
+                    const rawImage = imageSrc?.split('?')[0] || null;
+                    if (!rawImage) return { work: 'FAIL', reason: `rawImage not fouund` };
+                    if (rawImage) {
+                        if (Object.keys(resData).length > 0 && resData.resolutionState === 'SUCCESS') {
+                            await VceDB.save("imageMeta", rawImage, resData);
+                        }
+                    }
 
                     if (/[a-zA-Z]*-\d{3}-\d{2}/i.test(result.realCode)) {
                         await VceDB.delete('imageMeta', 'url', rawImage);
@@ -811,7 +830,7 @@ div:where(.swal2-container) .swal2-input {
                             };
 
                             if (hasMeta?.resolutionState !== 'SUCCESS' || !hasMeta?.resolution) {
-                                if (resData && resData.resolutionState === 'SUCCESS') {
+                                if (Object.keys(resData).length > 0 && resData.resolutionState === 'SUCCESS') {
                                     await VceDB.save("imageMeta", rawImage, resData);
                                 }
                             }
@@ -937,7 +956,7 @@ div:where(.swal2-container) .swal2-input {
                             break;
                         }
                         const { exists, reason, result } = await fetchImageResolution(src, 'DMM AddDB');
-                        if (exists && result.width > 0 && result.height > 0) {
+                        if (exists && result.width > 90 && result.height > 90) {
                             imageSrc = src;
                             resData = {
                                 resolution: { W: result.width, H: result.height },
@@ -948,7 +967,13 @@ div:where(.swal2-container) .swal2-input {
                         // 해당 URL 실패 시 다음 후보로 이동
                         console.log(`[${result}] 결과 없음: ${src}`);
                     }
-                    const rawImage = imageSrc.split('?')[0];
+                    const rawImage = imageSrc?.split('?')[0] || null;
+                    if (!rawImage) return { work: 'FAIL', reason: `rawImage not fouund` };
+                    if (rawImage) {
+                        if (Object.keys(resData).length > 0 && resData.resolutionState === 'SUCCESS') {
+                            await VceDB.save("imageMeta", rawImage, resData);
+                        }
+                    }
 
                     if (/[a-zA-Z]*-\d{3}-\d{2}/i.test(result.realCode)) {
                         await VceDB.delete('imageMeta', 'url', rawImage);
@@ -1009,7 +1034,7 @@ div:where(.swal2-container) .swal2-input {
                             };
 
                             if (hasMeta?.resolutionState !== 'SUCCESS' || !hasMeta?.resolution) {
-                                if (resData && resData.resolutionState === 'SUCCESS') {
+                                if (Object.keys(resData).length > 0 && resData.resolutionState === 'SUCCESS') {
                                     await VceDB.save("imageMeta", rawImage, resData);
                                 }
                             }
@@ -1136,13 +1161,13 @@ div:where(.swal2-container) .swal2-input {
                     let imageSrc;
                     for (const src of testImageUrl) {
                         const checkMeta = await VceDB.get('imageMeta', src);
+
                         if (checkMeta?.resolutionState === 'SUCCESS' && checkMeta?.resolution) {
                             imageSrc = checkMeta.url;
                             break;
                         }
-                        // 이미 실패 기록이 있는 URL은 스킵
                         const { exists, reason, result } = await fetchImageResolution(src, 'FANZA_DIGITAL AddDB');
-                        if (exists && result.width > 0 && result.height > 0) {
+                        if (exists && result.width > 90 && result.height > 90) {
                             imageSrc = src;
                             resData = {
                                 resolution: { W: result.width, H: result.height },
@@ -1154,8 +1179,8 @@ div:where(.swal2-container) .swal2-input {
                         console.log(`[${result}] 결과 없음: ${src}`);
                     }
 
-                    const rawImage = imageSrc?.split('?')[0];
-
+                    const rawImage = imageSrc?.split('?')[0] || null;
+                    if (!rawImage) return { work: 'FAIL', reason: `rawImage not fouund` };
                     const parse = createPostProcessor(siteConfigs['FANZA_DIGITAL'], 'FANZA_DIGITAL');
                     const result = await parse(document.body);
                     if (!result || !result.realCode) return { work: 'FAIL', reason: `result not fouund` };
@@ -1225,7 +1250,7 @@ div:where(.swal2-container) .swal2-input {
                             };
 
                             if (hasMeta?.resolutionState !== 'SUCCESS' || !hasMeta?.resolution) {
-                                if (resData && resData.resolutionState === 'SUCCESS') {
+                                if (Object.keys(resData).length > 0 && resData.resolutionState === 'SUCCESS') {
                                     await VceDB.save("imageMeta", rawImage, resData);
                                 }
                             }
@@ -1319,13 +1344,14 @@ div:where(.swal2-container) .swal2-input {
                     let imageSrc;
                     for (const src of testImageUrl) {
                         const checkMeta = await VceDB.get('imageMeta', src);
+
                         if (checkMeta?.resolutionState === 'SUCCESS' && checkMeta?.resolution) {
                             imageSrc = checkMeta.url;
                             break;
                         }
                         // 이미 실패 기록이 있는 URL은 스킵
                         const { exists, reason, result } = await fetchImageResolution(src, 'AVWiki AddDB');
-                        if (exists && result.width > 0 && result.height > 0) {
+                        if (exists && result.width > 90 && result.height > 90) {
                             imageSrc = src;
                             resData = {
                                 resolution: { W: result.width, H: result.height },
@@ -1336,8 +1362,8 @@ div:where(.swal2-container) .swal2-input {
                         // 해당 URL 실패 시 다음 후보로 이동
                         console.log(`[${result}] 결과 없음: ${src}`);
                     }
-                    const rawImage = imageSrc.split('?')[0];
-
+                    const rawImage = imageSrc?.split('?')[0] || null;
+                    if (!rawImage) return { work: 'FAIL', reason: `rawImage not fouund` };
                     if (/[a-zA-Z]*-\d{3}-\d{2}/i.test(result.realCode)) {
                         await VceDB.delete('imageMeta', 'url', rawImage);
                         Logger.info('Not Add Item', result.realCode);
@@ -1397,7 +1423,7 @@ div:where(.swal2-container) .swal2-input {
                             };
 
                             if (hasMeta?.resolutionState !== 'SUCCESS' || !hasMeta?.resolution) {
-                                if (resData && resData.resolutionState === 'SUCCESS') {
+                                if (Object.keys(resData).length > 0 && resData.resolutionState === 'SUCCESS') {
                                     await VceDB.save("imageMeta", rawImage, resData);
                                 }
                             }
@@ -1481,7 +1507,7 @@ div:where(.swal2-container) .swal2-input {
                             break;
                         }
                         const { exists, reason, result } = await fetchImageResolution(src, 'Javlibrary AddDB');
-                        if (exists && result.width > 0 && result.height > 0) {
+                        if (exists && result.width > 90 && result.height > 90) {
                             imageSrc = src;
                             resData = {
                                 resolution: { W: result.width, H: result.height },
@@ -1492,8 +1518,8 @@ div:where(.swal2-container) .swal2-input {
                         // 해당 URL 실패 시 다음 후보로 이동
                         console.log(`[${result}] 결과 없음: ${src}`);
                     }
-                    const rawImage = imageSrc.split('?')[0];
-
+                    const rawImage = imageSrc?.split('?')[0] || null;
+                    if (!rawImage) return { work: 'FAIL', reason: `rawImage not fouund` };
                     if (/[a-zA-Z]*-\d{3}-\d{2}/i.test(data.realCode)) {
                         await VceDB.delete('imageMeta', 'url', rawImage);
                         Logger.info('Not Add Item', data.realCode);
@@ -1553,7 +1579,7 @@ div:where(.swal2-container) .swal2-input {
                             };
 
                             if (hasMeta?.resolutionState !== 'SUCCESS' || !hasMeta?.resolution) {
-                                if (resData && resData.resolutionState === 'SUCCESS') {
+                                if (Object.keys(resData).length > 0 && resData.resolutionState === 'SUCCESS') {
                                     await VceDB.save("imageMeta", rawImage, resData);
                                 }
                             }
@@ -1613,12 +1639,13 @@ div:where(.swal2-container) .swal2-input {
                     let imageSrc;
                     for (const src of testImageUrl) {
                         const checkMeta = await VceDB.get('imageMeta', src);
+
                         if (checkMeta?.resolutionState === 'SUCCESS' && checkMeta?.resolution) {
                             imageSrc = checkMeta.url;
                             break;
                         }
                         const { exists, reason, result } = await fetchImageResolution(src, 'javBus AddDB');
-                        if (exists && result.width > 0 && result.height > 0) {
+                        if (exists && result.width > 90 && result.height > 90) {
                             imageSrc = src;
                             resData = {
                                 resolution: { W: result.width, H: result.height },
@@ -1629,8 +1656,8 @@ div:where(.swal2-container) .swal2-input {
                         // 해당 URL 실패 시 다음 후보로 이동
                         console.log(`[${result}] 결과 없음: ${src}`);
                     }
-                    const rawImage = imageSrc.split('?')[0];
-
+                    const rawImage = imageSrc?.split('?')[0] || null;
+                    if (!rawImage) return { work: 'FAIL', reason: `rawImage not fouund` };
                     if (/[a-zA-Z]*-\d{3}-\d{2}/i.test(result.realCode)) {
                         await VceDB.delete('imageMeta', 'url', rawImage);
                         Logger.info('Not Add Item', result.realCode);
@@ -1690,7 +1717,7 @@ div:where(.swal2-container) .swal2-input {
                             };
 
                             if (hasMeta?.resolutionState !== 'SUCCESS' || !hasMeta?.resolution) {
-                                if (resData && resData.resolutionState === 'SUCCESS') {
+                                if (Object.keys(resData).length > 0 && resData.resolutionState === 'SUCCESS') {
                                     await VceDB.save("imageMeta", rawImage, resData);
                                 }
                             }
@@ -1766,13 +1793,33 @@ div:where(.swal2-container) .swal2-input {
     };
 
     const CodeNormalizer = {
-        toDisplay(code) {
-            if (!code) return '';
+        toDisplay(inputCode) {
+            let matchCode;
+            if (!inputCode) return '';
+            if (/-/.test(inputCode)) {
+                const parts = inputCode.split('-');
+                const [code, numbering, suffix] = parts;
+                const rawNumber = parseInt(numbering);
+                if (isNaN(rawNumber)) return code.toUpperCase();
+                const number = NumberFormatter.trimAndMinPad(rawNumber, 3);
+                const extraSuffix = numbering.replace(/^\d+/i, '') || '';
+                const rawSuffix = suffix?.replace(/r$/i, '').toLowerCase() || '';
+                return `${code.toUpperCase()}-${number}${extraSuffix}${rawSuffix}`;
+            }
+            for (const regex of extractPatterns) { matchCode = inputCode.match(regex); if (matchCode) break; }
+            if (!matchCode) return code.toUpperCase();
+            if (matchCode) {
+                const [_, prefix, code, numbering, suffix] = matchCode;
+                const rawNumber = parseInt(numbering);
+                if (isNaN(rawNumber)) return code.toUpperCase();
+                const number = NumberFormatter.trimAndMinPad(rawNumber, 3);
+                const extraSuffix = numbering.replace(/^\d+/i, '') || '';
+                const rawSuffix = suffix?.replace(/r$/i, '').toLowerCase() || '';
+                return `${code.toUpperCase()}-${number}${extraSuffix}${rawSuffix}`;
+            }
 
-            const match = code.match(/^[1]?([a-zA-Z]+)(\d+)([a-zA-Z]*)$/);
-            if (!match) return code.toUpperCase();
 
-            return `${match[1].toUpperCase()}-${match[2]}${match[3].replace(/r$/i, '').toLowerCase()}`;
+
         }
     };
 
@@ -1817,7 +1864,7 @@ div:where(.swal2-container) .swal2-input {
             // -------------------------
             // 1. table 구조 (tr)
             // -------------------------
-            if (siteName === 'FANZA_DIGITAL' || siteName === 'DMMR' || siteName === 'DMM') {
+            if (siteName === 'FANZA_DIGITAL' || siteName === 'DMMR' || siteName === 'DMM' || siteName === 'Javlibrary') {
                 root.querySelectorAll('tr').forEach(tr => {
                     const cells = tr.querySelectorAll('th, td');
                     if (cells.length >= 2) {
@@ -2126,7 +2173,7 @@ div:where(.swal2-container) .swal2-input {
 
     function fetchImageResolution(url, where) {
 
-        //console.log('fetchImageResolution', url, where)
+        console.log('fetchImageResolution', url, where);
         const cleanUrl = url.split('?')[0];
         const finalUrl = cleanUrl.toLowerCase();
 
@@ -2328,7 +2375,7 @@ div:where(.swal2-container) .swal2-input {
 
             const { exists, reason, result } = await fetchImageResolution(src, 'doRes');
             let resData = {};
-            if (exists && result.width > 0 && result.height > 0) {
+            if (exists && result.width > 90 && result.height > 90) {
                 resData = {
                     resolution: { W: res.width, H: res.height },
                     resolutionState: 'SUCCESS'
@@ -2550,8 +2597,8 @@ div:where(.swal2-container) .swal2-input {
                     imageSrc = el.src;
                 }
                 if (imageSrc) {
-                    const rawImage = imageSrc.split('?')[0];
-
+                    const rawImage = imageSrc?.split('?')[0] || null;
+                    if (!rawImage) return { work: 'FAIL', reason: `rawImage not fouund` };
                     enqueue(() => processWork(rawImage, link, { makerLabelCode, resolution, resolutionState }));
                 }
             }
@@ -2713,8 +2760,8 @@ div:where(.swal2-container) .swal2-input {
                 imageSrc = imageSrc.replace(/ps\.jpg/i, 'pl.jpg');
             }
 
-            const rawImage = imageSrc.split('?')[0];
-
+            const rawImage = imageSrc?.split('?')[0] || null;
+            if (!rawImage) return { work: 'FAIL', reason: `rawImage not fouund` };
 
             const pathSegments = rawImage.split('/');
             const contentId = pathSegments[pathSegments.length - 2];
@@ -2778,19 +2825,6 @@ div:where(.swal2-container) .swal2-input {
                     return true;
                 }
             }
-
-            const extractPatterns = [
-                /(.*)(KT[a-zA-Z]*)(\d{3,5})(v*)/i,
-                /(.*)(TS[a-zA-Z]*)(\d{3,5})(v*)/i,
-                /(\d+)(SW[a-zA-Z]*)(\d{3,5})(v*)/i,
-                /(.*)(\d{2}ID[a-zA-Z]*)(\d{3,})(.*)/i,
-                /([a-z]*)(dvaj|dvajbx)(\d{3,5})(.*)/i,
-                /(\d{2})(T0*\d{2}[a-zA-Z]*)(\d{3,5})(.*)/i,
-                /(\d{2})(T\d{2})(\d{3,5})(.*)/i,
-                /(h_[h0-9]*)(ss|sy|id)(\d{3,5})([a-z]*)/i,
-                /(h_[h0-9]*)([a-z]{3,})(\d{3,5})([a-z]*)/i,
-                /([0-9]*)([a-z]+)(\d{3,5})(.*)/i
-            ];
 
             let match = null;
             for (const regex of extractPatterns) { match = contentId.match(regex); if (match) break; }
@@ -2859,13 +2893,16 @@ div:where(.swal2-container) .swal2-input {
                         resolutionState
                     };
                 } else {
-                    const { exists, reason, result } = await fetchImageResolution(rawImage, 'processWork');
+                    const checkMeta = await VceDB.get('imageMeta', src);
+                    if (checkMeta?.resolutionState !== 'SUCCESS') {
+                        const { exists, reason, result } = await fetchImageResolution(rawImage, 'processWork');
 
-                    if (exists && result.width > 0 && result.height > 0) {
-                        resData = {
-                            resolution: { W: result.width, H: result.height },
-                            resolutionState: 'SUCCESS'
-                        };
+                        if (exists && result.width > 90 && result.height > 90) {
+                            resData = {
+                                resolution: { W: result.width, H: result.height },
+                                resolutionState: 'SUCCESS'
+                            };
+                        }
                     }
                 }
                 if (resData) {
@@ -5830,7 +5867,8 @@ div:where(.swal2-container) .swal2-input {
                         } else {
                             getMetaLists.add({
                                 key: id,
-                                id: expectedcontentId
+                                id: expectedcontentId,
+                                makerLabel
                             });
                             generatedResults.push({
                                 displayCode: displayCode,
@@ -5962,9 +6000,9 @@ div:where(.swal2-container) .swal2-input {
          * @param {object} updates - 변경할 내용 (예: { metaStatus: 'SUCCESS', title: '완료됨' })
          */
         async function updateVirtualRow(id, updates) {
-            //console.log(id, updates)
+            console.log(id, updates);
             // 1. 메모리 상의 데이터(allResults) 업데이트
-            const { DB, rawImage } = updates;
+            const { dbData, rawImage } = updates;
             const targetIndex = allResults.findIndex(item => item.contentId === id);
             //console.log(targetIndex, allResults.length, updates);
 
@@ -6283,6 +6321,7 @@ div:where(.swal2-container) .swal2-input {
         let contentId = null;
 
         let jobCount = 0;
+        let isProcessing = false; // 중복 실행 방지 플래그
 
         if (isRunning) {
             fanzaWin?.close();
@@ -6307,7 +6346,8 @@ div:where(.swal2-container) .swal2-input {
             taskQueue = allTask.map(e => {
                 return {
                     key: e.uniqueKey,
-                    id: e.contentId
+                    id: e.contentId,
+                    makerLabel
                 };
             });
         }
@@ -6329,7 +6369,8 @@ div:where(.swal2-container) .swal2-input {
                 .map(e => {
                     return {
                         key: e.uniqueKey,
-                        id: e.contentId
+                        id: e.contentId,
+                        makerLabel
                     };
                 });;
 
@@ -6365,30 +6406,134 @@ div:where(.swal2-container) .swal2-input {
                 popupOrigin = origin(url);
                 GM_setValue('popupOrigin', popupOrigin);
                 return workerWin; // 새로 열렸을 때
+            } else {
+                workerWin.postMessage({
+                    type: 'MOVE_TASK',
+                    url,
+                }, origin(url));
             }
             window.addEventListener('beforeunload', () => {
                 workerWin?.close();
+                workerWin = null;
             });
             return workerWin; // 기존 창 재사용
         }
 
         function reconnect(windowName, url) {
-            // 자식 창이 닫혀있지 않다면 다시 호출하여 포커스 및 참조 업데이트
-            if (windowName) {
-                // 이미 열린 창이 리다이렉트되어 연결이 끊겼어도, 
-                // 같은 이름('WORKER_WINDOW')으로 호출하면 브라우저가 해당 창을 다시 제어할 수 있게 해줍니다.
-                windowName = window.open('', windowName);
-
-                // 페이지가 아예 먹통이거나 길을 잃었을 경우를 대비해 URL로 다시 보낼 수도 있습니다.
-                if (windowName.location.href === 'about:blank') {
-                    windowName.location.href = url;
-                }
-            } else {
-                windowName = window.open(url, windowName, 'width=600, height=500');
+            if (!javlibraryWin || javlibraryWin.closed) {
+                javlibraryWin = window.open(url, windowName, 'width=600, height=500');                
+            }else{
+                javlibraryWin.location.href = url;
             }
+            
             startConnectionCheck(windowName, url); // 다시 타이머 시작
         }
 
+        async function assignNext() {
+            if (isProcessing) return;
+            isProcessing = true; // 락(Lock) 설정           
+
+            try {
+                if (taskQueue.length === 0) {
+                    console.log('모든 작업 완료');
+                    fanzaWin?.close();
+                    isRunning = false;
+                    fanzaWin = null;
+                    updateProcessingFANZADIGITAL(taskQueue.length, '');
+                    GM_deleteValue('WORK_TASK');
+                    return;
+                }
+
+                jobCount++;
+
+                if (jobCount > 15) {
+                    await sleep(getRandomDelay());
+                    jobCount = 0;
+                }
+                const task = taskQueue.shift();
+                //const pathSegments = task.url.split('/');
+                //const contentId = pathSegments[pathSegments.length - 2];
+                const [displayCode, prefix, padLen, suffix] = task.key.split('|');
+                //console.log(displayCode, prefix, padLen, suffix, Number(padLen) === 5);
+                contentId = task.id;
+                GM_setValue('WORK_TASK', task);
+                let workerUrl;
+                if (Number(padLen) === 5 && makerLabel !== 'Prestige') {
+                    workerUrl = `https://video.dmm.co.jp/av/content/?id=${contentId}`;
+                }
+                updateProcessingFANZADIGITAL(taskQueue.length, contentId);
+                //console.log(workerWin, workerUrl, contentId, taskQueue);
+                if (workerUrl) {
+                    fanzaWin = ensureWorker('FanzaWin', workerUrl);
+                    /*
+                    workerWin.postMessage({
+                        type: 'MOVE_TASK',
+                        url: workerUrl,
+                    }, origin(workerUrl));
+                    */
+                } else {
+                    await trySelf(parentOrigin);
+                }
+            } finally {
+                isProcessing = false; // 작업 지시 후 플래그 해제
+            }
+        }
+
+        async function handler(e) {
+            if (!/javlibrary\.com/.test(e.origin)) return;
+            const { type, url, result, ID } = e.data || {};
+
+            // 중요: 어떤 메시지를 받든 처리 후에는 리스너를 즉시 제거하여 중복 실행 방지
+            if (['WORKER_READY', 'TASK_Javlibrary', 'TASK_Javlibrary_FAIL', 'FAIL Selector'].includes(type)) {
+                // 필요한 처리가 끝나면 리스너 제거 (성공/실패 모두)
+                if (type !== 'WORKER_READY') {
+                    window.removeEventListener('message', handler);
+                    // 타이머 제거 (연결 성공)
+                    if (connectionTimer) {
+                        clearTimeout(connectionTimer);
+                        connectionTimer = null;
+                    }
+                }
+            }
+
+            if (type === 'WORKER_READY') {
+                javlibraryWin.postMessage({
+                    type: 'Start',
+                }, 'https://www.javlibrary.com');
+            } else if (type === 'TASK_Javlibrary') {
+                console.log('성공 Javlibrary', result);
+
+                const { workUrl, result } = result;
+                const searchUrl = workUrl;
+                const e = await siteConfigs['Javlibrary'].addDB(searchUrl, { result });
+
+                const { rawImage, work, reason, ID } = e || {};
+
+                console.log('[VCE] 작업 완료', work, workUrl);
+
+                if (javlibraryWin && !javlibraryWin.closed) {                    
+                    javlibraryWin.close();
+                    javlibraryWin = null;
+                }
+                if (work === 'SUCCESS' && rawImage) {
+                    externalUpdateVirtualRow(ID, {
+                        isVirtual: false,      // 이제 실제 데이터가 됨
+                        rawImage,
+                    });
+                }
+                isProcessing = false;
+                assignNext();
+            } else if (type === 'TASK_Javlibrary_FAIL' || type === 'FAIL Selector') {
+                console.log(`실패: ${type}`, e.data);
+                // 메시지를 보내지 말고 부모가 직접 닫아버립니다.
+                if (javlibraryWin && !javlibraryWin.closed) {
+                    javlibraryWin.close();
+                    javlibraryWin = null;
+                }
+                isProcessing = false;
+                assignNext();
+            }
+        }
 
         async function trySelf(parentOrigin) {
             const startTime = performance.now();
@@ -6432,7 +6577,11 @@ div:where(.swal2-container) .swal2-input {
                 const send = `${work} ${reason ? reason : ''} -> ${executionTime}`;
 
                 if (work === 'SUCCESS') {
-
+                    externalUpdateVirtualRow(id, {
+                        isVirtual: false,      // 이제 실제 데이터가 됨
+                        rawImage,
+                    });
+                    success = true;
                     break; // ✅ 정상 동작                                        
                 }
             }
@@ -6447,110 +6596,29 @@ div:where(.swal2-container) .swal2-input {
                 const searchUrl = `https://www.javlibrary.com/ja/vl_searchbyid.php?keyword=${JAVLIBRARY_KEY}`;
                 javlibraryWin = window.open(searchUrl, windowName, 'width=600, height=500');
                 startConnectionCheck(windowName, searchUrl);
-
-                async function handler(e) {
-                    if (!/javlibrary\.com/.test(e.origin)) return;
-                    const { type, url, result, ID } = e.data || {};
-
-                    // 중요: 어떤 메시지를 받든 처리 후에는 리스너를 즉시 제거하여 중복 실행 방지
-                    if (['WORKER_READY', 'TASK_Javlibrary', 'TASK_Javlibrary_FAIL', 'FAIL Selector'].includes(type)) {
-                        // 필요한 처리가 끝나면 리스너 제거 (성공/실패 모두)
-                        if (type !== 'WORKER_READY') {
-                            window.removeEventListener('message', handler);
-                            // 타이머 제거 (연결 성공)
-                            if (connectionTimer) {
-                                clearTimeout(connectionTimer);
-                                connectionTimer = null;
-                            }
-                        }
-                    }
-
-                    if (type === 'WORKER_READY') {
-                        javlibraryWin.postMessage({
-                            type: 'Start',
-                        }, 'https://www.javlibrary.com');
-                    } else if (type === 'TASK_Javlibrary') {
-                        console.log('성공 Javlibrary', result);
-
-                        const { workUrl, result } = result;
-                        const searchUrl = workUrl;
-                        const e = await siteConfigs['Javlibrary'].addDB(searchUrl, { result });
-
-                        const { rawImage, work, dbData, reason } = e || {};
-
-                        console.log('[VCE] 작업 완료', work, workUrl);
-
-                        if (javlibraryWin && !javlibraryWin.closed) {
-                            javlibraryWin.close();
-                        }
-                        assignNext();
-                    } else if (type === 'TASK_Javlibrary_FAIL' || type === 'FAIL Selector') {
-                        console.log(`실패: ${type}`);
-                        // 메시지를 보내지 말고 부모가 직접 닫아버립니다.
-                        if (javlibraryWin && !javlibraryWin.closed) {
-                            javlibraryWin.close();
-                        }
-                        assignNext();
-                    }
-                }
                 window.addEventListener('message', handler);
-            }
-        }
-
-        function handler(e) {
-            if (!/javlibrary\.com/.test(e.origin)) return;
-            const { type, url, result, ID } = e.data || {};
-
-            // 중요: 어떤 메시지를 받든 처리 후에는 리스너를 즉시 제거하여 중복 실행 방지
-            if (['WORKER_READY', 'TASK_Javlibrary', 'TASK_Javlibrary_FAIL', 'FAIL Selector'].includes(type)) {
-                // 필요한 처리가 끝나면 리스너 제거 (성공/실패 모두)
-                if (type !== 'WORKER_READY') {
-                    window.removeEventListener('message', handler);
-                    // 타이머 제거 (연결 성공)
-                    if (connectionTimer) {
-                        clearTimeout(connectionTimer);
-                        connectionTimer = null;
-                    }
-                }
-            }
-
-            if (type === 'WORKER_READY') {
-                javlibraryWin.postMessage({
-                    type: 'Start',
-                }, 'https://www.javlibrary.com');
-            } else if (type === 'TASK_Javlibrary') {
-                console.log('성공 Javlibrary', result);
-                window.opener.postMessage({
-                    type: 'AddDB_TASK',
-                    url,
-                    ID,
-                    result,
-                }, parentOrigin);
-                if (javlibraryWin && !javlibraryWin.closed) {
-                    javlibraryWin.close();
-                }
-            } else if (type === 'TASK_Javlibrary_FAIL' || type === 'FAIL Selector') {
-                console.log(`실패: ${type}`);
-                // 메시지를 보내지 말고 부모가 직접 닫아버립니다.
-                if (javlibraryWin && !javlibraryWin.closed) {
-                    javlibraryWin.close();
-                }
+            } else {
+                isProcessing = false;
                 assignNext();
             }
         }
 
-        //FANZADIGITALBC.onmessage = (e) => {
+
+
+        
         window.addEventListener('message', async (e) => {
             if (!/dmm\.co\.jp/.test(e.origin)) return;
-            const { type, rawImage, work, DB, ID } = e.data || {};
+            const { type, rawImage, work, dbData, contentId } = e.data || {};
             if (type === 'TASK_DONE') {
                 console.log('완료:', e.data);
                 if (work === 'SUCCESS' && rawImage) {
+                    await VceDB.save("imageMeta", rawImage, dbData);
                     externalUpdateVirtualRow(contentId, {
                         isVirtual: false,      // 이제 실제 데이터가 됨
                         rawImage,
-                        DB
+                        dbData
                     });
+                    isProcessing = false;
                     assignNext();
                 } else if (work === 'ALL FAILED') {
                     console.log('ALL FAILED: Javlibrary 시도');
@@ -6563,6 +6631,7 @@ div:where(.swal2-container) .swal2-input {
 
                     window.addEventListener('message', handler);
                 } else {
+                    isProcessing = false;
                     assignNext();
                 }
 
@@ -6570,57 +6639,12 @@ div:where(.swal2-container) .swal2-input {
                 console.log('실패:', e.data);
             }
         });
-
-
-        let isProcessing = false; // 중복 실행 방지 플래그
-        async function assignNext() {
-            if (!isRunning || isProcessing) return;
-            isProcessing = true; // 락(Lock) 설정           
-
-            try {
-                if (taskQueue.length === 0) {
-                    console.log('모든 작업 완료');
-                    fanzaWin.close();
-                    isRunning = false;
-                    fanzaWin = null;
-                    updateProcessingFANZADIGITAL(taskQueue.length, '');
-                    FANZADIGITALBC.close();
-                    GM_deleteValue('WORK_TASK');
-                    return;
-                }
-
-                jobCount++;
-
-                if (jobCount > 15) {
-                    await sleep(getRandomDelay());
-                    jobCount = 0;
-                }
-                const task = taskQueue.shift();
-                //const pathSegments = task.url.split('/');
-                //const contentId = pathSegments[pathSegments.length - 2];
-                const [displayCode, prefix, padLen, suffix] = task.key.split('|');
-                contentId = task.id;
-                GM_setValue('WORK_TASK', task);
-                let workerUrl;
-                if (padLen === 5) {
-                    workerUrl = `https://video.dmm.co.jp/av/content/?id=${contentId}`;
-                }
-                updateProcessingFANZADIGITAL(taskQueue.length, contentId);
-                //console.log(workerWin, workerUrl, contentId, taskQueue);
-                if (workerUrl) {
-                    workerWin.postMessage({
-                        type: 'MOVE_TASK',
-                        url: workerUrl,
-                    }, origin(workerUrl));
-                } else {
-                    await trySelf(parentOrigin);
-                }
-            } finally {
-                isProcessing = false; // 작업 지시 후 플래그 해제
-            }
+        if (/video\.dmm\.co.jp/.test(location.href)) {
+            fanzaWin = ensureWorker('FanzaWin', location.origin);
+        } else {
+            assignNext();
         }
-        //fanzaWin = ensureWorker('FanzaWin', location.origin);
-        assignNext();
+
     };
 
 
@@ -6728,7 +6752,7 @@ div:where(.swal2-container) .swal2-input {
                         workUrl: searchUrl,
                         work,
                         result: send,
-                        DB: dbData
+                        dbData
                     }, parentOrigin);
                     success = true;
                     break; // ✅ 정상 동작                                        
@@ -6744,7 +6768,7 @@ div:where(.swal2-container) .swal2-input {
             if (!success) {
                 const endTime = performance.now();
                 const executionTime = `${endTime - startTime} ms`;
-                const send = `All FAILED Time :} -> ${executionTime}`;
+                const send = `All FAILED Time -> ${executionTime}`;
                 window.opener.postMessage({
                     type: 'TASK_DONE',
                     rawImage: null,
@@ -6753,6 +6777,8 @@ div:where(.swal2-container) .swal2-input {
                 }, parentOrigin);
             }
         }
+
+
         async function requestTask() {
             if (/エラーが発生しました/gm.test(document.body.textContent)) {
                 await sleep(20000);
@@ -6772,7 +6798,7 @@ div:where(.swal2-container) .swal2-input {
                 if (config) {
                     const waitTime = Math.max(getRandomDelay(), getRandomDelay()) + Math.min(getRandomDelay(), getRandomDelay());
                     const found = await checkTable(waitTime);
-                    const ID = GetParam(location.href, 'id').toLowerCase();
+                    const contentId = GetParam(location.href, 'id').toLowerCase();
                     if (found === '404Not Found') {
                         await tryOther(startTime, parentOrigin);
                     } else if (found) {
@@ -6792,7 +6818,7 @@ div:where(.swal2-container) .swal2-input {
                                     work,
                                     contentId,
                                     result: send,
-                                    DB: dbData
+                                    dbData
                                 }, parentOrigin);
                             } else {
                                 window.opener.postMessage({
@@ -6850,14 +6876,15 @@ div:where(.swal2-container) .swal2-input {
             if (!key || !id) return console.error("작업 데이터가 없습니다.");
             const DMM_KEY = virtualKeyMaker(key, id, 'DMM');
             const Selector = `img[src*="/${DMM_KEY}/"]`;
+            console.log(Selector);
             const findUrl = document.querySelector(Selector)?.closest('a')?.href;
             if (!findUrl) {
                 window.opener.postMessage({
                     type: 'FAIL Selector',
-                    workUrl: location.href,
-                    result: 'No Item'
+                    url: location.href,
+                    Selector
                 }, parentOrigin);
-                self.close();
+                //self.close();
                 return;
             };
             if (findUrl) {
@@ -6870,23 +6897,23 @@ div:where(.swal2-container) .swal2-input {
 
             const parse = createPostProcessor(siteConfigs['Javlibrary'], 'Javlibrary');
             const result = await parse(document.body);
-
+            const { key, id } = GM_getValue('WORK_TASK');
             console.log(result);
 
             if (result.realCode) {
                 window.opener.postMessage({
                     type: 'TASK_Javlibrary',
-                    workUrl: location.href,
-                    ID: preContentId,
+                    url: location.href,
+                    contentId: id,
                     result
                 }, parentOrigin);
             } else {
                 window.opener.postMessage({
                     type: 'TASK_Javlibrary_FAIL',
                     workUrl: location.href,
-                    result: 'No Item'
+                    result
                 }, parentOrigin);
-                self.close();
+                //self.close();
             }
         }
 
