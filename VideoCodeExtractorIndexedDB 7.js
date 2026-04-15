@@ -6277,9 +6277,6 @@ div:where(.swal2-container) .swal2-input {
     let javlibraryWin = null;
     let workerWin = null;
 
-
-
-
     async function startJob(data) {
 
         let taskQueue = [];
@@ -6288,14 +6285,17 @@ div:where(.swal2-container) .swal2-input {
         let jobCount = 0;
 
         if (isRunning) {
-            fanzaWin.close();
+            fanzaWin?.close();
             isRunning = false;
             fanzaWin = null;
             updateProcessingFANZADIGITAL(taskQueue.length, '');
-            FANZADIGITALBC.close();
             return;
         }
-        FANZADIGITALBC = new BroadcastChannel("FANZADIGITALChannel");
+
+        const origin = (url) => new URL(url).origin;
+        let popupOrigin;
+        const parentOrigin = origin(window.location.href);
+        GM_setValue('parentOrigin', parentOrigin);
         isRunning = true;
 
 
@@ -6359,11 +6359,11 @@ div:where(.swal2-container) .swal2-input {
             }, TIMEOUT_MS);
         }
 
-        const origin = new URL(location.href).origin;
-
         function ensureWorker(windowName, url) {
             if (!workerWin || workerWin.closed) {
                 workerWin = window.open(url, windowName, 'width=600, height=300');
+                popupOrigin = origin(url);
+                GM_setValue('popupOrigin', popupOrigin);
                 return workerWin; // 새로 열렸을 때
             }
             window.addEventListener('beforeunload', () => {
@@ -6389,6 +6389,114 @@ div:where(.swal2-container) .swal2-input {
             startConnectionCheck(windowName, url); // 다시 타이머 시작
         }
 
+
+        async function trySelf(parentOrigin) {
+            const startTime = performance.now();
+            const { key, id } = GM_getValue('WORK_TASK');
+            const DMMR_KEY = virtualKeyMaker(key, id, 'DMMR');
+            const DMM_KEY = virtualKeyMaker(key, id, 'DMM');
+            const AVWIKIS_KEY = virtualKeyMaker(key, id, 'AVWIKIS');
+            const AVWIKIL_KEY = virtualKeyMaker(key, id, 'AVWIKIL');
+            const JAVBUS_KEY = virtualKeyMaker(key, id, 'JAVBUS');
+            const searchUrls = [
+                `https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=${DMMR_KEY}/`,
+                `https://www.dmm.co.jp/mono/dvd/-/detail/=/cid=${DMM_KEY}/`,
+                `https://av-wiki.net/${AVWIKIS_KEY}/`,
+                `https://av-wiki.net/${AVWIKIL_KEY}/`,
+                `https://www.javbus.com/ja/${JAVBUS_KEY}`
+            ];
+            const filtersUrls = searchUrls.filter(u => getClearBad(u));
+
+            let success = false;
+
+            for (const searchUrl of filtersUrls) {
+                let targetSite;
+                if (searchUrl.startsWith('https://av-wiki.net/')) {
+                    targetSite = 'AVWiki';
+                } else if (searchUrl.startsWith('https://www.dmm.co.jp/rental/')) {
+                    targetSite = 'DMMR';
+                } else if (searchUrl.startsWith('https://www.dmm.co.jp/mono/')) {
+                    targetSite = 'DMM';
+                } else if (searchUrl.startsWith('https://www.javbus.com')) {
+                    targetSite = 'JavBus';
+                }
+
+                const e = await siteConfigs[targetSite].addDB(searchUrl);
+
+                const { rawImage, work, dbData, reason } = e || {};
+
+                console.log('[VCE] 작업 완료', e.work, searchUrl);
+
+                const endTime = performance.now();
+                const executionTime = `${endTime - startTime} ms`;
+                const send = `${work} ${reason ? reason : ''} -> ${executionTime}`;
+
+                if (work === 'SUCCESS') {
+
+                    break; // ✅ 정상 동작                                        
+                }
+            }
+            if (!success) {
+                const endTime = performance.now();
+                const executionTime = `${endTime - startTime} ms`;
+                const send = `All FAILED Time -> ${executionTime}`;
+                console.log('ALL FAILED: Javlibrary 시도');
+                const { key, id } = GM_getValue('WORK_TASK');
+                const JAVLIBRARY_KEY = virtualKeyMaker(key, id, 'JAVLIBRARY');
+                const windowName = `JavlibraryWorker`;
+                const searchUrl = `https://www.javlibrary.com/ja/vl_searchbyid.php?keyword=${JAVLIBRARY_KEY}`;
+                javlibraryWin = window.open(searchUrl, windowName, 'width=600, height=500');
+                startConnectionCheck(windowName, searchUrl);
+
+                async function handler(e) {
+                    if (!/javlibrary\.com/.test(e.origin)) return;
+                    const { type, url, result, ID } = e.data || {};
+
+                    // 중요: 어떤 메시지를 받든 처리 후에는 리스너를 즉시 제거하여 중복 실행 방지
+                    if (['WORKER_READY', 'TASK_Javlibrary', 'TASK_Javlibrary_FAIL', 'FAIL Selector'].includes(type)) {
+                        // 필요한 처리가 끝나면 리스너 제거 (성공/실패 모두)
+                        if (type !== 'WORKER_READY') {
+                            window.removeEventListener('message', handler);
+                            // 타이머 제거 (연결 성공)
+                            if (connectionTimer) {
+                                clearTimeout(connectionTimer);
+                                connectionTimer = null;
+                            }
+                        }
+                    }
+
+                    if (type === 'WORKER_READY') {
+                        javlibraryWin.postMessage({
+                            type: 'Start',
+                        }, 'https://www.javlibrary.com');
+                    } else if (type === 'TASK_Javlibrary') {
+                        console.log('성공 Javlibrary', result);
+
+                        const { workUrl, result } = result;
+                        const searchUrl = workUrl;
+                        const e = await siteConfigs['Javlibrary'].addDB(searchUrl, { result });
+
+                        const { rawImage, work, dbData, reason } = e || {};
+
+                        console.log('[VCE] 작업 완료', work, workUrl);
+
+                        if (javlibraryWin && !javlibraryWin.closed) {
+                            javlibraryWin.close();
+                        }
+                        assignNext();
+                    } else if (type === 'TASK_Javlibrary_FAIL' || type === 'FAIL Selector') {
+                        console.log(`실패: ${type}`);
+                        // 메시지를 보내지 말고 부모가 직접 닫아버립니다.
+                        if (javlibraryWin && !javlibraryWin.closed) {
+                            javlibraryWin.close();
+                        }
+                        assignNext();
+                    }
+                }
+                window.addEventListener('message', handler);
+            }
+        }
+
         function handler(e) {
             if (!/javlibrary\.com/.test(e.origin)) return;
             const { type, url, result, ID } = e.data || {};
@@ -6412,12 +6520,12 @@ div:where(.swal2-container) .swal2-input {
                 }, 'https://www.javlibrary.com');
             } else if (type === 'TASK_Javlibrary') {
                 console.log('성공 Javlibrary', result);
-                FANZADIGITALBC.postMessage({
+                window.opener.postMessage({
                     type: 'AddDB_TASK',
                     url,
                     ID,
                     result,
-                });
+                }, parentOrigin);
                 if (javlibraryWin && !javlibraryWin.closed) {
                     javlibraryWin.close();
                 }
@@ -6431,7 +6539,9 @@ div:where(.swal2-container) .swal2-input {
             }
         }
 
-        FANZADIGITALBC.onmessage = (e) => {
+        //FANZADIGITALBC.onmessage = (e) => {
+        window.addEventListener('message', async (e) => {
+            if (!/dmm\.co\.jp/.test(e.origin)) return;
             const { type, rawImage, work, DB, ID } = e.data || {};
             if (type === 'TASK_DONE') {
                 console.log('완료:', e.data);
@@ -6459,7 +6569,7 @@ div:where(.swal2-container) .swal2-input {
             } else if (type === 'TASK_FAIL') {
                 console.log('실패:', e.data);
             }
-        };
+        });
 
 
         let isProcessing = false; // 중복 실행 방지 플래그
@@ -6488,20 +6598,29 @@ div:where(.swal2-container) .swal2-input {
                 const task = taskQueue.shift();
                 //const pathSegments = task.url.split('/');
                 //const contentId = pathSegments[pathSegments.length - 2];
+                const [displayCode, prefix, padLen, suffix] = task.key.split('|');
                 contentId = task.id;
                 GM_setValue('WORK_TASK', task);
-                const workerUrl = `https://video.dmm.co.jp/av/content/?id=${contentId}`;
+                let workerUrl;
+                if (padLen === 5) {
+                    workerUrl = `https://video.dmm.co.jp/av/content/?id=${contentId}`;
+                }
                 updateProcessingFANZADIGITAL(taskQueue.length, contentId);
                 //console.log(workerWin, workerUrl, contentId, taskQueue);
-                FANZADIGITALBC.postMessage({
-                    type: 'MOVE_TASK',
-                    url: workerUrl,
-                });
+                if (workerUrl) {
+                    workerWin.postMessage({
+                        type: 'MOVE_TASK',
+                        url: workerUrl,
+                    }, origin(workerUrl));
+                } else {
+                    await trySelf(parentOrigin);
+                }
             } finally {
                 isProcessing = false; // 작업 지시 후 플래그 해제
             }
         }
-        fanzaWin = ensureWorker('FanzaWin', location.origin);
+        //fanzaWin = ensureWorker('FanzaWin', location.origin);
+        assignNext();
     };
 
 
@@ -6515,6 +6634,10 @@ div:where(.swal2-container) .swal2-input {
     function isJavlibraryWorker() {
         return window.name === 'JavlibraryWorker';
     }
+
+
+
+
 
     /*********************************************************
      * 부모 (컨트롤러)
@@ -6552,106 +6675,106 @@ div:where(.swal2-container) .swal2-input {
         console.log('[VCE] Worker mode');
 
         const startTime = performance.now();
-        FANZADIGITALBC = new BroadcastChannel("FANZADIGITALChannel");
+        const origin = (url) => new URL(url).origin;
         const currentPage = PageURL();
+
+        const parentOrigin = GM_getValue('parentOrigin');
+
+        async function tryOther(startTime, parentOrigin) {
+            const { key, id } = GM_getValue('WORK_TASK');
+            const DMMR_KEY = virtualKeyMaker(key, id, 'DMMR');
+            const DMM_KEY = virtualKeyMaker(key, id, 'DMM');
+            const AVWIKIS_KEY = virtualKeyMaker(key, id, 'AVWIKIS');
+            const AVWIKIL_KEY = virtualKeyMaker(key, id, 'AVWIKIL');
+            const JAVBUS_KEY = virtualKeyMaker(key, id, 'JAVBUS');
+            const searchUrls = [
+                `https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=${DMMR_KEY}/`,
+                `https://www.dmm.co.jp/mono/dvd/-/detail/=/cid=${DMM_KEY}/`,
+                `https://av-wiki.net/${AVWIKIS_KEY}/`,
+                `https://av-wiki.net/${AVWIKIL_KEY}/`,
+                `https://www.javbus.com/ja/${JAVBUS_KEY}`
+            ];
+            const filtersUrls = searchUrls.filter(u => getClearBad(u));
+
+            let success = false;
+
+            for (const searchUrl of filtersUrls) {
+                let targetSite;
+                if (searchUrl.startsWith('https://av-wiki.net/')) {
+                    targetSite = 'AVWiki';
+                } else if (searchUrl.startsWith('https://www.dmm.co.jp/rental/')) {
+                    targetSite = 'DMMR';
+                } else if (searchUrl.startsWith('https://www.dmm.co.jp/mono/')) {
+                    targetSite = 'DMM';
+                } else if (searchUrl.startsWith('https://www.javbus.com')) {
+                    targetSite = 'JavBus';
+                }
+
+                const e = await siteConfigs[targetSite].addDB(searchUrl);
+
+                const { rawImage, work, dbData, reason } = e || {};
+
+                console.log('[VCE] 작업 완료', e.work, searchUrl);
+
+                const endTime = performance.now();
+                const executionTime = `${endTime - startTime} ms`;
+                const send = `${work} ${reason ? reason : ''} -> ${executionTime}`;
+
+                if (work === 'SUCCESS') {
+                    window.opener.postMessage({
+                        type: 'TASK_DONE',
+                        rawImage,
+                        contentId: id,
+                        workUrl: searchUrl,
+                        work,
+                        result: send,
+                        DB: dbData
+                    }, parentOrigin);
+                    success = true;
+                    break; // ✅ 정상 동작                                        
+                } else {
+                    window.opener.postMessage({
+                        type: 'TASK_FAIL',
+                        rawImage: null,
+                        workUrl: searchUrl,
+                        result: send
+                    }, parentOrigin);
+                }
+            }
+            if (!success) {
+                const endTime = performance.now();
+                const executionTime = `${endTime - startTime} ms`;
+                const send = `All FAILED Time :} -> ${executionTime}`;
+                window.opener.postMessage({
+                    type: 'TASK_DONE',
+                    rawImage: null,
+                    work: 'ALL FAILED',
+                    result: send
+                }, parentOrigin);
+            }
+        }
         async function requestTask() {
             if (/エラーが発生しました/gm.test(document.body.textContent)) {
                 await sleep(20000);
                 location.reload(true);
             }
 
-            const origin = new URL(location.href).origin;
+
             if (/^https:\/\/video\.dmm\.co\.jp\/$/.test(location.href)) {
-                FANZADIGITALBC.postMessage({
+                window.opener.postMessage({
                     type: 'TASK_DONE',
                     url: location.href,
                     result: 'Main Page'
-                });
+                }, parentOrigin);
             } else {
                 const config = siteConfigs['FANZA_DIGITAL'];
                 const contentId = GetParam(location.href, 'id').toLowerCase();
                 if (config) {
                     const waitTime = Math.max(getRandomDelay(), getRandomDelay()) + Math.min(getRandomDelay(), getRandomDelay());
                     const found = await checkTable(waitTime);
-                    let success = false;
                     const ID = GetParam(location.href, 'id').toLowerCase();
-                    async function tryOther() {
-                        const { key, id } = GM_getValue('WORK_TASK');
-                        const DMMR_KEY = virtualKeyMaker(key, id, 'DMMR');
-                        const DMM_KEY = virtualKeyMaker(key, id, 'DMM');
-                        const AVWIKIS_KEY = virtualKeyMaker(key, id, 'AVWIKIS');
-                        const AVWIKIL_KEY = virtualKeyMaker(key, id, 'AVWIKIL');
-                        const JAVBUS_KEY = virtualKeyMaker(key, id, 'JAVBUS');
-                        const searchUrls = [
-                            `https://www.dmm.co.jp/rental/ppr/-/detail/=/cid=${DMMR_KEY}/`,
-                            `https://www.dmm.co.jp/mono/dvd/-/detail/=/cid=${DMM_KEY}/`,
-                            `https://av-wiki.net/${AVWIKIS_KEY}/`,
-                            `https://av-wiki.net/${AVWIKIL_KEY}/`,
-                            `https://www.javbus.com/ja/${JAVBUS_KEY}`
-                        ];
-                        const filtersUrls = searchUrls.filter(u => getClearBad(u));
-
-                        for (const searchUrl of filtersUrls) {
-                            let targetSite;
-                            if (searchUrl.startsWith('https://av-wiki.net/')) {
-                                targetSite = 'AVWiki';
-                            } else if (searchUrl.startsWith('https://www.dmm.co.jp/rental/')) {
-                                targetSite = 'DMMR';
-                            } else if (searchUrl.startsWith('https://www.dmm.co.jp/mono/')) {
-                                targetSite = 'DMM';
-                            } else if (searchUrl.startsWith('https://www.javbus.com')) {
-                                targetSite = 'JavBus';
-                            }
-
-                            const e = await siteConfigs[targetSite].addDB(searchUrl);
-
-                            const { rawImage, work, dbData, reason } = e || {};
-
-                            console.log('[VCE] 작업 완료', e.work, location.href);
-
-                            const endTime = performance.now();
-                            const executionTime = `${endTime - startTime} ms`;
-                            const send = `${work} ${reason ? reason : ''} -> ${executionTime}`;
-
-                            if (work === 'SUCCESS') {
-                                FANZADIGITALBC.postMessage({
-                                    type: 'TASK_DONE',
-                                    url: location.href,
-                                    rawImage: rawImage,
-                                    contentId,
-                                    workUrl: searchUrl,
-                                    work,
-                                    result: send,
-                                    DB: dbData
-                                });
-                                success = true;
-                                break; // ✅ 정상 동작                                        
-                            } else {
-                                FANZADIGITALBC.postMessage({
-                                    type: 'TASK_FAIL',
-                                    url: location.href,
-                                    rawImage: null,
-                                    workUrl: searchUrl,
-                                    result: send
-                                });
-                            }
-                        }
-                        if (!success) {
-                            const endTime = performance.now();
-                            const executionTime = `${endTime - startTime} ms`;
-                            const send = `All FAILED Time :} -> ${executionTime}`;
-                            FANZADIGITALBC.postMessage({
-                                type: 'TASK_DONE',
-                                url: location.href,
-                                rawImage: null,
-                                work: 'ALL FAILED',
-                                ID,
-                                result: send
-                            });
-                        }
-                    }
                     if (found === '404Not Found') {
-                        await tryOther();
+                        await tryOther(startTime, parentOrigin);
                     } else if (found) {
                         const url = location.href;
                         config.addDB().then(async (e) => {
@@ -6662,35 +6785,34 @@ div:where(.swal2-container) .swal2-input {
                             await sleep(1000);
                             const send = `${work} ${reason ? reason : ''} -> ${executionTime}`;
                             if (work === 'SUCCESS') {
-                                FANZADIGITALBC.postMessage({
+                                window.opener.postMessage({
                                     type: 'TASK_DONE',
-                                    url: location.href,
-                                    rawImage: rawImage,
+                                    rawImage,
                                     workUrl: location.href,
                                     work,
                                     contentId,
                                     result: send,
                                     DB: dbData
-                                });
+                                }, parentOrigin);
                             } else {
-                                FANZADIGITALBC.postMessage({
+                                window.opener.postMessage({
                                     type: 'TASK_DONE',
-                                    url: location.href,
                                     rawImage: null,
                                     workUrl: location.href,
                                     result: send
-                                });
+                                }, parentOrigin);
                             }
 
                         });
                     } else {
-                        await tryOther();
+                        await tryOther(startTime, parentOrigin);
                     }
                 }
             }
         }
         /******** 메시지 수신 ********/
-        FANZADIGITALBC.onmessage = async (e) => {
+        window.addEventListener('message', async (e) => {
+            if (!/dmm\.co\.jp/.test(e.origin)) return;
             const { type, url, result, ID } = e.data || {};
             if (type === 'MOVE_TASK') {
                 console.log('[VCE] 이동:', url);
@@ -6699,42 +6821,7 @@ div:where(.swal2-container) .swal2-input {
                 a.href = url;
                 a.click();
             }
-            if (type === 'AddDB_TASK') {
-                console.log('AddDB_TASK');
-                const searchUrl = location.href;
-                const ID = GetParam(location.href, 'id').toLowerCase();
-                const e = await siteConfigs['Javlibrary'].addDB(searchUrl, { result });
-
-                const { rawImage, work, dbData, reason } = e || {};
-
-                console.log('[VCE] 작업 완료', work, location.href);
-
-                const endTime = performance.now();
-                const executionTime = `${endTime - startTime} ms`;
-                const send = `${work} ${reason ? reason : ''} -> ${executionTime}`;
-
-                if (work === 'SUCCESS') {
-                    FANZADIGITALBC.postMessage({
-                        type: 'TASK_DONE',
-                        url: location.href,
-                        rawImage: rawImage,
-                        contentId: ID,
-                        workUrl: searchUrl,
-                        work,
-                        result: send,
-                        DB: dbData
-                    });
-                } else {
-                    FANZADIGITALBC.postMessage({
-                        type: 'TASK_FAIL',
-                        url: location.href,
-                        rawImage: null,
-                        workUrl: searchUrl,
-                        result: send
-                    });
-                }
-            }
-        };
+        });
 
         /******** 초기 진입 ********/
 
@@ -6750,7 +6837,7 @@ div:where(.swal2-container) .swal2-input {
             return; // 체크박스 통과 전에는 실행 중단
         }
 
-        const targetOrigin = 'https://video.dmm.co.jp'; // 변수로 관리
+        const parentOrigin = GM_getValue('parentOrigin');
 
         // 부모 창(opener)이 존재하는지 반드시 확인
         if (!window.opener) {
@@ -6767,9 +6854,9 @@ div:where(.swal2-container) .swal2-input {
             if (!findUrl) {
                 window.opener.postMessage({
                     type: 'FAIL Selector',
-                    url: location.href,
+                    workUrl: location.href,
                     result: 'No Item'
-                }, targetOrigin);
+                }, parentOrigin);
                 self.close();
                 return;
             };
@@ -6789,16 +6876,16 @@ div:where(.swal2-container) .swal2-input {
             if (result.realCode) {
                 window.opener.postMessage({
                     type: 'TASK_Javlibrary',
-                    url: location.href,
+                    workUrl: location.href,
                     ID: preContentId,
                     result
-                }, targetOrigin);
+                }, parentOrigin);
             } else {
                 window.opener.postMessage({
                     type: 'TASK_Javlibrary_FAIL',
-                    url: location.href,
+                    workUrl: location.href,
                     result: 'No Item'
-                }, targetOrigin);
+                }, parentOrigin);
                 self.close();
             }
         }
@@ -6811,7 +6898,7 @@ div:where(.swal2-container) .swal2-input {
             }
         });
 
-        window.opener.postMessage({ type: 'WORKER_READY' }, targetOrigin);
+        window.opener.postMessage({ type: 'WORKER_READY' }, parentOrigin);
 
     }
 
