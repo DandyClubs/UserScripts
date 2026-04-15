@@ -5481,8 +5481,19 @@ div:where(.swal2-container) .swal2-input {
             if (e.key === 'Escape') { queryInput.value = ''; performSearch(); }
         }, true);
 
-        document.getElementById('vce-btn-generate').onclick = async () => {
-            performGenerate();
+        const generate = document.getElementById('vce-btn-generate');
+        generate.onclick = async () => {
+            if (isRunning) {
+                isRunning = false;
+                workerDMMWindow?.close();
+                workerDMMWindow = null;
+                updateProcessingFANZADIGITAL(taskQueue.length, '');
+                generate.innerText = 'GENERATE';
+                return;
+            }else{
+                performGenerate();
+            }
+            
         };
 
 
@@ -5883,6 +5894,8 @@ div:where(.swal2-container) .swal2-input {
                 currentPage = 1;
                 renderTable();
                 startJob(getMetaLists);
+                const generate = document.getElementById('vce-btn-generate');
+                generate.innerText = 'Generating';
             });
         }
 
