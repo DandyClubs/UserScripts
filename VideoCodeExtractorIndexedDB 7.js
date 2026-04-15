@@ -760,7 +760,7 @@ div:where(.swal2-container) .swal2-input {
                             break;
                         }
                         // 해당 URL 실패 시 다음 후보로 이동
-                        console.log(`[${result}] 결과 없음: ${src}`);
+                        console.log(`[${reason}] 결과 없음: ${src}`);
                     }
 
                     const rawImage = imageSrc?.split('?')[0] || null;
