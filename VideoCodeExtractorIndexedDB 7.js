@@ -286,7 +286,7 @@ div:where(.swal2-container) .swal2-input {
     // --- 모달 크기 저장 및 복원 (수정본) ---
     const STORAGE_KEY = 'vce_modal_size';
 
-    const replaceReg = /【独占】|【準新作】|【FANZA独占】|【配信専用】|【最新作】|【新作】|【先行公開】|【セール】|【予約】|【.*パンツまつり\d+％OFF.*】|.*ブランドストア\d+％OFF.*/g;
+    const replaceReg = /【独占】|【準新作】|【FANZA独占】|【配信専用】|【最新作】|【新作】|【先行公開】|【セール】|【予約】|【.*パンツまつり\d+％OFF.*】|【.*ブランドストア\d+％OFF.*】/g;
 
 
     const imageSelectorMap = {
@@ -6000,7 +6000,7 @@ div:where(.swal2-container) .swal2-input {
          * @param {object} updates - 변경할 내용 (예: { metaStatus: 'SUCCESS', title: '완료됨' })
          */
         async function updateVirtualRow(id, updates) {
-            console.log(id, updates);
+            //console.log(id, updates);
             // 1. 메모리 상의 데이터(allResults) 업데이트
             const { dbData, rawImage } = updates;
             const targetIndex = allResults.findIndex(item => item.contentId === id);
@@ -6311,22 +6311,31 @@ div:where(.swal2-container) .swal2-input {
 
 
     let isRunning = false;
-    let fanzaWin = null;
-    let javlibraryWin = null;
-    let workerWin = null;
+    let workerDMMWindow = null;
+    
 
+
+    /*********************************************************
+     * 공통 유틸
+     *********************************************************/
+
+    function isDMMWorker() {
+        return window.name === 'wokerDMMWin';
+    }
+
+    
     async function startJob(data) {
 
         let taskQueue = [];
         let contentId = null;
 
-        let jobCount = 0;
+        
         let isProcessing = false; // 중복 실행 방지 플래그
 
         if (isRunning) {
-            fanzaWin?.close();
             isRunning = false;
-            fanzaWin = null;
+            workerDMMWindow?.close();
+            workerDMMWindow = null;
             updateProcessingFANZADIGITAL(taskQueue.length, '');
             return;
         }
@@ -6387,48 +6396,27 @@ div:where(.swal2-container) .swal2-input {
 
         console.log('[VCE] Parent mode');
 
-        const TIMEOUT_MS = 5000;
-        let connectionTimer = null;
-
-        function startConnectionCheck(windowName, url) {
-            // 기존 타이머가 있다면 초기화
-            if (connectionTimer) clearTimeout(connectionTimer);
-
-            connectionTimer = setTimeout(() => {
-                console.warn("응답 없음: 재연결 시도 중...");
-                reconnect(windowName, url);
-            }, TIMEOUT_MS);
-        }
-
+        
         function ensureWorker(windowName, url) {
-            if (!workerWin || workerWin.closed) {
-                workerWin = window.open(url, windowName, 'width=600, height=300');
+            if (!workerDMMWindow || workerDMMWindow.closed) {
+                workerDMMWindow = window.open(url, windowName, 'width=600, height=300');
                 popupOrigin = origin(url);
                 GM_setValue('popupOrigin', popupOrigin);
-                return workerWin; // 새로 열렸을 때
+                return workerDMMWindow; // 새로 열렸을 때
             } else {
-                workerWin.postMessage({
+                workerDMMWindow.postMessage({
                     type: 'MOVE_TASK',
                     url,
                 }, origin(url));
             }
             window.addEventListener('beforeunload', () => {
-                workerWin?.close();
-                workerWin = null;
+                workerDMMWindow?.close();
+                workerDMMWindow = null;
             });
-            return workerWin; // 기존 창 재사용
+            return workerDMMWindow; // 기존 창 재사용
         }
 
-        function reconnect(windowName, url) {
-            if (!javlibraryWin || javlibraryWin.closed) {
-                javlibraryWin = window.open(url, windowName, 'width=600, height=500');                
-            }else{
-                javlibraryWin.location.href = url;
-            }
-            
-            startConnectionCheck(windowName, url); // 다시 타이머 시작
-        }
-
+        
         async function assignNext() {
             if (isProcessing) return;
             isProcessing = true; // 락(Lock) 설정           
@@ -6436,20 +6424,14 @@ div:where(.swal2-container) .swal2-input {
             try {
                 if (taskQueue.length === 0) {
                     console.log('모든 작업 완료');
-                    fanzaWin?.close();
                     isRunning = false;
-                    fanzaWin = null;
+                    workerDMMWindow?.close();
+                    workerDMMWindow = null;
                     updateProcessingFANZADIGITAL(taskQueue.length, '');
                     GM_deleteValue('WORK_TASK');
                     return;
                 }
-
-                jobCount++;
-
-                if (jobCount > 15) {
-                    await sleep(getRandomDelay());
-                    jobCount = 0;
-                }
+                
                 const task = taskQueue.shift();
                 //const pathSegments = task.url.split('/');
                 //const contentId = pathSegments[pathSegments.length - 2];
@@ -6464,7 +6446,7 @@ div:where(.swal2-container) .swal2-input {
                 updateProcessingFANZADIGITAL(taskQueue.length, contentId);
                 //console.log(workerWin, workerUrl, contentId, taskQueue);
                 if (workerUrl) {
-                    fanzaWin = ensureWorker('FanzaWin', workerUrl);
+                    workerDMMWindow = ensureWorker('wokerDMMWin', workerUrl);
                     /*
                     workerWin.postMessage({
                         type: 'MOVE_TASK',
@@ -6476,62 +6458,6 @@ div:where(.swal2-container) .swal2-input {
                 }
             } finally {
                 isProcessing = false; // 작업 지시 후 플래그 해제
-            }
-        }
-
-        async function handler(e) {
-            if (!/javlibrary\.com/.test(e.origin)) return;
-            const { type, url, result, ID } = e.data || {};
-
-            // 중요: 어떤 메시지를 받든 처리 후에는 리스너를 즉시 제거하여 중복 실행 방지
-            if (['WORKER_READY', 'TASK_Javlibrary', 'TASK_Javlibrary_FAIL', 'FAIL Selector'].includes(type)) {
-                // 필요한 처리가 끝나면 리스너 제거 (성공/실패 모두)
-                if (type !== 'WORKER_READY') {
-                    window.removeEventListener('message', handler);
-                    // 타이머 제거 (연결 성공)
-                    if (connectionTimer) {
-                        clearTimeout(connectionTimer);
-                        connectionTimer = null;
-                    }
-                }
-            }
-
-            if (type === 'WORKER_READY') {
-                javlibraryWin.postMessage({
-                    type: 'Start',
-                }, 'https://www.javlibrary.com');
-            } else if (type === 'TASK_Javlibrary') {
-                console.log('성공 Javlibrary', result);
-
-                const { workUrl, result } = result;
-                const searchUrl = workUrl;
-                const e = await siteConfigs['Javlibrary'].addDB(searchUrl, { result });
-
-                const { rawImage, work, reason, ID } = e || {};
-
-                console.log('[VCE] 작업 완료', work, workUrl);
-
-                if (javlibraryWin && !javlibraryWin.closed) {                    
-                    javlibraryWin.close();
-                    javlibraryWin = null;
-                }
-                if (work === 'SUCCESS' && rawImage) {
-                    externalUpdateVirtualRow(ID, {
-                        isVirtual: false,      // 이제 실제 데이터가 됨
-                        rawImage,
-                    });
-                }
-                isProcessing = false;
-                assignNext();
-            } else if (type === 'TASK_Javlibrary_FAIL' || type === 'FAIL Selector') {
-                console.log(`실패: ${type}`, e.data);
-                // 메시지를 보내지 말고 부모가 직접 닫아버립니다.
-                if (javlibraryWin && !javlibraryWin.closed) {
-                    javlibraryWin.close();
-                    javlibraryWin = null;
-                }
-                isProcessing = false;
-                assignNext();
             }
         }
 
@@ -6585,27 +6511,15 @@ div:where(.swal2-container) .swal2-input {
                     break; // ✅ 정상 동작                                        
                 }
             }
-            if (!success) {
-                const endTime = performance.now();
-                const executionTime = `${endTime - startTime} ms`;
-                const send = `All FAILED Time -> ${executionTime}`;
-                console.log('ALL FAILED: Javlibrary 시도');
-                const { key, id } = GM_getValue('WORK_TASK');
-                const JAVLIBRARY_KEY = virtualKeyMaker(key, id, 'JAVLIBRARY');
-                const windowName = `JavlibraryWorker`;
-                const searchUrl = `https://www.javlibrary.com/ja/vl_searchbyid.php?keyword=${JAVLIBRARY_KEY}`;
-                javlibraryWin = window.open(searchUrl, windowName, 'width=600, height=500');
-                startConnectionCheck(windowName, searchUrl);
-                window.addEventListener('message', handler);
-            } else {
-                isProcessing = false;
-                assignNext();
-            }
+
+            isProcessing = false;
+            assignNext();
+
         }
 
 
 
-        
+
         window.addEventListener('message', async (e) => {
             if (!/dmm\.co\.jp/.test(e.origin)) return;
             const { type, rawImage, work, dbData, contentId } = e.data || {};
@@ -6621,15 +6535,8 @@ div:where(.swal2-container) .swal2-input {
                     isProcessing = false;
                     assignNext();
                 } else if (work === 'ALL FAILED') {
-                    console.log('ALL FAILED: Javlibrary 시도');
-                    const { key, id } = GM_getValue('WORK_TASK');
-                    const JAVLIBRARY_KEY = virtualKeyMaker(key, id, 'JAVLIBRARY');
-                    const windowName = `JavlibraryWorker`;
-                    const searchUrl = `https://www.javlibrary.com/ja/vl_searchbyid.php?keyword=${JAVLIBRARY_KEY}`;
-                    javlibraryWin = window.open(searchUrl, windowName, 'width=600, height=500');
-                    startConnectionCheck(windowName, searchUrl);
-
-                    window.addEventListener('message', handler);
+                    isProcessing = false;
+                    assignNext();
                 } else {
                     isProcessing = false;
                     assignNext();
@@ -6640,26 +6547,12 @@ div:where(.swal2-container) .swal2-input {
             }
         });
         if (/video\.dmm\.co.jp/.test(location.href)) {
-            fanzaWin = ensureWorker('FanzaWin', location.origin);
+            workerDMMWindow = ensureWorker('wokerDMMWin', location.origin);
         } else {
             assignNext();
         }
 
     };
-
-
-    /*********************************************************
-     * 공통 유틸
-     *********************************************************/
-
-    function isWorker() {
-        return window.name === 'FanzaWin';
-    }
-    function isJavlibraryWorker() {
-        return window.name === 'JavlibraryWorker';
-    }
-
-
 
 
 
@@ -6854,82 +6747,6 @@ div:where(.swal2-container) .swal2-input {
         requestTask();
     }
 
-    async function runJavlibraryWorker() {
-        console.log('[VCE] Javlibrary Worker mode');
-
-        // Cloudflare 체크박스가 있는지 확인 (간단한 예시)
-        if (document.querySelector('#challenge-running') || document.querySelector('#cf-challenge-running')) {
-            console.log("Cloudflare 대기 중...");
-            return; // 체크박스 통과 전에는 실행 중단
-        }
-
-        const parentOrigin = GM_getValue('parentOrigin');
-
-        // 부모 창(opener)이 존재하는지 반드시 확인
-        if (!window.opener) {
-            console.error("부모 창을 찾을 수 없습니다.");
-            return;
-        }
-
-        if (location.href.startsWith('https://www.javlibrary.com/ja/vl_searchbyid.php?keyword')) {
-            const { key, id } = GM_getValue('WORK_TASK');
-            if (!key || !id) return console.error("작업 데이터가 없습니다.");
-            const DMM_KEY = virtualKeyMaker(key, id, 'DMM');
-            const Selector = `img[src*="/${DMM_KEY}/"]`;
-            console.log(Selector);
-            const findUrl = document.querySelector(Selector)?.closest('a')?.href;
-            if (!findUrl) {
-                window.opener.postMessage({
-                    type: 'FAIL Selector',
-                    url: location.href,
-                    Selector
-                }, parentOrigin);
-                //self.close();
-                return;
-            };
-            if (findUrl) {
-                location.href = findUrl;
-                return;
-            }
-        }
-
-        async function requestTask() {
-
-            const parse = createPostProcessor(siteConfigs['Javlibrary'], 'Javlibrary');
-            const result = await parse(document.body);
-            const { key, id } = GM_getValue('WORK_TASK');
-            console.log(result);
-
-            if (result.realCode) {
-                window.opener.postMessage({
-                    type: 'TASK_Javlibrary',
-                    url: location.href,
-                    contentId: id,
-                    result
-                }, parentOrigin);
-            } else {
-                window.opener.postMessage({
-                    type: 'TASK_Javlibrary_FAIL',
-                    workUrl: location.href,
-                    result
-                }, parentOrigin);
-                //self.close();
-            }
-        }
-
-        window.addEventListener('message', (e) => {
-            if (!/dmm\.co\.jp/.test(e.origin)) return;
-            console.log(e.data.type);
-            if (e.data.type === 'Start') {
-                requestTask();
-            }
-        });
-
-        window.opener.postMessage({ type: 'WORKER_READY' }, parentOrigin);
-
-    }
-
-
     initializeMakerMap();
 
     function setClearBad(url) {
@@ -6964,10 +6781,9 @@ div:where(.swal2-container) .swal2-input {
         }
     }
 
-    if (isWorker()) {
+
+    if (isDMMWorker()) {
         runWorker();
-    } else if (isJavlibraryWorker()) {
-        runJavlibraryWorker();
     } else {
         if (/javlibrary/.test(location.href)) {
             return;
