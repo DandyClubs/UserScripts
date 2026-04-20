@@ -964,6 +964,7 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
     root.querySelectorAll(`a:not(.${processedClass}) > img:not(.Error), a:not(.${processedClass}) > * > img:not(.Error)`)
         .forEach(img => {
             if (img.matches('.ClickAbleItem')) return;
+            if (img.closest('.post-content')) return;
 
             const link = img.closest('a');
             if (!link) return;
