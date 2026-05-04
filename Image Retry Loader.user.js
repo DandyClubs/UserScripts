@@ -106,7 +106,7 @@
             img.addEventListener('error', onError);
 
             img.removeAttribute('loading');
-            img.setAttribute('src', img.getAttribute('src'));
+            //img.setAttribute('src', img.getAttribute('src'));
         });
     }
 
@@ -533,7 +533,7 @@
         document.querySelectorAll('img').forEach(img => {
             if (isValidExternalImage(img)) {
                 img.setAttribute('loading', 'lazy');
-                img.setAttribute('decoding', 'async');
+                //img.setAttribute('decoding', 'async');
                 lazyImageQueue.enqueue(img);
             }
 
