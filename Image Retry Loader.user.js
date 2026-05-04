@@ -308,7 +308,7 @@
                         if (node.tagName === 'IMG') {
                             if (isValidExternalImage(node)) {
                                 node.setAttribute('loading', 'lazy');
-                                node.setAttribute('decoding', 'async');
+                                //node.setAttribute('decoding', 'async');
                                 lazyImageQueue.enqueue(node);
                                 startLazyWorkers();
                             }
@@ -317,7 +317,7 @@
                         node.querySelectorAll('img').forEach(img => {
                             if (isValidExternalImage(img)) {
                                 img.setAttribute('loading', 'lazy');
-                                img.setAttribute('decoding', 'async');
+                                //img.setAttribute('decoding', 'async');
                                 lazyImageQueue.enqueue(img);
                                 startLazyWorkers();
                             }
