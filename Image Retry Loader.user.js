@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Image Retry Loader with GM_xmlhttpRequest
 // @namespace    http://tampermonkey.net/
-// @version      2025.10.13
+// @version      2026.05.04
 // @description  Automatically retries loading failed images by checking their existence with GM_xmlhttpRequest.
 // @author       Your Name
 // @match        *://*/*
@@ -105,8 +105,8 @@
             img.addEventListener('load', onLoad);
             img.addEventListener('error', onError);
 
-            img.removeAttribute('loading');            
-            img.setAttribute('src', img.getAttribute('src')); 
+            img.removeAttribute('loading');
+            img.setAttribute('src', img.getAttribute('src'));
         });
     }
 
@@ -171,7 +171,7 @@
                         resolve({ exists: true, reason: 'redirect' });
                     }
                     else if (status === 403) {
-                        console.warn(`[ImageRetry] 국가제한 (HTTP ${status}): ${url}`);                        
+                        console.warn(`[ImageRetry] 국가제한 (HTTP ${status}): ${url}`);
                         resolve({ exists: true, reason: 'Region restrictions' });
                     }
                     else if (status >= 400 && status < 500) {
@@ -248,7 +248,7 @@
             const imgElement = item.imgElement;
             let retryCount = parseInt(imgElement.dataset.retryCount);
 
-            if (retryCount >= MAX_RETRY_COUNT) {                
+            if (retryCount >= MAX_RETRY_COUNT) {
                 console.warn(`[ImageRetry] 재시도 횟수 ${retryCount} 초과 → wsrv.nl 프록시 서비스 사용 https://wsrv.nl/?url=${encodeURIComponent(imgElement.src)}`);
                 imgElement.src = `https://wsrv.nl/?url=${encodeURIComponent(getPureUrl(imgElement.src))}`;
                 return;
@@ -277,7 +277,7 @@
                 https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(realSrc)} (구글 프록시)
                 */
             }
-            if (exists && reason === 'Region restrictions' && !imgElementSrc.startsWith('https://wsrv.nl')){
+            if (exists && reason === 'Region restrictions' && !imgElementSrc.startsWith('https://wsrv.nl')) {
                 console.log('지역 제한 wsrv.nl 프록시 서비스 사용', imgElement, reason);
                 imgElement.setAttribute('src', `https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`);
             }
@@ -285,7 +285,7 @@
             imgElement.dataset.retryCount = ++retryCount;
             imgElement.setAttribute('src', imgElementSrc);
             console.warn(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement);
-            function retryError() {                
+            function retryError() {
                 if (!retrySet.has(getPureUrl(this.src))) {
                     enqueueFailedImage(this, 'retry_error');
                 }
@@ -419,6 +419,7 @@
         }
 
         if (img.dataset.isFixing) return false;
+
         let rawSrc = img.getAttribute('src') || "";
 
         if (rawSrc.startsWith('https:///e/attach')) {
@@ -442,7 +443,7 @@
             }
             return false;
         }
-        
+
         if (img.src.startsWith('http://')) {
             const targetDomains = `
                 imagebam.com
@@ -461,11 +462,11 @@
                 .map(d => d.replace(/\./g, '\\.').trim())         // 각 라인별 공백 제거
                 .filter(Boolean)
                 .join('|');     // 빈 줄 제외
-            
-            
+
+
             // 3. RegExp 객체 생성 (Case Insensitive: i 플래그 권장)
             const domainRegex = new RegExp(`(${domainpattern})`, 'i');
-            
+
             // 4. 도메인 검사
             const isTarget = domainRegex.test(img.src);
 
@@ -473,6 +474,11 @@
                 img.src = img.src.replace('http://', 'https://');
                 console.log(`[HTTPS-Upgrade] 프로토콜 변경 완료: ${img.src}`);
             }
+        }
+
+        if (img.src.startsWith('https://i.maxjav.com/?url=')) {
+            const m = img.src.match(/i\.maxjav\.com\/\?url=(.*)/);
+            if (m) img.src = decodeURIComponent(m[1]);
         }
 
         if (!isRealDomain(img.src)) {
