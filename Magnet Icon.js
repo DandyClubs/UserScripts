@@ -817,15 +817,17 @@ async function Main() {
             const current = titles[index];
 
             if (e.target.classList.contains('copy-icon')) {
-                //ui.querySelector('.magnet-link').click();
+                ui.querySelector('.magnet-link').click();
                 ui.querySelector('.magnet-link').style.setProperty('color', 'Orange', 'important');
-                window.location.href = current.magnet;
+                //window.location.href = current.magnet;
                 navigator.clipboard.writeText(current.title)
                     .catch(() => { });
                 e.target.style.setProperty('color', 'Orange', 'important');
 
             }
-
+            else if (e.target.classList.contains('magnet-link')) {                                
+                e.target.style.setProperty('color', 'Orange', 'important');
+            }
             else if (e.target.classList.contains('close-icon')) {
                 window.close();
             }
