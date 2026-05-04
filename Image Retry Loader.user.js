@@ -139,68 +139,163 @@
         }
     }
 
+    function getHeader(headers, name) {
+        const match = headers.match(new RegExp(`^${name}:\\s*(.*)$`, 'im'));
+        return match ? match[1].trim() : null;
+    }
 
-    // GM_xmlhttpRequest를 이용한 이미지 존재 여부 확인 (상태별 처리)
-    function checkImageExistenceWithGM(link) {
-        const url = getPureUrl(link);
+    function isCloudflareChallenge(response) {
+        const headers = response.responseHeaders || '';
+
+        const contentType = getHeader(headers, 'content-type');
+        const server = getHeader(headers, 'server');
+        const finalUrl = response.finalUrl || '';
+
+        if (finalUrl.includes('challenges.cloudflare.com')) return true;
+
+        if (server && server.toLowerCase().includes('cloudflare') &&
+            contentType && contentType.includes('text/html')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    function isImageResponse(response) {
+        const contentType = getHeader(response.responseHeaders, 'content-type');
+        return contentType && contentType.startsWith('image/');
+    }
+
+    function getContentLength(response) {
+        const len = getHeader(response.responseHeaders, 'content-length');
+        return len ? parseInt(len, 10) : null;
+    }
+
+    // 🔥 메인 함수
+    async function checkImage(url, options = {}) {
+        const {
+            timeout = 5000,
+            minSize = 300,     // 너무 작은 이미지 필터
+            retry = 1          // fallback 시도 횟수
+        } = options;
+
+        // --- 1️⃣ HEAD 요청 ---
+        const headResult = await request(url, 'HEAD', timeout);
+
+        const judged = judgeResponse(headResult, { minSize });
+
+        if (judged.final) {
+            return judged.result;
+        }
+
+        // --- 2️⃣ fallback: Range GET ---
+        if (retry > 0) {
+            const getResult = await request(url, 'GET', timeout, {
+                Range: 'bytes=0-1023'
+            });
+
+            return judgeResponse(getResult, { minSize, forceFinal: true }).result;
+        }
+
+        return { exists: false, retry: true, reason: 'uncertain' };
+    }
+
+    // 🔥 요청 래퍼
+    function request(url, method, timeout, headers = {}) {
         return new Promise((resolve) => {
             GM_xmlhttpRequest({
-                method: 'HEAD',
-                url: url,
-                timeout: 5000, // 5초 제한
-                onload: function (response) {
-                    const status = response.status;
-
-                    if (status === 0) {
-                        const sameDomain = location.hostname === new URL(url).hostname;
-                        if (sameDomain) {
-                            console.warn(`[ImageRetry] status=0 (같은 도메인) → 네트워크 문제, 재시도 가능: ${url}`);
-                            resolve({ exists: false, retry: true, reason: 'network_error' });
-                        } else {
-                            console.warn(`[ImageRetry] status=0 (외부 도메인) → CORS 가능성, 재시도 허용: ${url}`);
-                            resolve({ exists: true, retry: true, reason: 'cors_possible' });
-                        }
-                    }
-                    else if (status >= 200 && status < 300) {
-                        console.log(`[ImageRetry] 이미지 존재 확인됨 (HTTP ${status}): ${url}`);
-                        resolve({ exists: true, reason: 'ok' });
-                    }
-                    else if (status >= 300 && status < 400) {
-                        console.warn(`[ImageRetry] 리다이렉트 응답 (HTTP ${status}): ${url}`);
-                        // GM_xmlhttpRequest는 리다이렉트를 따라가므로 이 경우는 거의 없음
-                        resolve({ exists: true, reason: 'redirect' });
-                    }
-                    else if (status === 403) {
-                        console.warn(`[ImageRetry] 국가제한 (HTTP ${status}): ${url}`);
-                        resolve({ exists: true, reason: 'Region restrictions' });
-                    }
-                    else if (status >= 400 && status < 500) {
-                        console.warn(`[ImageRetry] 클라이언트 오류 (HTTP ${status}) → 이미지 없음: ${url}`);
-                        resolve({ exists: false, reason: 'client_error' });
-                    }
-                    else if (status >= 500) {
-                        console.warn(`[ImageRetry] 서버 오류 (HTTP ${status}) → 재시도 가능: ${url}`);
-                        resolve({ exists: false, reason: 'server_error' });
-                    }
-                    else {
-                        console.warn(`[ImageRetry] 알 수 없는 응답 (HTTP ${status}): ${url}`);
-                        resolve({ exists: false, reason: 'unknown' });
-                    }
-                },
-                onerror: function () {
-                    console.error(`[ImageRetry] 요청 오류: ${url}`);
-                    resolve({ exists: false, reason: 'request_error' });
-                },
-                onabort: function () {
-                    console.error(`[ImageRetry] 요청 중단됨: ${url}`);
-                    resolve({ exists: false, reason: 'aborted' });
-                },
-                ontimeout: function () {
-                    console.error(`[ImageRetry] 요청 시간 초과: ${url}`);
-                    resolve({ exists: false, reason: 'timeout' });
-                }
+                method,
+                url,
+                headers,
+                timeout,
+                onload: (res) => resolve({ type: 'load', res }),
+                onerror: () => resolve({ type: 'error' }),
+                ontimeout: () => resolve({ type: 'timeout' }),
+                onabort: () => resolve({ type: 'abort' })
             });
         });
+    }
+
+    // 🔥 판단 로직 (핵심)
+    function judgeResponse(responseWrapper, options = {}) {
+        const { minSize = 300, forceFinal = false } = options;
+
+        if (!responseWrapper || responseWrapper.type !== 'load') {
+            return {
+                final: true,
+                result: { exists: false, retry: true, reason: responseWrapper?.type || 'fail' }
+            };
+        }
+
+        const res = responseWrapper.res;
+        const status = res.status;
+
+        // 🔥 Cloudflare 차단
+        if (isCloudflareChallenge(res)) {
+            return {
+                final: true,
+                result: { exists: false, reason: 'cloudflare_block' }
+            };
+        }
+
+        const isImage = isImageResponse(res);
+        const size = getContentLength(res);
+
+        // --- 성공 케이스 ---
+        if (status >= 200 && status < 300) {
+            if (!isImage) {
+                return {
+                    final: true,
+                    result: { exists: false, reason: 'not_image' }
+                };
+            }
+
+            if (size !== null && size < minSize) {
+                return {
+                    final: true,
+                    result: { exists: false, reason: 'too_small', size }
+                };
+            }
+
+            return {
+                final: true,
+                result: { exists: true, reason: 'ok', size }
+            };
+        }
+
+        // --- 403 ---
+        if (status === 403) {
+            if (isImage) {
+                return {
+                    final: true,
+                    result: { exists: true, reason: 'forbidden_but_image' }
+                };
+            }
+
+            return forceFinal
+                ? { final: true, result: { exists: false, reason: 'forbidden' } }
+                : { final: false };
+        }
+
+        // --- 404 ---
+        if (status === 404) {
+            return {
+                final: true,
+                result: { exists: false, reason: '404' }
+            };
+        }
+
+        // --- 5xx ---
+        if (status >= 500) {
+            return forceFinal
+                ? { final: true, result: { exists: false, reason: 'server_error' } }
+                : { final: false };
+        }
+
+        // --- 기타 ---
+        return forceFinal
+            ? { final: true, result: { exists: false, reason: 'unknown' } }
+            : { final: false };
     }
 
 
@@ -247,19 +342,14 @@
         try {
             const imgElement = item.imgElement;
             let retryCount = parseInt(imgElement.dataset.retryCount);
-
-            if (retryCount >= MAX_RETRY_COUNT) {
-                console.warn(`[ImageRetry] 재시도 횟수 ${retryCount} 초과 → wsrv.nl 프록시 서비스 사용 https://wsrv.nl/?url=${encodeURIComponent(imgElement.src)}`);
-                imgElement.src = `https://wsrv.nl/?url=${encodeURIComponent(getPureUrl(imgElement.src))}`;
-                return;
-            }
-
+            
             // 재시도 전에 GM_xmlhttpRequest를 사용하여 실제 파일 존재 여부 확인
             const imgElementSrc = imgElement.getAttribute('src');
             if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:') || imgElementSrc.startsWith('https://wsrv.nl')) {
                 return;
             }
-            const { exists, reason, status = null } = await checkImageExistenceWithGM(imgElement.getAttribute('src'));
+            const { exists, reason, status = null } = await checkImage(imgElement.getAttribute('src'));
+            console.log(exists, reason, status);
             if (!exists && (reason === 'client_error' || reason === 'server_error')) {
                 console.warn(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
                 failedImagesSet.add(getPureUrl(imgElement.src));
@@ -268,22 +358,13 @@
                 return;
             }
 
-            else if (!exists && !imgElementSrc.startsWith('https://wsrv.nl')) {
-                console.warn(`${reason} → wsrv.nl 프록시 서비스 사용 https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`);
-                imgElement.setAttribute('src', `https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`);
-                /*
-                만약 weserv.nl이 느리다면 아래 주소로 교체해서 테스트해 보세요:;
-                https://wsrv.nl/?url=${encodeURIComponent(realSrc)} (같은 서비스의 짧은 도메인)
-                https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(realSrc)} (구글 프록시)
-                */
-            }
             if (exists && reason === 'Region restrictions' && !imgElementSrc.startsWith('https://wsrv.nl')) {
                 console.log('지역 제한 wsrv.nl 프록시 서비스 사용', imgElement, reason);
                 imgElement.setAttribute('src', `https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`);
             }
 
             imgElement.dataset.retryCount = ++retryCount;
-            imgElement.setAttribute('src', imgElementSrc);
+            //imgElement.setAttribute('src', imgElementSrc);
             console.warn(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement);
             function retryError() {
                 if (!retrySet.has(getPureUrl(this.src))) {
