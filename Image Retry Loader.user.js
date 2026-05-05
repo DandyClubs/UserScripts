@@ -557,10 +557,6 @@
             }
         }
 
-        if (img.src.startsWith('https://i.maxjav.com/?url=')) {
-            const m = img.src.match(/i\.maxjav\.com\/\?url=(.*)/);
-            if (m) img.src = decodeURIComponent(m[1]);
-        }
 
         if (!isRealDomain(img.src)) {
             console.warn(`정상적인 도메인이 아닙니다. ${img.src} ${img}`);
