@@ -711,7 +711,7 @@ function JDownloader(JdownloaderData, PackageName, sourceURL) {
         */
         let data = new URLSearchParams();
         data.append(`urls`, JdownloaderData);
-        data.append(`referer`, PageURL);
+        //data.append(`referer`, PageURL);
         if (PackageName) {
             data.append(`package`, PackageName);
         }

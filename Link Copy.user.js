@@ -3719,7 +3719,7 @@ if(JdownloaderData){
 
         let data = new URLSearchParams();
         data.append(`urls`, JdownloaderData);
-        data.append(`referer`, PageURL);
+        //data.append(`referer`, PageURL);
         if (sourceURL) {
             data.append(`source`, sourceURL);
         }

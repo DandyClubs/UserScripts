@@ -1213,7 +1213,7 @@ function JDownloader(JdownloaderData, PackageName, sourceURL) {
         if (sourceURL) {
             data.append(`source`, sourceURL);
         }
-        data.append(`referer`, PageURL);
+        //data.append(`referer`, PageURL);
         if (PackageName) {
             data.append(`package`, PackageName);
         }

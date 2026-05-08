@@ -1083,7 +1083,7 @@ function JDownloader(JdownloaderData, PackageName, PW, Source) {
             data.append(`source`, Source);
         }
         data.append(`urls`, JdownloaderData);
-        data.append(`referer`, PAGE_URL);
+        //data.append(`referer`, PAGE_URL);
         if (PackageName) {
             data.append(`package`, PackageName);
         }
