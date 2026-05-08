@@ -180,7 +180,7 @@ let TitleDBIndex = [], GetDPI, DefaultFontSize, CenterBoxFontSize, StateFontSize
 let CopyOffSetArea;
 
 let GetState, PackageCount;
-let RootDomainDB = [];
+let RootDomainDB = {};
 
 let AutoClose = localStorage.getItem('AutoClose') || 0;
 
@@ -414,8 +414,14 @@ function UpdateDB() {
 
     const entries = Object.entries(localStorage)
         .filter(([key]) => /^http.+/.test(key))
-        .map(([key, value]) => ({ U: key, T: value }));
-
+        .flatMap(([key, value]) => {
+            try {
+                const { T, S } = JSON.parse(value);
+                return [{ U: key, T, S }];
+            } catch {
+                return [];
+            }
+        });
     RootDomainDB = entries;
     const packageList = PackageList(entries);
     const count = entries.length;
@@ -585,7 +591,7 @@ function sleep(ms) {
 async function CopyItems() {
     console.log('CopyItems Start!');
     const titleParagraph = document.querySelector('div#post_content > div div.item-top > div.title-04 > p');
-    const mutilTitleParagraph = document.querySelectorAll('div#post_content > h1 > span');
+    const mutilTitleParagraph = document.querySelectorAll('div#post_content > h1 > span, div#post_content > h2 > span');
     const singleParagraph = document.querySelector('div#content div.article_container');
     const mainContent = document.querySelector('div#post_content');
     const baseElement = titleParagraph ? createArea(
@@ -615,9 +621,9 @@ async function CopyItems() {
             const line = InfoArea[j];
             if (/GetTitle/.test(line)) break;
             if (/^https?:/.test(line) && !SkipFilter.test(line)) {
-                LinksDB.push({ U: line, T: Title });
+                LinksDB.push({ U: line, T: Title , S: PageURL});
                 Notice += `${Title}\n${line}\n`;
-                localStorage.setItem(line, Title);
+                localStorage.setItem(line, JSON.stringify({T: Title, S: PageURL}));                
             }
         }
     }
@@ -693,7 +699,7 @@ function FilenameConvert(str) {
 }
 
 
-function JDownloader(JdownloaderData, PackageName) {
+function JDownloader(JdownloaderData, PackageName, sourceURL) {
     console.log(PackageName + '\n' + JdownloaderData);
     if (JdownloaderData) {
         /*
@@ -709,12 +715,15 @@ function JDownloader(JdownloaderData, PackageName) {
         if (PackageName) {
             data.append(`package`, PackageName);
         }
-        //console.log(data)
+        if (sourceURL) {
+            data.append(`source`, sourceURL);
+        }        
         fetch('http://127.0.0.1:9666/flash/add', {
             method: 'POST',
             //mode: 'cors',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'Access-Control-Allow-Origin': 'http://127.0.0.1:9666',
             },
             body: data
         });
@@ -725,9 +734,23 @@ function JDownloader(JdownloaderData, PackageName) {
 
 function JDownloaderDB(LinksDB) {
     let uniqueTitle = [...new Set(LinksDB.map(x => x.T))] || [...new Set(LinksDB.map(x => x.U))];
-    //console.log(uniqueTitle)
-    uniqueTitle.forEach(x => JDownloader(GetMatchLinks(x, LinksDB), x));
+    if (uniqueTitle?.length) {
+        uniqueTitle.forEach(async x => {
+            JDownloader(GetMatchLinks(x, LinksDB), x, GetMatchSource(x, LinksDB));
+            await sleep(1000);
+        });
+    }
 }
+
+function GetMatchSource(text, LinksDB) {
+    try {
+        let S = LinksDB.find(u => text.includes(u.T) && u.S);
+        return S ? S.S : false;
+    } catch (err) {
+        console.log(err, text, LinksDB);
+    }
+}
+
 
 function GetMatchLinks(text, LinksDB) {
     if (typeof text !== 'string' || !Array.isArray(LinksDB)) {
