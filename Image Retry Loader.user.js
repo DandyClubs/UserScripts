@@ -556,7 +556,10 @@
                 console.log(`[HTTPS-Upgrade] 프로토콜 변경 완료: ${img.src}`);
             }
         }
-
+        if (img.src.startsWith('https://i.maxjav.com/')){
+            const url = getRedirectUrl(img.src, "url");
+            img.src = url;
+        }        
 
         if (!isRealDomain(img.src)) {
             console.warn(`정상적인 도메인이 아닙니다. ${img.src} ${img}`);
@@ -581,6 +584,22 @@
         return true;
     }
 
+
+    function getRedirectUrl(url, paramName) {
+        try {
+            // 1. URL 객체를 사용하여 파라미터를 추출 (현대적인 방식)
+            const urlObj = new URL(url);
+            const params = new URLSearchParams(urlObj.search);
+            const redirectUrl = params.get(paramName);
+
+            // 2. 결과값이 있으면 디코딩하여 반환, 없으면 원본 URL 반환
+            return redirectUrl ? decodeURIComponent(redirectUrl) : url;
+        } catch (e) {
+            console.error("Error_getRedirectUrl: " + e);
+            return url;
+        }
+    }
+    
     function saveBadLink(url) {
         const now = Date.now();
         GM_setValue(getPureUrl(url), now);
