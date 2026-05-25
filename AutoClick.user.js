@@ -834,12 +834,23 @@ async function handleBestGirlSexy() {
     const titleSelector = 'div#content.site-content div.elementor-widget-container .elementor-heading-title';
     let Title = document.querySelector(titleSelector)
         ?.textContent.replace(/part\d+$/i, '') || null;
-    return handleSite({
-        copyTitle: Title,
-        linkSelectors: [{ selector: 'a.maxbutton', text: 'TeraBox', type: 'terabox' }],
-        autoClose: true,
-        enableJdownloaer: true,
-    });
+
+    const rapid = document.querySelector('maxbutton-link-download-rapidgator');
+    if (rapid) {
+        return handleSite({
+            copyTitle: Title,
+            linkSelectors: [{ selector: 'a.maxbutton', text: 'Rapidgator', type: 'Rapidgator' }],
+            autoClose: true,
+            enableJdownloaer: true,
+        });
+    } else {
+        return handleSite({
+            copyTitle: Title,
+            linkSelectors: [{ selector: 'a.maxbutton', text: 'TeraBox', type: 'terabox' }],
+            autoClose: true,
+            enableJdownloaer: true,
+        });
+    }
 }
 
 async function handleMissKon() {
