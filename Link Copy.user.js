@@ -26,7 +26,7 @@
 // @include      /0xxx\.(ws|li)/
 // @include      /(hpjav|hpav)\.tv/
 // @include      /kbjme\.com\/\d+/
-// @include      /(vipbj\.[a-zA-Z]+|avtv\..+)/
+// @include      /(vipbj\.[a-zA-Z]+|avtv\..+|avav\..+)/
 // @include      /av18plus\.com/
 // @include      /all4jp\.com/
 // @include      /jappydolls\.net/
@@ -1535,7 +1535,7 @@ const siteConfigs = [
         }
     },
     {
-        regex: /vipbj\.[a-zA-Z]+\/.+|avtv\..+/,
+        regex: /vipbj\.[a-zA-Z]+\/.+|avtv\..+|avav\..+/,
         condition: () => {
             if (document.querySelector('article.hentry header.entry-header .entry-title')?.children?.length) {
                 userClose = false;
@@ -2958,7 +2958,7 @@ async function CollectionLinks(DownloadArea) {
         });
 
     // 2c) Skip links whose children are images (unless they pass your emoji/class test)
-    if (!/models-nudeteen\.org|girlscanner\.org|avtv\./.test(PageURL)) {
+    if (!/models-nudeteen\.org|girlscanner\.org|avtv\.|avav\./.test(PageURL)) {
         links = links.filter(a =>
             ![...a.children].some(img => img.tagName === 'IMG' && !MatchRegexElement(img, /emoji/, 'class'))
         );
