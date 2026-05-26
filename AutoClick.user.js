@@ -835,7 +835,7 @@ async function handleBestGirlSexy() {
     let Title = document.querySelector(titleSelector)
         ?.textContent.replace(/part\d+$/i, '') || null;
 
-    const rapid = document.querySelector('maxbutton-link-download-rapidgator');
+    const rapid = document.querySelector('a.maxbutton-link-download-rapidgator');
     if (rapid) {
         return handleSite({
             copyTitle: Title,
