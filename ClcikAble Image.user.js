@@ -12,6 +12,7 @@
 // @match        https://top-modelz.org/*
 // @match        https://av18plus.com/*
 // @match        https://x-idol.net/*
+// @match        https://www.naughtyblog.org/*
 // @exclude      /maxjav\.com/\d+/
 // @exclude      /maxjav\.xyz/\d+/
 // @exclude      /blogjav\.net\/\d+/
@@ -112,6 +113,14 @@ const misskon = {
     SearchATag: 'div.post-thumbnail a',
 }
 
+const naughtyblog = {
+    MatchUrl: 'naughtyblog.org',
+    MakeClickImage: 'div.post-content span#post-index-content.herecky p a img',
+    Approach: 'AReplace',
+    closestTag: 'div.post-overview',
+    SearchATag: 'a.post-link-overlay',
+}
+
 const ChostExtractors = /* #__PURE__ */ Object.freeze({
     __proto__: null,
     maxjav,
@@ -122,6 +131,7 @@ const ChostExtractors = /* #__PURE__ */ Object.freeze({
     av18plus,
     xidol,
     misskon,
+    naughtyblog,
 })
 
 
