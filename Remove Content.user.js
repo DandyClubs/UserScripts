@@ -409,7 +409,7 @@ async function processContent(node, selector, isExtra = false) {
         }
 
         if (/all-voyeur\.net/.test(PageURL)) {
-            console.log('Category content removed:', item);
+            console.log('Category content removed:', item, item.closest(Active.removeTagSelector));
             item.closest(Active.removeTagSelector)?.remove();
             continue;
         }
