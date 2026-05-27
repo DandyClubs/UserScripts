@@ -12,6 +12,7 @@
 // @match        http://wetholefans.com/*
 // @match        https://therarbg.com/*
 // @match        https://sukebei.nyaa.si/*
+// @match        https://all-voyeur.net/*
 // @exclude      /javarchive\.com\/\d{4,6}/
 // @match        https://sis001.com/forum/forum*.html
 // @match        https://www.naughtyblog.org/*
@@ -273,7 +274,7 @@ const siteConfigs = {
     },
     'sis001.com': {
         linkSelector: 'th span a[href*="thread"], th span a[href*="viewthread.php?tid"]',
-        extraSelector: 'th.lock em a',        
+        extraSelector: 'th.lock em a',
         removeTagSelector: 'tbody',
         rootSelector: 'div.mainbox.threadlist form table:last-child',
     },
@@ -289,6 +290,10 @@ const siteConfigs = {
     'allasiangirls.net': {
         linkSelector: 'div.box-text.text-center div.box-text-inner.blog-post-inner .post-title a',
         removeTagSelector: 'div.post-item',
+    },
+    'all-voyeur.net': {
+        linkSelector: 'li.post div.info span.info_category a[href*="toilet-hidden-cameras"]',
+        removeTagSelector: 'li.post',
     },
     'sukebei.nyaa.si': {
         linkSelector: 'table.torrent-list tbody tr.default td a',
@@ -375,7 +380,7 @@ async function ClearTitle() {
  * @param {string} selector - 요소를 찾는 CSS 선택자
  * @param {boolean} isExtra - 추가 선택자인지 여부
  */
-async function processContent(node, selector, isExtra = false) {    
+async function processContent(node, selector, isExtra = false) {
     const items = [...node.querySelectorAll(selector)];
     for (const item of items) {
         const textContent = item.textContent;
@@ -403,7 +408,13 @@ async function processContent(node, selector, isExtra = false) {
             continue;
         }
 
-        if (/hidefporn\.ws|ultoporn\.com|(k2sporn|k2sprn)\.com|wetholefans\.com/.test(PageURL)) {
+        if (/all-voyeur\.net/.test(PageURL)) {
+            console.log('Category content removed:', item);
+            item.closest(Active.removeTagSelector)?.remove();
+            continue;
+        }
+
+        else if (/hidefporn\.ws|ultoporn\.com|(k2sporn|k2sprn)\.com|wetholefans\.com/.test(PageURL)) {
             const resolutionMatch = textContent.match(/(\d{3,4})p/);
             const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
             if (resolution) {
