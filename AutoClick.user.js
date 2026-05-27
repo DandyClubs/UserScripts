@@ -837,12 +837,7 @@ async function handleBestGirlSexy() {
 
     const rapid = document.querySelector('a.maxbutton-link-download-rapidgator');
     if (rapid) {
-        return handleSite({
-            copyTitle: Title,
-            linkSelectors: [{ selector: 'a.maxbutton', text: 'Rapidgator', type: 'Rapidgator' }],
-            autoClose: true,
-            enableJdownloaer: true,
-        });
+        return; 
     } else {
         return handleSite({
             copyTitle: Title,
