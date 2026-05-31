@@ -1793,8 +1793,7 @@ const siteRules = [
             CoverImage = document.querySelector('div.entry p a img')?.src || '';
 
 
-            console.log('파일명 찾기"', { DownloadArea });
-            console.log(DownloadArea[0].querySelector('a[href*="https://katfile"]'));
+            console.log('파일명 찾기"', { DownloadArea });            
             const links = [
                 DownloadArea[0].querySelector('a[href*="katfile"]')?.href,
                 DownloadArea[0].querySelector('a[href*="ddownload.com"]')?.href,
@@ -2228,8 +2227,8 @@ async function GetFileName(targetLink, host) {
                 }
 
                 // HTML 파싱
-                const doc = document.implementation.createHTMLDocument();
-                doc.documentElement.innerHTML = res.responseText;
+                const doc = new DOMParser()
+                                    .parseFromString(res.responseText, "text/html");
 
                 // 설정된 선택자를 사용하여 파일명 요소 찾기
                 const filenameElement = doc.querySelector(config.selector);
