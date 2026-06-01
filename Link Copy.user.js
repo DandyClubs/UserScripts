@@ -1149,6 +1149,7 @@ const siteConfigs = [
                 }
 
                 let rawTitle = copyOffsetArea?.textContent.trim() ?? '';
+
                 rawTitle = rawTitle
                     .replace(/amp;|\(\s?ブルーレイ版\s?\)|\(ブルーレイディスク版\)|（ブルーレイディスク）/g, '')
                     .replace('***y*xjyyqxn', '')
@@ -1793,7 +1794,7 @@ const siteRules = [
             CoverImage = document.querySelector('div.entry p a img')?.src || '';
 
 
-            console.log('파일명 찾기"', { DownloadArea });            
+            console.log('파일명 찾기"', { DownloadArea });
             const links = [
                 DownloadArea[0].querySelector('a[href*="katfile"]')?.href,
                 DownloadArea[0].querySelector('a[href*="ddownload.com"]')?.href,
@@ -2073,6 +2074,11 @@ async function Start() {
 async function processCopyTitle(currentConfig) {
     console.log(`Start processCopyTitle`, currentConfig);
 
+    let rawTitle = copyOffsetArea?.textContent.trim() ?? '';
+    if (rawTitle) {
+        SkipTitle = CheckSkipTitle(rawTitle);
+    }
+
     CopyTitle = CopyTitle || copyOffsetArea?.textContent.trim() || '';
     if (/naughtyblog\.(org|my)/.test(PageURL) && /SITERIP|OnlyFans|Collection|Updates/i.test(CopyTitle)) {
         CopyTitle = getDirectInnerText(copyOffsetArea)?.trim();
@@ -2084,7 +2090,6 @@ async function processCopyTitle(currentConfig) {
         console.log(rule);
         CopyTitle = await rule.handler(CopyTitle, copyOffsetArea, DownloadArea);
     }
-
 
     console.log({ CopyTitle });
 
@@ -2143,9 +2148,6 @@ async function processCopyTitle(currentConfig) {
         }
     }
 
-    if (CopyTitle) {
-        SkipTitle = CheckSkipTitle();
-    }
     return CopyTitle;
 }
 
@@ -2228,7 +2230,7 @@ async function GetFileName(targetLink, host) {
 
                 // HTML 파싱
                 const doc = new DOMParser()
-                                    .parseFromString(res.responseText, "text/html");
+                    .parseFromString(res.responseText, "text/html");
 
                 // 설정된 선택자를 사용하여 파일명 요소 찾기
                 const filenameElement = doc.querySelector(config.selector);
@@ -2742,15 +2744,15 @@ function CheckOnline(TargetLink) {
 
 
 
-function CheckSkipTitle() {
-    console.log(`Check CheckSkipTitle: ${CopyTitle}`);
-    if (!CopyTitle) return false;  // Early exit if no title
+function CheckSkipTitle(rawTitle) {    
+    console.log(`Check CheckSkipTitle: ${rawTitle}`);
+    if (!rawTitle) return false;  // Early exit if no title
 
     // Find skip word/model matches
-    let WM = CopyTitle.match(SkipWordEx) || [];
-    let MM = CopyTitle.match(SkipModelEx) || [];
+    let WM = rawTitle.match(SkipWordEx) || [];
+    let MM = rawTitle.match(SkipModelEx) || [];
 
-    console.log('CopyTitle:', CopyTitle, 'Skip Words:', WM, 'Skip Models:', MM);
+    console.log('rawTitle:', rawTitle, 'Skip Words:', WM, 'Skip Models:', MM);
 
     // Unique values to avoid duplicates
     let W = [...new Set(WM)];
@@ -3308,7 +3310,7 @@ async function CopyLink() {
                     if (!finalCoverImage) {
                         console.log(`%c[미등록 브랜드 탐색 실패] ${prefix} ${CoverImage || ''}`, "color: #FF9800;");
                     }
-                }                
+                }
                 // --- 최종 처리: 수집 목록 추가 ---
                 if (!finalCoverImage && CoverImage && !/imagetwist\.com/.test(CoverImage)) {
                     finalCoverImage = CoverImage;
