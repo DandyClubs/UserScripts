@@ -2899,19 +2899,20 @@ async function CollectionLinks(DownloadArea) {
 
         const anchors = Array.from(DownloadArea[i].querySelectorAll('a'));
         for (const a of anchors) {
-            let href = a.href;
+            let url = a.href;
 
             // Decode “aHR0c…” short links
-            const m = href.match(shortLinkRegex);
+            const m = url.match(shortLinkRegex);
             if (m) {
-                href = atob(m[2]).replace(/\?site=.+/, '');
+                url = atob(m[2]);
             }
             // Strip trailing “?site=…”
-            else if (siteParamRegex.test(href)) {
-                href = href.replace(siteParamRegex, '');
+            else if (siteParamRegex.test(url)) {
+                url = url.replace(siteParamRegex, '');
             }
-
-            a.setAttribute('href', href);
+            
+            url = url.replace(/\?(site|referer)=.+/, '').trim();
+            a.setAttribute('href', url);
             CollectionATag.push(a);
         }
     }
@@ -3142,6 +3143,7 @@ async function CheckDB(listTo, fromStep) {
     //console.log(indexedDBCache);
     if (indexedDBCache?.length > 0) {
         for (let link of listTo) {
+            link = link.replace(/\?(site|referer)=.+/, '').trim();
             const searchDB = await indexedDBCache.find(({ U }) => U === link);
             if (searchDB) {
                 isMatchFound.push(link);
