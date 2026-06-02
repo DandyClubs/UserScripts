@@ -531,6 +531,7 @@ const SearchIDRegExp = (str) => {
     }
 
     const extractPatterns = [
+        /(.*)(CPZ[0-9]*)(-)?([a-zA-Z]?\d{3,5})/i,
         /(.*)(KT[a-zA-Z]*)(-)?(\d{3,5})(v*)/i,
         /(.*)(TS[a-zA-Z]*)(-)?(\d{3,5})(v*)/i,
         /(.*)(SW[a-zA-Z]*)(-)?(\d{3,5})(v*)/i,
@@ -1782,7 +1783,6 @@ const siteRules = [
             const h3 = document.querySelector('div.post_singular.hentry .entry h3');
             const rawTitle = h3 ? h3.textContent.trim() : title;
 
-
             const checkRedirects = document.querySelectorAll('a[href*="https://cosplay.jav.pw/goto/"]');
             const allCollectionLinks = Array.from(checkRedirects).map(el => el.href);
             const uniqueLinks = [...new Set(allCollectionLinks)];
@@ -2193,11 +2193,11 @@ function createDownloadArea(DB) {
 // 파일명을 추출할 각 호스트에 대한 설정 객체
 const hostConfigs = {
     katfile: {
-        selector: 'form#btn_download .container.hidden-xs.visible h2.text-left span',
+        selector: 'form#btn_download div.container h2.text-left span',
         // 추후 필요시 추가적인 로직을 handler 함수로 정의할 수 있습니다.
     },
     ddl: {
-        selector: '.dl-file-name',
+        selector: '.dl-file-name, h2.dk-dl-name',
     },
     k2s: {
         selector: 'p[data-testid="fileName"]',
