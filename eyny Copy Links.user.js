@@ -248,7 +248,7 @@ const siteRules = [
         getTitleRegex: /(?<=影片名稱】[：:])(.*?)(?=(?:(\(MP4@KF@無碼|【影片大小).*$)?(?:$))/m,
         getTitleMatchPoint: 0,
         passwordRegex: /解壓密碼】[：:]?(.*?)\s*(.+)/,
-        breakPoint: ['需要存取權', '想看A片更多:', '複製代碼', '溫馨小小建議及下載小技巧', '更多優質影片', 'background-color:magenta', '解壓縮出現錯誤', '其他影片分享', '其他精彩主題', '其他影片載點'],        
+        breakPoint: ['需要存取權', '想看A片更多:', '複製代碼', '溫馨小小建議及下載小技巧', '更多優質影片', 'background-color:magenta', '解壓縮出現錯誤', '其他影片分享', '其他精彩主題', '其他影片載點'],
     },
 ]
 
@@ -359,16 +359,30 @@ function extractContent(element) {
     // 1. 복사된 내용을 담을 새로운 가상 컨테이너(<div>)를 생성합니다.
     const Container = document.createElement('div');
 
-    // 2. 'KF :' 텍스트를 포함하는 <strong> 요소를 찾습니다.
-    const strongKF = Array.from(element.querySelectorAll('strong')).find(el =>
-        /k\s*[\u00A0\s]*f\s*:/i.test(el.textContent)
+    const matchedTitles = Array.from(element.querySelectorAll('*')).filter(el =>
+        TITLE_EXPR.test(el.textContent)
     );
+
+
+    const lastTitleElement = matchedTitles[matchedTitles.length - 1];
+
+    let strongKF = null;
+
+    if (lastTitleElement) {
+        // 3. 모든 strong 태그 중 조건에 맞고, '마지막 타이틀'보다 뒤에 있는 첫 번째 요소 찾기
+        strongKF = Array.from(element.querySelectorAll('strong')).find(el => {
+            const isKF = /k\s*[\u00A0\s]*f\s*:/i.test(el.textContent);
+            const isAfterLastTitle = (lastTitleElement.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+            return isKF && isAfterLastTitle;
+        });
+    }
 
     if (!strongKF) {
         console.log("KF strong 태그를 찾지 못했습니다. 원본 전체를 복사하여 반환합니다.");
         // KF 태그를 찾지 못하면 원본 <td>의 내용을 모두 복사하여 반환합니다.
-        return convertHttpTextToLinks(element);
-        //return convertHttpTextToLinks(element.cloneNode(true));
+        //return convertHttpTextToLinks(element);
+        return convertHttpTextToLinks(element.cloneNode(true));
     }
 
     // 3. strongKF가 포함된 가장 바깥쪽의 <td> 직계 자식 노드를 찾습니다.
@@ -677,7 +691,7 @@ if (!document.querySelector('.CopyItemIcon') && document.querySelector('.pg_view
 
 
     const copyItemBox = document.querySelector('.CopyItemBox');
-    const copyItemIcon = copyItemBox.querySelector('.CopyItemIcon');    
+    const copyItemIcon = copyItemBox.querySelector('.CopyItemIcon');
     const closeIcon = copyItemBox.querySelector('.CloseIcon');
     const thanksReplyIcon = copyItemBox.querySelector('.ThanksReply');
 
@@ -884,23 +898,23 @@ async function CopyItems() {
 
     const copyNotice = document.querySelector('.CopyNotice');
     if (rule) {
-        analyzePage(rule).then(results => {                        
+        analyzePage(rule).then(results => {
             for (const x of results) {
-                console.log('current Object: ', x)                
-                if (SkipTitle === x.title) continue;                
-                const title = byteLengthOfCheck(x.title) > 241 ? byteLengthOf(x.title, 241).trim() : x.title                                    
+                console.log('current Object: ', x)
+                if (SkipTitle === x.title) continue;
+                const title = byteLengthOfCheck(x.title) > 241 ? byteLengthOf(x.title, 241).trim() : x.title
                 for (const currentlink of x.links) {
 
                     if (SKIP_FILTER.test(currentlink)) {
                         continue;
                     }
-                    else {                        
+                    else {
                         const U = currentlink;
                         const T = title;
                         const P = x.password;
                         const S = PAGE_URL;
                         linksDB.push({ U, T, P, S });
-                        updateDB(U, T, P, S);                        
+                        updateDB(U, T, P, S);
                     }
                 }
             }
