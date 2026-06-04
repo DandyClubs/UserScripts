@@ -252,7 +252,90 @@ const siteRules = [
     },
 ]
 
+function linkifyNodes(root) {
+    // TreeWalker를 사용하여 실제 텍스트 노드만 골라냅니다.
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+    const nodes = [];
 
+    while (walker.nextNode()) {
+        const node = walker.currentNode;
+        // 이미 <a> 태그 안에 있는 텍스트는 건너뜁니다.
+        if (node.parentNode.tagName === 'A' || node.parentNode.closest('a')) {
+            if (node.textContent.startsWith('[url]http')) {
+                nodes.push(node);
+            } else {
+                continue;
+            }
+        }
+        nodes.push(node);
+    }
+
+    // URL 정규식 (http/https로 시작하는 문자열)
+    const urlRegex = /(https?:\/\/[^\s()<>]+\b)/gi;
+
+    nodes.forEach(node => {
+        const text = node.textContent.replace(/\[\/?url\]/gi, '');
+        const parentA = node.parentNode?.closest('a');
+        if (parentA) {
+            /**
+             * CASE 1: 기존 <a> 태그 내부에 URL 텍스트가 중첩된 경우
+             * 기존 <a>의 텍스트를 청소하고, 새 <a>를 형제로 삽입합니다.
+             */
+            const matches = text.match(urlRegex);
+            if (matches) {
+                matches.forEach(url => {
+                    // (1) 기존 노드에서 [url], [/url] 및 해당 URL 주소 텍스트 제거
+                    node.textContent = node.textContent
+                        .replace(/\[\/?url\]/gi, '')
+                        .replace(url, '')
+                        .trim();
+
+                    // (2) 새로운 <a> 태그 생성
+                    const newA = document.createElement('a');
+                    newA.href = url;
+                    newA.textContent = url;
+                    newA.target = "_blank";
+                    newA.rel = "noopener noreferrer";
+
+                    // (3) 기존 <a> 태그의 바로 뒤에 삽입 (이웃 노드화)
+                    parentA.parentNode.insertBefore(newA, parentA.nextSibling);
+                });
+            }
+        } else {
+            if (urlRegex.test(text)) {
+                const fragment = document.createDocumentFragment();
+                let lastIndex = 0;
+
+                // 정규식을 초기화하고 매칭되는 모든 URL 처리
+                urlRegex.lastIndex = 0;
+                let match;
+                while ((match = urlRegex.exec(text)) !== null) {
+                    // URL 이전의 일반 텍스트 추가
+                    if (match.index > lastIndex) {
+                        fragment.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
+                    }
+
+                    // <a> 태그 생성 및 추가
+                    const url = match[0];
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.textContent = url;
+                    a.target = "_blank"; // 새창 열기
+                    a.rel = "noopener noreferrer";
+                    fragment.appendChild(a);
+
+                    lastIndex = urlRegex.lastIndex;
+                }
+
+                // 남은 뒷부분 텍스트 추가
+                if (lastIndex < text.length) {
+                    fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
+                }
+                node.parentNode.replaceChild(fragment, node);
+            }
+        }
+    });
+}
 
 function convertHttpTextToLinks(root = document.body) {
     // 인라인 태그 목록 (URL 중간에 올 수 있는 HTML 태그)
@@ -382,7 +465,8 @@ function extractContent(element) {
         console.log("KF strong 태그를 찾지 못했습니다. 원본 전체를 복사하여 반환합니다.");
         // KF 태그를 찾지 못하면 원본 <td>의 내용을 모두 복사하여 반환합니다.
         //return convertHttpTextToLinks(element);
-        return convertHttpTextToLinks(element.cloneNode(true));
+        return linkifyNodes(element);
+        //return convertHttpTextToLinks(element.cloneNode(true));
     }
 
     // 3. strongKF가 포함된 가장 바깥쪽의 <td> 직계 자식 노드를 찾습니다.
@@ -431,7 +515,8 @@ function extractContent(element) {
     }
 
     // 8. 조작된 내용만 담고 있는 새로운 가상 컨테이너(<div>)를 반환합니다.
-    return convertHttpTextToLinks(Container);
+    //return convertHttpTextToLinks(Container);
+    return linkifyNodes(Container);
 }
 
 // 사이트별 특별 규칙 적용
