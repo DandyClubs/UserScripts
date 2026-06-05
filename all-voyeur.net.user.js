@@ -537,8 +537,8 @@ function extractText(DOMElement) {
 
     return Array.from(DOMElement.childNodes)
         .filter(child => child.textContent?.trim())
-        .map(child => {            
-            const text = child.textContent.trim();            
+        .map(child => {
+            const text = child.textContent.trim();
             const isTitle = /<h[12].+<\/h[12]>/s.test(child.outerHTML) || /<div class="title-04">\s*<div class="red"/s.test(child.outerHTML);
             if (isTitle) {
                 return 'GetTitle :' + text.trim();
@@ -616,14 +616,15 @@ async function CopyItems() {
         const Last = TitleDBIndex[i + 1] ?? InfoArea.length;
         const rawTitle = InfoArea[First].match(TitleExr)?.[2] || InfoArea[First];
         const Title = NormalizeTitle(rawTitle);
+        Notice += `${Title}\n`;
         console.log(Title, First, Last);
         for (let j = First + 1; j < Last; j++) {
             const line = InfoArea[j];
             if (/GetTitle/.test(line)) break;
             if (/^https?:/.test(line) && !SkipFilter.test(line)) {
-                LinksDB.push({ U: line, T: Title , S: PageURL});
-                Notice += `${Title}\n${line}\n`;
-                localStorage.setItem(line, JSON.stringify({T: Title, S: PageURL}));                
+                Notice += `${line}\n`;
+                LinksDB.push({ U: line, T: Title , S: PageURL});                
+                localStorage.setItem(line, JSON.stringify({T: Title, S: PageURL}));
             }
         }
     }
@@ -717,7 +718,7 @@ function JDownloader(JdownloaderData, PackageName, sourceURL) {
         }
         if (sourceURL) {
             data.append(`source`, sourceURL);
-        }        
+        }
         fetch('http://127.0.0.1:9666/flash/add', {
             method: 'POST',
             //mode: 'cors',
