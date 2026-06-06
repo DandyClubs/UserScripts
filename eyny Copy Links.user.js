@@ -335,6 +335,7 @@ function linkifyNodes(root) {
             }
         }
     });
+    return root;
 }
 
 function convertHttpTextToLinks(root = document.body) {
