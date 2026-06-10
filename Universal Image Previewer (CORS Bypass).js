@@ -6,7 +6,7 @@
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=nyaa.si
 // @grant		 GM_addStyle
 // ==/UserScript==
-(function() {
+(function () {
     'use strict';
 
     GM_addStyle(`
@@ -84,7 +84,7 @@ body.modal-open {
             getReferer: (url) => url,
             directLoad: false // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
         },
-                {
+        {
             id: 'xxxwebdlxxx',
             domains: ['xxxwebdlxxx.top', 'xxxwebdlxxx.org'],
             pathPattern: /^https:\/\/xxxwebdlxxx\.(top|org)\/.*\.html/i,
@@ -132,7 +132,7 @@ body.modal-open {
             id: 'krav',
             domains: ['kr-av.com'],
             pathPattern: /kr-av\.com\/upload/i,
-            imageSourceRegExp: /<img src="([^"]+?\.papakatsu\.co\/upload\/uploads\/[^"]+)"/i,
+            imageSourceRegExp: /<img src="([^"]+?\/upload\/Application[^"]+)"/i,
             getReferer: (url) => url,
             directLoad: true // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
         },
@@ -175,7 +175,7 @@ body.modal-open {
         GM_xmlhttpRequest({
             method: "GET",
             url: pageUrl,
-            onload: function(res) {
+            onload: function (res) {
 
                 const match = res.responseText.match(config.imageSourceRegExp);
                 if (match && match[1]) {
@@ -199,7 +199,7 @@ body.modal-open {
                             url: finalUrl,
                             responseType: "blob",
                             headers: { "Referer": config.getReferer ? config.getReferer(pageUrl) : "" },
-                            onload: function(imgRes) {
+                            onload: function (imgRes) {
                                 if (imgRes.status === 200) {
                                     imgElement.src = URL.createObjectURL(imgRes.response);
                                 }
@@ -310,7 +310,7 @@ body.modal-open {
             } catch (err) { console.warn(err); }
         });
 
-        root.querySelectorAll('.pending-deep-preview').forEach(img => {            
+        root.querySelectorAll('.pending-deep-preview').forEach(img => {
             loadDeepPreview(img.dataset.url, img);
         });
     }
@@ -400,16 +400,43 @@ body.modal-open {
     });
 
     const observer = new MutationObserver((mutations) => {
+        // 중복 처리를 방지하기 위해 고유한 부모 노드만 담을 Set 생성
+        const parentsToProcess = new Set();
+
         for (const mutation of mutations) {
             for (const node of mutation.addedNodes) {
-                // 노드가 요소이고, 우리가 방금 추가한 'processed-link'가 아닐 때만 실행
-                if (node.nodeType === 1 && !node.classList.contains('processed-link')) {
-                    processNodes(node);
-                    splitImageParagraphs();
+                // 1. 자기 자신이 이미 스크립트에 의해 처리된 링크라면 건너뜁니다.
+                if (node.nodeType === 1 && node.classList.contains('processed-link')) {
+                    continue;
+                }
+
+                // 2. 부모 노드가 올바른 Element 노드인지 확인합니다.
+                const parent = node.parentNode;
+                if (parent && parent.nodeType === 1) {
+                    // 부모가 이미 처리된 링크 내부라면 건너뜁니다.
+                    if (parent.classList.contains('processed-link')) {
+                        continue;
+                    }
+                    // 처리할 부모 노드 목록에 추가 (Set이라서 자동 중복 제거됨)
+                    parentsToProcess.add(parent);
                 }
             }
         }
+
+        // 수집된 고유 부모 노드가 있을 때만 실행
+        if (parentsToProcess.size > 0) {
+            parentsToProcess.forEach(parent => {
+                processNodes(parent);
+            });
+            
+            // 모든 노드 변환이 끝난 후, 레이아웃 정리는 딱 한 번만 수행 (성능 최적화)
+            splitImageParagraphs();
+        }
     });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    
     observer.observe(document.body, { childList: true, subtree: true });
 
 })();
