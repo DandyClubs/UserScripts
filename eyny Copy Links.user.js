@@ -440,6 +440,10 @@ function extractContent(element) {
         return null;
     }
 
+
+    Array.from(element.querySelectorAll('div.aimg_tip')).forEach(el => el.remove());
+
+
     // 1. 복사된 내용을 담을 새로운 가상 컨테이너(<div>)를 생성합니다.
     const Container = document.createElement('div');
 
