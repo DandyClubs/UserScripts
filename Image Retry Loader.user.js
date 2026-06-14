@@ -492,6 +492,8 @@
     function isValidExternalImage(img) {
         if (!img) return false;
 
+        if(img.closest('.image-masonry')) return false;
+
         if (img.src && img.src.startsWith('http://data:image')) {
             img.src = img.src.replace('http://', '');
         }
