@@ -94,6 +94,7 @@ const sameNewTabPatterns = [
     /^javascript/,
     /^magnet:/,
     /attachments\/.*torrent/,
+    /debrid\.cloud\/d\//,
 
     // 다운로드 및 리디렉션 사이트
     /bdzone.xyz/,
