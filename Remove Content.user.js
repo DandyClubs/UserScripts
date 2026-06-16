@@ -31,6 +31,7 @@
 // @match        https://jappydolls.net/*
 // @match        https://x-idol.net/*
 // @match        https://allasiangirls.net/*
+// @match        https://xchina.co/*
 // @exclude      https://0xxx.ws/articles/*
 // @exclude      /blogjav\.net\/\d+/
 // @exclude      /maxjav\.com/\d+/
@@ -298,6 +299,10 @@ const siteConfigs = {
     'sukebei.nyaa.si': {
         linkSelector: 'table.torrent-list tbody tr.default td a',
         removeTagSelector: 'tr.default',
+    },
+    'xchina.co': {
+        linkSelector: 'div.list div.item div.text div.subs div a',
+        removeTagSelector: 'div.item',
     },
 };
 
