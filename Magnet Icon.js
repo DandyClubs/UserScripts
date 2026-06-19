@@ -312,7 +312,7 @@ async function init() {
             // 2. 레이아웃 최적화 (scaleMap 및 minHeightMap 적용)
             const imgCount = wrapper.querySelectorAll('img').length;
             const columnCount = imgCount > 2 ? 3 : 2; 
-            const maxHeight = imgCount > 2 ? 500 : 800;           
+            const maxHeight = imgCount > 2 ? 600 : 800;           
             optimizeSingleLayout(wrapper, columnCount, maxHeight);
 
             // 3. UI 정리
