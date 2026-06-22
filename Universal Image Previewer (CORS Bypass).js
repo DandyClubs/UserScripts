@@ -130,8 +130,8 @@ body.modal-open {
         },
         {
             id: 'krav',
-            domains: ['kr-av.com'],
-            pathPattern: /kr-av\.com\/upload/i,
+            domains: ['kr-av.com', 'xxpics.org'],
+            pathPattern: /\/upload/i,
             imageSourceRegExp: /<img src="([^"]+?\/upload\/Application[^"]+)"/i,
             getReferer: (url) => url,
             directLoad: true // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
