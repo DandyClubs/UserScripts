@@ -408,20 +408,21 @@ const viewerCSS = function () {
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const lazyAttributes = [
-    "data-lazy-stored-src",
-    "data-cover",
-    "data-ks-lazyload",
-    "data-lazyload",
-    "data-src",
     "data-actualsrc",
+    "data-cover",
     "data-defer-src",
     "data-imageurl",
+    "data-ks-lazyload",
     "data-ks-lazyload-custom",
     "data-lazy-load-src",
     "data-lazy-src",
+    "data-lazy-stored-src",
+    "data-lazyload",
     "data-lazyload-src",
+	"data-orig-file",
     "data-original",
     "data-placeholder",
+    "data-src",
     "data-thumb_url",
     "data-url",
 ];
@@ -431,19 +432,6 @@ let lazyAttributesMap = [];
 lazyAttributes.forEach(function (name) {
     lazyAttributesMap[name] = true;
 });
-
-
-function any(c, fn) {
-    if (c.some) {
-        return c.some(fn);
-    }
-    if (typeof c.length === 'number') {
-        return Array.prototype.some.call(c, fn);
-    }
-    return Object.keys(c).some(function (k) {
-        return fn(c[k], k, c);
-    });
-}
 
 
 let styles = `

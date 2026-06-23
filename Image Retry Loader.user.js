@@ -342,7 +342,7 @@
         try {
             const imgElement = item.imgElement;
             let retryCount = parseInt(imgElement.dataset.retryCount);
-            
+
             // 재시도 전에 GM_xmlhttpRequest를 사용하여 실제 파일 존재 여부 확인
             const imgElementSrc = imgElement.getAttribute('src');
             if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:') || imgElementSrc.startsWith('https://wsrv.nl')) {
@@ -489,46 +489,35 @@
     /**
      * 처리가 필요한 이미지인지 확인 (data: URI 제외)
      */
-    function isValidExternalImage(img) {
-        if (!img) return false;
 
-        if(img.closest('.image-masonry')) return false;
 
-        if (img.src && img.src.startsWith('http://data:image')) {
-            img.src = img.src.replace('http://', '');
-        }
-        if (!img.src || img.src.startsWith('blob:') || img.src.startsWith('data:') || img.src.startsWith('https://cm-exchange.toast.com/pixel')) {
-            return false;
-        }
+    const lazyAttributes = [
+        "data-actualsrc",
+        "data-cover",
+        "data-defer-src",
+        "data-imageurl",
+        "data-ks-lazyload",
+        "data-ks-lazyload-custom",
+        "data-lazy-load-src",
+        "data-lazy-src",
+        "data-lazy-stored-src",
+        "data-lazyload",
+        "data-lazyload-src",
+        "data-orig-file",
+        "data-original",
+        "data-placeholder",
+        "data-src",
+        "data-thumb_url",
+        "data-url",
+    ];
 
-        if (img.dataset.isFixing) return false;
+    // 转为 Object
+    let lazyAttributesMap = [];
+    lazyAttributes.forEach(function (name) {
+        lazyAttributesMap[name] = true;
+    });
 
-        let rawSrc = img.getAttribute('src') || "";
-
-        if (rawSrc.startsWith('https:///e/attach')) {
-            const videoLink = img.closest('a[href*="video.php"]');
-            if (videoLink) {
-                // 🔥 [변경] 복구 시작 기록
-                img.dataset.isFixing = "true";
-                console.log(`[Fixing] 이미지 복구 시도 중: ${rawSrc}`);
-
-                getFixUrl(videoLink.href, rawSrc)
-                    .then(realUrl => {
-                        img.src = realUrl;
-                        // 성공 후 로딩 대기열에 다시 추가 (선택 사항)                        
-                        lazyImageQueue.enqueue(img);
-                        startLazyWorkers();
-                    })
-                    .catch(err => console.warn(`[Fix-Error] ${err}`))
-                    .finally(() => {
-                        // 작업 완료 후 플래그 제거는 하지 않음 (성공/실패 여부와 상관없이 재요청 방지)
-                    });
-            }
-            return false;
-        }
-
-        if (img.src.startsWith('http://')) {
-            const targetDomains = `
+    const targetDomains = `
                 imagebam.com
                 fastpic.(org|ru|net)
                 static-file.com
@@ -538,53 +527,104 @@
                 javstore.net
                 `;
 
-            // 1. 문자열 정리 및 배열화
-            const domainpattern = targetDomains
-                .trim()                     // 앞뒤 공백 제거
-                .split('\n')                // 줄바꿈으로 분리
-                .map(d => d.replace(/\./g, '\\.').trim())         // 각 라인별 공백 제거
-                .filter(Boolean)
-                .join('|');     // 빈 줄 제외
+    // 1. 문자열 정리 및 배열화
+    const domainpattern = targetDomains
+        .trim()                     // 앞뒤 공백 제거
+        .split('\n')                // 줄바꿈으로 분리
+        .map(d => d.replace(/\./g, '\\.').trim())         // 각 라인별 공백 제거
+        .filter(Boolean)
+        .join('|');     // 빈 줄 제외
 
 
-            // 3. RegExp 객체 생성 (Case Insensitive: i 플래그 권장)
-            const domainRegex = new RegExp(`(${domainpattern})`, 'i');
+    // 3. RegExp 객체 생성 (Case Insensitive: i 플래그 권장)
+    const domainRegex = new RegExp(`(${domainpattern})`, 'i');
 
-            // 4. 도메인 검사
-            const isTarget = domainRegex.test(img.src);
 
-            if (isTarget) {
-                img.src = img.src.replace('http://', 'https://');
-                console.log(`[HTTPS-Upgrade] 프로토콜 변경 완료: ${img.src}`);
+
+function isValidExternalImage(img) {
+    // 1. 공통 Guard Clauses (최상단 배치로 불필요한 연산 즉시 차단)
+    if (!img) return false;
+    if (img.dataset.isFixing) return false;
+    if (img.closest('.image-masonry')) return false;
+
+    // 참조 편의를 위한 로컬 변수 선언
+    let src = img.src || '';
+
+    // 2. Lazy / Data URI 1차 정규화 (상호 배타적 구조)
+    if (src.startsWith('data:image')) {
+        // look for lazy attributes
+        for (const attr of img.attributes) {
+            if (lazyAttributesMap[attr.name]) {
+                img.src = attr.value;
+                src = attr.value; // 변경된 주소 동기화
+                break;
             }
         }
-        if (img.src.startsWith('https://i.maxjav.com/')){
-            const url = getRedirectUrl(img.src, "url");
-            img.src = url;
-        }        
-
-        if (!isRealDomain(img.src)) {
-            console.warn(`정상적인 도메인이 아닙니다. ${img.src} ${img}`);
-            return false;
-        }
-
-        if (isBadLink(img.src)) {
-            console.warn(`[Skip] 이미 404로 기록된 링크입니다: ${img.src}`);
-            img.dataset.isImageState = "false";
-            return false;
-        }
-
-        // getAttribute를 사용하여 HTML에 적힌 원본 src 값을 확인 (비어있으면 차단)
-        rawSrc = img.getAttribute('src');
-        if (!rawSrc || rawSrc.trim() === "" || rawSrc === window.location.href) {
-            return false;
-        }
-
-        // 이미 잘 로드된 경우 제외
-        if (img.complete && img.naturalWidth > 0) return false;
-
-        return true;
+    } else if (src.startsWith('http://data:image')) {
+        img.src = src.replace('http://', '');
+        src = img.src;
     }
+
+    // 3. 무효한 포맷 및 트래커 선제 차단
+    if (!src || src.startsWith('blob:') || src.startsWith('data:') || src.startsWith('https://cm-exchange.toast.com/pixel')) {
+        return false;
+    }
+
+    // 4. 특정 도메인 및 경로별 조건 분기 최적화 (if - else if)
+    const rawSrc = img.getAttribute('src') || "";
+
+    if (rawSrc.startsWith('https:///e/attach')) {
+        const videoLink = img.closest('a[href*="video.php"]');
+        if (videoLink) {
+            img.dataset.isFixing = "true";
+            console.log(`[Fixing] 이미지 복구 시도 중: ${rawSrc}`);
+
+            getFixUrl(videoLink.href, rawSrc)
+                .then(realUrl => {
+                    img.src = realUrl;
+                    lazyImageQueue.enqueue(img);
+                    startLazyWorkers();
+                })
+                .catch(err => console.warn(`[Fix-Error] ${err}`));
+        }
+        return false; // 이 조건에 해당하면 이후의 무의미한 도메인 체크를 건너뛰고 즉시 종료
+    } 
+    // 위 조건이 아닐 때만 아래 도메인 분기들을 탑니다.
+    else if (src.startsWith('http://')) {
+        if (domainRegex.test(src)) {
+            img.src = src.replace('http://', 'https://');
+            src = img.src;
+            console.log(`[HTTPS-Upgrade] 프로토콜 변경 완료: ${img.src}`);
+        }
+    } 
+    else if (src.startsWith('https://i.maxjav.com/')) {
+        img.src = getRedirectUrl(src, "url");
+        src = img.src;
+    }
+
+    // 5. 최종 도메인 및 링크 상태 검증
+    if (!isRealDomain(src)) {
+        console.warn(`정상적인 도메인이 아닙니다. ${src} `, img);
+        return false;
+    }
+
+    if (isBadLink(src)) {
+        console.warn(`[Skip] 이미 404로 기록된 링크입니다: ${src}`);
+        img.dataset.isImageState = "false";
+        return false;
+    }
+
+    // HTML 원본 고유 검증 (최종 단계)
+    const finalRawSrc = img.getAttribute('src');
+    if (!finalRawSrc || finalRawSrc.trim() === "" || finalRawSrc === window.location.href) {
+        return false;
+    }
+
+    // 이미 로드가 잘 완료된 이미지 제외
+    if (img.complete && img.naturalWidth > 0) return false;
+
+    return true;
+}
 
 
     function getRedirectUrl(url, paramName) {
@@ -601,7 +641,7 @@
             return url;
         }
     }
-    
+
     function saveBadLink(url) {
         const now = Date.now();
         GM_setValue(getPureUrl(url), now);
