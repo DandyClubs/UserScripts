@@ -551,6 +551,11 @@ function isValidExternalImage(img) {
     let src = img.src || '';
 
     // 2. Lazy / Data URI 1차 정규화 (상호 배타적 구조)
+    if (src.startsWith('http://data:image')) {
+        img.src = src.replace('http://', '');
+        src = img.src;
+    }
+    
     if (src.startsWith('data:image')) {
         // look for lazy attributes
         for (const attr of img.attributes) {
@@ -560,10 +565,7 @@ function isValidExternalImage(img) {
                 break;
             }
         }
-    } else if (src.startsWith('http://data:image')) {
-        img.src = src.replace('http://', '');
-        src = img.src;
-    }
+    } 
 
     // 3. 무효한 포맷 및 트래커 선제 차단
     if (!src || src.startsWith('blob:') || src.startsWith('data:') || src.startsWith('https://cm-exchange.toast.com/pixel')) {
