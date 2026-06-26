@@ -628,7 +628,7 @@ async function CopyItems() {
     const mutilTitleParagraph = document.querySelectorAll('div#post_content h1, div#post_content h2');
     const singleParagraph = document.querySelector('div#content div.article_container');
     const mainContent = document.querySelector('div#post_content');
-
+/*
     if (titleParagraph) {
         titleParagraph.querySelectorAll('br').forEach(br => br.replaceWith(' '));
     }
@@ -637,6 +637,7 @@ async function CopyItems() {
             el.querySelectorAll('br').forEach(br => br.replaceWith(' '));
         });
     }
+        */
 
     const baseElement = titleParagraph ? createArea(
         document.querySelector('div#post_content > div div.item-top > div.title-04'),
