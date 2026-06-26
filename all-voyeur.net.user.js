@@ -535,17 +535,50 @@ function CheckTitle(startIndex) {
 function extractText(DOMElement) {
     if (!DOMElement) return [];
 
-    return Array.from(DOMElement.childNodes)
-        .filter(child => child.textContent?.trim())
-        .map(child => {
-            const text = child.textContent.trim();
-            const isTitle = /<h[12].+<\/h[12]>/s.test(child.outerHTML) || /<div class="title-04">\s*<div class="red"/s.test(child.outerHTML);
+    const lines = [];
+
+    // DOM 트리를 깊숙한 곳까지 순서대로 탐색하는 재귀 함수
+    function walk(node) {
+        if (!node) return;
+
+        // 1. 엘리먼트 노드(HTML 태그)인 경우 제목 조건 먼저 체크
+        if (node.nodeType === 1) {
+            const isTitle = ['H1', 'H2'].includes(node.tagName) || 
+                            (node.matches('div.title-04') && node.querySelector('div.red'));
+
             if (isTitle) {
-                return 'GetTitle :' + text.trim();
-            } else {
-                return text.replace('\n', ' ').replace('Download (ダウンロード):', '').trim();
+                // 제목을 찾았다면 텍스트를 깨끗하게 정제하여 추가
+                const cleanTitle = node.textContent.replace(/\s+/g, ' ').trim();
+                if (cleanTitle) {
+                    lines.push('GetTitle :' + cleanTitle);
+                }
+                return; // ★ 중요: 제목을 찾았으므로 이 노드의 하위 자식(span 등)은 더 이상 파고들지 않음
             }
-        });
+            
+            // 무시할 태그 필터링
+            if (['SCRIPT', 'STYLE'].includes(node.tagName)) return;
+        }
+
+        // 2. 텍스트 노드인 경우 (일반 본문 문자열 또는 링크)
+        if (node.nodeType === 3) {
+            const text = node.textContent.replace('Download (ダウンロード):', '');
+            text.split('\n').forEach(line => {
+                const trimmed = line.trim();
+                if (trimmed) lines.push(trimmed);
+            });
+            return;
+        }
+
+        // 3. 감싸고 있는 일반 div, p, span 등은 자식 노드들을 순서대로 계속 탐색
+        if (node.childNodes && node.childNodes.length > 0) {
+            node.childNodes.forEach(child => walk(child));
+        }
+    }
+
+    // 입력받은 최상위 요소부터 탐색을 시작합니다.
+    walk(DOMElement);
+
+    return lines;
 }
 
 function createArea(A, B) {
@@ -588,59 +621,69 @@ function sleep(ms) {
 }
 
 // 메인 실행 함수
+// 메인 실행 함수 (추출 및 매칭 로직 수정본)
 async function CopyItems() {
     console.log('CopyItems Start!');
     const titleParagraph = document.querySelector('div#post_content > div div.item-top > div.title-04 > p');
-    const mutilTitleParagraph = document.querySelectorAll('div#post_content > h1 > span, div#post_content > h2 > span');
+    const mutilTitleParagraph = document.querySelectorAll('div#post_content h1, div#post_content h2');
     const singleParagraph = document.querySelector('div#content div.article_container');
     const mainContent = document.querySelector('div#post_content');
+
+    if (titleParagraph) {
+        titleParagraph.querySelectorAll('br').forEach(br => br.replaceWith(' '));
+    }
+    if (mutilTitleParagraph?.length > 0) {
+        mutilTitleParagraph.forEach(el => {
+            el.querySelectorAll('br').forEach(br => br.replaceWith(' '));
+        });
+    }
+
     const baseElement = titleParagraph ? createArea(
         document.querySelector('div#post_content > div div.item-top > div.title-04'),
         mainContent.querySelector('p')
     ) : mutilTitleParagraph?.length > 0 ? mainContent : singleParagraph;
-    console.log(titleParagraph, mutilTitleParagraph, mainContent, baseElement);
 
-    InfoArea = extractText(baseElement)
-        .flatMap(e => e.split('\n'))
-        .map(e => e.trim())
-        .filter(Boolean);
-
-    TitleDBIndex = CheckTitle(0);
-    console.log(InfoArea, TitleDBIndex, baseElement);
+    // 1. 데이터 가져오기
+    InfoArea = extractText(baseElement);
+    console.log(InfoArea, baseElement);
 
     const LinksDB = [];
     let Notice = '';
+    
+    // ★ 핵심: 현재 어떤 제목을 지나고 있는지 상태를 저장할 변수
+    let currentTitle = ''; 
 
-    for (let i = 0; i < TitleDBIndex.length; i++) {
-        const First = TitleDBIndex[i];
-        const Last = TitleDBIndex[i + 1] ?? InfoArea.length;
-        const rawTitle = InfoArea[First].match(TitleExr)?.[2] || InfoArea[First];
-        const Title = NormalizeTitle(rawTitle);
-        Notice += `${Title}\n`;
-        console.log(Title, First, Last);
-        for (let j = First + 1; j < Last; j++) {
-            const line = InfoArea[j];
-            if (/GetTitle/.test(line)) break;
-            if (/^https?:/.test(line) && !SkipFilter.test(line)) {
-                Notice += `${line}\n`;
-                LinksDB.push({ U: line, T: Title , S: PageURL});                
-                localStorage.setItem(line, JSON.stringify({T: Title, S: PageURL}));
-            }
+    // 2. 단일 루프로 제목과 링크를 효율적으로 매칭
+    for (const line of InfoArea) {
+        const titleMatch = line.match(TitleExr);
+
+        if (titleMatch) {
+            // [case 1] 제목 줄을 만난 경우 -> 현재 제목 상태를 업데이트
+            const rawTitle = titleMatch[2];
+            currentTitle = NormalizeTitle(rawTitle);
+            Notice += `${currentTitle}\n`;
+            console.log('새 제목 매칭:', currentTitle);
+        } else if (/^https?:/.test(line) && !SkipFilter.test(line)) {
+            // [case 2] 링크 줄을 만난 경우 -> 직전에 저장된 currentTitle과 즉시 매칭
+            const activeTitle = currentTitle || "무제 제목"; // 혹시 제목보다 링크가 먼저 나올 경우를 대비한 방어 코드
+            
+            Notice += `${line}\n`;
+            LinksDB.push({ U: line, T: activeTitle, S: PageURL });
+            localStorage.setItem(line, JSON.stringify({ T: activeTitle, S: PageURL }));
         }
     }
 
+    // 3. 알림창 및 후속 처리 (기존 코드와 동일)
     const CopyNotice = document.querySelector('.CopyNotice');
     if (LinksDB.length) {
         CopyNotice.textContent = Notice;
 
-        // 위치 설정
         const CenterBox = document.querySelector('.CenterBox');
         CopyNotice.style.fontSize = ((1 / (GetDPI / 1.5)) * 0.6 * (16 / DefaultFontSize)).toFixed(2) + 'rem';
         CopyNotice.style.position = 'absolute';
         CopyNotice.style.top = (CenterBox.offsetHeight + CenterBox.offsetTop * 1.5) + 'px';
         CopyNotice.style.left = (CenterBox.offsetLeft - CenterBox.offsetWidth) + 'px';
 
-        // 애니메이션 표시
         slideToggle(CopyNotice, 500);
         await sleep(2000);
         slideToggle(CopyNotice, 1000);
@@ -653,7 +696,6 @@ async function CopyItems() {
         slideToggle(CopyNotice, 1000);
     }
 }
-
 
 
 
