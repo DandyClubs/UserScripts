@@ -87,6 +87,7 @@ const alwaysNewTabPatterns = [
     /cosplay\.jav\.pw\/\d{4,5}/,
     /pornofetishx\.com\/\d+.+\.html$/,
     /clubwarp\.com\/threads/,
+    /jgirl\.co\/post\//,
 ];
 
 const sameNewTabPatterns = [

@@ -21,6 +21,8 @@
 // @include      /misskon\.com/
 // @include      /fhdporn\.video/
 // @include      /asianscan\.biz/
+// @include      https://avsake.com/*
+// @include      https://jgirl.co/*
 // @include      /sharepornlink\.com\/.*/
 // @include      https://javarchive.com/*
 // @include      /0xxx\.(ws|li)/
@@ -1527,6 +1529,20 @@ const siteConfigs = [
         config: {
             copyOffsetAreaSelector: 'div#content div#full_post span.span_h2 h1',
             downloadAreaSelector: 'div#content div#full_post center'
+        }
+    },
+    {
+        regex: /avsake\.com\/\?p/,
+        config: {
+            copyOffsetAreaSelector: 'div.article_container h1',
+            downloadAreaSelector: 'div.article_container div.context div#post_content'
+        }
+    },
+    {
+        regex: /jgirl\.co\/post\//,
+        config: {
+            copyOffsetAreaSelector: 'div.body.container h1',
+            downloadAreaSelector: 'div.body.container'
         }
     },
     {
