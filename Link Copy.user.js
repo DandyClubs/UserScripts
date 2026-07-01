@@ -1555,8 +1555,9 @@ const siteConfigs = [
                         // 중복 방지: 동일한 부모 안에 해당 텍스트를 가진 자식이 여러 개일 경우, 
                         // 부모가 중복해서 배열에 들어가는 것을 막습니다.
                         if (parent && !matchedParents.includes(parent)) {
-                            matchedParents.push(parent);
+                            matchedParents.push(parent);                            
                         }
+                        return matchedParents;                
                     }
                 }
 
