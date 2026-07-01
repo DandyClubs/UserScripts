@@ -1542,7 +1542,27 @@ const siteConfigs = [
         regex: /jgirl\.co\/post\//,
         config: {
             copyOffsetAreaSelector: 'div.body.container h1',
-            downloadAreaSelector: 'div.body.container div div div:not(.post-item)'
+            downloadAreaSelector: 'div.body.container div div div div div',
+            getDownloadArea: () => {
+                // 1. 해당 경로의 모든 div 요소를 가져옵니다.
+                const targetDivs = document.querySelectorAll('div.body.container div div div div div');
+                const matchedParents = []; // 검색된 부모들을 담을 배열
+
+                for (const div of targetDivs) {
+                    if (div.textContent.includes('ダウンロード')) {
+                        const parent = div.parentElement;
+
+                        // 중복 방지: 동일한 부모 안에 해당 텍스트를 가진 자식이 여러 개일 경우, 
+                        // 부모가 중복해서 배열에 들어가는 것을 막습니다.
+                        if (parent && !matchedParents.includes(parent)) {
+                            matchedParents.push(parent);
+                        }
+                    }
+                }
+
+                // document.querySelectorAll처럼 여러 개의 요소를 담은 배열을 리턴
+                return matchedParents;                
+            }
         }
     },
     {
@@ -2760,7 +2780,7 @@ function CheckOnline(TargetLink) {
 
 
 
-function CheckSkipTitle(rawTitle) {    
+function CheckSkipTitle(rawTitle) {
     console.log(`Check CheckSkipTitle: ${rawTitle}`);
     if (!rawTitle) return false;  // Early exit if no title
 
@@ -2926,7 +2946,7 @@ async function CollectionLinks(DownloadArea) {
             else if (siteParamRegex.test(url)) {
                 url = url.replace(siteParamRegex, '');
             }
-            
+
             url = url.replace(/\?(site|referer)=.+/, '').trim();
             a.setAttribute('href', url);
             CollectionATag.push(a);
