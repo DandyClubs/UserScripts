@@ -1542,7 +1542,7 @@ const siteConfigs = [
         regex: /jgirl\.co\/post\//,
         config: {
             copyOffsetAreaSelector: 'div.body.container h1',
-            downloadAreaSelector: 'div.body.container'
+            downloadAreaSelector: 'div.body.container div div div:not(.post-item)'
         }
     },
     {
