@@ -796,7 +796,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
         ModelName = ModelNameList.length ? `[${ModelNameList.join(' ')}]` : '';
     }
-    if (Featuring && Featuring !== Title.trim()) {
+    if (Featuring && Title && Featuring !== Title.trim()) {
         Title = `${Featuring} - ${Title}`;
     }
 
@@ -819,18 +819,17 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
     console.log({ CopyTitle, Title, infoLines, cleanedinfoLines });
     const infoLinesFinalTitle = Title ? (Maker || ID ? `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim() : `${Title}${ModelName} ${ReleaseDate ? `(${ReleaseDate})` : ''}`.replace(/\s+/g, ' ').trim()) : '';
-    const InfofinalTitle = infoLinesFinalTitle ? infoLinesFinalTitle : compareSentencesByWordMatch(CopyTitle, cleanedinfoLines[0]);
+    const InfofinalTitle = infoLinesFinalTitle ? infoLinesFinalTitle : cleanedinfoLines[0];
 
     console.log({ CopyTitle, InfofinalTitle });
     //preferJapanese: true 일 때, 두 문장을 비교하여 일본어가 많이 포함된 경우 우선순위를 두고, 그렇지 않으면 원본 제목을 사용합니다.
-    let preferText = '';
-    let compareText = '';
+    let preferText = '';    
     if (preferJapanese) {
         preferText = compareJapaneseCharacters(CopyTitle, InfofinalTitle);
-    }
-    compareText = compareSentencesByWordMatch(CopyTitle, InfofinalTitle);
+    }    
 
-    const compareLast = compareSentencesByWordMatch(preferText, compareText);
+    const compareLast = preferText ? compareSentencesByWordMatch(preferText, InfofinalTitle) : InfofinalTitle;
+    console.log({ preferText, compareLast });
     if (ReleaseDate && (Maker || ID)) {
         return `${Maker}${ID ? ID + ' ' : ''}.${ReleaseDate}.${compareLast}`;
     } else {
