@@ -138,7 +138,7 @@ body.modal-open {
         },
         {
             id: 'anime-jav',
-            domains: ['anime-jav.com', 'javbee.vip', 'chinese-pics.com', 'kin8-jav.com', 'porn-pig.com', 'hentaicovid.org', 's-porn.com', '3minx.com', 'gofile.download'],
+            domains: ['anime-jav.com', 'javbee.vip', 'chinese-pics.com', 'chinese-pics.vip', 'kin8-jav.com', 'porn-pig.com', 'hentaicovid.org', 's-porn.com', '3minx.com', 'gofile.download'],
             pathPattern: /\/upload\/(?!Application\/)/i,
             // HTML 내부에서 주소를 캐낼 경우 (Blob 미사용 설정)
             imageSourceRegExp: /class="fileviewer-file"[\s\S]*?<img src="([^"]+)"/i,
