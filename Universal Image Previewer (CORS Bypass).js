@@ -145,6 +145,14 @@ body.modal-open {
             directLoad: true // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
         },
         {
+            id: ''javball',
+            domains: [''javball.com''],
+            pathPattern: /\/upload\/(?!Application\/)/i,
+            // HTML 내부에서 주소를 캐낼 경우 (Blob 미사용 설정)
+            imageSourceRegExp: /class="fileviewer-file"[\s\S]*?<img src="([^"]+)"/i,
+            directLoad: true // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
+        },
+        {
             id: 'imagehaha',
             domains: ['imagehaha.com'],
             // /8xkrqn72zq5m/ 처럼 12자리 내외의 영문/숫자 경로가 포함된 경우
