@@ -537,8 +537,7 @@ const SearchIDRegExp = (str) => {
         /(.*)(KT[a-zA-Z]*)(-)?(\d{3,5})(v*)/i,
         /(.*)(TS[a-zA-Z]*)(-)?(\d{3,5})(v*)/i,
         /(.*)(SW[a-zA-Z]*)(-)?(\d{3,5})(v*)/i,
-        /(.*)(\d{2}ID[a-zA-Z]*)(-)?(\d{3,})(.*)/i,
-        /(.*)(d1clymax)(\d{3,5})(-)?(.*)/i,
+        /(.*)(\d{2}ID[a-zA-Z]*)(-)?(\d{3,})(.*)/i,        
         /([a-zA-Z]*)(dvaj|dvajbx)(-)?(\d{3,5})(.*)/i,
         /(\d{2})(T0*\d{2}[a-zA-Z]*)(-)?(\d{3,5})(.*)/i,
         /(\d{2})(T\d{2})(-)?(\d{3,5})(.*)/i,
@@ -550,13 +549,15 @@ const SearchIDRegExp = (str) => {
 
     for (const regex of extractPatterns) {
         match = str.match(regex);
+        console.log('SearchIDRegExp Test', { str, regex, match });
         if (match) break;
     }
     if (match) {
+        const pre = match[1];
         const code = match[2];
         const part = match[3];
         const number = match[4];
-        return `${code}${part || ''}${number}`;
+        return `${pre}${code}${part || ''}${number}`;
     }
     else return '';
 
@@ -1555,14 +1556,14 @@ const siteConfigs = [
                         // 중복 방지: 동일한 부모 안에 해당 텍스트를 가진 자식이 여러 개일 경우, 
                         // 부모가 중복해서 배열에 들어가는 것을 막습니다.
                         if (parent && !matchedParents.includes(parent)) {
-                            matchedParents.push(parent);                            
+                            matchedParents.push(parent);
                         }
-                        return matchedParents;                
+                        return matchedParents;
                     }
                 }
 
                 // document.querySelectorAll처럼 여러 개의 요소를 담은 배열을 리턴
-                return matchedParents;                
+                return matchedParents;
             }
         }
     },
@@ -1639,8 +1640,7 @@ const siteConfigs = [
 
                 Title = Title
                     .replace(/amp;/g, '')
-                    .replace(/(\s)?\/(\s)?/g, '／')
-                    .replace(/(-|–)\sHD/, '')
+                    .replace(/(\s)?\/(\s)?/g, '／')                    
                     .replace(/amp;|\(\s?ブルーレイ版\s?\)|\(ブルーレイディスク版\)|:/g, '')
                     .trim();
 
@@ -1655,7 +1655,8 @@ const siteConfigs = [
                         Title = `${fcId} ${InfoArea[0]}`;
                     } else {
                         let cleanIDTitle, cleanIDInfoTitle, compareInfoAreaID, newTitle;
-                        let infoTitle = InfoArea.find(line => SearchIDRegExp(line)) || '';
+                        //let infoTitle = InfoArea.find(line => SearchIDRegExp(line)) || '';
+                        let infoTitle = InfoArea[0];
                         let entryID = SearchIDRegExp(Title) || '';
                         let infoAreaID;
                         if (infoTitle && entryID) {
@@ -1671,6 +1672,7 @@ const siteConfigs = [
                                 cleanIDInfoTitle = infoTitle.replace(infoAreaID, '').trim();
                             }
                         }
+                        console.log({ entryID, infoAreaID, cleanIDTitle, cleanIDInfoTitle });
                         if (entryID && infoAreaID) {
                             let IDMatch = entryID ?? infoAreaID;
                             let ID = IDMatch ? IDMatch.trim() : '';
@@ -1679,8 +1681,17 @@ const siteConfigs = [
                             }
                             compareInfoAreaID = entryID === infoAreaID ? infoAreaID : /-/.test(entryID) ? entryID.replace(/-/g, '') : '';
                             newTitle = `${entryID} ${compareJapaneseCharacters(cleanIDTitle, cleanIDInfoTitle)}`;
-                        } else if (entryID || infoAreaID) {
-                            newTitle = `${entryID || infoAreaID} ${compareJapaneseCharacters(cleanIDTitle, cleanIDInfoTitle)}`;
+                        } else if (entryID && !infoAreaID) {
+                            if (countJapaneseCharacters(cleanIDTitle) > 0) {
+                                if (/–\s(HD|4K)$/i.test(cleanIDTitle)) {
+                                    cleanIDTitle = cleanIDTitle.replace(/–\s(HD|4K)$/i, '').trim() + ' ' + InfoArea[0];
+                                }
+                                newTitle = `${entryID} ${cleanIDTitle}`;
+                            } else {
+                                newTitle = `${entryID} ${InfoArea[0]}`;
+                            }
+                        } else if (!entryID && infoAreaID) {
+                            newTitle = InfoArea[0];
                         }
                         console.log({ newTitle });
                         Title = newTitle ? newTitle : Title;
