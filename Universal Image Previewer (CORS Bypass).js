@@ -145,8 +145,16 @@ body.modal-open {
             directLoad: true // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
         },
         {
-            id: ''javball',
-            domains: [''javball.com''],
+            id: '4up',
+            domains: ['4up.pics'],
+            pathPattern: /4up\.pics\/.+\.jpg/i,
+            // HTML 내부에서 주소를 캐낼 경우 (Blob 미사용 설정)
+            imageSourceRegExp: /class="fileviewer-file"[\s\S]*?<img src="([^"]+)"/i,
+            directLoad: true // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
+        },
+        {
+            id: 'javball',
+            domains: ['javball.com'],
             pathPattern: /\/upload\/(?!Application\/)/i,
             // HTML 내부에서 주소를 캐낼 경우 (Blob 미사용 설정)
             imageSourceRegExp: /class="fileviewer-file"[\s\S]*?<img src="([^"]+)"/i,
@@ -180,52 +188,80 @@ body.modal-open {
         const config = getConfig(pageUrl);
         if (!config) return;
 
-        GM_xmlhttpRequest({
-            method: "GET",
-            url: pageUrl,
-            onload: function (res) {
+        // 💡 재귀 호출을 위해 요청 로직을 별도 함수로 분리합니다.
+        function fetchPage(currentUrl) {
+            GM_xmlhttpRequest({
+                method: "GET",
+                url: currentUrl,
+                onload: function (res) {
 
-                const match = res.responseText.match(config.imageSourceRegExp);
-                if (match && match[1]) {
-                    const finalUrl = match[1];
+                    // 1️⃣ Meta Refresh 리다이렉트 태그가 있는지 먼저 검사합니다.
+                    // 따옴표 종류('', "")나 공백에 유연하게 대응하는 정규표현식입니다.
+                    const refreshMatch = res.responseText.match(/<meta\s+http-equiv=["']refresh["']\s+content=["']\d+;\s*url=['"]?([^'"]+?)['"]?["']/i);
 
-                    // ✅ 이미지가 실제로 로드되었을 때 실행될 로직을 미리 정의
-                    imgElement.onload = () => {
-                        imgElement.classList.remove('pending-deep-preview');
-                        imgElement.style.minHeight = "auto";
-                        imgElement.style.background = "none";
-                        imgElement.style.opacity = "1";
-                    };
+                    if (refreshMatch && refreshMatch[1]) {
+                        let redirectUrl = refreshMatch[1];
 
-                    if (config.directLoad) {
-                        // ✅ anime-jav 처럼 직접 로드하는 경우
-                        imgElement.src = finalUrl;
-                    } else {
-                        // ✅ Blob으로 우회해서 로드하는 경우
-                        GM_xmlhttpRequest({
-                            method: "GET",
-                            url: finalUrl,
-                            responseType: "blob",
-                            headers: { "Referer": config.getReferer ? config.getReferer(pageUrl) : "" },
-                            onload: function (imgRes) {
-                                if (imgRes.status === 200) {
-                                    imgElement.src = URL.createObjectURL(imgRes.response);
-                                }
+                        // 리다이렉트 주소가 상대 경로일 경우, 절대 경로로 변환해줍니다.
+                        if (!redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
+                            try {
+                                redirectUrl = new URL(redirectUrl, currentUrl).href;
+                            } catch (e) {
+                                console.error("URL 변환 실패:", e);
                             }
-                        });
+                        }
+
+                        // 새로운 리다이렉트 URL로 다시 페이지를 요청합니다 (재귀 호출)
+                        fetchPage(redirectUrl);
+                        return;
                     }
-                } else {
-                    // 매칭 실패 시 로딩 표시 제거 및 에러 처리
-                    imgElement.classList.remove('pending-deep-preview');
-                    imgElement.alt = "Image not found";
+
+                    // 2️⃣ 리다이렉트 태그가 없다면 기존 이미지 매칭 로직을 수행합니다.
+                    const match = res.responseText.match(config.imageSourceRegExp);
+                    if (match && match[1]) {
+                        const finalUrl = match[1];
+
+                        // ✅ 이미지가 실제로 로드 되었을 때 실행될 로직을 미리 정의
+                        imgElement.onload = () => {
+                            imgElement.classList.remove('pending-deep-preview');
+                            imgElement.style.minHeight = "auto";
+                            imgElement.style.background = "none";
+                            imgElement.style.opacity = "1";
+                        };
+
+                        if (config.directLoad) {
+                            // ✅ 직접 로드하는 경우
+                            imgElement.src = finalUrl;
+                        } else {
+                            // ✅ Blob으로 우회해서 로드하는 경우
+                            GM_xmlhttpRequest({
+                                method: "GET",
+                                url: finalUrl,
+                                responseType: "blob",
+                                // Referer는 최초 pageUrl 혹은 상황에 따라 currentUrl을 사용할 수 있습니다.
+                                headers: { "Referer": config.getReferer ? config.getReferer(pageUrl) : "" },
+                                onload: function (imgRes) {
+                                    if (imgRes.status === 200) {
+                                        imgElement.src = URL.createObjectURL(imgRes.response);
+                                    }
+                                }
+                            });
+                        }
+                    } else {
+                        // 매칭 실패 시 로딩 표시 제거 및 에러 처리
+                        imgElement.classList.remove('pending-deep-preview');
+                        imgElement.alt = "Image not found";
+                    }
                 }
-            }
-        });
+            });
+        }
+
+        // 최초 실행 호출
+        fetchPage(pageUrl);
     }
 
     function createImgTag(url) {
         const config = getConfig(url);
-        console.log(url);
 
         if (config) {
             // 1. 단순 URL 치환(Transform)이 가능한 경우 (예: cosplay18)
@@ -436,7 +472,7 @@ body.modal-open {
             parentsToProcess.forEach(parent => {
                 processNodes(parent);
             });
-            
+
             // 모든 노드 변환이 끝난 후, 레이아웃 정리는 딱 한 번만 수행 (성능 최적화)
             splitImageParagraphs();
         }
@@ -444,7 +480,7 @@ body.modal-open {
 
     observer.observe(document.body, { childList: true, subtree: true });
 
-    
+
     observer.observe(document.body, { childList: true, subtree: true });
 
 })();
