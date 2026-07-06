@@ -549,7 +549,7 @@ function getClearTitle(name) {
     }
 }
 
-window.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", async () => {
     await contentManager.init();
     console.log('Start Remove Content!');
     const rootElement = Active.rootSelector ? document.querySelector(Active.rootSelector) : document.body;
