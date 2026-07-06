@@ -73,7 +73,7 @@
 // @grant        GM_getValue
 // @grant        GM_deleteValue
 // @grant        GM_listValues
-// @run-at       document-start
+// @run-at       document-body
 // @connect      *
 // @noframes
 // @license      MIT
