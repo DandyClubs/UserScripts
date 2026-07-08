@@ -132,7 +132,7 @@ const PageURL = window.location !== window.parent.location ? document.referrer :
 let firstScrollPos = '';
 
 
-let Title, MagnetLink, InfoArea, FindMagnetHash, GetData, FindMagnetHashCounts;
+let Title, MagnetLink, InfoArea, FindMagnetHash, GetData;
 
 function onElementLoaded(elementToObserve, parentStaticElement) {
     const promise = new Promise((resolve, reject) => {
@@ -979,9 +979,6 @@ function MakeIcon() {
         CenterBox.insertAdjacentHTML('beforeend', '<i class="CopyItemIcon fa-regular fa-clipboard"></>');
     }
 
-    if (FindMagnetHashCounts.length > 1) {
-        CenterBox.insertAdjacentHTML('beforeend', '<i class="fa-solid fa-plus"></i>');
-    }
     CenterBox.insertAdjacentHTML('beforeend', '<i class="CloseIcon fa-solid fa-square-xmark" style ="color: red !important;"></>');
 
     var GetDPI = window.devicePixelRatio;
