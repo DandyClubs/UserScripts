@@ -492,7 +492,16 @@ const SkipMakers = [
 
 
 
+function cleanText(input) {
+  const regex = /\s*\[[a-zA-Z0-9]+\/([a-zA-Z0-9]+)\/[a-zA-Z0-9.]+\]$/;
+  const simpleRegex = /\s*\[[^\]]+\]$/; // 중간 정보가 없는 일반 대괄호 제거용
 
+  if (regex.test(input)) {
+    return input.replace(regex, " $1"); // 중간 정보가 있으면 추출해서 결합
+  } else {
+    return input.replace(simpleRegex, ""); // 중간 정보가 없으면 대괄호 그냥 삭제
+  }
+}
 
 const DomainHandlers = {
     'gm\\d+\\.xyz': {
@@ -501,7 +510,7 @@ const DomainHandlers = {
             visitedLink: 'h2.entry-title a',
         },
         getPostArea: (el) => el.closest('.inside-article'),
-        GetInfo: (el) => DomainRules.relativeSelector(el)?.querySelector('.entry-title a')?.textContent.trim() || '',
+        GetInfo: (el) => cleanText(DomainRules.relativeSelector(el)?.querySelector('.entry-title a')?.textContent.trim()) || '',
         //getCoverImage: (downloadArea) => downloadArea.querySelector('p img')?.getAttribute('data-src') || '',
         getCopyID: (relativeArea) => relativeArea.querySelector('.entry-title a')?.getAttribute('href'),
         iconPosition: (iconSet) => {
