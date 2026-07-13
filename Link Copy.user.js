@@ -500,6 +500,7 @@ const SearchID = /([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6
 const MatchID = /^([a-zA-Z]{2,11}-?\d{2,6}[a-zA-Z]?|\d{2,4}[a-zA-Z]{2,7}-?\d{3,6}[a-zA-Z]?|[a-zA-Z]{1,2}-?\d{2}-?\d{2,3}|[a-zA-Z]{2,7}-?[a-zA-Z]{1,2}\d{2}|FC2.+\d{6.8})(.*)/;
 const SearchFC2ID = /(^FC2.+\d{6,7})(.*)/i;
 const K2SRegExp = /(.*k2s\.cc\/file\/)(.*\/?)/;
+const TurboBitRegExp = /^https:\/\/trbt\.cc\//;
 const DateRegEx = /((19|20)[0-9]{2}[.\/-]([1][0-2]|[0]?[1-9])[.\/-]([3][0|1]|[1|2][0-9]|[0]?[1-9])|([3][0|1]|[1|2][0-9]|[0]?[1-9])[.\/-]([1][0-2]|[0]?[1-9])[.\/-]((19|20)?[0-9]{2})).*/;
 const ID3D = /(MCB3DBD-\d+)(.*)$/i;
 
@@ -3488,6 +3489,12 @@ function listToDo(areas, type = 'Default') {
         const k2s = el.href.match(K2SRegExp);
         if (k2s) {
             target = k2s[1] + k2s[2].split('/')[0];
+            el.href = target;
+        }
+        
+        else if (TurboBitRegExp.test(el.href)) {
+            target = el.href.replace(TurboBitRegExp, 'https://turbobit.net/');
+            el.href = target;
         }
 
         if (!todo.includes(target)) {
