@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy (indexedDB)
-// @version      2026.02.04
+// @version      2026.07.13
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.(org|my)/
@@ -56,6 +56,7 @@
 // @include      https://www.xtvtv.com/*
 // @include      https://softmodels.net/*
 // @include      https://xjapan.org/*
+// @include      https://turbobitxxx.com/*
 // @exclude      https://x-idol.net/
 // @exclude      https://x-idol.net/?paged=*
 // @exclude      https://www.google.com/search*
@@ -523,7 +524,7 @@ const SearchIDRegExp = (str) => {
         /(.*)(KT[a-zA-Z]*)(-)?(\d{3,5})(v*)/i,
         /(.*)(TS[a-zA-Z]*)(-)?(\d{3,5})(v*)/i,
         /(.*)(SW[a-zA-Z]*)(-)?(\d{3,5})(v*)/i,
-        /(.*)(\d{2}ID[a-zA-Z]*)(-)?(\d{3,})(.*)/i,        
+        /(.*)(\d{2}ID[a-zA-Z]*)(-)?(\d{3,})(.*)/i,
         /([a-zA-Z]*)(dvaj|dvajbx)(-)?(\d{3,5})(.*)/i,
         /(\d{2})(T0*\d{2}[a-zA-Z]*)(-)?(\d{3,5})(.*)/i,
         /(\d{2})(T\d{2})(-)?(\d{3,5})(.*)/i,
@@ -1251,6 +1252,21 @@ const siteConfigs = [
         }
     },
     {
+        regex: /turbobitxxx\.com\/.*html$/,
+        config: {
+            copyOffsetAreaSelector: 'article.singlecont.slideRight h1 span#news-title',
+            downloadAreaSelector: 'article.singlecont.slideRight div.cont',
+            postProcess: (config) => {
+                copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
+                if (copyOffsetArea) {
+                    CopyTitle = copyOffsetArea.innerText.replace(/(UltraHD|Full|HD|SD).+\d+p$/i, '').replace(/\s+/g, ' ').trim();
+                    CopyTitle = nameCorrection(CopyTitle);
+                    CopyTitle = CopyTitle.replace(/\*/g, '＊').replace(/\?/g, '？');
+                }
+            }
+        },
+    },
+    {
         regex: /^https?:\/\/wetholefans\.com\/.*\/\d+(?!.*page\/\d+)/,
         config: {
             copyOffsetAreaSelector: '.post-title #news-title h1',
@@ -1626,7 +1642,7 @@ const siteConfigs = [
 
                 Title = Title
                     .replace(/amp;/g, '')
-                    .replace(/(\s)?\/(\s)?/g, '／')                    
+                    .replace(/(\s)?\/(\s)?/g, '／')
                     .replace(/amp;|\(\s?ブルーレイ版\s?\)|\(ブルーレイディスク版\)|:/g, '')
                     .trim();
 
