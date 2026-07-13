@@ -559,8 +559,8 @@ const genericHandlers = {
         }
     },
     'turbobit': {
-        selector: 'a[href*="turb.cc"], a[href*="turb.pw"]',
-        run: (link) => { link.href = link.href.replace(/turb\.(cc|pw)/, 'turbobit.net'); }
+        selector: 'a[href*="turb.cc"], a[href*="turb.pw"], a[href*="trbt.cc"]',
+        run: (link) => { link.href = link.href.replace(/(turb|trbt)\.(cc|pw)/, 'turbobit.net'); }
     },
     'dmm': {
         selector: 'a[href*="al.dmm.co.jp/"], a[href*="al.fanza.co.jp/"]',
