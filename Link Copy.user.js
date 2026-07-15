@@ -450,6 +450,7 @@ const skipFilterPatterns = [
     /xtvtv\.com\/explanation/i,
     /katfile\.com\/\?op=registration/i,
     /zippyshare\.com/i,
+    /subyshare\.com\/affiliate\//i,
 ];
 const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i');
 const WaitChangeLink = new RegExp('tma\\.cx\/', 'i');
