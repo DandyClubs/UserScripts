@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy (indexedDB)
-// @version      2026.07.13
+// @version      2026.07.18
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.(org|my)/
@@ -2158,7 +2158,7 @@ async function processCopyTitle(currentConfig) {
         .replace(/^6000KbpsFHD/i, '')
         .replace('[FHD/SD]', '')
         .replace('[FHD-SD]', '')
-        .replace(/^\[FHD\]/, '')
+        .replace(/^\[F?HD\]/i, '')
         .replace(/\[SD\s\d+p\]/, '')
         .replace(/^(FC2-PPV-|FC2\sPPV-|FC2PPV-)/i, 'FC2 PPV ')
         .replace(/^\[(NO\sSTAMP|SUMMARY|BLUR|Original\sVersion|KBJ)\]/, '')
