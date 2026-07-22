@@ -13,6 +13,7 @@
 // @grant		 GM_openInTab
 // @run-at       document-end
 // @grant		 GM_xmlhttpRequest
+// @connect      localhost
 // @connect      *
 // @grant        unsafeWindow
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
@@ -1191,6 +1192,7 @@ function JDownloader(JdownloaderData, PackageName, PW, Source) {
         if (PackageName) {
             data.append(`package`, PackageName);
         }
+        /*
         fetch('http://127.0.0.1:9666/flash/add', {
             method: 'POST',
             headers: {
@@ -1198,6 +1200,20 @@ function JDownloader(JdownloaderData, PackageName, PW, Source) {
                 'Access-Control-Allow-Origin': 'http://localhost:9666',
             },
             body: data
+        });
+        */
+
+        GM_xmlhttpRequest({
+            method: "POST",
+            url: "http://localhost:9666/flash/add",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+            },
+            data: data.toString(),
+            onerror: function (err) {
+                console.error("JDownloader 통신 오류:", err);
+                alert("JDownloader 통신에 실패했습니다. JDownloader가 실행 중인지 확인하세요.");
+            }
         });
     }
 }

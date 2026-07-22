@@ -21,6 +21,7 @@
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
 // @run-at       document-start
+// @connect      localhost
 // @noframes
 // ==/UserScript==
 
@@ -493,14 +494,14 @@ const SkipMakers = [
 
 
 function cleanText(input) {
-  const regex = /\s*\[[a-zA-Z0-9]+\/([a-zA-Z0-9]+)\/[a-zA-Z0-9.]+\]$/;
-  const simpleRegex = /\s*\[[^\]]+\]$/; // 중간 정보가 없는 일반 대괄호 제거용
+    const regex = /\s*\[[a-zA-Z0-9]+\/([a-zA-Z0-9]+)\/[a-zA-Z0-9.]+\]$/;
+    const simpleRegex = /\s*\[[^\]]+\]$/; // 중간 정보가 없는 일반 대괄호 제거용
 
-  if (regex.test(input)) {
-    return input.replace(regex, " $1"); // 중간 정보가 있으면 추출해서 결합
-  } else {
-    return input.replace(simpleRegex, ""); // 중간 정보가 없으면 대괄호 그냥 삭제
-  }
+    if (regex.test(input)) {
+        return input.replace(regex, " $1"); // 중간 정보가 있으면 추출해서 결합
+    } else {
+        return input.replace(simpleRegex, ""); // 중간 정보가 없으면 대괄호 그냥 삭제
+    }
 }
 
 const DomainHandlers = {
@@ -752,7 +753,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
             // 특정 패턴(Title:)으로 시작하는 경우 예외 처리
             if (!Title && /^(Title|Video\s?Name)\s?:/i.test(line)) {
                 Title = line.replace(/^(Title|Video\s?Name)\s?:/i, '').replace(/\s\｜.+/, '').trim();
-            }            
+            }
 
             if (Title) Title = Title.replace(/^\s?(::|:|：)/, '').trim() + ' ';
         }
@@ -783,7 +784,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
             if (dateMatch) {
                 ReleaseDate = dateMatch[1];
                 // 원본 배열의 line에서 날짜를 지우고 싶다면 아래 주석 해제 (부모 스코프 영향 필요)
-                infoLines[index] = line.replace(ReleaseDate, '').trim(); 
+                infoLines[index] = line.replace(ReleaseDate, '').trim();
                 ReleaseDate = ReleaseDate.replace(/[\/\-_]/g, '.');
             }
         }
@@ -812,7 +813,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
     const replaceEx = /(Actress\sand\sTitle\sVideo|Details\s\/\sInformations|Thumbnails\s\/\sScreenshots|General\s\/\sNames|Asianmania_|New!.+[\d+]|Re|^File\sName|Title|^File)(\s?([::：-]*))?/i;
     console.log({ Title });
     Title = Title ? Title.replace(replaceEx, '').trim() : '';
-    console.log({Title});
+    console.log({ Title });
     const cleanedinfoLines = cleanInfoLines.join('\n')
         .replace(replaceEx, '')
         .replace(/(Actress|Model|Label|Circle|Featuring)\s*:?/gi, '')
@@ -832,10 +833,10 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
 
     console.log({ CopyTitle, InfofinalTitle });
     //preferJapanese: true 일 때, 두 문장을 비교하여 일본어가 많이 포함된 경우 우선순위를 두고, 그렇지 않으면 원본 제목을 사용합니다.
-    let preferText = '';    
+    let preferText = '';
     if (preferJapanese) {
         preferText = compareJapaneseCharacters(CopyTitle, InfofinalTitle);
-    }    
+    }
 
     const compareLast = preferText ? compareSentencesByWordMatch(preferText, InfofinalTitle) : InfofinalTitle;
     console.log({ preferText, compareLast });
@@ -1225,6 +1226,7 @@ function JDownloader(JdownloaderData, PackageName, sourceURL) {
         if (PackageName) {
             data.append(`package`, PackageName);
         }
+        /*
         fetch('http://localhost:9666/flash/add', {
             method: 'POST',
             headers: {
@@ -1235,6 +1237,19 @@ function JDownloader(JdownloaderData, PackageName, sourceURL) {
         }).catch(error => {
             console.error("JDownloader 통신 오류:", error);
             alert("JDownloader 통신에 실패했습니다. JDownloader가 실행 중인지 확인하세요.");
+        });
+        */
+        GM_xmlhttpRequest({
+            method: "POST",
+            url: "http://localhost:9666/flash/add",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+            },
+            data: data.toString(),
+            onerror: function (err) {
+                console.error("JDownloader 통신 오류:", err);
+                alert("JDownloader 통신에 실패했습니다. JDownloader가 실행 중인지 확인하세요.");
+            }
         });
     }
 }

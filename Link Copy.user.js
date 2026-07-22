@@ -75,6 +75,7 @@
 // @grant        GM_deleteValue
 // @grant        GM_listValues
 // @run-at       document-start
+// @connect      localhost
 // @connect      *
 // @noframes
 // @license      MIT
@@ -444,7 +445,7 @@ const skipFilterPatterns = [
     /terabox\.(app|com)/i,
     /teraboxapp\.com/i,
     /tezfiles\.com\/.+\/premium/i,
-    /tma\.cx/i,    
+    /tma\.cx/i,
     /twitter\.com/i,
     /shink\.me/i,
     /xtvtv\.com\/explanation/i,
@@ -3491,7 +3492,7 @@ function listToDo(areas, type = 'Default') {
             target = k2s[1] + k2s[2].split('/')[0];
             el.href = target;
         }
-        
+
         else if (TurboBitRegExp.test(el.href)) {
             target = el.href.replace(TurboBitRegExp, 'https://turbobit.net/');
             el.href = target;
@@ -3766,15 +3767,7 @@ async function ClipPaste() {
 
 function JDownloader(JdownloaderData, PackageName, sourceURL) {
     //console.log(PackageName + '\n' + JdownloaderData)
-    /*
-if(JdownloaderData){
-    $.post("http://127.0.0.1:9666/flash/add", {
-        urls: JdownloaderData,
-        referer: PageURL,
-        package: PackageName
-    })
-}
-*/
+
     if (JdownloaderData) {
 
         let data = new URLSearchParams();
@@ -3791,18 +3784,20 @@ if(JdownloaderData){
         data.append(`comment`, Comment)
     }
     */
-        fetch('http://localhost:9666/flash/add', {
-            method: 'POST',
-            //mode: 'no-cors',
+
+        GM_xmlhttpRequest({
+            method: "POST",
+            url: "http://localhost:9666/flash/add",
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                'Access-Control-Allow-Origin': 'http://localhost:9666',
+                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
             },
-            body: data
-        }).then((response) => {
-            //console.log(response.ok)
+            data: data.toString(),
+            onerror: function (err) {
+                console.error("JDownloader 통신 오류:", err);
+                alert("JDownloader 통신에 실패했습니다. JDownloader가 실행 중인지 확인하세요.");
+            }
         });
-        //console.log(data)
+
     }
 
 }
