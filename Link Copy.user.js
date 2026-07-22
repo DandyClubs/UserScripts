@@ -1659,7 +1659,7 @@ const siteConfigs = [
                     } else {
                         let cleanIDTitle, cleanIDInfoTitle, compareInfoAreaID, newTitle;
                         //let infoTitle = InfoArea.find(line => SearchIDRegExp(line)) || '';
-                        let infoTitle = InfoArea[0];
+                        let infoTitle = countJapaneseCharacters(InfoArea[0]) > 0 ? InfoArea[0] : '';
                         let entryID = SearchIDRegExp(Title) || '';
                         let infoAreaID;
                         if (infoTitle && entryID) {
@@ -1687,14 +1687,14 @@ const siteConfigs = [
                         } else if (entryID && !infoAreaID) {
                             if (countJapaneseCharacters(cleanIDTitle) > 0) {
                                 if (/–\s(HD|4K)$/i.test(cleanIDTitle)) {
-                                    cleanIDTitle = cleanIDTitle.replace(/–\s(HD|4K)$/i, '').trim() + ' ' + InfoArea[0];
+                                    cleanIDTitle = cleanIDTitle.replace(/–\s(HD|4K)$/i, '').trim() + ' ' + infoTitle;
                                 }
                                 newTitle = `${entryID} ${cleanIDTitle}`;
                             } else {
-                                newTitle = `${entryID} ${InfoArea[0]}`;
+                                newTitle = `${entryID} ${infoTitle}`;
                             }
                         } else if (!entryID && infoAreaID) {
-                            newTitle = InfoArea[0];
+                            newTitle = infoTitle;
                         }
                         console.log({ newTitle });
                         Title = newTitle ? newTitle : Title;
