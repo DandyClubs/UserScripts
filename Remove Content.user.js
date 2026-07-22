@@ -247,6 +247,7 @@ const siteConfigs = {
         linkSelector: 'div.storyhead h3.shead a',
         extraSelector: 'div.storyhead p.link-cat',
         removeTagSelector: 'div.story.box',
+        extraRemoveSelector: 'div#dle-content div.hsep',
     },
     'wetholefans.com': {
         linkSelector: 'div.short-title a',
@@ -386,6 +387,14 @@ async function ClearTitle() {
  * @param {boolean} isExtra - 추가 선택자인지 여부
  */
 async function processContent(node, selector, isExtra = false) {
+
+    if (Active.extraRemoveSelector) {
+            const extraItems = [...node.querySelectorAll(Active.extraRemoveSelector)];
+            for (const extraItem of extraItems) {             
+                extraItem.remove();
+            }
+        }
+
     const items = [...node.querySelectorAll(selector)];
     for (const item of items) {
         const textContent = item.textContent;
@@ -397,8 +406,7 @@ async function processContent(node, selector, isExtra = false) {
                 item.closest(Active.removeTagSelector)?.remove();
                 continue;
             }
-        }
-
+        }        
         // 일반 링크의 경우 URL 또는 텍스트로 제거
 
         if (/\/(femdom|transsexuals)\//i.test(item.href)) {
