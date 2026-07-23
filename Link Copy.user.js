@@ -1653,14 +1653,38 @@ const siteConfigs = [
                         p.innerText.replace(/(?:(?:\r\n|\r|\n)\s*){2}/gm, '\n').split(/\n\n|\n/).filter(Boolean)
                     );
 
+                    const entryP = document.querySelector('.post-single div.entry p'); // 또는 '.post-single div.entry p'
+                    const firstImg = entryP ? entryP.querySelector('img') : null;
+
+                    let infoTitle = '';
+
+                    if (entryP && firstImg) {
+                        let node = firstImg.previousSibling;
+                        const textParts = [];
+
+                        // img 태그 바로 앞의 노드들을 역순으로 탐색하며 텍스트 노드 수집
+                        while (node) {
+                            // 텍스트 노드(Node.TEXT_NODE = 3)인 경우
+                            if (node.nodeType === Node.TEXT_NODE) {
+                                const text = node.textContent.trim();
+                                if (text) textParts.unshift(text);
+                            }
+                            node = node.previousSibling;
+                        }
+
+                        // 추출된 텍스트 합치기 (이미지 위에 텍스트가 없으면 '' 가 됨)
+                        infoTitle = textParts.join(' ');
+                    } else if (entryP && !firstImg) {
+                        // 만약 p 태그 내에 img가 없는 경우, p의 첫 번째 텍스트 노드만 추출하고 싶다면:
+                        infoTitle = entryP.childNodes[0]?.textContent?.trim() || '';
+                    }
+
                     let fc = SearchFC2ID?.exec(Title);
                     if (fc) {
                         let fcId = fc.groups ? fc.groups[1] : fc[1];
                         Title = `${fcId} ${InfoArea[0]}`;
                     } else {
                         let cleanIDTitle, cleanIDInfoTitle, compareInfoAreaID, newTitle;
-                        //let infoTitle = InfoArea.find(line => SearchIDRegExp(line)) || '';
-                        let infoTitle = countJapaneseCharacters(InfoArea[0]) > 0 ? InfoArea[0] : '';
                         let entryID = SearchIDRegExp(Title) || '';
                         let infoAreaID;
                         if (infoTitle && entryID) {
