@@ -389,7 +389,7 @@
                         if (node.tagName === 'IMG') {
                             if (isValidExternalImage(node)) {
                                 node.setAttribute('loading', 'lazy');
-                                //node.setAttribute('decoding', 'async');
+                                img.setAttribute('decoding', 'auto');
                                 lazyImageQueue.enqueue(node);
                                 startLazyWorkers();
                             }
@@ -398,7 +398,7 @@
                         node.querySelectorAll('img').forEach(img => {
                             if (isValidExternalImage(img)) {
                                 img.setAttribute('loading', 'lazy');
-                                //img.setAttribute('decoding', 'async');
+                                img.setAttribute('decoding', 'auto');
                                 lazyImageQueue.enqueue(img);
                                 startLazyWorkers();
                             }
@@ -673,7 +673,7 @@ function isValidExternalImage(img) {
         document.querySelectorAll('img').forEach(img => {
             if (isValidExternalImage(img)) {
                 img.setAttribute('loading', 'lazy');
-                //img.setAttribute('decoding', 'async');
+                img.setAttribute('decoding', 'auto');
                 lazyImageQueue.enqueue(img);
             }
 

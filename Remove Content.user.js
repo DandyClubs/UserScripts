@@ -314,6 +314,9 @@ span.Warning, span.SkipModel {
 	border-radius: .25em;
 	padding: .25em 0;
 }
+.hiddenbox {
+    display: none; 
+}
 `);
 
 // 현재 페이지 URL과 일치하는 설정 객체를 찾습니다.
@@ -389,11 +392,12 @@ async function ClearTitle() {
 async function processContent(node, selector, isExtra = false) {
 
     if (Active.extraRemoveSelector) {
-            const extraItems = [...node.querySelectorAll(Active.extraRemoveSelector)];
-            for (const extraItem of extraItems) {             
-                extraItem.remove();
-            }
+        const extraItems = [...node.querySelectorAll(Active.extraRemoveSelector)];
+        for (const extraItem of extraItems) {
+            extraItem.classList.add('hiddenbox');
+            extraItem.querySelectorAll('img').forEach(img => img.remove());
         }
+    }
 
     const items = [...node.querySelectorAll(selector)];
     for (const item of items) {
@@ -403,27 +407,43 @@ async function processContent(node, selector, isExtra = false) {
         if (isExtra) {
             if (RemoveContentEX.test(textContent) || /femdom/i.test(textContent) || MREX.test(textContent)) {
                 console.log('Extra content removed:', textContent.match(RemoveContentEX) || textContent.match(/femdom/i) || textContent.match(MREX), textContent);
-                item.closest(Active.removeTagSelector)?.remove();
+                const parentElement = item.closest(Active.removeTagSelector);
+                if (parentElement) {
+                    parentElement.classList.add('hiddenbox');
+                    parentElement.querySelectorAll('img').forEach(img => img.remove());
+                }
                 continue;
             }
-        }        
+        }
         // 일반 링크의 경우 URL 또는 텍스트로 제거
 
         if (/\/(femdom|transsexuals)\//i.test(item.href)) {
             console.log('Link content removed:', item.href.match(/\/(femdom|transsexuals)\//i));
-            item.closest(Active.removeTagSelector)?.remove();
+            const parentElement = item.closest(Active.removeTagSelector);
+            if (parentElement) {
+                parentElement.classList.add('hiddenbox');
+                parentElement.querySelectorAll('img').forEach(img => img.remove());
+            }
             continue;
         }
 
         if (RemoveContentEX.test(textContent) || MREX.test(textContent)) {
             console.log('Keyword content removed:', textContent.match(RemoveContentEX) || textContent.match(MREX), textContent);
-            item.closest(Active.removeTagSelector)?.remove();
+            const parentElement = item.closest(Active.removeTagSelector);
+            if (parentElement) {
+                parentElement.classList.add('hiddenbox');
+                parentElement.querySelectorAll('img').forEach(img => img.remove());
+            }
             continue;
         }
 
         if (/all-voyeur\.net/.test(PageURL)) {
             console.log('Category content removed:', item, item.closest(Active.removeTagSelector));
-            item.closest(Active.removeTagSelector)?.remove();
+            const parentElement = item.closest(Active.removeTagSelector);
+            if (parentElement) {
+                parentElement.classList.add('hiddenbox');
+                parentElement.querySelectorAll('img').forEach(img => img.remove());
+            }
             continue;
         }
 
@@ -441,7 +461,11 @@ async function processContent(node, selector, isExtra = false) {
                 }
                 else if (resolution <= 720 && CheckDB(Title, contentCache)) {
                     console.log('Low resolution content removed:', resolution, Title);
-                    item.closest(Active.removeTagSelector)?.remove();
+                    const parentElement = item.closest(Active.removeTagSelector);
+                    if (parentElement) {
+                        parentElement.classList.add('hiddenbox');
+                        parentElement.querySelectorAll('img').forEach(img => img.remove());
+                    }
                     continue;
                 }
             }

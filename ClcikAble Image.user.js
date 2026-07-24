@@ -179,7 +179,7 @@ class Queue {
 
     isEmpty() {
         return this.size === 0;
-    }    
+    }
 }
 
 
@@ -193,16 +193,16 @@ async function Management() {
 
     try {
         while (!queue.isEmpty()) {
-            const node = queue.peek();     
-            if (node) node.click();                      
-            const delayTime = (queue.size * 200);            
-            await sleep(Math.min(delayTime, 2000));            
+            const node = queue.peek();
+            if (node) node.click();
+            const delayTime = (queue.size * 200);
+            await sleep(Math.min(delayTime, 2000));
             queue.dequeue();
         }
     } catch (err) {
         console.error('Error in Management:', err);
     } finally {
-        ManagementWorking = false;        
+        ManagementWorking = false;
     }
 }
 
@@ -278,7 +278,7 @@ const mutCallback = (mutationsList, observer) => {
             //console.log(node, node.matches(Active.ObserverTag))
             if (node.nodeType == Node.ELEMENT_NODE && node.childNodes.length > 0 && node.querySelector(Active.MakeClickImage)) {
                 //if(WatchTag === node.nodeName.toLowerCase() && ((node.id.includes(WatchID) || node.classList?.contains(WatchClass)) || (WatchID === null && !node.classList?.length))){                
-                const NeedImages = [...node.querySelectorAll(Active.MakeClickImage)]
+                const NeedImages = [...node.querySelectorAll(Active.MakeClickImage)]                    
                     .filter((img) => img.closest(Active.closestTag))
                 for (let x of NeedImages) {
                     MakeClickAble(x)
@@ -307,7 +307,7 @@ async function FirstStep() {
     console.log('Start ClickAble Maker');
     AddStyles(ClickAbleStyles, 'ClickAbleStyle');
 
-    const NeedImages = [...document.querySelectorAll(Active.MakeClickImage)]
+    const NeedImages = [...document.querySelectorAll(Active.MakeClickImage)]        
         .filter(img => img.closest(Active.closestTag));
 
     await Promise.all(NeedImages.map(x => MakeClickAble(x)));
