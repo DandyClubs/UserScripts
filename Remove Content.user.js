@@ -395,7 +395,7 @@ async function processContent(node, selector, isExtra = false) {
         const extraItems = [...node.querySelectorAll(Active.extraRemoveSelector)];
         for (const extraItem of extraItems) {
             extraItem.classList.add('hiddenbox');
-            extraItem.querySelectorAll('img').forEach(img => img.remove());
+            extraItem.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
         }
     }
 
@@ -410,7 +410,7 @@ async function processContent(node, selector, isExtra = false) {
                 const parentElement = item.closest(Active.removeTagSelector);
                 if (parentElement) {
                     parentElement.classList.add('hiddenbox');
-                    parentElement.querySelectorAll('img').forEach(img => img.remove());
+                    parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
                 }
                 continue;
             }
@@ -422,7 +422,7 @@ async function processContent(node, selector, isExtra = false) {
             const parentElement = item.closest(Active.removeTagSelector);
             if (parentElement) {
                 parentElement.classList.add('hiddenbox');
-                parentElement.querySelectorAll('img').forEach(img => img.remove());
+                parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
             }
             continue;
         }
@@ -432,7 +432,7 @@ async function processContent(node, selector, isExtra = false) {
             const parentElement = item.closest(Active.removeTagSelector);
             if (parentElement) {
                 parentElement.classList.add('hiddenbox');
-                parentElement.querySelectorAll('img').forEach(img => img.remove());
+                parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
             }
             continue;
         }
@@ -442,7 +442,7 @@ async function processContent(node, selector, isExtra = false) {
             const parentElement = item.closest(Active.removeTagSelector);
             if (parentElement) {
                 parentElement.classList.add('hiddenbox');
-                parentElement.querySelectorAll('img').forEach(img => img.remove());
+                parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
             }
             continue;
         }
@@ -464,7 +464,7 @@ async function processContent(node, selector, isExtra = false) {
                     const parentElement = item.closest(Active.removeTagSelector);
                     if (parentElement) {
                         parentElement.classList.add('hiddenbox');
-                        parentElement.querySelectorAll('img').forEach(img => img.remove());
+                        parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
                     }
                     continue;
                 }

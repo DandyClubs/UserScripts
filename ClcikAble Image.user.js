@@ -13,6 +13,7 @@
 // @match        https://av18plus.com/*
 // @match        https://x-idol.net/*
 // @match        https://www.naughtyblog.org/*
+// @match        https://www.naughtyblog.st/*
 // @exclude      /maxjav\.com/\d+/
 // @exclude      /maxjav\.xyz/\d+/
 // @exclude      /blogjav\.net\/\d+/
@@ -114,7 +115,7 @@ const misskon = {
 }
 
 const naughtyblog = {
-    MatchUrl: 'naughtyblog.org',
+    MatchUrl: 'naughtyblog',
     MakeClickImage: 'div.post-content span#post-index-content.herecky p a img',
     Approach: 'AReplace',
     closestTag: 'div.post-overview',
