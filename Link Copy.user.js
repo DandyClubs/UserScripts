@@ -413,13 +413,19 @@ let SkipTitle = [];
 
 let GetDPI, DefaultFontSize;
 let Target, DownloadArea, CopyTitle = '', copyOffsetArea, InfoArea, Resolution = '', TitleLast = '', Series = '', Title, ID = '', TitleID, CopyTitleTmp, InfoTitleTmp, CoverImage, MatchWebRegExp, Gallery, DownloadAreaSelector;
+
+const skipFilterImages = [
+    /cf\.javfree\.me/i,
+    /javstore\.net/i,
+    /imagetwist\.com/i,
+    /thumb/i,
+]
 const skipFilterPatterns = [
     /#$/i,
     /3xplanetpremium/i,
     /77file\.com/i,
     /adf\.ly/i,
     /anonfiles\.com/i,
-    /cf\.javfree\.me/i,
     new RegExp(`^(?=.*${window.location.origin.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})(?!.*\\?site).*$`, 'i'),
     /^\//i,
     /clubwarp\.com/i,
@@ -2953,10 +2959,10 @@ function MatchRegexElement(Taget, regex, attributeToSearch) {
 async function CollectionCoverImage(CoverImage) {
     let result = [];
     CoverImage = /vpdmm\.cc/.test(CoverImage) ? CoverImage.replace('vpdmm.cc', 'dmm.co.jp') : CoverImage;
-    if (CoverImage && !/imagetwist\.com/.test(CoverImage)) {
+    if (CoverImage && !skipFilterImages.some(x => x.test(CoverImage))) {
         await UpdateDB(CoverImage, FilenameConvert(`${CopyTitle}${Resolution || ''}`));
-    }
-    result.push(CoverImage);
+        result.push(CoverImage);
+    }    
     return result;
 }
 
@@ -3390,7 +3396,7 @@ async function CopyLink() {
                     }
                 }
                 // --- 최종 처리: 수집 목록 추가 ---
-                if (!finalCoverImage && CoverImage && !/imagetwist\.com/.test(CoverImage)) {
+                if (!finalCoverImage && CoverImage && !skipFilterImages.some(x => x.test(CoverImage))) {
                     finalCoverImage = CoverImage;
                 }
 
@@ -3720,7 +3726,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
     }
 
     // Add cover image if present and allowed
-    if (pageLinksDB.length > 0 && CoverImage && !/imagetwist\.com|thumbs/.test(CoverImage)) {
+    if (pageLinksDB.length > 0 && CoverImage && !skipFilterImages.some(x => x.test(CoverImage))) {
         let U = CoverImage;
         let T;
         if (/SITERIP|Collection/i.test(CopyTitleRaw)) {
