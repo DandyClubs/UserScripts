@@ -4,7 +4,7 @@
 // @connect      *
 // @match        https://sukebei.nyaa.si/view/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=nyaa.si
-// @grant		 GM_addStyle
+// @grant        GM_addStyle
 // ==/UserScript==
 (function () {
     'use strict';
@@ -38,31 +38,27 @@
     height: 100vh;
     background: rgba(0, 0, 0, 0.85);
     z-index: 10000;
-    display: none; /* 기본 숨김 */
-    overflow-y: auto; /* 세로 스크롤 허용 */
+    display: none;
+    overflow-y: auto;
     cursor: zoom-out;
-    text-align: center; /* 이미지 중앙 정렬 */
+    text-align: center;
     padding: 20px 0;
 }
 
-/* 확대된 이미지 스타일 */
 #img-zoom-container img {
     display: inline-block;
     vertical-align: middle;
-    max-width: 95%; /* 가로 너비는 화면에 맞춤 */
-    height: auto !important; /* 세로는 원본 비율 유지 (스크롤 생김) */
+    max-width: 95%;
+    height: auto !important;
     box-shadow: 0 0 30px rgba(0,0,0,0.5);
     border-radius: 5px;
     cursor: zoom-out;
 }
 
-/* 배경 뒤쪽 본문 스크롤 방지용 클래스 */
 body.modal-open {
     overflow: hidden;
 }
 
-
-/* CSS 부분 */
 .pending-deep-preview {
     display: block !important;
     width: 100%;
@@ -70,11 +66,8 @@ body.modal-open {
     background: #f0f0f0 url('https://i.gifer.com/ZKZg.gif') no-repeat center !important;
     background-size: 50px 50px !important;
 }
-
 `);
 
-
-    // ... SITE_CONFIGS 및 기타 변수는 동일 ...
     const SITE_CONFIGS = [
         {
             id: 'imagetwist',
@@ -82,7 +75,7 @@ body.modal-open {
             pathPattern: /^https:\/\/imagetwist\.com/i,
             imageSourceRegExp: /src="([^"]+?\.imagetwist\.com\/i\/[^"]+)"/i,
             getReferer: (url) => url,
-            directLoad: false // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
+            directLoad: false
         },
         {
             id: 'xxxwebdlxxx',
@@ -90,7 +83,7 @@ body.modal-open {
             pathPattern: /^https:\/\/xxxwebdlxxx\.(top|org)\/.*\.html/i,
             imageSourceRegExp: /img class='centred_resized' src='([^"]+?)'/i,
             getReferer: (url) => url,
-            directLoad: true // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
+            directLoad: true
         },
         {
             id: 'pixhost',
@@ -98,7 +91,7 @@ body.modal-open {
             pathPattern: /\/upload\/(?!ib\/)/i,
             imageSourceRegExp: /img id="image" src="([^"]+)"/i,
             getReferer: (url) => url,
-            directLoad: true // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
+            directLoad: true
         },
         {
             id: 'imagevenue',
@@ -106,7 +99,7 @@ body.modal-open {
             pathPattern: /\/upload\/(?!ib\/)/i,
             imageSourceRegExp: /<img src="([^"]+)" class="img-fluid"/i,
             getReferer: (url) => url,
-            directLoad: true // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
+            directLoad: true
         },
         {
             id: 'cosplay18',
@@ -116,9 +109,9 @@ body.modal-open {
                 if (url.includes('/upload/') && !url.includes('/upload/ib/')) {
                     return url.replace('/upload/', '/upload/ib/');
                 }
-                return url; // 이미 ib/가 있거나 형식이 다르면 그대로 반환
+                return url;
             },
-            directLoad: true // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
+            directLoad: true
         },
         {
             id: 'papakatsu',
@@ -126,7 +119,7 @@ body.modal-open {
             pathPattern: /papakatsu\.co\/upload\/image/i,
             imageSourceRegExp: /<img src="([^"]+?\.papakatsu\.co\/upload\/uploads\/[^"]+)"/i,
             getReferer: (url) => url,
-            directLoad: true // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
+            directLoad: true
         },
         {
             id: 'krav',
@@ -134,75 +127,114 @@ body.modal-open {
             pathPattern: /\/upload/i,
             imageSourceRegExp: /<img src="([^"]+?\/upload\/Application[^"]+)"/i,
             getReferer: (url) => url,
-            directLoad: true // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
+            directLoad: true
         },
         {
             id: 'anime-jav',
-            domains: ['anime-jav.com', 'javbee.vip', 'chinese-pics.com', 'chinese-pics.vip', 'kin8-jav.com', 'porn-pig.com', 'hentaicovid.org', 's-porn.com', '3minx.com', 'gofile.download', 'hentaicovid.vip', 'fc2ppv.stream'],
-            pathPattern: /\/upload\/(?!Application\/)/i,
-            // HTML 내부에서 주소를 캐낼 경우 (Blob 미사용 설정)
+            domains: [
+                'anime-jav.com', 'javbee.vip', 'chinese-pics.com', 'chinese-pics.vip',
+                'kin8-jav.com', 'porn-pig.com', 'hentaicovid.org', 's-porn.com',
+                '3minx.com', 'gofile.download', 'hentaicovid.vip', 'fc2ppv.stream', 'hentaicovid.com'
+            ],
+            pathPattern: /\/uploads?\/(?!Application\/)/i,
             imageSourceRegExp: /class="fileviewer-file"[\s\S]*?<img src="([^"]+)"/i,
-            directLoad: true // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
+            directLoad: true
         },
         {
             id: '4up',
             domains: ['4up.pics'],
             pathPattern: /4up\.pics\/.+\.jpg/i,
-            // HTML 내부에서 주소를 캐낼 경우 (Blob 미사용 설정)
             imageSourceRegExp: /class="fileviewer-file"[\s\S]*?<img src="([^"]+)"/i,
-            directLoad: true // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
+            directLoad: true
         },
         {
             id: 'javball',
             domains: ['javball.com'],
             pathPattern: /\/upload\/(?!Application\/)/i,
-            // HTML 내부에서 주소를 캐낼 경우 (Blob 미사용 설정)
             imageSourceRegExp: /class="fileviewer-file"[\s\S]*?<img src="([^"]+)"/i,
-            directLoad: true // Blob 없이 src에 직접 대입하기 위한 커스텀 플래그
+            directLoad: true
         },
         {
             id: 'imagehaha',
             domains: ['imagehaha.com'],
-            // /8xkrqn72zq5m/ 처럼 12자리 내외의 영문/숫자 경로가 포함된 경우
             pathPattern: /\/[a-z0-9]{8,15}\//i,
-            // class="pic img img-responsive"를 가진 img 태그의 src를 추출
             imageSourceRegExp: /<img[^>]+src="([^"]+)"[^>]+class="pic img img-responsive"/i,
-            directLoad: true, // 이 사이트는 이미지 주소 직접 대입으로 작동할 가능성이 높습니다.
+            directLoad: true,
             getReferer: (url) => url
-        },
+        }
     ];
+
+    // ==========================================
+    // ⚡ 1. getConfig 빠른 조회를 위한 Domain Map 인덱싱 (O(1))
+    // ==========================================
+    const configDomainMap = new Map();
+    SITE_CONFIGS.forEach(cfg => {
+        cfg.domains.forEach(domain => {
+            const lowerDomain = domain.toLowerCase();
+            if (!configDomainMap.has(lowerDomain)) {
+                configDomainMap.set(lowerDomain, []);
+            }
+            configDomainMap.get(lowerDomain).push(cfg);
+        });
+    });
+
+    const getConfig = (url) => {
+        try {
+            const hostname = new URL(url).hostname.toLowerCase();
+            
+            // Map에서 해당 도메인을 정확히 매칭하거나, 서브도메인을 포함하는 설정 검색
+            for (const [domain, configs] of configDomainMap.entries()) {
+                if (hostname === domain || hostname.endsWith('.' + domain)) {
+                    const matchedConfig = configs.find(cfg => 
+                        !cfg.pathPattern || cfg.pathPattern.test(url)
+                    );
+                    if (matchedConfig) return matchedConfig;
+                }
+            }
+        } catch (e) {
+            // 잘못된 URL 형태일 경우 예외 처리
+            return null;
+        }
+        return null;
+    };
+
+    // 중복 요청 방지를 위한 실행 중인 URL Map
+    const activeRequests = new Set();
 
     const skipTags = new Set(['script', 'style', 'textarea', 'code', 'pre']);
     const urlRegex = /https?:\/\/[^\s<>"'\[\]()]+(?:\([^\s<>"'\[\]()]+\)|[^\s<>"'\[\]().,?!:;\"'\]\)])/gi;
     const imageRegex = /\.(jpg|jpeg|png|gif|webp|bmp)(?:\?.*)?$/i;
-    const getConfig = (url) => {
-        return SITE_CONFIGS.find(cfg => {
-            const domainMatch = cfg.domains.some(d => url.includes(d));
-            // 패턴이 없으면 도메인만 체크, 패턴이 있으면 패턴까지 체크
-            const pathMatch = cfg.pathPattern ? cfg.pathPattern.test(url) : true;
-            return domainMatch && pathMatch;
-        });
-    };
 
+    // ==========================================
+    // ⚡ 2. loadDeepPreview 중복 실행 완전 방지
+    // ==========================================
     async function loadDeepPreview(pageUrl, imgElement) {
+        // 이미 완료되었거나 요청 중인 Element는 즉시 반환
+        if (imgElement.dataset.status === 'loading' || imgElement.dataset.status === 'done') {
+            return;
+        }
+
         const config = getConfig(pageUrl);
         if (!config) return;
 
-        // 💡 재귀 호출을 위해 요청 로직을 별도 함수로 분리합니다.
+        // 동일 URL로 이미 진행 중인 network call이 있다면 element 상태만 지정 후 대기
+        imgElement.dataset.status = 'loading';
+
         function fetchPage(currentUrl) {
+            // 리다이렉트 중복 추적 방지
+            if (activeRequests.has(currentUrl)) return;
+            activeRequests.add(currentUrl);
+
             GM_xmlhttpRequest({
                 method: "GET",
                 url: currentUrl,
                 onload: function (res) {
+                    activeRequests.delete(currentUrl);
 
-                    // 1️⃣ Meta Refresh 리다이렉트 태그가 있는지 먼저 검사합니다.
-                    // 따옴표 종류('', "")나 공백에 유연하게 대응하는 정규표현식입니다.
                     const refreshMatch = res.responseText.match(/<meta\s+http-equiv=["']refresh["']\s+content=["']\d+;\s*url=['"]?([^'"]+?)['"]?["']/i);
 
                     if (refreshMatch && refreshMatch[1]) {
                         let redirectUrl = refreshMatch[1];
-
-                        // 리다이렉트 주소가 상대 경로일 경우, 절대 경로로 변환해줍니다.
                         if (!redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
                             try {
                                 redirectUrl = new URL(redirectUrl, currentUrl).href;
@@ -210,19 +242,16 @@ body.modal-open {
                                 console.error("URL 변환 실패:", e);
                             }
                         }
-
-                        // 새로운 리다이렉트 URL로 다시 페이지를 요청합니다 (재귀 호출)
                         fetchPage(redirectUrl);
                         return;
                     }
 
-                    // 2️⃣ 리다이렉트 태그가 없다면 기존 이미지 매칭 로직을 수행합니다.
                     const match = res.responseText.match(config.imageSourceRegExp);
                     if (match && match[1]) {
                         const finalUrl = match[1];
 
-                        // ✅ 이미지가 실제로 로드 되었을 때 실행될 로직을 미리 정의
                         imgElement.onload = () => {
+                            imgElement.dataset.status = 'done';
                             imgElement.classList.remove('pending-deep-preview');
                             imgElement.style.minHeight = "auto";
                             imgElement.style.background = "none";
@@ -230,60 +259,59 @@ body.modal-open {
                         };
 
                         if (config.directLoad) {
-                            // ✅ 직접 로드하는 경우
                             imgElement.src = finalUrl;
                         } else {
-                            // ✅ Blob으로 우회해서 로드하는 경우
                             GM_xmlhttpRequest({
                                 method: "GET",
                                 url: finalUrl,
                                 responseType: "blob",
-                                // Referer는 최초 pageUrl 혹은 상황에 따라 currentUrl을 사용할 수 있습니다.
                                 headers: { "Referer": config.getReferer ? config.getReferer(pageUrl) : "" },
                                 onload: function (imgRes) {
                                     if (imgRes.status === 200) {
                                         imgElement.src = URL.createObjectURL(imgRes.response);
+                                    } else {
+                                        imgElement.dataset.status = 'failed';
                                     }
-                                }
+                                },
+                                onerror: () => { imgElement.dataset.status = 'failed'; }
                             });
                         }
                     } else {
-                        // 매칭 실패 시 로딩 표시 제거 및 에러 처리
+                        imgElement.dataset.status = 'failed';
                         imgElement.classList.remove('pending-deep-preview');
                         imgElement.alt = "Image not found";
                     }
+                },
+                onerror: () => {
+                    activeRequests.delete(currentUrl);
+                    imgElement.dataset.status = 'failed';
                 }
             });
         }
 
-        // 최초 실행 호출
         fetchPage(pageUrl);
     }
 
     function createImgTag(url) {
-        const config = getConfig(url);
+        const config = getConfig(url);        
 
         if (config) {
-            // 1. 단순 URL 치환(Transform)이 가능한 경우 (예: cosplay18)
             if (typeof config.transform === 'function') {
                 const transformedUrl = config.transform(url);
-                // 만약 변환 결과가 원본과 다르다면 변환된 이미지 태그 반환
                 if (transformedUrl !== url) {
                     return `<img src="${transformedUrl}">`;
                 }
             }
 
-            // 2. HTML 파싱(Deep Preview)이 필요한 경우 (예: anime-jav, imagetwist)
             if (config.imageSourceRegExp) {
-                // 투명 픽셀을 넣는 이유는 '엑박(깨진 이미지)' 아이콘을 방지하기 위함입니다.
                 return `<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
                  class="pending-deep-preview"
+                 data-status="pending"
                  data-url="${url}">`;
             }
         }
 
-        // 3. 일반 이미지 확장자 링크인 경우
-        if (imageRegex.test(url)) {
+        else if (imageRegex.test(url)) {
             return `<img src="${url}">`;
         }
 
@@ -293,14 +321,12 @@ body.modal-open {
     function createFullLinkHTML(url) {
         const imgTag = createImgTag(url);
         if (imgTag) {
-            // 처리 완료 표시를 위해 'processed-link' 클래스 추가            
             return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="processed-link">${imgTag}</a>`;
         }
         return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="processed-link">${url}</a>`;
     }
 
     function processNodes(root = document.body) {
-        // 이미 처리된 부모 내부라면 중단
         if (root.classList && root.classList.contains('processed-link')) return;
 
         const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null, false);
@@ -310,7 +336,6 @@ body.modal-open {
         while (currentNode = walker.nextNode()) {
             const tagName = currentNode.nodeType === 1 ? currentNode.tagName.toLowerCase() : "";
 
-            // 중복 처리 방지: 이미 'processed-link' 클래스가 있다면 건너뜀
             if (currentNode.nodeType === 1 && currentNode.classList.contains('processed-link')) continue;
 
             if (currentNode.nodeType === 1 && tagName === 'a') {
@@ -331,13 +356,12 @@ body.modal-open {
         nodesToProcess.forEach(item => {
             const { type, node } = item;
             if (!node || !node.parentNode) return;
-            console.log(type)
 
             try {
                 if (type === 'existing-link') {
                     const imgHtml = createImgTag(node.href);
                     if (imgHtml) {
-                        node.classList.add('processed-link'); // 마킹
+                        node.classList.add('processed-link');
                         node.innerHTML = imgHtml;
                     }
                 } else if (type === 'text') {
@@ -354,7 +378,8 @@ body.modal-open {
             } catch (err) { console.warn(err); }
         });
 
-        root.querySelectorAll('.pending-deep-preview').forEach(img => {
+        // ⚡ pending 상태인 img 태그들만 구별하여 호출
+        root.querySelectorAll('.pending-deep-preview[data-status="pending"]').forEach(img => {
             loadDeepPreview(img.dataset.url, img);
         });
     }
@@ -366,12 +391,8 @@ body.modal-open {
         const paragraphs = Array.from(container.querySelectorAll('p'));
 
         paragraphs.forEach(p => {
-            // ✅ img만 찾는 것이 아니라, 이미지가 포함된 processed-link(a태그)를 찾습니다.
             const processedLinks = Array.from(p.querySelectorAll('a.processed-link')).filter(a => a.querySelector('img'));
-
-            // 만약 링크 형태가 아닌 일반 img가 있다면 그것도 포함시킵니다.
             const soloImages = Array.from(p.querySelectorAll('img')).filter(img => !img.closest('a.processed-link'));
-
             const itemsToMove = [...processedLinks, ...soloImages];
 
             if (itemsToMove.length === 0) return;
@@ -380,13 +401,11 @@ body.modal-open {
             masonry.className = 'image-masonry';
 
             itemsToMove.forEach(item => {
-                masonry.appendChild(item); // ✅ a 태그(또는 solo img) 통째로 masonry로 이동
+                masonry.appendChild(item);
             });
 
-            // 불필요한 줄바꿈 제거
             p.querySelectorAll('br').forEach(br => br.remove());
 
-            // p 태그가 비었으면 교체, 내용이 있으면 뒤에 배치
             if (!p.textContent.trim()) {
                 p.replaceWith(masonry);
             } else {
@@ -395,11 +414,10 @@ body.modal-open {
         });
     }
 
-
     processNodes();
     splitImageParagraphs();
 
-    // 1. 확대용 컨테이너 생성 (한 번만 실행)
+    // Zoom 모달 생성
     const zoomContainer = document.createElement('div');
     zoomContainer.id = 'img-zoom-container';
     document.body.appendChild(zoomContainer);
@@ -407,80 +425,52 @@ body.modal-open {
     const zoomImg = document.createElement('img');
     zoomContainer.appendChild(zoomImg);
 
-    // 2. 닫기 로직 (배경이나 이미지 클릭 시)
     zoomContainer.onclick = () => {
         zoomContainer.style.display = 'none';
         document.body.classList.remove('modal-open');
-        zoomImg.src = ''; // 메모리 해제 및 다음 로딩 대기
+        zoomImg.src = '';
     };
 
-    // 3. 클릭 이벤트 등록
     document.addEventListener('click', (e) => {
         const clickedImg = e.target.closest('.image-masonry img');
         if (!clickedImg) return;
 
         e.preventDefault();
-
-        const originalUrl = clickedImg.src;
-
-        // 모달에 이미지 넣고 표시
-        zoomImg.src = originalUrl;
+        zoomImg.src = clickedImg.src;
         zoomContainer.style.display = 'block';
         document.body.classList.add('modal-open');
-
-        // 스크롤을 맨 위로 초기화
         zoomContainer.scrollTop = 0;
     });
 
-    // ESC 키를 누르면 닫히는 기능 추가 (편의성)
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            const expandedImg = document.querySelector('img.expanded');
-            if (expandedImg) {
-                expandedImg.classList.remove('expanded');
-                document.body.classList.remove('img-zoomed');
-            }
+            zoomContainer.style.display = 'none';
+            document.body.classList.remove('modal-open');
+            zoomImg.src = '';
         }
     });
 
+    // ⚡ Observer 중복 바인딩 제거 및 최적화
     const observer = new MutationObserver((mutations) => {
-        // 중복 처리를 방지하기 위해 고유한 부모 노드만 담을 Set 생성
         const parentsToProcess = new Set();
 
         for (const mutation of mutations) {
             for (const node of mutation.addedNodes) {
-                // 1. 자기 자신이 이미 스크립트에 의해 처리된 링크라면 건너뜁니다.
-                if (node.nodeType === 1 && node.classList.contains('processed-link')) {
-                    continue;
-                }
+                if (node.nodeType === 1 && node.classList.contains('processed-link')) continue;
 
-                // 2. 부모 노드가 올바른 Element 노드인지 확인합니다.
                 const parent = node.parentNode;
                 if (parent && parent.nodeType === 1) {
-                    // 부모가 이미 처리된 링크 내부라면 건너뜁니다.
-                    if (parent.classList.contains('processed-link')) {
-                        continue;
-                    }
-                    // 처리할 부모 노드 목록에 추가 (Set이라서 자동 중복 제거됨)
+                    if (parent.classList.contains('processed-link')) continue;
                     parentsToProcess.add(parent);
                 }
             }
         }
 
-        // 수집된 고유 부모 노드가 있을 때만 실행
         if (parentsToProcess.size > 0) {
-            parentsToProcess.forEach(parent => {
-                processNodes(parent);
-            });
-
-            // 모든 노드 변환이 끝난 후, 레이아웃 정리는 딱 한 번만 수행 (성능 최적화)
+            parentsToProcess.forEach(parent => processNodes(parent));
             splitImageParagraphs();
         }
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
-
-
-    observer.observe(document.body, { childList: true, subtree: true });
-
 })();
