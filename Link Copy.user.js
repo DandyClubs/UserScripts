@@ -1642,6 +1642,9 @@ const siteConfigs = [
             downloadAreaSelector: 'div.post-single.hentry:first-child div.entry p',
             postProcess: (config) => {
                 copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
+                if (!copyOffsetArea) {
+                    location.reload();
+                }
                 DownloadArea = document.querySelectorAll(config.downloadAreaSelector);
                 let initialTitle = copyOffsetArea.innerText;
                 const subtitleMatch = initialTitle.match(/\[.+Subtitle\](.+)/);
@@ -2962,7 +2965,7 @@ async function CollectionCoverImage(CoverImage) {
     if (CoverImage && !skipFilterImages.some(x => x.test(CoverImage))) {
         await UpdateDB(CoverImage, FilenameConvert(`${CopyTitle}${Resolution || ''}`));
         result.push(CoverImage);
-    }    
+    }
     return result;
 }
 
