@@ -315,7 +315,7 @@ span.Warning, span.SkipModel {
 	padding: .25em 0;
 }
 .hiddenbox {
-    display: none; 
+    display: none !important;
 }
 `);
 
