@@ -97,7 +97,9 @@ const siteModules = [
             const headers = {
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                 "User-Agent": navigator.userAgent,
-            };            
+                "Referer": "https://fastpic.org/",
+            }           
+        
             return getURLFromPage(link, extractor, { headers }); // headers 객체를 requestDetails에 추가
         },
     },
