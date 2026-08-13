@@ -1553,10 +1553,10 @@ const siteConfigs = [
         regex: /jgirl\.co\/post\//,
         config: {
             copyOffsetAreaSelector: 'div.body.container h1',
-            downloadAreaSelector: 'div.body.container div div div div div',
+            downloadAreaSelector: 'body > div:nth-of-type(1) > div.middle.container > div > div.body.container > div > div:nth-of-type(1) > div:nth-of-type(2)',
             getDownloadArea: () => {
                 // 1. 해당 경로의 모든 div 요소를 가져옵니다.
-                const targetDivs = document.querySelectorAll('div.body.container div div div div div');
+                const targetDivs = document.querySelectorAll('body > div:nth-of-type(1) > div.middle.container > div > div.body.container > div > div:nth-of-type(1) > div:nth-of-type(2)');
                 const matchedParents = []; // 검색된 부모들을 담을 배열
 
                 for (const div of targetDivs) {
