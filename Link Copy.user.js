@@ -1554,6 +1554,13 @@ const siteConfigs = [
         config: {
             copyOffsetAreaSelector: 'div.body.container h1',
             downloadAreaSelector: 'body > div:nth-of-type(1) > div.middle.container > div > div.body.container > div > div:nth-of-type(1) > div:nth-of-type(2)',
+            postProcess: () => {
+                CopyTitle = copyOffsetArea?.textContent.trim() || '';                
+                CopyTitle = CopyTitle
+                .replace(/^3日間！.+(OFF|半額！)/, '')
+                .replace(/^\d+日まで\d+pt\\?\!\!|^d\+日迄\d+pt\\?\!\!/, '')
+                .trim();
+            },
             getDownloadArea: () => {
                 // 1. 해당 경로의 모든 div 요소를 가져옵니다.
                 const targetDivs = document.querySelectorAll('body > div:nth-of-type(1) > div.middle.container > div > div.body.container > div > div:nth-of-type(1) > div:nth-of-type(2)');
