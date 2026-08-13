@@ -460,6 +460,7 @@ const skipFilterPatterns = [
     /katfile\.com\/\?op=registration/i,
     /zippyshare\.com/i,
     /subyshare\.com\/affiliate\//i,
+    new RegExp(`${RootDomain}`, 'i'),
 ];
 const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i');
 const WaitChangeLink = new RegExp('tma\\.cx\/', 'i');
@@ -501,7 +502,7 @@ let AllowDirect;
 
 let CenterBoxFontSize, StateFontSize, StateLineHeight, LinkCopyCenterBox;
 
-const SkipClassNames = ['adead_link', 'autohyperlink', 'social-icon'];
+const SkipClassNames = ['adead_link', 'autohyperlink', 'social-icon', 'offline'];
 //const JapaneseChar = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/g
 const JapaneseChar = /[ぁ-んァ-ン一-龯]/;
 const ThaiChar = /[ๅภถุึคตจขชๆไำพะัีรนยบลฃฟหกดเ้่าสวงผปแอิืทมใฝ๑๒๓๔ู฿๕๖๗๘๙๐ฎฑธํ๊ณฯญฐฅฤฆฏโฌ็๋ษศซฉฮฺ์ฒฬฦ]/;
@@ -2118,7 +2119,7 @@ async function Start() {
                 DownloadArea = currentConfig.getDownloadArea(copyOffsetArea);
             } else if (currentConfig.downloadAreaSelector) {
                 DownloadArea = document.querySelectorAll(currentConfig.downloadAreaSelector);
-            }           
+            }
 
         }
 
@@ -3044,6 +3045,7 @@ async function CollectionLinks(DownloadArea) {
                 );
             }
         }
+        console.log(`Injected ${injected} links from plain text.`);
         if (injected) {
             // Recurse once after injection
             return CollectionLinks(DownloadArea);
@@ -3138,7 +3140,7 @@ async function CollectionLinks(DownloadArea) {
         // 기존에 이미 online 클래스가 부여되어 있는 경우
         if (a.classList.contains('online')) {
             alreadyOnlineItems.push({ element: a, link, isOnline: true });
-        } 
+        }
         // offline 상태가 아니면서 online 클래스도 없는 경우 -> 검사 대상
         else if (!a.classList.contains('offline')) {
             pendingElements.push(a);
@@ -3525,13 +3527,23 @@ async function CopyLink() {
         }
     }
 
-    if (allLinks.length === 0) {
-        SkipTitle = ['Link is Empty'];
-        return allLinks;
-    }
-    // 3) Update UI notice
+    console.log('Final allLinks:', allLinks);
+
     const noticeEl = document.querySelector('.CopyNotice .copyText');
     noticeEl.textContent = noticeLines.join("\n");
+
+    if (allLinks.length === 0) {
+        SkipTitle = ['Link is Empty'];     
+        if (!document.querySelector('.CopyState')) {
+            LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
+        }
+        const copyStateEl = document.querySelector('.CopyState');
+        if (copyStateEl) {
+            copyStateEl.classList.add('innerText');
+            copyStateEl.textContent = 'Link is Empty';
+        }           
+        return allLinks;
+    } 
 
     console.log('CopyLink Step: ', { indexedDBCache });
 
@@ -3570,18 +3582,18 @@ function checkSkipFilter(el) {
 
 
 async function checkList(areas) {
-    if (!areas) return [];
-    const seenAnchors = new Set();    
+    if (!areas) return;
+    const seenAnchors = new Set();
 
     // 1) Collect all unique <a> elements under each area
     areas.forEach(area => {
-        area.querySelectorAll('a').forEach(a => seenAnchors.add(a));
+        Array.from(area.querySelectorAll('a')).filter(a => !checkSkipFilter(a)).forEach(a => seenAnchors.add(a));
     });
 
     // 2) Filter and normalize each link
-    for (const el of seenAnchors) {        
+    for (const el of seenAnchors) {
         el.setAttribute('href', el.getAttribute('href').replace(/\?site.+/, ''));
-        
+        if (checkSkipFilter(el)) continue;
         // Normalize K2S URLs
         let target = el.href;
         const k2s = el.href.match(K2SRegExp);
@@ -3617,7 +3629,7 @@ async function checkList(areas) {
                 console.warn(`Link offline: ${link}`);
             }
         })
-    );    
+    );
 }
 
 function listToDo(areas, type = 'Default') {
@@ -3662,7 +3674,7 @@ function listToDo(areas, type = 'Default') {
             target = el.href.replace(TurboBitRegExp, 'https://turbobit.net/');
             el.href = target;
         }
-                
+
         if (!todo.includes(target) && !el.classList.contains('offline')) {
             todo.push(target);
         }
@@ -3671,7 +3683,7 @@ function listToDo(areas, type = 'Default') {
     // 3) Optionally include the cover image
     if (type === 'All' && CoverImage) {
         todo.push(CoverImage);
-    }    
+    }
 
 
 
@@ -3881,6 +3893,15 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
     }
     if (pageLinksDB.length === 0) {
         SkipTitle = ['Link is Empty'];
+        if (!document.querySelector('.CopyState')) {
+            LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
+        }
+        const copyStateEl = document.querySelector('.CopyState');
+        if (copyStateEl) {
+            copyStateEl.classList.add('innerText');
+            copyStateEl.textContent = 'Link is Empty';
+            
+        }
     }
     console.log('MutilSubTitle Final pageLinksDB:', pageLinksDB);
     return pageLinksDB;
