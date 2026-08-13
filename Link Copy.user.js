@@ -284,6 +284,8 @@ img.favicon:active {
 		inset -2px -2px 4px rgba(255,255,255,0.8);
 }
 
+a.offline {  text-decoration: line-through;}
+
 `);
 
 
@@ -2116,7 +2118,7 @@ async function Start() {
                 DownloadArea = currentConfig.getDownloadArea(copyOffsetArea);
             } else if (currentConfig.downloadAreaSelector) {
                 DownloadArea = document.querySelectorAll(currentConfig.downloadAreaSelector);
-            }
+            }           
 
         }
 
@@ -2453,7 +2455,6 @@ async function FirstStep() {
         }
     });
 
-
     Start()
         .then((e) => {
             console.log('First Step OK: ', e);
@@ -2737,6 +2738,8 @@ async function SecondProcess() {
                 }
             });
         }
+
+        checkList(DownloadArea);
 
         console.log('AutoCopy:', AutoCopy, 'localStorage AutoCopy:', JSON.parse(localStorage.getItem('AutoCopy')));
 
@@ -3124,34 +3127,73 @@ async function CollectionLinks(DownloadArea) {
         }
     }
 
-    // 3) Finally, process each remaining link into CopyLinks and DB
+    const pendingElements = [];
+    const alreadyOnlineItems = [];
 
+    // 1. 링크 수순 및 분류 (이미 CopyLinks에 있는 경우만 스킵)
     for (const a of links) {
         const link = a.href;
         if (CopyLinks.includes(link)) continue;
 
-        const host = detectHost(link);
+        // 기존에 이미 online 클래스가 부여되어 있는 경우
+        if (a.classList.contains('online')) {
+            alreadyOnlineItems.push({ element: a, link, isOnline: true });
+        } 
+        // offline 상태가 아니면서 online 클래스도 없는 경우 -> 검사 대상
+        else if (!a.classList.contains('offline')) {
+            pendingElements.push(a);
+        }
+    }
 
-        // 1. detectHost가 null이거나 해당 호스트의 셀렉터 설정이 없으면 GM_xmlhttpRequest 실행 없이 즉시 스킵
-        if (host) {
+    // 2. 신규 검사 대상만 병렬(Promise.all)로 CheckOnline 실행
+    const newCheckResults = await Promise.all(
+        pendingElements.map(async (a) => {
+            const link = a.href;
+            const host = detectHost(link);
+
+            // host가 없으면(미지원 사이트) 검사 없이 online으로 처리
+            if (!host) {
+                a.classList.add('online');
+                return { element: a, link, isOnline: true };
+            }
+
+            // 호스트가 존재할 때만 CheckOnline 수행
             const isOnline = await CheckOnline(link, host);
-            if (!isOnline) {
+
+            if (isOnline) {
+                a.classList.add('online');
+            } else {
+                a.classList.add('offline');
                 console.warn(`Link offline: ${link}`);
-                continue;
+            }
+
+            return { element: a, link, isOnline };
+        })
+    );
+
+    // 3. 기존 online 항목 + 새로 online 판정을 받은 항목 병합
+    const targetItems = [...alreadyOnlineItems, ...newCheckResults];
+
+    CopyTitle = CopyTitle ? FilenameConvert(CopyTitle) : '';
+
+    for (const item of targetItems) {
+        if (!item.isOnline) continue;
+
+        const { element: a, link } = item;
+        let Resolution = '';
+
+        if (/naughtyblog/.test(RootDomain) && useResolution) {
+            const match = a.textContent.match(/[0-9]{3,4}p/);
+            if (match) {
+                Resolution = `.XXX.${match[0]}`;
             }
         }
 
-        CopyTitle = CopyTitle ? FilenameConvert(CopyTitle) : '';
-        if (/naughtyblog/.test(RootDomain) && useResolution) {
-            if (/[0-9]{3,4}p/.test(a.textContent)) {
-                Resolution = `.XXX.${a.textContent.match(/[0-9]{3,4}p/)[0]}`;
-            } else {
-                Resolution = '';
-            };
-        }
         CopyLinks.push(link);
         await UpdateDB(link, `${CopyTitle}${Resolution || ''}`);
     }
+
+
 
     // Dedupe and return as newline-separated string (or empty array)
     CopyLinks = [...new Set(CopyLinks)];
@@ -3455,6 +3497,7 @@ async function CopyLink() {
             noticeLines.push(collected.join('\n'));
 
         } else {
+            allLinks = [];
             noticeLines.push('Empty Links');
             userClose = false;
         }
@@ -3524,6 +3567,59 @@ function checkSkipFilter(el) {
     return skipFilterPatterns.some(rx => el.href && rx.test(el.href));
 }
 
+
+
+async function checkList(areas) {
+    if (!areas) return [];
+    const seenAnchors = new Set();    
+
+    // 1) Collect all unique <a> elements under each area
+    areas.forEach(area => {
+        area.querySelectorAll('a').forEach(a => seenAnchors.add(a));
+    });
+
+    // 2) Filter and normalize each link
+    for (const el of seenAnchors) {        
+        el.setAttribute('href', el.getAttribute('href').replace(/\?site.+/, ''));
+        
+        // Normalize K2S URLs
+        let target = el.href;
+        const k2s = el.href.match(K2SRegExp);
+        if (k2s) {
+            target = k2s[1] + k2s[2].split('/')[0];
+            el.href = target;
+        }
+        else if (TurboBitRegExp.test(el.href)) {
+            target = el.href.replace(TurboBitRegExp, 'https://turbobit.net/');
+            el.href = target;
+        }
+    }
+    console.log('checkList: ', seenAnchors);
+
+    await Promise.all(
+        Array.from(seenAnchors).map(async (a) => {
+            const link = a.href;
+            const host = detectHost(link);
+
+            // host가 없으면(미지원 사이트) 검사 없이 online으로 처리
+            if (!host) {
+                a.classList.add('online');
+                return { element: a, link, isOnline: true };
+            }
+
+            // 호스트가 존재할 때만 CheckOnline 수행
+            const isOnline = await CheckOnline(link, host);
+
+            if (isOnline) {
+                a.classList.add('online');
+            } else {
+                a.classList.add('offline');
+                console.warn(`Link offline: ${link}`);
+            }
+        })
+    );    
+}
+
 function listToDo(areas, type = 'Default') {
     if (!areas) return [];
     const seenAnchors = new Set();
@@ -3566,8 +3662,8 @@ function listToDo(areas, type = 'Default') {
             target = el.href.replace(TurboBitRegExp, 'https://turbobit.net/');
             el.href = target;
         }
-
-        if (!todo.includes(target)) {
+                
+        if (!todo.includes(target) && !el.classList.contains('offline')) {
             todo.push(target);
         }
     }
@@ -3575,7 +3671,9 @@ function listToDo(areas, type = 'Default') {
     // 3) Optionally include the cover image
     if (type === 'All' && CoverImage) {
         todo.push(CoverImage);
-    }
+    }    
+
+
 
     return todo;
 }
