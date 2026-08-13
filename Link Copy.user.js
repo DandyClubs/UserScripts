@@ -1559,6 +1559,8 @@ const siteConfigs = [
                 CopyTitle = CopyTitle
                 .replace(/^※?3日間！.+(OFF|半額[！|\!]+)/, '')
                 .replace(/^※?\d+日まで\d+pt\\?[！|\!]+|^※?d\+日迄\d+pt\\?[！|\!]+/, '')
+                .replace(/^【(\d+OFFセール|\d+週間\d+%?OFF[！|\!]+|二週間\d+%?OFF[！|\!]+|\d+週間限定ワンコイン)】/, '')
+                .replace(/^【限定公開】/, '')
                 .trim();                
             },
             getDownloadArea: () => {
@@ -2169,7 +2171,7 @@ async function processCopyTitle(currentConfig) {
     if (rawTitle) {
         SkipTitle = CheckSkipTitle(rawTitle);
     }
-console.log(CopyTitle);
+
     CopyTitle = CopyTitle || copyOffsetArea?.textContent.trim() || '';
     if (/naughtyblog\.(org|my|st)/.test(PageURL) && /SITERIP|OnlyFans|Collection|Updates/i.test(CopyTitle)) {
         CopyTitle = getDirectInnerText(copyOffsetArea)?.trim();
@@ -2202,6 +2204,7 @@ console.log(CopyTitle);
         .replace(/\[SD\s\d+p\]/, '')
         .replace(/^(FC2-PPV-|FC2\sPPV-|FC2PPV-)/i, 'FC2 PPV ')
         .replace(/^\[(NO\sSTAMP|SUMMARY|BLUR|Original\sVersion|KBJ)\]/, '')
+        .replace(/^【限定公開】/, '')
         .trim();
 
 
