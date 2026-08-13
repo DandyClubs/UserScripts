@@ -1029,7 +1029,7 @@ const siteConfigs = [
             downloadAreaSelector: 'div#content div#l-content div#dle-content div.news-block div.newspad div.quote, div#dle-content div.news-block div.newspad div div',
             coverImageSelector: 'div#dle-content div.news-block div.newspad div.news-text p img',
             coverImageAttribute: 'src',
-            postProcess: (config) => {                
+            postProcess: (config) => {
                 DownloadArea = document.querySelectorAll(config.downloadAreaSelector);
 
                 if (!copyOffsetArea) return;
@@ -1552,16 +1552,16 @@ const siteConfigs = [
         config: {
             copyOffsetAreaSelector: 'div.body.container h1',
             downloadAreaSelector: 'body > div:nth-of-type(1) > div.middle.container > div > div.body.container > div > div:nth-of-type(1) > div:nth-of-type(2)',
-            postProcess: () => {                
+            postProcess: () => {
                 copyOffsetArea = document.querySelector('div.body.container h1');
                 console.log('copyOffsetArea:', copyOffsetArea);
-                CopyTitle = copyOffsetArea?.textContent.trim() || '';                
+                CopyTitle = copyOffsetArea?.textContent.trim() || '';
                 CopyTitle = CopyTitle
-                .replace(/^※?3日間！.+(OFF|半額[！|\!]+)/, '')
-                .replace(/^※?\d+日まで\d+pt\\?[！|\!]+|^※?d\+日迄\d+pt\\?[！|\!]+/, '')
-                .replace(/^【(\d+OFFセール|\d+週間\d+%?OFF[！|\!]+|二週間\d+%?OFF[！|\!]+|\d+週間限定ワンコイン)】/, '')
-                .replace(/^【限定公開】/, '')
-                .trim();                
+                    .replace(/^※?3日間！.+(OFF|半額[！|\!]+)/, '')
+                    .replace(/^※?\d+日まで\d+pt\\?[！|\!]+|^※?d\+日迄\d+pt\\?[！|\!]+/, '')
+                    .replace(/^【(\d+OFFセール|\d+週間\d+%?OFF[！|\!]+|二週間\d+%?OFF[！|\!]+|.週間限定ワンコイン)】/, '')
+                    .replace(/^【限定公開】/, '')
+                    .trim();
             },
             getDownloadArea: () => {
                 // 1. 해당 경로의 모든 div 요소를 가져옵니다.
@@ -1765,7 +1765,7 @@ const siteConfigs = [
         config: {
             copyOffsetAreaSelector: '.item > .title',
             downloadAreaSelector: '.item > .content',
-            postProcess: () => {                
+            postProcess: () => {
                 let Title = copyOffsetArea?.textContent.trim() || '';
                 DownloadArea = document.querySelectorAll('.item > .content');
                 CoverImage = DownloadArea?.[0]?.querySelector('p img')?.src || '';
@@ -1785,7 +1785,7 @@ const siteConfigs = [
         config: {
             copyOffsetAreaSelector: 'div.entry > h2',
             downloadAreaSelector: 'div.entry > p',
-            postProcess: () => {                
+            postProcess: () => {
                 let Title = copyOffsetArea?.textContent.trim() || '';
                 DownloadArea = document.querySelectorAll('div.entry > p');
                 CoverImage = DownloadArea?.[0]?.querySelector('img')?.src || '';
@@ -1798,7 +1798,7 @@ const siteConfigs = [
         regex: /misskon\.com\/.+/,
         config: {
             copyOffsetAreaSelector: 'article#the-post .post-title.entry-title',
-            postProcess: async () => {                
+            postProcess: async () => {
                 let Title = copyOffsetArea?.textContent.trim() || '';
                 Title = Title.replace(/(\d+)\sphotos/i, `$1P`).replace(/(\d+)\svideos?/i, `$1V`).replace(/P(\s\+\s)/, 'P');
                 Title = mbConvertKana(Title, 'rans');
@@ -1906,13 +1906,6 @@ const siteRules = [
                 (!hasMaker || !hasJapanese);
 
             console.log({ needsFilenameFetch });
-
-            function detectHost(url) {
-                if (/katfile/.test(url)) return 'katfile';
-                if (/ddownload/.test(url)) return 'ddl';
-                if (/k2s/.test(url)) return 'k2s';
-                return null;
-            }
 
             const rawID = SearchIDRegExp(rawTitle);
             if (needsFilenameFetch) {
@@ -2296,7 +2289,12 @@ const hostConfigs = {
     k2s: {
         selector: 'p[data-testid="fileName"]',
     },
+    rapidgator: {
+        selector: 'div.btm p a',
+    },
 };
+
+
 
 /**
  * 주어진 링크에서 파일 이름을 비동기적으로 가져옵니다.
@@ -2304,6 +2302,7 @@ const hostConfigs = {
  * @param {string} host - 호스트 이름 (예: 'katfile', 'ddl').
  * @returns {Promise<string>} 정리된 파일 이름을 반환하는 Promise.
  */
+
 async function GetFileName(targetLink, host) {
     // 호스트 설정이 존재하지 않으면 오류를 반환합니다.
     const config = hostConfigs[host];
@@ -2787,49 +2786,66 @@ async function RefreshIconSet() {
     }
 }
 
+/**
+ * 호스트별 셀렉터 매핑 테이블
+ */
+const HOST_CONFIG = {
+    rapidgator: { selector: 'div.text-block.file-descr div.btm p a' },
+    k2s: { selector: 'div#current-file.file-box div.download-box div.download-body span.name-file' },
+    mexa: { selector: 'div#page table tbody tr td table tbody tr th a' },
+    uploadgig: { selector: 'div.panel-heading span.filename' },
+    subyshare: { selector: 'div.container h3' },
+    katfile: { selector: 'form#btn_download div.container h2.text-left span' },
+    ddl: { selector: '.dl-file-name, h2.dk-dl-name' }
+};
 
+/**
+ * URL 기반으로 호스트 식별 (지원하지 않는 호스트일 경우 null 반환)
+ */
+function detectHost(url) {
+    if (!url) return null;
+    if (/katfile/.test(url)) return 'katfile';
+    if (/ddownload/.test(url)) return 'ddl';
+    if (/k2s/.test(url)) return 'k2s';
+    if (/rapidgator/.test(url)) return 'rapidgator';
+    if (/mexa\.sh/.test(url)) return 'mexa';
+    if (/uploadgig/.test(url)) return 'uploadgig';
+    if (/subyshare/.test(url)) return 'subyshare';
+    return null;
+}
 
-function CheckOnline(TargetLink) {
-    let Selector;
-    let Host = extractRootDomain(TargetLink);
+/**
+ * 타겟 링크의 온라인 여부 검사
+ * - detectHost가 null이거나 미지원 호스트일 경우 요청을 건너뛰고 false 반환
+ */
+function CheckOnline(TargetLink, host) {
 
-    switch (Host) {
-        case 'rapidgator.net':
-            Selector = 'div.text-block.file-descr div.btm p a';
-            break;
-        case 'k2s.cc':
-            Selector = 'div#current-file.file-box div.download-box div.download-body span.name-file';
-            break;
-        case 'mexa.sh':
-            Selector = 'div#page table tbody tr td table tbody tr th a';
-            break;
-        case 'uploadgig.com':
-            Selector = 'div.panel-heading span.filename';
-            break;
-        case 'subyshare.com':
-            Selector = 'div.container h3';
-            break;
-        default:
-            // Unknown host, return false immediately
-            return Promise.resolve(false);
-    }
+    const config = HOST_CONFIG[host];
 
+    // 2. 식별된 호스트에 대해서만 네트워크 요청 수행
     return new Promise((resolve) => {
         GM_xmlhttpRequest({
             method: 'GET',
             mozAnon: true,
             url: TargetLink,
+            timeout: 10000, // 10초 타임아웃 추가
             onload: function (result) {
-                let container = document.implementation.createHTMLDocument().documentElement;
-                container.innerHTML = result.responseText;
-                if (container.querySelector(Selector)) {
-                    resolve(true);
-                } else {
+                try {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(result.responseText, 'text/html');
+
+                    // 지정된 셀렉터의 존재 여부 판단
+                    const isOnline = !!doc.querySelector(config.selector);
+                    resolve(isOnline);
+                } catch (e) {
+                    console.error('[CheckOnline] DOM Parsing 실패:', e);
                     resolve(false);
                 }
             },
-            onerror: function (error) {
-                // If no response or network failure, treat as offline
+            onerror: function () {
+                resolve(false);
+            },
+            ontimeout: function () {
                 resolve(false);
             }
         });
@@ -3111,8 +3127,19 @@ async function CollectionLinks(DownloadArea) {
     // 3) Finally, process each remaining link into CopyLinks and DB
 
     for (const a of links) {
-        const href = a.href;
-        if (CopyLinks.includes(href)) continue;
+        const link = a.href;
+        if (CopyLinks.includes(link)) continue;
+
+        const host = detectHost(link);
+
+        // 1. detectHost가 null이거나 해당 호스트의 셀렉터 설정이 없으면 GM_xmlhttpRequest 실행 없이 즉시 스킵
+        if (host) {
+            const isOnline = await CheckOnline(link, host);
+            if (!isOnline) {
+                console.warn(`Link offline: ${link}`);
+                continue;
+            }
+        }
 
         CopyTitle = CopyTitle ? FilenameConvert(CopyTitle) : '';
         if (/naughtyblog/.test(RootDomain) && useResolution) {
@@ -3122,8 +3149,8 @@ async function CollectionLinks(DownloadArea) {
                 Resolution = '';
             };
         }
-        CopyLinks.push(href);
-        await UpdateDB(href, `${CopyTitle}${Resolution || ''}`);
+        CopyLinks.push(link);
+        await UpdateDB(link, `${CopyTitle}${Resolution || ''}`);
     }
 
     // Dedupe and return as newline-separated string (or empty array)
