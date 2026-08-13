@@ -831,7 +831,6 @@ const siteConfigs = [
             //coverImageSelector: 'div.post-content-single a > img',
             //coverImageAttribute: 'src',
             postProcess: async (config) => {
-
                 copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
                 if (!copyOffsetArea) return;
                 DownloadArea = document.querySelectorAll('div#download, div#downloadhidden, div.DownloadArea');
@@ -1030,8 +1029,7 @@ const siteConfigs = [
             downloadAreaSelector: 'div#content div#l-content div#dle-content div.news-block div.newspad div.quote, div#dle-content div.news-block div.newspad div div',
             coverImageSelector: 'div#dle-content div.news-block div.newspad div.news-text p img',
             coverImageAttribute: 'src',
-            postProcess: (config) => {
-                copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
+            postProcess: (config) => {                
                 DownloadArea = document.querySelectorAll(config.downloadAreaSelector);
 
                 if (!copyOffsetArea) return;
@@ -1554,12 +1552,14 @@ const siteConfigs = [
         config: {
             copyOffsetAreaSelector: 'div.body.container h1',
             downloadAreaSelector: 'body > div:nth-of-type(1) > div.middle.container > div > div.body.container > div > div:nth-of-type(1) > div:nth-of-type(2)',
-            postProcess: () => {
+            postProcess: () => {                
+                copyOffsetArea = document.querySelector('div.body.container h1');
+                console.log('copyOffsetArea:', copyOffsetArea);
                 CopyTitle = copyOffsetArea?.textContent.trim() || '';                
                 CopyTitle = CopyTitle
-                .replace(/^3日間！.+(OFF|半額！)/, '')
-                .replace(/^\d+日まで\d+pt\\?\!\!|^d\+日迄\d+pt\\?\!\!/, '')
-                .trim();
+                .replace(/^※?3日間！.+(OFF|半額[！|\!]+)/, '')
+                .replace(/^※?\d+日まで\d+pt\\?[！|\!]+|^※?d\+日迄\d+pt\\?[！|\!]+/, '')
+                .trim();                
             },
             getDownloadArea: () => {
                 // 1. 해당 경로의 모든 div 요소를 가져옵니다.
@@ -1763,7 +1763,7 @@ const siteConfigs = [
         config: {
             copyOffsetAreaSelector: '.item > .title',
             downloadAreaSelector: '.item > .content',
-            postProcess: () => {
+            postProcess: () => {                
                 let Title = copyOffsetArea?.textContent.trim() || '';
                 DownloadArea = document.querySelectorAll('.item > .content');
                 CoverImage = DownloadArea?.[0]?.querySelector('p img')?.src || '';
@@ -1783,7 +1783,7 @@ const siteConfigs = [
         config: {
             copyOffsetAreaSelector: 'div.entry > h2',
             downloadAreaSelector: 'div.entry > p',
-            postProcess: () => {
+            postProcess: () => {                
                 let Title = copyOffsetArea?.textContent.trim() || '';
                 DownloadArea = document.querySelectorAll('div.entry > p');
                 CoverImage = DownloadArea?.[0]?.querySelector('img')?.src || '';
@@ -1796,7 +1796,7 @@ const siteConfigs = [
         regex: /misskon\.com\/.+/,
         config: {
             copyOffsetAreaSelector: 'article#the-post .post-title.entry-title',
-            postProcess: async () => {
+            postProcess: async () => {                
                 let Title = copyOffsetArea?.textContent.trim() || '';
                 Title = Title.replace(/(\d+)\sphotos/i, `$1P`).replace(/(\d+)\svideos?/i, `$1V`).replace(/P(\s\+\s)/, 'P');
                 Title = mbConvertKana(Title, 'rans');
@@ -2169,7 +2169,7 @@ async function processCopyTitle(currentConfig) {
     if (rawTitle) {
         SkipTitle = CheckSkipTitle(rawTitle);
     }
-
+console.log(CopyTitle);
     CopyTitle = CopyTitle || copyOffsetArea?.textContent.trim() || '';
     if (/naughtyblog\.(org|my|st)/.test(PageURL) && /SITERIP|OnlyFans|Collection|Updates/i.test(CopyTitle)) {
         CopyTitle = getDirectInnerText(copyOffsetArea)?.trim();
