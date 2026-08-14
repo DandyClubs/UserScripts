@@ -378,18 +378,16 @@ class LinkCopyDB {
 const linkDB = new LinkCopyDB();
 let indexedDBCache = [];
 
-await linkDB.init();
+linkDB.init().then(() => {
+    // 외부에서 DB 변경 감지
+    linkDB.onchange = async (event) => {
+        indexedDBCache = await indexedDBUpdate();
+    };
 
-// 외부에서 DB 변경 감지
-linkDB.onchange = async (event) => {
-    //console.log("로컬 DB 이벤트 발생:", event);
-    indexedDBCache = await indexedDBUpdate();
-};
-
-linkDB.bc.onmessage = async (event) => {
-    //console.log("멀티탭 DB 이벤트 발생:", event.data);
-    indexedDBCache = await indexedDBUpdate();
-};
+    linkDB.bc.onmessage = async (event) => {
+        indexedDBCache = await indexedDBUpdate();
+    };
+});
 
 let CopyLinks = [];
 let AllCopyLinks = [];
@@ -2280,25 +2278,6 @@ function createDownloadArea(DB) {
     return DownloadArea;
 }
 
-// 파일명을 추출할 각 호스트에 대한 설정 객체
-const hostConfigs = {
-    katfile: {
-        selector: 'form#btn_download div.container h2.text-left span',
-        // 추후 필요시 추가적인 로직을 handler 함수로 정의할 수 있습니다.
-    },
-    ddl: {
-        selector: '.dl-file-name, h2.dk-dl-name',
-    },
-    k2s: {
-        selector: 'p[data-testid="fileName"]',
-    },
-    rapidgator: {
-        selector: 'div.btm p a',
-    },
-};
-
-
-
 /**
  * 주어진 링크에서 파일 이름을 비동기적으로 가져옵니다.
  * @param {string} targetLink - 파일 이름을 가져올 웹페이지의 URL.
@@ -2307,8 +2286,9 @@ const hostConfigs = {
  */
 
 async function GetFileName(targetLink, host) {
+    
     // 호스트 설정이 존재하지 않으면 오류를 반환합니다.
-    const config = hostConfigs[host];
+    const config = HOST_CONFIG[host];
     if (!config) {
         throw new Error(`Unknown host: ${host}`);
     }
@@ -2330,6 +2310,7 @@ async function GetFileName(targetLink, host) {
 
                 // 설정된 선택자를 사용하여 파일명 요소 찾기
                 const filenameElement = doc.querySelector(config.selector);
+                console.log(`Fetched filename from ${host}:`, filenameElement?.textContent, config.selector);
 
                 if (!filenameElement || !filenameElement.textContent) {
                     return reject(new Error('Filename element not found or is empty.'));
@@ -2419,14 +2400,14 @@ async function handleToggle(key, className) {
     if (key === 'AutoCopy') {
         const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle');
         if (hasCopied.length === 0) {
-            CopyGo(SkipTitle);
+            await CopyGo(SkipTitle);
         }
 
     } else if (key === 'AutoClose') {
         if (isEnabled) {
             const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle');
             if (hasCopied.length === 0) {
-                CopyGo(SkipTitle);
+                await CopyGo(SkipTitle);
             }
         }
     }
@@ -2607,7 +2588,7 @@ async function mainIcon(Run) {
             if (DownloadArea?.length > 0) {
                 const hasCopied = await CheckDB(listToDo(DownloadArea), 'AutoCloseIcon Click');
                 if (hasCopied.length === 0) {
-                    CopyGo(SkipTitle);
+                    await CopyGo(SkipTitle);
                 }
             }
         } else {
@@ -2626,7 +2607,7 @@ async function mainIcon(Run) {
             if (DownloadArea?.length > 0) {
                 const hasCopied = await CheckDB(listToDo(DownloadArea), 'AutoCopyIcon Click');
                 if (hasCopied.length === 0) {
-                    CopyGo(SkipTitle);
+                    await CopyGo(SkipTitle);
                 }
             }
         } else {
@@ -2677,85 +2658,93 @@ async function SecondProcess() {
 
     console.log('Start SecondProcess!');
 
-    return new Promise((resolve, reject) => {
-        if (!copyOffsetArea) {
-            reject(new Error('No copyOffsetArea'));
-        }
+    // 1. 조건 검증 (기존 reject 대용)
+    if (!copyOffsetArea) {
+        throw new Error('No copyOffsetArea');
+    }
 
-
-        if (!document.querySelector(".IconSet")) {
-            LinkCopyCenterBox.insertAdjacentHTML('afterend', `
+    // 2. UI 및 이벤트 리스너 등록
+    if (!document.querySelector(".IconSet")) {
+        LinkCopyCenterBox.insertAdjacentHTML('afterend', `
             <div class="IconSet" style="max-width: max-content; visibility: hidden; position: fixed;">
                 <i class="CopyIcon far fa-clone" style="color: goldenrod !important; visibility: hidden;"></i>
                 <i class="CloseIcon fa-solid fa-square-xmark" style="color: goldenrod !important; visibility: hidden;"></i>
                 <i class="Minus fa-solid fa-magnifying-glass-minus" style="color: goldenrod !important; visibility: hidden;"></i>
             </div>
         `);
-            document.body.insertAdjacentHTML('beforeend', `<div class="CopyNotice" style="display: none;"><div class="copyText"></div></div>`);
+        document.body.insertAdjacentHTML('beforeend', `<div class="CopyNotice" style="display: none;"><div class="copyText"></div></div>`);
 
-            const IconSetBox = document.querySelector(".IconSet");
-            const copyIcon = IconSetBox.querySelector('.CopyIcon');
-            const closeIcon = IconSetBox.querySelector('.CloseIcon');
-            const Minus = IconSetBox.querySelector('.Minus');
+        const IconSetBox = document.querySelector(".IconSet");
+        const copyIcon = IconSetBox.querySelector('.CopyIcon');
+        const closeIcon = IconSetBox.querySelector('.CloseIcon');
+        const Minus = IconSetBox.querySelector('.Minus');
 
-            copyIcon.addEventListener('click', function (e) {
-                e.preventDefault();
-                CopyLinks = [];
+        copyIcon.addEventListener('click', async (e) => {
+            e.preventDefault();
+            CopyLinks = [];
 
-                if (pageLinksDB.length === 0 && currentConfig.downloadAreaSelector) {
-                    DownloadArea = document.querySelectorAll(currentConfig.downloadAreaSelector);
-                }
-                userClose = true;
-                userCopy = true;
-
-                const SkipTitle = [];
-                AllowDirect = false;
-                if (DownloadArea?.length) {
-                    userClose = JSON.parse(localStorage.getItem('AutoClose'));
-                    CopyGo(SkipTitle);
-                }
-            });
-            closeIcon.addEventListener('click', function (e) {
-                e.preventDefault();
-                self.close();
-            });
-            Minus.addEventListener('click', async function (e) {
-                e.preventDefault();
-                await RemoveDB(listToDo(DownloadArea, 'All'), 'SecondProcess RemoveDB');
-                await CheckDB(listToDo(DownloadArea), 'SecondProcess CheckDB');
-                CopyLinks = [];
-            });
-        }
-
-        if (/0xxx\.ws\/articles|pornrip\.cc\/download/.test(PageURL)) {
-            RefreshIconSet();
-        }
-
-        for (const NodeArea of DownloadArea) {
-            Array.from(NodeArea.querySelectorAll('a')).forEach((aEntry) => {
-                const match = aEntry.href.match(/(\/|=)(aHR0c[a-zA-Z0-9]+={0,2})($|\/|\?|&|-?-?;?)/);
-                if (match) {
-                    aEntry.href = atob(match[2]).replace(/\?site=.+/, '');
-                }
-            });
-        }
-
-        checkList(DownloadArea);
-
-        console.log('AutoCopy:', AutoCopy, 'localStorage AutoCopy:', JSON.parse(localStorage.getItem('AutoCopy')));
-
-        if (/^((?!(sharepornlink|hpav\.tv|pornrips\.cc|naughtyblog)).)*$/.test(PageURL)) {
-            if (document.querySelector(".Minus").style.visibility === "hidden" && AutoCopy && JSON.parse(localStorage.getItem('AutoCopy'))) {
-                console.log('CopyGo');
-                CopyGo(SkipTitle);
+            if (pageLinksDB.length === 0 && currentConfig.downloadAreaSelector) {
+                DownloadArea = document.querySelectorAll(currentConfig.downloadAreaSelector);
             }
-        } else if (/naughtyblog/.test(PageURL) && AutoCopy && JSON.parse(localStorage.getItem('AutoCopy'))) {
-            console.log('CopyGo');
-            CopyGo(SkipTitle);
-        }
+            userClose = true;
+            userCopy = true;
+
+            const SkipTitle = [];
+            AllowDirect = false;
+            if (DownloadArea?.length) {
+                userClose = JSON.parse(localStorage.getItem('AutoClose'));
+                await CopyGo(SkipTitle);
+            }
+        });
+
+        closeIcon.addEventListener('click', (e) => {
+            e.preventDefault();
+            self.close();
+        });
+
+        Minus.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await RemoveDB(listToDo(DownloadArea, 'All'), 'SecondProcess RemoveDB');
+            await CheckDB(listToDo(DownloadArea), 'SecondProcess CheckDB');
+            CopyLinks = [];
+        });
+    }
+
+    if (/0xxx\.ws\/articles|pornrip\.cc\/download/.test(PageURL)) {
         RefreshIconSet();
-        resolve({ CopyTitle, DownloadArea });
-    });
+    }
+
+    // 3. Base64 URL 디코딩
+    for (const NodeArea of DownloadArea) {
+        Array.from(NodeArea.querySelectorAll('a')).forEach((aEntry) => {
+            const match = aEntry.href.match(/(\/|=)(aHR0c[a-zA-Z0-9]+={0,2})($|\/|\?|&|-?-?;?)/);
+            if (match) {
+                aEntry.href = atob(match[2]).replace(/\?site=.+/, '');
+            }
+        });
+    }
+
+    // 4. 🔥 [핵심 수정] checkList 작업이 끝날 때까지 비동기 대기
+    await checkList(DownloadArea);
+
+    console.log('AutoCopy:', AutoCopy, 'localStorage AutoCopy:', JSON.parse(localStorage.getItem('AutoCopy')));
+
+    // 5. AutoCopy 조건 검사
+    const SkipTitle = []; // 함수 내 scope 안전성을 위해 선언 추가
+    if (/^((?!(sharepornlink|hpav\.tv|pornrips\.cc|naughtyblog)).)*$/.test(PageURL)) {
+        if (document.querySelector(".Minus")?.style.visibility === "hidden" && AutoCopy && JSON.parse(localStorage.getItem('AutoCopy'))) {
+            console.log('CopyGo');
+            await CopyGo(SkipTitle);
+        }
+    } else if (/naughtyblog/.test(PageURL) && AutoCopy && JSON.parse(localStorage.getItem('AutoCopy'))) {
+        console.log('CopyGo');
+        await CopyGo(SkipTitle);
+    }
+
+    RefreshIconSet();
+
+    // 6. 결과 반환 (기존 resolve 대용)
+    return { CopyTitle, DownloadArea };
 }
 
 
@@ -2795,7 +2784,7 @@ async function RefreshIconSet() {
  */
 const HOST_CONFIG = {
     rapidgator: { selector: 'div.text-block.file-descr div.btm p a' },
-    k2s: { selector: 'div#current-file.file-box div.download-box div.download-body span.name-file' },
+    k2s: { selector: 'div > p[data-testid="fileName"]' },
     mexa: { selector: 'div#page table tbody tr td table tbody tr th a' },
     uploadgig: { selector: 'div.panel-heading span.filename' },
     subyshare: { selector: 'div.container h3' },
@@ -2810,7 +2799,7 @@ function detectHost(url) {
     if (!url) return null;
     if (/katfile/.test(url)) return 'katfile';
     if (/ddownload/.test(url)) return 'ddl';
-    if (/k2s/.test(url)) return 'k2s';
+    if (/k2s\.cc/.test(url)) return 'k2s';
     if (/rapidgator/.test(url)) return 'rapidgator';
     if (/mexa\.sh/.test(url)) return 'mexa';
     if (/uploadgig/.test(url)) return 'uploadgig';
@@ -2822,9 +2811,71 @@ function detectHost(url) {
  * 타겟 링크의 온라인 여부 검사
  * - detectHost가 null이거나 미지원 호스트일 경우 요청을 건너뛰고 false 반환
  */
-function CheckOnline(TargetLink, host) {
+function CheckOnline(TargetLink, host) {   
 
-    const config = HOST_CONFIG[host];
+    const config = HOST_CONFIG[host];   
+
+    // Keep2Share 계열 도메인 확인
+    const k2sDomains = ['k2s.cc', 'keep2s.cc', 'keep2share.cc', 'fileboom.me', 'fboom.me', 'tezfiles.com', 'publish2.me'];
+    const isK2SFamily = k2sDomains.some(domain => host.includes(domain) || TargetLink.includes(domain));
+
+    if (isK2SFamily) {
+        return new Promise((resolve) => {
+            // URL에서 파일 ID 추출 (예: /file/605fc6d035e26 -> 605fc6d035e26)
+            const fileIdMatch = TargetLink.match(/\/file\/(\w+)/);
+            if (!fileIdMatch) {
+                resolve(false);
+                return;
+            }
+
+            const id = fileIdMatch[1];
+
+            // 도메인 판별 (기본값: k2s.cc)
+            let mpDomain = 'k2s.cc';
+            const lowerLink = TargetLink.toLowerCase();
+            if (lowerLink.includes('fileboom.me/') || lowerLink.includes('fboom.me/')) {
+                mpDomain = 'fboom.me';
+            } else if (lowerLink.includes('tezfiles.com/')) {
+                mpDomain = 'tezfiles.com';
+            } else if (lowerLink.includes('publish2.me/')) {
+                mpDomain = 'publish2.me';
+            }
+
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url: `https://${mpDomain}/api/v2/GetFileStatus`,
+                headers: {
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Charset': 'windows-1250,utf-8;q=0.7,*;q=0.7',
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Referer': ''
+                },
+                data: `{"id":"${id}"}`,
+                timeout: 10000,
+                onload: function (result) {
+                    const res = result.responseText;
+
+                    // 1. 삭제되었거나 존재하지 않는 링크 (오프라인)
+                    if (res.match('"is_available":false|"message":"File deleted"|"errorCode":"deleted"|"errorCode":"not_found"|"errorCode":"abused"|"errorCode":"blocked"|"code":406|"errorCode":20|"message":"File not available"')) {
+                        resolve(false);
+                        return;
+                    }
+
+                    // 2. 정상 보존되어 있는 파일 (온라인)
+                    // (필요 시 프리미엄 전용 링크 상태 구분 가능)
+                    if (res.match('"is_available":true') || res.match('"access":"premium"') || res.match('"isAvailableForFree":false')) {
+                        resolve(true);
+                        return;
+                    }
+
+                    // 3. 기타 (폴더 또는 확인 불가능한 상태)
+                    resolve(false);
+                },
+                onerror: () => resolve(false),
+                ontimeout: () => resolve(false)
+            });
+        });
+    }
 
     // 2. 식별된 호스트에 대해서만 네트워크 요청 수행
     return new Promise((resolve) => {
@@ -2833,10 +2884,10 @@ function CheckOnline(TargetLink, host) {
             mozAnon: true,
             url: TargetLink,
             timeout: 10000, // 10초 타임아웃 추가
-            onload: function (result) {
+            onload: function (result) {                
                 try {
                     const parser = new DOMParser();
-                    const doc = parser.parseFromString(result.responseText, 'text/html');
+                    const doc = parser.parseFromString(result.responseText, 'text/html');                   
 
                     // 지정된 셀렉터의 존재 여부 판단
                     const isOnline = !!doc.querySelector(config.selector);
@@ -3088,7 +3139,7 @@ async function CollectionLinks(DownloadArea) {
             const priorityPatterns = [/2160p|4K/i, /1080p|1080\.mp4/i];
             let finalLinks = [];
             for (const pattern of priorityPatterns) {
-                const filterLinks = links.filter(a => pattern.test(GetName(a.textContent)));
+                const filterLinks = links.filter(a => pattern.test(GetName(a)));
                 if (filterLinks.length > 0) {
                     finalLinks.push(...filterLinks);
                     break; // 가장 높은 해상도만 선택
@@ -3112,7 +3163,8 @@ async function CollectionLinks(DownloadArea) {
         }
         const UHD = /(A-4K-ARCHIVE|4K-ARCHIVE|ARCHIVE-4K)-?|(-|_|\.)?4K$/i;
         const FHD = /\.(1080p|HD)/i;
-        const allNames = links.map(a => GetName(a.href));
+        const allNames = links.map(a => GetName(a));
+        console.log('All Names:', allNames);
         const UHDLinks = [...new Set(allNames.filter(f => UHD.test(f)).map(n => n.replace(UHD, '')))];
         const FHDlinks = [...new Set(allNames.filter(f => FHD.test(f)).map(n => n.replace(FHD, '')))];
         const uniqueBases = [...new Set([...UHDLinks, ...FHDlinks])];
@@ -3120,21 +3172,24 @@ async function CollectionLinks(DownloadArea) {
         const resultLinks = [];
         if (uniqueBases.length) {
             for (const base of uniqueBases) {
-                const group = links.filter(l => GetName(l.href).includes(base));
-                const uhd = group.filter(l => UHD.test(GetName(l.href)));
-                const fhd = group.filter(l => FHD.test(GetName(l.href)));
+                const group = links.filter(l => GetName(l).includes(base));
+                const uhd = group.filter(l => UHD.test(GetName(l)));
+                const fhd = group.filter(l => FHD.test(GetName(l)));
                 resultLinks.push(...(uhd.length > 0 ? uhd : fhd.length > 0 ? fhd : group));
             }
             links = resultLinks;
         }
+        console.log('Result Links:', resultLinks);
     }
 
     const pendingElements = [];
     const alreadyOnlineItems = [];
-
+    
     // 1. 링크 수순 및 분류 (이미 CopyLinks에 있는 경우만 스킵)
-    for (const a of links) {
+    for (const a of links) {        
+        console.log(a);
         const link = a.href;
+        
         if (CopyLinks.includes(link)) continue;
 
         // 기존에 이미 online 클래스가 부여되어 있는 경우
@@ -3203,14 +3258,56 @@ async function CollectionLinks(DownloadArea) {
 }
 
 
-function GetName(url) {
-    let name = url.split('/').pop() || '';
-    name = name.replace(/\.html$/, '').replace(/\.part\d+/, '');
-    const lastDot = name.lastIndexOf('.');
-    if (lastDot === -1) {
-        return name.toUpperCase().trim(); // no dot, return full name
+function GetName(el) {
+    let url = '';
+    let textContent = '';
+
+    // 1. DOM Element 또는 문자열(URL) 파싱
+    if (el instanceof Element) {
+        url = el.href || el.getAttribute('href') || '';
+        textContent = el.textContent || '';
+    } else if (typeof el === 'string') {
+        url = el;
     }
-    return name.substring(0, lastDot).toUpperCase().trim();
+
+    // 2. URL 경로 분리 및쿼리스트링/해시 제거    
+    const pathSegments = url.split('?')[0].split('#')[0].split('/').filter(Boolean);
+    const lastSegment = pathSegments.pop() || '';
+
+    let rawName = '';
+
+    // 3. 확장자 패턴 검사 (.mp4, .zip, .rar, .7z 등 일반적인 2~4자리 확장자)
+    // URL 마지막 마디에 점(.)과 함께 확장자가 존재하는지 확인합니다.
+    const hasExtensionInUrl = /\.[a-zA-Z0-9]{2,4}$/i.test(lastSegment);
+
+    if (hasExtensionInUrl) {
+        // URL에 확장자가 있으면 URL 마디를 이름으로 사용
+        rawName = lastSegment;
+    } else {
+        // URL이 ID만 있거나 확장자가 없다면 textContent 사용 (없으면 URL fallback)
+        rawName = textContent.trim() || lastSegment;
+    }
+
+    // 4. URL 인코딩 해제 (한글/특수문자 URL 대응 %20 -> 공백)
+    try {
+        rawName = decodeURIComponent(rawName);
+    } catch (e) {
+        // 인코딩 에러 시 원본 유지
+    }
+
+    // 5. 불필요한 패턴 정리 (.html, .part1, .part01 등 제거)
+    let name = rawName
+        .replace(/\.html$/i, '')
+        .replace(/\.part\d+/i, '')
+        .replace(/\.\d{3,}$/i, ''); // 끝에 붙은 .001, .002 등 숫자 확장자 제거
+
+    // 6. 점(.) 처리: 파일명에서 최종 확장자 제거 후 파일 이름만 추출
+    const lastDot = name.lastIndexOf('.');
+    if (lastDot > 0) {
+        name = name.substring(0, lastDot);
+    }
+
+    return name.toUpperCase().trim();
 }
 
 async function UpdateDB(Target, UrlTitle) {
@@ -3585,41 +3682,52 @@ async function checkList(areas) {
     if (!areas) return;
     const seenAnchors = new Set();
 
-    // 1) Collect all unique <a> elements under each area
+    // 1) 각 영역별 <a> 요소 수집
     areas.forEach(area => {
-        Array.from(area.querySelectorAll('a')).filter(a => !checkSkipFilter(a)).forEach(a => seenAnchors.add(a));
+        Array.from(area.querySelectorAll('a'))
+            .filter(a => !checkSkipFilter(a))
+            .forEach(a => seenAnchors.add(a));
     });
 
-    // 2) Filter and normalize each link
+    // 2) URL 정규화 및 필터링
     for (const el of seenAnchors) {
-        el.setAttribute('href', el.getAttribute('href').replace(/\?site.+/, ''));
+        const rawHref = el.getAttribute('href');
+        if (!rawHref) continue; // href가 없는 a 태그 예외 처리
+
+        el.setAttribute('href', rawHref.replace(/\?site.+/, ''));
         if (checkSkipFilter(el)) continue;
-        // Normalize K2S URLs
-        let target = el.href;
+
+        // K2S 및 TurboBit URL 정규화
         const k2s = el.href.match(K2SRegExp);
         if (k2s) {
-            target = k2s[1] + k2s[2].split('/')[0];
-            el.href = target;
-        }
-        else if (TurboBitRegExp.test(el.href)) {
-            target = el.href.replace(TurboBitRegExp, 'https://turbobit.net/');
-            el.href = target;
+            el.href = k2s[1] + k2s[2].split('/')[0];
+        } else if (typeof TurboBitRegExp !== 'undefined' && TurboBitRegExp.test(el.href)) {
+            el.href = el.href.replace(TurboBitRegExp, 'https://turbobit.net/');
         }
     }
-    console.log('checkList: ', seenAnchors);
 
+    console.log('checkList targets:', seenAnchors);
+
+    // 3) 병렬 온라인 검사 및 classname 부여
     await Promise.all(
         Array.from(seenAnchors).map(async (a) => {
-            const link = a.href;
-            const host = detectHost(link);
-
-            // host가 없으면(미지원 사이트) 검사 없이 online으로 처리
-            if (!host) {
-                a.classList.add('online');
-                return { element: a, link, isOnline: true };
+            // 이미 online/offline 클래스가 부여된 요소는 네트워크 요청 스킵
+            if (a.classList.contains('online') || a.classList.contains('offline')) {
+                return;
             }
 
-            // 호스트가 존재할 때만 CheckOnline 수행
+            const link = a.href;
+            if (!link) return;
+
+            const host = detectHost(link);
+
+            // 호스트 미지원 사이트는 바로 online 처리
+            if (!host) {
+                a.classList.add('online');
+                return;
+            }
+
+            // 호스트 검사 수행
             const isOnline = await CheckOnline(link, host);
 
             if (isOnline) {
