@@ -616,25 +616,37 @@ const io = new IntersectionObserver((entries, self) => {
 * @param {Element} [targetNode=document.body] - MutationObserver를 적용할 상위 요소.
 * @returns {Promise<Element>} 요소가 발견되면 해결되는 프로미스.
 */
-function waitElement(selector, targetNode = document.body) {
-    return new Promise((resolve, reject) => {
-        const element = targetNode.querySelector(selector)?.querySelector('a');
-        console.log('waitElement: ', selector, 'TargetNode: ', targetNode);
-        if (element) {
-            resolve(element);
-        }
+function waitElement(selector, targetNode = document.body, timeout = 10000) {
+    return new Promise((resolve) => {
+        const checkElement = () => {
+            const container = targetNode.querySelector(selector);
+            return (container && container.querySelector('a')) ? container : null;
+        };
+
+        const existing = checkElement();
+        if (existing) return resolve(existing);
+
+        let timeoutId = null;
+
         const observer = new MutationObserver((mutations, obs) => {
-            const found = targetNode.querySelector(selector)?.querySelector('a');
+            const found = checkElement();
             if (found) {
+                if (timeoutId) clearTimeout(timeoutId);
                 obs.disconnect();
                 resolve(found);
             }
         });
 
-        observer.observe(targetNode, {
-            childList: true,
-            subtree: true
-        });
+        observer.observe(targetNode, { childList: true, subtree: true });
+
+        // 지정된 시간(기본 10초) 동안 안 나타나면 옵저버 해제 후 null 반환
+        if (timeout > 0) {
+            timeoutId = setTimeout(() => {
+                observer.disconnect();
+                console.warn(`[waitElement] 타임아웃 (${timeout}ms): ${selector}`);
+                resolve(null);
+            }, timeout);
+        }
     });
 }
 
@@ -1994,6 +2006,7 @@ const waitDownloadArea = [
             copyOffsetArea = document.querySelector('div.storyhead > h1.shead');
             Array.from(document.querySelectorAll('button.click_show')).forEach(element => element.click());
             const downloadContainer = await waitElement('div.quote');
+            console.log('ultoporn DownloadArea:', downloadContainer);
             DownloadArea = [downloadContainer];
         },
     },
@@ -2048,23 +2061,42 @@ const waitDownloadArea = [
             document.querySelector('a.quote-hider-trigger')?.click();
 
             const downloadContainer = await waitElement('div.sstory');
-            const observer = observeChanges('div.sstory', (mutations, obs) => {
-                mutations.forEach(mutation => {
-                    mutation.addedNodes.forEach(node => {
-                        if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('quote')) {
-                            const DownloadAreaSelector = 'div.quote';
-                            DownloadArea = downloadContainer.querySelectorAll(DownloadAreaSelector);
-                            if (DownloadArea?.length) {
-                                obs.disconnect();
-                                scrollToTop();
-                                RefreshIconSet();
+
+            // ⭕ 핵심: Promise 안에서 resolve()가 호출될 때까지 await가 진짜로 멈춰서 기다립니다!
+            DownloadArea = await new Promise((resolve) => {
+                // 이미 존재하는지 먼저 확인
+                const existing = downloadContainer?.querySelectorAll('div.quote');
+                if (existing && existing.length > 0) {
+                    return resolve(existing);
+                }
+
+                // 없으면 MutationObserver로 감시 시작
+                const observer = observeChanges('div.sstory', (mutations, obs) => {
+                    mutations.forEach(mutation => {
+                        mutation.addedNodes.forEach(node => {
+                            if (node.nodeType === Node.ELEMENT_NODE && node.classList.contains('quote')) {
+                                const foundArea = downloadContainer.querySelectorAll('div.quote');
+                                if (foundArea?.length) {
+                                    obs.disconnect();
+                                    scrollToTop();
+                                    RefreshIconSet();
+                                    resolve(foundArea); // 👈 여기서 resolve가 호출되어야만 handler의 await가 풀립니다!
+                                }
                             }
-                        }
+                        });
                     });
                 });
+
+                // 5초 동안 안 나타나면 무한 대기를 방지하기 위해 강제 종료(타임아웃)
+                setTimeout(() => {
+                    observer.disconnect();
+                    resolve(downloadContainer?.querySelectorAll('div.quote') || []);
+                }, 5000);
             });
 
-            Resolution = !Resolution && copyOffsetArea?.innerText.match(/[0-9]{3,4}p/) ? ' ' + copyOffsetArea.innerText.match(/[0-9]{3,4}p/)[0] : '';
+            Resolution = !Resolution && copyOffsetArea?.innerText.match(/[0-9]{3,4}p/)
+                ? ' ' + copyOffsetArea.innerText.match(/[0-9]{3,4}p/)[0]
+                : '';
         },
     },
     {
@@ -2095,7 +2127,6 @@ async function Start() {
     console.log('Link Copy Start!');
 
     if (currentConfig) {
-
         // Step 1: `postProcess`에서 동적 셀렉터를 설정할 경우를 대비해 먼저 실행
         if (currentConfig.postProcess) {
             currentConfig.postProcess(currentConfig);
@@ -2137,22 +2168,25 @@ async function Start() {
             if (resMatch) Resolution = ' ' + resMatch[0];
         }
 
-        // Step 6: DownloadArea 기다림
-        if (!DownloadArea || DownloadArea?.length === 0) {
+        // Step 6: DownloadArea 기다림 
+        
+        if (!DownloadArea || DownloadArea?.length === 0) {            
             const matchingConfig = waitDownloadArea.find(config => config.regex.test(PageURL));
             if (matchingConfig) {
                 await matchingConfig.handler();
-
+                console.log('대기 완료! 다운로드 영역 찾음:', DownloadArea);
             }
         }
 
-    }
-    if (!copyOffsetArea) {
-        throw new Error('No CopyTitle');
+        if (!copyOffsetArea || !DownloadArea || DownloadArea.length === 0) {
+            throw new Error('No CopyTitle');
+        }
+
+        console.log('Start:', { copyOffsetArea, DownloadArea, CoverImage });
+        return { copyOffsetArea, DownloadArea, CoverImage };
     }
 
-    console.log('Start:', { copyOffsetArea, DownloadArea, CoverImage });
-    return { copyOffsetArea, DownloadArea, CoverImage };
+    throw new Error('대상 사이트가 아닙니다.');
 }
 
 
@@ -2163,7 +2197,7 @@ async function processCopyTitle(currentConfig) {
 
     let rawTitle = copyOffsetArea?.textContent.trim() ?? '';
     if (rawTitle) {
-        SkipTitle = CheckSkipTitle(rawTitle);        
+        SkipTitle = CheckSkipTitle(rawTitle);
     }
 
     CopyTitle = CopyTitle || copyOffsetArea?.textContent.trim() || '';
@@ -2286,7 +2320,7 @@ function createDownloadArea(DB) {
  */
 
 async function GetFileName(targetLink, host) {
-    
+
     // 호스트 설정이 존재하지 않으면 오류를 반환합니다.
     const config = HOST_CONFIG[host];
     if (!config) {
@@ -2815,9 +2849,9 @@ function detectHost(url) {
  * 타겟 링크의 온라인 여부 검사
  * - detectHost가 null이거나 미지원 호스트일 경우 요청을 건너뛰고 false 반환
  */
-function CheckOnline(TargetLink, host) {   
+function CheckOnline(TargetLink, host) {
 
-    const config = HOST_CONFIG[host];   
+    const config = HOST_CONFIG[host];
 
     // Keep2Share 계열 도메인 확인
     const k2sDomains = ['k2s.cc', 'keep2s.cc', 'keep2share.cc', 'fileboom.me', 'fboom.me', 'tezfiles.com', 'publish2.me'];
@@ -2888,10 +2922,10 @@ function CheckOnline(TargetLink, host) {
             mozAnon: true,
             url: TargetLink,
             timeout: 10000, // 10초 타임아웃 추가
-            onload: function (result) {                
+            onload: function (result) {
                 try {
                     const parser = new DOMParser();
-                    const doc = parser.parseFromString(result.responseText, 'text/html');                   
+                    const doc = parser.parseFromString(result.responseText, 'text/html');
 
                     // 지정된 셀렉터의 존재 여부 판단
                     const isOnline = !!doc.querySelector(config.selector);
@@ -3188,12 +3222,12 @@ async function CollectionLinks(DownloadArea) {
 
     const pendingElements = [];
     const alreadyOnlineItems = [];
-    
+
     // 1. 링크 수순 및 분류 (이미 CopyLinks에 있는 경우만 스킵)
-    for (const a of links) {        
+    for (const a of links) {
         console.log(a);
         const link = a.href;
-        
+
         if (CopyLinks.includes(link)) continue;
 
         // 기존에 이미 online 클래스가 부여되어 있는 경우
@@ -3633,7 +3667,7 @@ async function CopyLink() {
     noticeEl.textContent = noticeLines.join("\n");
 
     if (allLinks.length === 0) {
-        SkipTitle = ['Link is Empty'];     
+        SkipTitle = ['Link is Empty'];
         if (!document.querySelector('.CopyState')) {
             LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
         }
@@ -3643,9 +3677,9 @@ async function CopyLink() {
         if (copyStateEl) {
             copyStateEl.classList.add('innerText');
             copyStateEl.textContent = 'Link is Empty';
-        }           
+        }
         return allLinks;
-    } 
+    }
 
     console.log('CopyLink Step: ', { indexedDBCache });
 
@@ -3693,7 +3727,7 @@ async function checkList(areas) {
             .filter(a => !checkSkipFilter(a))
             .forEach(a => seenAnchors.add(a));
     });
-
+console.log('add seenAnchors:', areas, seenAnchors);
     // 2) URL 정규화 및 필터링
     for (const el of seenAnchors) {
         const rawHref = el.getAttribute('href');
@@ -4015,7 +4049,7 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
         if (copyStateEl) {
             copyStateEl.classList.add('innerText');
             copyStateEl.textContent = 'Link is Empty';
-            
+
         }
     }
     console.log('MutilSubTitle Final pageLinksDB:', pageLinksDB);
