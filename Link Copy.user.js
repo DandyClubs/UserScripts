@@ -458,7 +458,7 @@ const skipFilterPatterns = [
     /katfile\.com\/\?op=registration/i,
     /zippyshare\.com/i,
     /subyshare\.com\/affiliate\//i,
-    new RegExp(`${RootDomain}`, 'i'),
+    new RegExp(`${RootDomain}\\/`, 'i'),
 ];
 const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i');
 const WaitChangeLink = new RegExp('tma\\.cx\/', 'i');
@@ -2169,8 +2169,8 @@ async function Start() {
         }
 
         // Step 6: DownloadArea 기다림 
-        
-        if (!DownloadArea || DownloadArea?.length === 0) {            
+
+        if (!DownloadArea || DownloadArea?.length === 0) {
             const matchingConfig = waitDownloadArea.find(config => config.regex.test(PageURL));
             if (matchingConfig) {
                 await matchingConfig.handler();
@@ -3092,7 +3092,7 @@ async function CollectionCoverImage(CoverImage) {
 async function CollectionLinks(DownloadArea) {
     const CollectionATag = [];
     const shortLinkRegex = /(\/|=)(aHR0c[a-zA-Z0-9]+={0,2})(?=$|[\/?&;\-])/;
-    const siteParamRegex = /\?site.+$/;
+    const siteParamRegex = /\?(site|referer)=.+$/;
     const skipFileNameRegex = SkipFileName;
 
     // 1) Gather all <a> elements and normalize their hrefs
@@ -3113,8 +3113,6 @@ async function CollectionLinks(DownloadArea) {
             else if (siteParamRegex.test(url)) {
                 url = url.replace(siteParamRegex, '');
             }
-
-            url = url.replace(/\?(site|referer)=.+/, '').trim();
             a.setAttribute('href', url);
             CollectionATag.push(a);
         }
@@ -3720,20 +3718,26 @@ function checkSkipFilter(el) {
 async function checkList(areas) {
     if (!areas) return;
     const seenAnchors = new Set();
+    const siteParamRegex = /\?(site|referer)=.+$/;
 
     // 1) 각 영역별 <a> 요소 수집
-    areas.forEach(area => {
-        Array.from(area.querySelectorAll('a'))
-            .filter(a => !checkSkipFilter(a))
-            .forEach(a => seenAnchors.add(a));
-    });
-console.log('add seenAnchors:', areas, seenAnchors);
+    for (const area of areas) {
+        const anchors = area.querySelectorAll('a');
+        for (const a of anchors) {
+            if (!checkSkipFilter(a)) {
+                seenAnchors.add(a);
+            }
+        }
+    }
+
     // 2) URL 정규화 및 필터링
     for (const el of seenAnchors) {
         const rawHref = el.getAttribute('href');
         if (!rawHref) continue; // href가 없는 a 태그 예외 처리
+        if (siteParamRegex.test(rawHref)) {
+            el.setAttribute('href', rawHref.replace(siteParamRegex, ''));
+        }
 
-        el.setAttribute('href', rawHref.replace(/\?site.+/, ''));
         if (checkSkipFilter(el)) continue;
 
         // K2S 및 TurboBit URL 정규화
