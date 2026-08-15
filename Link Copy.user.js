@@ -2163,7 +2163,7 @@ async function processCopyTitle(currentConfig) {
 
     let rawTitle = copyOffsetArea?.textContent.trim() ?? '';
     if (rawTitle) {
-        SkipTitle = CheckSkipTitle(rawTitle);
+        SkipTitle = CheckSkipTitle(rawTitle);        
     }
 
     CopyTitle = CopyTitle || copyOffsetArea?.textContent.trim() || '';
@@ -2727,10 +2727,14 @@ async function SecondProcess() {
     // 4. 🔥 [핵심 수정] checkList 작업이 끝날 때까지 비동기 대기
     await checkList(DownloadArea);
 
+    if (document.querySelector(".Minus")?.style.visibility === "hidden") {
+        await CheckDB(listToDo(DownloadArea), 'SecondProcess CheckDB');
+    }
+
     console.log('AutoCopy:', AutoCopy, 'localStorage AutoCopy:', JSON.parse(localStorage.getItem('AutoCopy')));
 
     // 5. AutoCopy 조건 검사
-    const SkipTitle = []; // 함수 내 scope 안전성을 위해 선언 추가
+    //const SkipTitle = []; // 함수 내 scope 안전성을 위해 선언 추가
     if (/^((?!(sharepornlink|hpav\.tv|pornrips\.cc|naughtyblog)).)*$/.test(PageURL)) {
         if (document.querySelector(".Minus")?.style.visibility === "hidden" && AutoCopy && JSON.parse(localStorage.getItem('AutoCopy'))) {
             console.log('CopyGo');
@@ -3399,7 +3403,6 @@ async function CheckDB(listTo, fromStep) {
         // Set flags indicating skip conditions
         userClose = false;
         userCopy = false;
-
     }
 
     //console.log(indexedDBCache);
@@ -3635,6 +3638,8 @@ async function CopyLink() {
             LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
         }
         const copyStateEl = document.querySelector('.CopyState');
+        let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
+        copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
         if (copyStateEl) {
             copyStateEl.classList.add('innerText');
             copyStateEl.textContent = 'Link is Empty';
@@ -4005,6 +4010,8 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
             LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
         }
         const copyStateEl = document.querySelector('.CopyState');
+        let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
+        copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
         if (copyStateEl) {
             copyStateEl.classList.add('innerText');
             copyStateEl.textContent = 'Link is Empty';
