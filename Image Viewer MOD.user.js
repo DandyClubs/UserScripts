@@ -768,7 +768,7 @@ function GetOnline(details) {
 
 async function getURLFromPage(link, extractor, requestDetails) {
     const html = await getPageHtml({ url: link.url, ...requestDetails });
-    console.log(html, extractor.imageURLRegExp)
+    //console.log(html, extractor.imageURLRegExp)
     const match = extractor.imageURLRegExp?.exec(html);
     let url = match ? (match.groups ? match.groups.url : match[1]) : null;
     if (!url) {
