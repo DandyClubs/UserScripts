@@ -348,7 +348,7 @@ async function Start() {
             }
         },
         'pornolab.net': {
-            titleSelector: '.maintitle',
+            titleSelector: 'h1.maintitle a#topic-title',
             infoSelector: 'div.post-user-message',
         }
     };
