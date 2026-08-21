@@ -2196,9 +2196,6 @@ async function processCopyTitle(currentConfig) {
     console.log(`Start processCopyTitle`, currentConfig);
 
     let rawTitle = copyOffsetArea?.textContent.trim() ?? '';
-    if (rawTitle) {
-        SkipTitle = CheckSkipTitle(rawTitle);
-    }
 
     CopyTitle = CopyTitle || copyOffsetArea?.textContent.trim() || '';
     if (/naughtyblog\.(org|my|st)/.test(PageURL) && /SITERIP|OnlyFans|Collection|Updates/i.test(CopyTitle)) {
@@ -2210,6 +2207,22 @@ async function processCopyTitle(currentConfig) {
     if (rule) {
         console.log(rule);
         CopyTitle = await rule.handler(CopyTitle, copyOffsetArea, DownloadArea);
+    }
+
+    if (rawTitle && CopyTitle) {
+        if (rawTitle === CopyTitle) {
+            // 두 값이 같으면 하나만 실행
+            SkipTitle = CheckSkipTitle(rawTitle);
+        } else {
+            // 두 값이 다르면 각각의 실행 결과(배열)를 하나로 합침
+            SkipTitle = Array.from(new Set([...CheckSkipTitle(rawTitle), ...CheckSkipTitle(CopyTitle)]));
+        }
+    } else if (CopyTitle) {
+        SkipTitle = CheckSkipTitle(CopyTitle);
+    } else if (rawTitle) {
+        SkipTitle = CheckSkipTitle(rawTitle);
+    } else {
+        SkipTitle = [];
     }
 
     console.log({ CopyTitle });
@@ -2758,13 +2771,12 @@ async function SecondProcess() {
         });
     }
 
-    // 4. 🔥 [핵심 수정] checkList 작업이 끝날 때까지 비동기 대기
-    await checkList(DownloadArea);
-
     if (document.querySelector(".Minus")?.style.visibility === "hidden") {
         await CheckDB(listToDo(DownloadArea), 'SecondProcess CheckDB');
     }
 
+    // 4. 🔥 [핵심 수정] checkList 작업이 끝날 때까지 비동기 대기
+    await checkList(DownloadArea);    
     console.log('AutoCopy:', AutoCopy, 'localStorage AutoCopy:', JSON.parse(localStorage.getItem('AutoCopy')));
 
     // 5. AutoCopy 조건 검사
