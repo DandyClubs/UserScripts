@@ -3743,7 +3743,7 @@ async function checkList(areas) {
     }
 
     // 2) URL 정규화 및 필터링
-    for (const el of seenAnchors) {
+    for (const el of seenAnchors) {        
         const rawHref = el.getAttribute('href');
         if (!rawHref) continue; // href가 없는 a 태그 예외 처리
         if (siteParamRegex.test(rawHref)) {
@@ -3807,8 +3807,8 @@ function listToDo(areas, type = 'Default') {
 
     // 2) Filter and normalize each link
     for (const el of seenAnchors) {
-        //el.href = el.href.replace(/\?site.+/, '');
-        el.setAttribute('href', el.getAttribute('href').replace(/\?site.+/, ''));
+        //el.href = el.href.replace(/\?site.+/, '');        
+        el.setAttribute('href', el.getAttribute('href')?.replace(/\?site.+/, ''));
         // Skip filtering patterns
         if (checkSkipFilter(el)) continue;
         // Skip links with image children for certain hosts
