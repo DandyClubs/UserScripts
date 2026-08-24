@@ -541,92 +541,103 @@
 
 
 
-function isValidExternalImage(img) {
-    // 1. 공통 Guard Clauses (최상단 배치로 불필요한 연산 즉시 차단)
-    if (!img) return false;
-    if (img.dataset.isFixing) return false;
-    if (img.closest('.image-masonry')) return false;
+    function isValidExternalImage(img) {
+        // 1. 공통 Guard Clauses (최상단 배치로 불필요한 연산 즉시 차단)
+        if (!img) return false;
+        if (img.dataset.isFixing) return false;
+        if (img.closest('.image-masonry')) return false;
+        if (img.closest('.hiddenbox')) return false;
 
-    // 참조 편의를 위한 로컬 변수 선언
-    let src = img.src || '';
+        const isVisible = img.checkVisibility({
+            checkOpacity: false,      // opacity: 0 검사 여부
+            checkVisibilityCSS: false // visibility: hidden 검사 여부
+        });
 
-    // 2. Lazy / Data URI 1차 정규화 (상호 배타적 구조)
-    if (src.startsWith('http://data:image')) {
-        img.src = src.replace('http://', '');
-        src = img.src;
-    }
-    
-    if (src.startsWith('data:image')) {
-        // look for lazy attributes
-        for (const attr of img.attributes) {
-            if (lazyAttributesMap[attr.name]) {
-                img.src = attr.value;
-                src = attr.value; // 변경된 주소 동기화
-                break;
+        if (!isVisible) {
+            console.log('이미지가 화면에 숨겨져 있습니다 (display: none 포함).');
+            return false;
+        }
+
+        // 참조 편의를 위한 로컬 변수 선언
+        let src = img.src || '';
+
+        // 2. Lazy / Data URI 1차 정규화 (상호 배타적 구조)
+        if (src.startsWith('http://data:image')) {
+            img.src = src.replace('http://', '');
+            src = img.src;
+        }
+
+        if (src.startsWith('data:image')) {
+            // look for lazy attributes
+            for (const attr of img.attributes) {
+                if (lazyAttributesMap[attr.name]) {
+                    img.src = attr.value;
+                    src = attr.value; // 변경된 주소 동기화
+                    break;
+                }
             }
         }
-    } 
 
-    // 3. 무효한 포맷 및 트래커 선제 차단
-    if (!src || src.startsWith('blob:') || src.startsWith('data:') || src.startsWith('https://cm-exchange.toast.com/pixel')) {
-        return false;
-    }
-
-    // 4. 특정 도메인 및 경로별 조건 분기 최적화 (if - else if)
-    const rawSrc = img.getAttribute('src') || "";
-
-    if (rawSrc.startsWith('https:///e/attach')) {
-        const videoLink = img.closest('a[href*="video.php"]');
-        if (videoLink) {
-            img.dataset.isFixing = "true";
-            console.log(`[Fixing] 이미지 복구 시도 중: ${rawSrc}`);
-
-            getFixUrl(videoLink.href, rawSrc)
-                .then(realUrl => {
-                    img.src = realUrl;
-                    lazyImageQueue.enqueue(img);
-                    startLazyWorkers();
-                })
-                .catch(err => console.warn(`[Fix-Error] ${err}`));
+        // 3. 무효한 포맷 및 트래커 선제 차단
+        if (!src || src.startsWith('blob:') || src.startsWith('data:') || src.startsWith('https://cm-exchange.toast.com/pixel')) {
+            return false;
         }
-        return false; // 이 조건에 해당하면 이후의 무의미한 도메인 체크를 건너뛰고 즉시 종료
-    } 
-    // 위 조건이 아닐 때만 아래 도메인 분기들을 탑니다.
-    else if (src.startsWith('http://')) {
-        if (domainRegex.test(src)) {
-            img.src = src.replace('http://', 'https://');
+
+        // 4. 특정 도메인 및 경로별 조건 분기 최적화 (if - else if)
+        const rawSrc = img.getAttribute('src') || "";
+
+        if (rawSrc.startsWith('https:///e/attach')) {
+            const videoLink = img.closest('a[href*="video.php"]');
+            if (videoLink) {
+                img.dataset.isFixing = "true";
+                console.log(`[Fixing] 이미지 복구 시도 중: ${rawSrc}`);
+
+                getFixUrl(videoLink.href, rawSrc)
+                    .then(realUrl => {
+                        img.src = realUrl;
+                        lazyImageQueue.enqueue(img);
+                        startLazyWorkers();
+                    })
+                    .catch(err => console.warn(`[Fix-Error] ${err}`));
+            }
+            return false; // 이 조건에 해당하면 이후의 무의미한 도메인 체크를 건너뛰고 즉시 종료
+        }
+        // 위 조건이 아닐 때만 아래 도메인 분기들을 탑니다.
+        else if (src.startsWith('http://')) {
+            if (domainRegex.test(src)) {
+                img.src = src.replace('http://', 'https://');
+                src = img.src;
+                console.log(`[HTTPS-Upgrade] 프로토콜 변경 완료: ${img.src}`);
+            }
+        }
+        else if (src.startsWith('https://i.maxjav.com/')) {
+            img.src = getRedirectUrl(src, "url");
             src = img.src;
-            console.log(`[HTTPS-Upgrade] 프로토콜 변경 완료: ${img.src}`);
         }
-    } 
-    else if (src.startsWith('https://i.maxjav.com/')) {
-        img.src = getRedirectUrl(src, "url");
-        src = img.src;
+
+        // 5. 최종 도메인 및 링크 상태 검증
+        if (!isRealDomain(src)) {
+            console.warn(`정상적인 도메인이 아닙니다. ${src} `, img);
+            return false;
+        }
+
+        if (isBadLink(src)) {
+            console.warn(`[Skip] 이미 404로 기록된 링크입니다: ${src}`);
+            img.dataset.isImageState = "false";
+            return false;
+        }
+
+        // HTML 원본 고유 검증 (최종 단계)
+        const finalRawSrc = img.getAttribute('src');
+        if (!finalRawSrc || finalRawSrc.trim() === "" || finalRawSrc === window.location.href) {
+            return false;
+        }
+
+        // 이미 로드가 잘 완료된 이미지 제외
+        if (img.complete && img.naturalWidth > 0) return false;
+
+        return true;
     }
-
-    // 5. 최종 도메인 및 링크 상태 검증
-    if (!isRealDomain(src)) {
-        console.warn(`정상적인 도메인이 아닙니다. ${src} `, img);
-        return false;
-    }
-
-    if (isBadLink(src)) {
-        console.warn(`[Skip] 이미 404로 기록된 링크입니다: ${src}`);
-        img.dataset.isImageState = "false";
-        return false;
-    }
-
-    // HTML 원본 고유 검증 (최종 단계)
-    const finalRawSrc = img.getAttribute('src');
-    if (!finalRawSrc || finalRawSrc.trim() === "" || finalRawSrc === window.location.href) {
-        return false;
-    }
-
-    // 이미 로드가 잘 완료된 이미지 제외
-    if (img.complete && img.naturalWidth > 0) return false;
-
-    return true;
-}
 
 
     function getRedirectUrl(url, paramName) {
