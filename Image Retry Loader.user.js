@@ -554,7 +554,7 @@
         });
 
         if (!isVisible) {
-            console.log('이미지가 화면에 숨겨져 있습니다 (display: none 포함).');
+            console.log('이미지가 화면에 숨겨져 있습니다 (display: none 포함).', img);
             return false;
         }
 
