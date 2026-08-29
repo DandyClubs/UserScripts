@@ -32,6 +32,7 @@
 // @match        https://x-idol.net/*
 // @match        https://allasiangirls.net/*
 // @match        https://xchina.co/*
+// @match        https://turbobitxxx.com/*
 // @exclude      https://0xxx.ws/articles/*
 // @exclude      /blogjav\.net\/\d+/
 // @exclude      /maxjav\.com/\d+/
@@ -304,6 +305,10 @@ const siteConfigs = {
     'xchina.co': {
         linkSelector: 'div.list div.item div.text div.subs div a',
         removeTagSelector: 'div.item',
+    },
+    'turbobitxxx.com': {
+        linkSelector: 'article.postBox center h2 a',
+        removeTagSelector: 'article.postBox',
     },
 };
 
