@@ -279,7 +279,7 @@ const siteConfigs = {
         linkSelector: 'th span a[href*="thread"], th span a[href*="viewthread.php?tid"]',
         extraSelector: 'th.lock em a',
         removeTagSelector: 'tbody',
-        rootSelector: 'div.mainbox.threadlist form table:last-child',
+        rootSelector: 'div.mainbox.threadlist form table',
     },
     't66y.com': {
         linkSelector: 'tr.t_one.tac td.tal h3 a[href*="htm_data"]',
@@ -589,7 +589,10 @@ function getClearTitle(name) {
 document.addEventListener("DOMContentLoaded", async () => {
     await contentManager.init();
     console.log('Start Remove Content!');
-    const rootElement = Active.rootSelector ? document.querySelector(Active.rootSelector) : document.body;
+    
+    const rootElements = Active.rootSelector
+        ? Array.from(document.querySelectorAll(Active.rootSelector))
+        : [document.body];
 
     if (getClearTitle("ClearTitle") === null) {
         console.log('ClearTitle');
@@ -599,29 +602,31 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     contentCache = await contentDBUpdate();
 
-    // 초기 페이지 콘텐츠 처리
-    if (rootElement) {
+    // 1. 초기 페이지 콘텐츠 처리는 각 rootElement별로 진행
+    for (const rootElement of rootElements) {
         if (Active.extraSelector) {
             processContent(rootElement, Active.extraSelector, true);
         }
         processContent(rootElement, Active.linkSelector);
+    }
 
-        // 동적 콘텐츠를 위한 MutationObserver 설정
-        const observer = new MutationObserver(mutations => {
-            for (const mutation of mutations) {
-                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                    for (const node of mutation.addedNodes) {
-                        if (node.nodeType === Node.ELEMENT_NODE && (node.querySelector(Active.linkSelector) || (Active.extraSelector && node.querySelector(Active.extraSelector)))) {
-                            queue.enqueue(node);
-                        }
+    // 2. 동적 콘텐츠 감지용 MutationObserver는 document.body 전체에 1개만 설정
+    const observer = new MutationObserver(mutations => {
+        for (const mutation of mutations) {
+            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                for (const node of mutation.addedNodes) {
+                    if (node.nodeType === Node.ELEMENT_NODE && (node.querySelector(Active.linkSelector) || (Active.extraSelector && node.querySelector(Active.extraSelector)))) {
+                        queue.enqueue(node);
                     }
                 }
             }
-            if (!managementWorking && !queue.isEmpty()) {
-                processQueue();
-            }
-        });
+        }
+        if (!managementWorking && !queue.isEmpty()) {
+            processQueue();
+        }
+    });
 
-        observer.observe(rootElement, { childList: true, subtree: true });
-    }
+    // document.body 전체를 단일 옵저버로 관찰
+    observer.observe(document.body, { childList: true, subtree: true });
+
 }, { once: true });
