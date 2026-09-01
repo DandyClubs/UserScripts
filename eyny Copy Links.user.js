@@ -1181,18 +1181,28 @@ async function KatCopyItems() {
 function JDownloader(JdownloaderData, PackageName, PW, Source) {
     if (JdownloaderData) {
         let data = new URLSearchParams();
-        data.append(`urls`, JdownloaderData);        
+        data.append(`urls`, JdownloaderData);
         if (Source) {
             data.append(`source`, Source);
-        }        
+        }
         //data.append(`referer`, PAGE_URL);
         if (PackageName) {
             data.append(`package`, PackageName);
         }
         if (PW) {
-            data.append(`passwords`, PW + "\n");            
+            data.append(`passwords`, PW);
         }
-        
+        /*
+        fetch('http://localhost:9666/flash/add', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'Access-Control-Allow-Origin': 'http://localhost:9666',
+            },
+            body: data
+        });
+        */
+
         GM_xmlhttpRequest({
             method: "POST",
             url: "http://localhost:9666/flash/add",
@@ -1205,6 +1215,7 @@ function JDownloader(JdownloaderData, PackageName, PW, Source) {
                 alert("JDownloader 통신에 실패했습니다. JDownloader가 실행 중인지 확인하세요.");
             }
         });
+
     }
 }
 
