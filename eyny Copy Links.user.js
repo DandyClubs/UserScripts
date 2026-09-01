@@ -248,7 +248,7 @@ const siteRules = [
         useResolution: true,
         getTitleRegex: /(?<=影片名稱】[：:])(.*?)(?=(?:(\(MP4@KF@無碼|【影片大小).*$)?(?:$))/m,
         getTitleMatchPoint: 0,
-        passwordRegex: /解壓密碼】[：:]?(.*?)\s*(.+)/,
+        passwordRegex: /(解壓密碼|解壓縮密碼)】[：:]?(.*?)\s*(.+)/,
         breakPoint: ['需要存取權', '想看A片更多:', '複製代碼', '溫馨小小建議及下載小技巧', '更多優質影片', 'background-color:magenta', '解壓縮出現錯誤', '其他影片分享', '其他精彩主題', '其他影片載點'],
     },
 ]
