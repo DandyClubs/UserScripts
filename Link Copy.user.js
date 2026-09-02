@@ -4117,42 +4117,37 @@ async function ClipPaste() {
     return JDownloaderDB(indexedDBCache).then(e => e);
     //updateClipboard(ClipPasteData)
 }
+function JDownloader(JdownloaderData, PackageName, Source) {
+    if (!JdownloaderData) return;       
 
-function JDownloader(JdownloaderData, PackageName, sourceURL) {
-    //console.log(PackageName + '\n' + JdownloaderData)
-
-    if (JdownloaderData) {
-
-        let data = new URLSearchParams();
-        data.append(`urls`, JdownloaderData);
-        //data.append(`referer`, PageURL);
-        if (sourceURL) {
-            data.append(`source`, sourceURL);
-        }
-        if (PackageName) {
-            data.append(`package`, PackageName);
-        }
-        /*
-    if(Comment){
-        data.append(`comment`, Comment)
-    }
-    */
-
-        GM_xmlhttpRequest({
-            method: "POST",
-            url: "http://localhost:9666/flash/add",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
-            },
-            data: data.toString(),
-            onerror: function (err) {
-                console.error("JDownloader 통신 오류:", err);
-                alert("JDownloader 통신에 실패했습니다. JDownloader가 실행 중인지 확인하세요.");
+    // JDownloader API 규격에 맞춘 Payload 구조 ({ params: [...] })
+    const payload = {
+        params: [
+            {
+                autostart: false,
+                autoExtract: true,
+                packageName: PackageName || null,
+                sourceUrl: Source || null,
+                links: JdownloaderData,                         
             }
-        });
+        ]
+    };
 
-    }
-
+    GM_xmlhttpRequest({
+        method: "POST",
+        url: "http://127.0.0.1:3128/linkgrabberv2/addLinks",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        data: JSON.stringify(payload),
+        onload: function (response) {
+            //console.log("JDownloader 3128 응답 성공:", response.status, response.responseText);
+        },
+        onerror: function (err) {
+            console.error("JDownloader 3128 통신 오류:", err);
+            alert("JDownloader 통신에 실패했습니다.");
+        }
+    });
 }
 
 async function JDownloaderDB(LinksDB) {

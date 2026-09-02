@@ -1178,6 +1178,67 @@ async function KatCopyItems() {
     JDownloaderDB(linksDB);
 }
 
+/*
+function JDownloader(JdownloaderData, PackageName, PW, Source) {
+    if (!JdownloaderData) return;
+
+    // crawljob 파일 내용 구성
+    let content = `text=${encodeURIComponent(JdownloaderData)}\n`;
+    if (PackageName) content += `packageName=${PackageName}\n`;
+    if (PW) content += `extractPassword=${PW}\ndownloadPassword=${PW}\n`;
+    if (Source) content += `sourceUrl=${Source}\n`;
+    content += `autoStart=UNSET\nautoExtract=UNSET\n`;
+
+    // Blob 파일 생성 및 다운로드 (JD_Watch 폴더로 바로 들어가도록 저장)
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const filename = `job_${Date.now()}.crawljob`;
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+}
+*/
+
+function JDownloader(JdownloaderData, PackageName, PW, Source) {
+    if (!JdownloaderData) return;       
+
+    // JDownloader API 규격에 맞춘 Payload 구조 ({ params: [...] })
+    const payload = {
+        params: [
+            {
+                autostart: false,
+                autoExtract: true,
+                packageName: PackageName || null,
+                sourceUrl: Source || null,
+                links: JdownloaderData,
+                extractPassword: PW || null,   
+                //downloadPassword: PW || null             
+            }
+        ]
+    };
+
+    GM_xmlhttpRequest({
+        method: "POST",
+        url: "http://127.0.0.1:3128/linkgrabberv2/addLinks",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        data: JSON.stringify(payload),
+        onload: function (response) {
+            //console.log("JDownloader 3128 응답 성공:", response.status, response.responseText);
+        },
+        onerror: function (err) {
+            console.error("JDownloader 3128 통신 오류:", err);
+            alert("JDownloader 통신에 실패했습니다.");
+        }
+    });
+}
+
+/**
 function JDownloader(JdownloaderData, PackageName, PW, Source) {
     if (JdownloaderData) {
         let data = new URLSearchParams();
@@ -1191,21 +1252,11 @@ function JDownloader(JdownloaderData, PackageName, PW, Source) {
         }
         if (PW) {
             data.append(`passwords`, PW);
-        }
-        /*
-        fetch('http://localhost:9666/flash/add', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                'Access-Control-Allow-Origin': 'http://localhost:9666',
-            },
-            body: data
-        });
-        */
+        } 
 
         GM_xmlhttpRequest({
             method: "POST",
-            url: "http://localhost:9666/flash/add",
+            url: "http://127.0.0.1:9666/flash/add",
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
             },
@@ -1218,6 +1269,7 @@ function JDownloader(JdownloaderData, PackageName, PW, Source) {
 
     }
 }
+*/
 
 function JDownloaderDB(linksDB) {
     const uniqueTitle = [...new Set(linksDB.map(x => x.T))] || [...new Set(linksDB.map(x => x.U))];

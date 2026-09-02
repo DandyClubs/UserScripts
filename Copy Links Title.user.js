@@ -1214,45 +1214,39 @@ async function AddCopyIcon(node) {
     }
 }
 
-function JDownloader(JdownloaderData, PackageName, sourceURL) {
-    console.log(PackageName + '\n' + JdownloaderData);
-    if (JdownloaderData) {
-        let data = new URLSearchParams();
-        data.append(`urls`, JdownloaderData);
-        if (sourceURL) {
-            data.append(`source`, sourceURL);
-        }
-        //data.append(`referer`, PageURL);
-        if (PackageName) {
-            data.append(`package`, PackageName);
-        }
-        /*
-        fetch('http://localhost:9666/flash/add', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                'Access-Control-Allow-Origin': 'http://localhost:9666',
-            },
-            body: data,
-        }).catch(error => {
-            console.error("JDownloader 통신 오류:", error);
-            alert("JDownloader 통신에 실패했습니다. JDownloader가 실행 중인지 확인하세요.");
-        });
-        */
-        GM_xmlhttpRequest({
-            method: "POST",
-            url: "http://localhost:9666/flash/add",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
-            },
-            data: data.toString(),
-            onerror: function (err) {
-                console.error("JDownloader 통신 오류:", err);
-                alert("JDownloader 통신에 실패했습니다. JDownloader가 실행 중인지 확인하세요.");
+function JDownloader(JdownloaderData, PackageName, Source) {
+    if (!JdownloaderData) return;       
+
+    // JDownloader API 규격에 맞춘 Payload 구조 ({ params: [...] })
+    const payload = {
+        params: [
+            {
+                autostart: false,
+                autoExtract: true,
+                packageName: PackageName || null,
+                sourceUrl: Source || null,
+                links: JdownloaderData,                               
             }
-        });
-    }
+        ]
+    };
+
+    GM_xmlhttpRequest({
+        method: "POST",
+        url: "http://127.0.0.1:3128/linkgrabberv2/addLinks",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        data: JSON.stringify(payload),
+        onload: function (response) {
+            //console.log("JDownloader 3128 응답 성공:", response.status, response.responseText);
+        },
+        onerror: function (err) {
+            console.error("JDownloader 3128 통신 오류:", err);
+            alert("JDownloader 통신에 실패했습니다.");
+        }
+    });
 }
+
 
 function JDownloaderDB(LinksDB) {
     let uniqueTitle = [...new Set(LinksDB.map(x => x.T))] || [...new Set(LinksDB.map(x => x.U))];
