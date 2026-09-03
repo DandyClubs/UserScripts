@@ -26,7 +26,7 @@
     // 재시도 간격 및 횟수
     const RETRY_INTERVAL = 10000;
     const MAX_RETRY_COUNT = 1;
-    const LOAD_TIMEOUT = 30000; // 5초 타임아웃
+    const LOAD_TIMEOUT = 30000; // 30초 타임아웃
 
     class Queue {
         constructor() {
@@ -47,6 +47,29 @@
 
     const lazyImageQueue = new Queue();
 
+    // 🔥 IntersectionObserver 설정 (화면 진입 감지)
+    const viewportObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                
+                // 관찰 중단 (한 번 감지되면 더 이상 관찰하지 않음)
+                observer.unobserve(img);
+
+                // 뷰포트에 들어온 시점에 유효성 검사 후 큐에 삽입
+                if (isValidExternalImage(img)) {
+                    img.setAttribute('loading', 'lazy');
+                    lazyImageQueue.enqueue(img);
+                    startLazyWorkers();
+                }
+            }
+        });
+    }, {
+        root: null, // 뷰포트를 기준으로 감지
+        rootMargin: '1000px 0px', // 화면에 보이기 200px 전에 미리 로딩 시작
+        threshold: 0.01
+    });
+
     async function waitForImage(img, timeout) {
         return new Promise((resolve) => {
 
@@ -56,7 +79,6 @@
                 return resolve('skipped');
             }
 
-            // 🔥 기존 조건 제거하고 decode 기반으로 변경
             if (img.complete && img.naturalWidth > 0) {
                 img.decode()
                     .then(() => {
@@ -86,7 +108,6 @@
 
             function onLoad() {
                 cleanup();
-                // 🔥 여기 추가
                 img.decode()
                     .then(() => {
                         img.dataset.isImageState = "true";
@@ -106,7 +127,6 @@
             img.addEventListener('error', onError);
 
             img.removeAttribute('loading');
-            //img.setAttribute('src', img.getAttribute('src'));
         });
     }
 
@@ -134,7 +154,7 @@
                     }
                 }
                 activeWorkers--;
-                startLazyWorkers(); // 🔥 끝나자마자 다음 작업
+                startLazyWorkers();
             });
         }
     }
@@ -171,24 +191,20 @@
         return len ? parseInt(len, 10) : null;
     }
 
-    // 🔥 메인 함수
     async function checkImage(url, options = {}) {
         const {
             timeout = 5000,
-            minSize = 300,     // 너무 작은 이미지 필터
-            retry = 1          // fallback 시도 횟수
+            minSize = 300,
+            retry = 1
         } = options;
 
-        // --- 1️⃣ HEAD 요청 ---
         const headResult = await request(url, 'HEAD', timeout);
-
         const judged = judgeResponse(headResult, { minSize });
 
         if (judged.final) {
             return judged.result;
         }
 
-        // --- 2️⃣ fallback: Range GET ---
         if (retry > 0) {
             const getResult = await request(url, 'GET', timeout, {
                 Range: 'bytes=0-1023'
@@ -200,7 +216,6 @@
         return { exists: false, retry: true, reason: 'uncertain' };
     }
 
-    // 🔥 요청 래퍼
     function request(url, method, timeout, headers = {}) {
         return new Promise((resolve) => {
             GM_xmlhttpRequest({
@@ -216,7 +231,6 @@
         });
     }
 
-    // 🔥 판단 로직 (핵심)
     function judgeResponse(responseWrapper, options = {}) {
         const { minSize = 300, forceFinal = false } = options;
 
@@ -230,7 +244,6 @@
         const res = responseWrapper.res;
         const status = res.status;
 
-        // 🔥 Cloudflare 차단
         if (isCloudflareChallenge(res)) {
             return {
                 final: true,
@@ -241,7 +254,6 @@
         const isImage = isImageResponse(res);
         const size = getContentLength(res);
 
-        // --- 성공 케이스 ---
         if (status >= 200 && status < 300) {
             if (!isImage) {
                 return {
@@ -263,7 +275,6 @@
             };
         }
 
-        // --- 403 ---
         if (status === 403) {
             if (isImage) {
                 return {
@@ -277,7 +288,6 @@
                 : { final: false };
         }
 
-        // --- 404 ---
         if (status === 404) {
             return {
                 final: true,
@@ -285,19 +295,16 @@
             };
         }
 
-        // --- 5xx ---
         if (status >= 500) {
             return forceFinal
                 ? { final: true, result: { exists: false, reason: 'server_error' } }
                 : { final: false };
         }
 
-        // --- 기타 ---
         return forceFinal
             ? { final: true, result: { exists: false, reason: 'unknown' } }
             : { final: false };
     }
-
 
     const RETRY_CONCURRENCY = 3;
     let retryWorkers = 0;
@@ -327,9 +334,6 @@
         }
     }
 
-    /**
-     * 큐에 있는 이미지를 순차적으로 처리하는 함수
-     */
     async function runRetryWorker() {
         if (retryQueue.length === 0) {
             return;
@@ -343,7 +347,6 @@
             const imgElement = item.imgElement;
             let retryCount = parseInt(imgElement.dataset.retryCount);
 
-            // 재시도 전에 GM_xmlhttpRequest를 사용하여 실제 파일 존재 여부 확인
             const imgElementSrc = imgElement.getAttribute('src');
             if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:') || imgElementSrc.startsWith('https://wsrv.nl')) {
                 return;
@@ -364,7 +367,6 @@
             }
 
             imgElement.dataset.retryCount = ++retryCount;
-            //imgElement.setAttribute('src', imgElementSrc);
             console.warn(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement);
             function retryError() {
                 if (!retrySet.has(getPureUrl(this.src))) {
@@ -380,36 +382,23 @@
         }
     }
 
-    // MutationObserver 설정
+    // MutationObserver: 새로 생성된 노드 등록 시 바로 실행하는 대신 IntersectionObserver 등록
     const observer = new MutationObserver((mutationsList) => {
         for (const mutation of mutationsList) {
             if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         if (node.tagName === 'IMG') {
-                            if (isValidExternalImage(node)) {
-                                node.setAttribute('loading', 'lazy');
-                                //img.setAttribute('decoding', 'auto');
-                                lazyImageQueue.enqueue(node);
-                                startLazyWorkers();
-                            }
-
+                            viewportObserver.observe(node);
                         }
                         node.querySelectorAll('img').forEach(img => {
-                            if (isValidExternalImage(img)) {
-                                img.setAttribute('loading', 'lazy');
-                                //img.setAttribute('decoding', 'auto');
-                                lazyImageQueue.enqueue(img);
-                                startLazyWorkers();
-                            }
-
+                            viewportObserver.observe(img);
                         });
                     }
                 });
             }
         }
     });
-
 
     function isRealDomain(url) {
         try {
@@ -426,23 +415,18 @@
     function getPureUrl(url) {
         if (!url) return '';
 
-        // 1. 특정 서비스(프록시) 예외 처리
         if (url.startsWith('https://wsrv.nl')) {
             return url;
         }
         try {
             let absoluteUrl = url;
 
-            // 2. 프로토콜 상대 경로 (//) 처리
             if (url.startsWith('//')) {
                 absoluteUrl = window.location.protocol + url;
             }
-            // 3. 도메인 누락 (https:///) 처리
             else if (/^https?:\/\/\//.test(url)) {
                 absoluteUrl = url.replace(/^https?:\/\/\//, window.location.origin + '/');
             }
-            // 4. 상대 경로 (./ 또는 / 또는 그냥 파일명) 처리
-            // new URL(상대경로, 기준경로)를 사용하면 브라우저가 알아서 합쳐줍니다.
             const u = new URL(absoluteUrl, window.location.href);
             return u.origin + u.pathname;
 
@@ -454,12 +438,11 @@
 
     function getFixUrl(videoPageUrl, brokenSrc) {
         return new Promise((resolve, reject) => {
-            // 1. 깨진 주소에서 파일명만 추출 (예: 20260226023129_9982.jpg)
             const fileNameMatch = brokenSrc.match(/\/([^\/]+\.(jpg|jpeg|png|gif|webp))/i);
             if (!fileNameMatch) {
                 return reject('파일명 추출 실패');
             }
-            const targetFileName = fileNameMatch[1].split('.')[0]; // 확장자 제외 이름만 비교 (안전함)
+            const targetFileName = fileNameMatch[1].split('.')[0];
 
             GM_xmlhttpRequest({
                 method: 'GET',
@@ -486,10 +469,6 @@
             });
         });
     }
-    /**
-     * 처리가 필요한 이미지인지 확인 (data: URI 제외)
-     */
-
 
     const lazyAttributes = [
         "data-actualsrc",
@@ -511,7 +490,6 @@
         "data-url",
     ];
 
-    // 转为 Object
     let lazyAttributesMap = [];
     lazyAttributes.forEach(function (name) {
         lazyAttributesMap[name] = true;
@@ -527,30 +505,25 @@
                 javstore.net
                 `;
 
-    // 1. 문자열 정리 및 배열화
     const domainpattern = targetDomains
-        .trim()                     // 앞뒤 공백 제거
-        .split('\n')                // 줄바꿈으로 분리
-        .map(d => d.replace(/\./g, '\\.').trim())         // 각 라인별 공백 제거
+        .trim()
+        .split('\n')
+        .map(d => d.replace(/\./g, '\\.').trim())
         .filter(Boolean)
-        .join('|');     // 빈 줄 제외
+        .join('|');
 
-
-    // 3. RegExp 객체 생성 (Case Insensitive: i 플래그 권장)
     const domainRegex = new RegExp(`(${domainpattern})`, 'i');
 
-
-
     function isValidExternalImage(img) {
-        // 1. 공통 Guard Clauses (최상단 배치로 불필요한 연산 즉시 차단)
         if (!img) return false;
         if (img.dataset.isFixing) return false;
         if (img.closest('.image-masonry')) return false;
         if (img.closest('.hiddenbox')) return false;
 
+        // 🔥 CSS 가시성 확인 (display: none 등 체크)
         const isVisible = img.checkVisibility({
-            checkOpacity: false,      // opacity: 0 검사 여부
-            checkVisibilityCSS: false // visibility: hidden 검사 여부
+            checkOpacity: false,
+            checkVisibilityCSS: false
         });
 
         if (!isVisible) {
@@ -558,32 +531,27 @@
             return false;
         }
 
-        // 참조 편의를 위한 로컬 변수 선언
         let src = img.src || '';
 
-        // 2. Lazy / Data URI 1차 정규화 (상호 배타적 구조)
         if (src.startsWith('http://data:image')) {
             img.src = src.replace('http://', '');
             src = img.src;
         }
 
         if (src.startsWith('data:image')) {
-            // look for lazy attributes
             for (const attr of img.attributes) {
                 if (lazyAttributesMap[attr.name]) {
                     img.src = attr.value;
-                    src = attr.value; // 변경된 주소 동기화
+                    src = attr.value;
                     break;
                 }
             }
         }
 
-        // 3. 무효한 포맷 및 트래커 선제 차단
         if (!src || src.startsWith('blob:') || src.startsWith('data:') || src.startsWith('https://cm-exchange.toast.com/pixel')) {
             return false;
         }
 
-        // 4. 특정 도메인 및 경로별 조건 분기 최적화 (if - else if)
         const rawSrc = img.getAttribute('src') || "";
 
         if (rawSrc.startsWith('https:///e/attach')) {
@@ -595,14 +563,12 @@
                 getFixUrl(videoLink.href, rawSrc)
                     .then(realUrl => {
                         img.src = realUrl;
-                        lazyImageQueue.enqueue(img);
-                        startLazyWorkers();
+                        viewportObserver.observe(img); // 복구된 URL 적용 후 재관찰
                     })
                     .catch(err => console.warn(`[Fix-Error] ${err}`));
             }
-            return false; // 이 조건에 해당하면 이후의 무의미한 도메인 체크를 건너뛰고 즉시 종료
+            return false;
         }
-        // 위 조건이 아닐 때만 아래 도메인 분기들을 탑니다.
         else if (src.startsWith('http://')) {
             if (domainRegex.test(src)) {
                 img.src = src.replace('http://', 'https://');
@@ -615,7 +581,6 @@
             src = img.src;
         }
 
-        // 5. 최종 도메인 및 링크 상태 검증
         if (!isRealDomain(src)) {
             console.warn(`정상적인 도메인이 아닙니다. ${src} `, img);
             return false;
@@ -627,27 +592,22 @@
             return false;
         }
 
-        // HTML 원본 고유 검증 (최종 단계)
         const finalRawSrc = img.getAttribute('src');
         if (!finalRawSrc || finalRawSrc.trim() === "" || finalRawSrc === window.location.href) {
             return false;
         }
 
-        // 이미 로드가 잘 완료된 이미지 제외
         if (img.complete && img.naturalWidth > 0) return false;
 
         return true;
     }
 
-
     function getRedirectUrl(url, paramName) {
         try {
-            // 1. URL 객체를 사용하여 파라미터를 추출 (현대적인 방식)
             const urlObj = new URL(url);
             const params = new URLSearchParams(urlObj.search);
             const redirectUrl = params.get(paramName);
 
-            // 2. 결과값이 있으면 디코딩하여 반환, 없으면 원본 URL 반환
             return redirectUrl ? decodeURIComponent(redirectUrl) : url;
         } catch (e) {
             console.error("Error_getRedirectUrl: " + e);
@@ -667,7 +627,7 @@
 
     function cleanOldBadLinks() {
         const now = Date.now();
-        const oneDayLimit = 24 * 60 * 60 * 1000; // 24시간 (밀리초)
+        const oneDayLimit = 24 * 60 * 60 * 1000;
         const keys = GM_listValues();
 
         keys.forEach(key => {
@@ -681,20 +641,15 @@
 
     window.addEventListener("load", () => {
         cleanOldBadLinks();
+        
+        // 초기 로드시 모든 이미지를 IntersectionObserver에 관찰 등록
         document.querySelectorAll('img').forEach(img => {
-            if (isValidExternalImage(img)) {
-                img.setAttribute('loading', 'lazy');
-                //img.setAttribute('decoding', 'auto');
-                lazyImageQueue.enqueue(img);
-            }
-
+            viewportObserver.observe(img);
         });
-        startLazyWorkers();
 
         observer.observe(document.body, { childList: true, subtree: true });
         console.log('[ImageRetry] 스크립트 활성화 완료');
 
     }, { once: true });
-
 
 })();
