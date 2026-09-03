@@ -1223,7 +1223,7 @@ function JDownloader(JdownloaderData, PackageName, PW, Source) {
 
     GM_xmlhttpRequest({
         method: "POST",
-        url: "http://127.0.0.1:3128/linkgrabberv2/addLinks",
+        url: "http://localhost:3128/linkgrabberv2/addLinks",
         headers: {
             "Content-Type": "application/json"
         },
