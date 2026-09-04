@@ -19,7 +19,7 @@
 // @grant        GM_openInTab
 // @grant		 GM_addStyle
 // @grant        GM_getResourceText
-// @require      https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.12.0/viewer.js
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @noframes
 // ==/UserScript==
@@ -402,7 +402,7 @@ siteModules.sort((a, b) => a.name.localeCompare(b.name));
 
 const viewerCSS = function () {
     let css = document.createElement('link');
-    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.7/viewer.css';
+    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.12.0/viewer.css';
     css.rel = 'stylesheet';
     css.type = 'text/css';
     document.getElementsByTagName('head')[0].appendChild(css);
