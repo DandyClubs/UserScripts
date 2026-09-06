@@ -48,27 +48,17 @@
     const lazyImageQueue = new Queue();
 
     // 🔥 IntersectionObserver 설정 (화면 진입 감지)
-    const viewportObserver = new IntersectionObserver((entries, observer) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const img = entry.target;
-                
-                // 관찰 중단 (한 번 감지되면 더 이상 관찰하지 않음)
-                observer.unobserve(img);
+    const checkImageVisibility = (img) => {
 
-                // 뷰포트에 들어온 시점에 유효성 검사 후 큐에 삽입
-                if (isValidExternalImage(img)) {
-                    img.setAttribute('loading', 'lazy');
-                    lazyImageQueue.enqueue(img);
-                    startLazyWorkers();
-                }
-            }
-        });
-    }, {
-        root: null, // 뷰포트를 기준으로 감지
-        rootMargin: '1000px 0px', // 화면에 보이기 200px 전에 미리 로딩 시작
-        threshold: 0.01
-    });
+        // 뷰포트에 들어온 시점에 유효성 검사 후 큐에 삽입
+        if (isValidExternalImage(img)) {
+            img.setAttribute('loading', 'lazy');
+            lazyImageQueue.enqueue(img);
+            startLazyWorkers();
+        }
+
+    };
+
 
     async function waitForImage(img, timeout) {
         return new Promise((resolve) => {
@@ -389,10 +379,10 @@
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         if (node.tagName === 'IMG') {
-                            viewportObserver.observe(node);
+                            checkImageVisibility(node);
                         }
                         node.querySelectorAll('img').forEach(img => {
-                            viewportObserver.observe(img);
+                            checkImageVisibility(img);
                         });
                     }
                 });
@@ -563,7 +553,7 @@
                 getFixUrl(videoLink.href, rawSrc)
                     .then(realUrl => {
                         img.src = realUrl;
-                        viewportObserver.observe(img); // 복구된 URL 적용 후 재관찰
+                        checkImageVisibility(img); // 복구된 URL 적용 후 재관찰
                     })
                     .catch(err => console.warn(`[Fix-Error] ${err}`));
             }
@@ -641,10 +631,10 @@
 
     window.addEventListener("load", () => {
         cleanOldBadLinks();
-        
+
         // 초기 로드시 모든 이미지를 IntersectionObserver에 관찰 등록
         document.querySelectorAll('img').forEach(img => {
-            viewportObserver.observe(img);
+            checkImageVisibility(img);
         });
 
         observer.observe(document.body, { childList: true, subtree: true });
