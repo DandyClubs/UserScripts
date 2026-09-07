@@ -175,6 +175,7 @@ margin: .25em;
   z-index: 999999;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: pre;
   display: -webkit-box;
     -webkit-line-clamp: 15;
     -webkit-box-orient: vertical;
@@ -2776,7 +2777,7 @@ async function SecondProcess() {
     }
 
     // 4. 🔥 [핵심 수정] checkList 작업이 끝날 때까지 비동기 대기
-    await checkList(DownloadArea);    
+    await checkList(DownloadArea);
     console.log('AutoCopy:', AutoCopy, 'localStorage AutoCopy:', JSON.parse(localStorage.getItem('AutoCopy')));
 
     // 5. AutoCopy 조건 검사
@@ -3672,9 +3673,10 @@ async function CopyLink() {
     }
 
     console.log('Final allLinks:', allLinks);
-
+    console.log('Final noticeLines:', noticeLines);
     const noticeEl = document.querySelector('.CopyNotice .copyText');
     noticeEl.textContent = noticeLines.join("\n");
+    
 
     if (allLinks.length === 0) {
         SkipTitle = ['Link is Empty'];
@@ -3743,7 +3745,7 @@ async function checkList(areas) {
     }
 
     // 2) URL 정규화 및 필터링
-    for (const el of seenAnchors) {        
+    for (const el of seenAnchors) {
         const rawHref = el.getAttribute('href');
         if (!rawHref) continue; // href가 없는 a 태그 예외 처리
         if (siteParamRegex.test(rawHref)) {
@@ -4118,7 +4120,7 @@ async function ClipPaste() {
     //updateClipboard(ClipPasteData)
 }
 function JDownloader(JdownloaderData, PackageName, Source) {
-    if (!JdownloaderData) return;       
+    if (!JdownloaderData) return;
 
     // JDownloader API 규격에 맞춘 Payload 구조 ({ params: [...] })
     const payload = {
@@ -4128,7 +4130,7 @@ function JDownloader(JdownloaderData, PackageName, Source) {
                 autoExtract: true,
                 packageName: PackageName || null,
                 sourceUrl: Source || null,
-                links: JdownloaderData,                         
+                links: JdownloaderData,
             }
         ]
     };
