@@ -1164,6 +1164,7 @@ const siteConfigs = [
 
                 rawTitle = rawTitle
                     .replace(/amp;|\(\s?ブルーレイ版\s?\)|\(ブルーレイディスク版\)|（ブルーレイディスク）/g, '')
+                    .replace(/独占販売\s\d+%OFF\!/i, '')
                     .replace('***y*xjyyqxn', '')
                     .replace(/\*\*[a-z]+/, '')
                     .replace('[FHD/4K]', '')
@@ -1196,7 +1197,7 @@ const siteConfigs = [
 
                 const IDLength = byteLengthOfCheck(ID);
                 const TitleLength = byteLengthOfCheck(Title);
-                const maxTotal = 241;
+                const maxTotal = 246;
 
                 if (TitleLength > maxTotal - IDLength) {
                     let TitleLast = getLastText(Title);
