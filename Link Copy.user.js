@@ -459,6 +459,7 @@ const skipFilterPatterns = [
     /katfile\.com\/\?op=registration/i,
     /zippyshare\.com/i,
     /subyshare\.com\/affiliate\//i,
+    /bunfile\.com/i,
     new RegExp(`${RootDomain}\\/`, 'i'),
 ];
 const DirectCopy = new RegExp('3xplanet|kbjme\\.com|hpav\\.tv|pornrips\\.cc|sharepornlink|javpop', 'i');
