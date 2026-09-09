@@ -39,6 +39,7 @@ const adTagMap = {
     "planetsuzy.org": ['table.ncode_imageresizer_warning'],
     "bestgirlsexy.com": ['#player-container', 'div.ipprtcnt'],
     "namethatporn.com": ['#fab_blacko'],
+    "xhamster.com": ['div[class*="thumbContainer"]'],
     "t66y.com": [`
     a[href*="av28.tv"],
     a[href*="dj134.com"],
