@@ -566,10 +566,12 @@
                 console.log(`[HTTPS-Upgrade] 프로토콜 변경 완료: ${img.src}`);
             }
         }
+        /*
         else if (src.startsWith('https://i.maxjav.com/')) {
             img.src = getRedirectUrl(src, "url");
             src = img.src;
         }
+            */
 
         if (!isRealDomain(src)) {
             console.warn(`정상적인 도메인이 아닙니다. ${src} `, img);
