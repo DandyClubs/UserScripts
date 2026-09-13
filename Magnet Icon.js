@@ -128,6 +128,8 @@ const ExcludeChar = /[&<\/:>*?"|\\]/g;
 const JapaneseChar = /[ぁ-んァ-ン一-龯]/;
 const cyrillicPattern = /[а-яА-ЯЁё]/g;
 const englishPattern = /[A-Za-z0-9]/;
+const titlePrefixRegex = /^【(?:影片标题|影片名称|影片名称代|影片名稱|檔案名稱|文件名称|资源名称)】[：:]\s*/g;
+const skipKeywords = ["最强優片", "最強國產專輯"];
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 let firstScrollPos = '';
 
@@ -175,10 +177,10 @@ function sleep(ms) {
 
 
 function extractMagnetAndTitles(data) {
-    const matchesTitle = data.map((value, index) => ({ value, index })).filter(item => /【影片标题】：|【影片名称】：|影片名称：|【影片名称代号】 :/.test(item.value));
+    const matchesTitle = data.map((value, index) => ({ value, index })).filter(item => titlePrefixRegex.test(item.value));
     const isMagnet = (e) => /rmdown.com\/link.php\?hash=\d{3}(.+)/.test(e);
     for (let i = 0; i < matchesTitle.length; i++) {
-        let title = matchesTitle[i].value.replace(/【影片标题】：|【影片名称】：|影片名称：|【影片名称代号】 :/, '').replace(/^\s?\[MP4.*?\]/, '').replace(/\[[a-zA-Z0-9\.\/]+\]/, '').trim();
+        let title = matchesTitle[i].value.replace(titlePrefixRegex, '').replace(/^\s?\[MP4.*?\]/, '').replace(/\[[a-zA-Z0-9\.\/]+\]/, '').trim();
         if (title.match(ExcludeChar)) {
             //console.log(Title.match(ExcludeChar))
             title = FilenameConvert(title);
@@ -619,8 +621,8 @@ async function Main() {
         init();
         linkifyNodes(container);
 
-        const titlePrefixRegex = /【影片标题】|【影片名称】|影片名称|【影片名称代호】|【影片名稱】|【檔案名稱】|【新片】|【资源名称】/;
-        const skipKeywords = ["最强優片", "最強國產專輯"];
+        
+        
 
         function extractTitles(root) {
             const walker = document.createTreeWalker(
