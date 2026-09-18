@@ -22,6 +22,8 @@
 // @include      /fhdporn\.video/
 // @include      /asianscan\.biz/
 // @include      https://avsake.com/*
+// @include      https://peepxx.com/*
+// @include      https://peepxx.net/*
 // @include      https://jgirl.co/*
 // @include      /sharepornlink\.com\/.*/
 // @include      https://javarchive.com/*
@@ -1558,6 +1560,13 @@ const siteConfigs = [
     },
     {
         regex: /avsake\.com\/\?p/,
+        config: {
+            copyOffsetAreaSelector: 'div.article_container h1',
+            downloadAreaSelector: 'div.article_container div.context div#post_content'
+        }
+    },
+    {
+        regex: /peepxx\.(net|com)\/\?p/,
         config: {
             copyOffsetAreaSelector: 'div.article_container h1',
             downloadAreaSelector: 'div.article_container div.context div#post_content'
