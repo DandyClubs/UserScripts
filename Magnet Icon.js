@@ -128,7 +128,7 @@ const ExcludeChar = /[&<\/:>*?"|\\]/g;
 const JapaneseChar = /[ぁ-んァ-ン一-龯]/;
 const cyrillicPattern = /[а-яА-ЯЁё]/g;
 const englishPattern = /[A-Za-z0-9]/;
-const titlePrefixRegex = /^【(?:影片标题|影片名称|影片名称代|影片名稱|檔案名稱|文件名称|资源名称)】[：:]\s*/g;
+const titlePrefixRegex = /^【(?:影片标题|影片名称|影片名称代|影片名稱|檔案名稱|文件名称|资源名称|档案名称)】[：:]\s*/g;
 const skipKeywords = ["最强優片", "最強國產專輯"];
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 let firstScrollPos = '';
