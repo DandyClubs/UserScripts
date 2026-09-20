@@ -301,6 +301,9 @@ const RootDomain = extractRootDomain(PageURL);
 function escapeRegExp(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 }
+
+
+
 const skipWordsList = /sis001\.com/.test(PageURL)
     ? [
         '中字高清',
@@ -328,6 +331,8 @@ const RegexFrom = (strings, flags) =>
             .join("|"),
         flags
     );
+
+const RemoveContentEX = RegexFrom(RemoveContentText.split(/\r?\n/), 'i');
 const SkipWorld = RegexFrom(skipWordsList, 'gi');
 const SkipModelEX = RegexFrom(SkipModel.split(/\r?\n/), 'gi');
 const WarningEX = RegexFrom(WarningText.split(/\r?\n/), 'gi');
@@ -762,7 +767,7 @@ function checkVisited(node = Active.root) {
                 el.classList.add('Skip');
                 continue;
             }
-            if (SkipWorld.test(el.textContent) || SkipModelEX.test(el.textContent) || WarningEX.test(el.textContent)) {
+            if (RemoveContentEX.test(el.textContent) || SkipWorld.test(el.textContent) || SkipModelEX.test(el.textContent) || WarningEX.test(el.textContent)) {
                 el.classList.add('Skip');
                 continue;
             }
@@ -947,7 +952,7 @@ async function SaveVisited(el) {
         if (Active.SaveMode === 'indexedDB') {
             await VisitedManager.add(linkInfo, AddDate);
         } else if (Active.SaveMode === 'ScriptStorage') {
-            GM_setValue(linkInfo, AddDate);            
+            GM_setValue(linkInfo, AddDate);
         }
         console.log('linkInfo:', linkInfo, '\nAddDate:', AddDate);
         VisitedCSS(el, AddDate);

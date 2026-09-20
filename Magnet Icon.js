@@ -234,8 +234,10 @@ function scrollToTitlePx(target, offset = 150) {
     if (!target) return;
 
     // 1. 요소의 절대 위치 (문서 최상단 기준)
-    const rect = target.getBoundingClientRect();
-    const absoluteElementTop = rect.top + window.pageYOffset;
+    const top = target.offsetTop;
+    
+    const absoluteElementTop = top + window.pageYOffset;
+    console.log(`[Scroll] 요소 절대 위치: ${absoluteElementTop}px, 오프셋: ${offset}px`);
 
     // 2. 우리가 도달하고 싶은 최종 스크롤 위치
     const finalPosition = absoluteElementTop - offset;
@@ -248,6 +250,7 @@ function scrollToTitlePx(target, offset = 150) {
 
     // 4. 부족한 공간 계산
     // 목표 위치가 최대 스크롤 가능 범위를 넘어선다면?
+    console.log(`[Scroll] 목표 위치: ${finalPosition}px, 최대 스크롤 가능 위치: ${maxScrollY}px`);
     if (finalPosition > maxScrollY) {
         const shortfall = finalPosition - maxScrollY; // 부족한 픽셀 수
 
@@ -260,7 +263,7 @@ function scrollToTitlePx(target, offset = 150) {
         }
 
         // 부족한 만큼 + 여유분(선택사항)을 높이로 설정
-        spacer.style.height = `${shortfall + 10}px`;
+        spacer.style.height = `${shortfall + offset}px`;
 
         console.log(`[Scroll] 하단 공간 부족 (${shortfall}px). 스페이서 추가.`);
     }
@@ -344,6 +347,7 @@ async function init() {
     
     
     await firstPromise;
+    console.log("첫 번째 섹션 렌더링 완료. 스크롤 위치 조정 중...", firstScrollPos.element);
     scrollToTitlePx(firstScrollPos.element, 80);
 
     // 전체 완료는 따로
