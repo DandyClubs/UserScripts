@@ -103,7 +103,7 @@ body.modal-open {
         },
         {
             id: 'cosplay18',
-            domains: ['cosplay18.pics', 'pig69.com'],
+            domains: ['cosplay18.pics', 'pig69.com', 'ai18.pics'],
             pathPattern: /\/upload\/(?!ib\/)/i,
             transform: (url) => {
                 if (url.includes('/upload/') && !url.includes('/upload/ib/')) {
