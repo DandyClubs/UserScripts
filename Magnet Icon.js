@@ -263,7 +263,7 @@ function scrollToTitlePx(target, offset = 150) {
         }
 
         // 부족한 만큼 + 여유분(선택사항)을 높이로 설정
-        spacer.style.height = `${shortfall + offset + 10}px`;
+        spacer.style.height = `${shortfall + offset + 20}px`;
 
         console.log(`[Scroll] 하단 공간 부족 (${shortfall + offset + 10}px). 스페이서 추가.`);
     }
