@@ -346,9 +346,15 @@ async function init() {
 
     
     
-    await firstPromise;
-    console.log("첫 번째 섹션 렌더링 완료. 스크롤 위치 조정 중...", firstScrollPos.element);
-    scrollToTitlePx(firstScrollPos.element, 80);
+    await firstPromise;    
+
+    // [핵심] DOM 레이아웃 배치가 브라우저 프레임에 최종 반영된 후 스크롤을 수행합니다.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            console.log("첫 번째 섹션 렌더링 완료. 스크롤 위치 조정 중...", firstScrollPos.element);
+            scrollToTitlePx(firstScrollPos.element, 80);
+        });
+    });    
 
     // 전체 완료는 따로
     await Promise.all(workers);
