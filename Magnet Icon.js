@@ -234,7 +234,7 @@ function scrollToTitlePx(target, offset = 150) {
     if (!target) return;
 
     // 1. 요소의 절대 위치 (문서 최상단 기준)
-    const top = target.offsetTop;
+    const top = target.getBoundingClientRect().top;
     
     const absoluteElementTop = top + window.pageYOffset;
     console.log(`[Scroll] 요소 절대 위치: ${absoluteElementTop}px, 오프셋: ${offset}px`);
@@ -265,7 +265,7 @@ function scrollToTitlePx(target, offset = 150) {
         // 부족한 만큼 + 여유분(선택사항)을 높이로 설정
         spacer.style.height = `${shortfall + offset + 20}px`;
 
-        console.log(`[Scroll] 하단 공간 부족 (${shortfall + offset + 10}px). 스페이서 추가.`);
+        console.log(`[Scroll] 하단 공간 부족 (${shortfall + offset + 20}px). 스페이서 추가.`);
     }
 
     // 5. 스크롤 실행
