@@ -230,49 +230,78 @@ function updateClipboard(CopyData) {
     }
 }
 
-function scrollToTitlePx(target, offset = 150) {
+function scrollToTitlePx(target, offset = 80, maxRetries = 10, interval = 250) {
     if (!target) return;
 
-    // 1. 요소의 절대 위치 (문서 최상단 기준)
-    const top = target.getBoundingClientRect().top;
-    
-    const absoluteElementTop = top + window.pageYOffset;
-    console.log(`[Scroll] 요소 절대 위치: ${absoluteElementTop}px, 오프셋: ${offset}px`);
-
-    // 2. 우리가 도달하고 싶은 최종 스크롤 위치
-    const finalPosition = absoluteElementTop - offset;
-
-    // 3. 현재 문서에서 스크롤 가능한 최대 높이 계산
-    // (전체 문서 높이 - 뷰포트 높이)
-    const scrollHeight = document.documentElement.scrollHeight;
-    const viewportHeight = window.innerHeight;
-    const maxScrollY = scrollHeight - viewportHeight;
-
-    // 4. 부족한 공간 계산
-    // 목표 위치가 최대 스크롤 가능 범위를 넘어선다면?
-    console.log(`[Scroll] 목표 위치: ${finalPosition}px, 최대 스크롤 가능 위치: ${maxScrollY}px`);
-    if (finalPosition > maxScrollY) {
-        const shortfall = finalPosition - maxScrollY; // 부족한 픽셀 수
-
+    function performScroll() {
         let spacer = document.getElementById('scroll-spacer');
-        if (!spacer) {
-            spacer = document.createElement('div');
-            spacer.id = 'scroll-spacer';
-            spacer.style.pointerEvents = 'none'; // 클릭 방해 금지
-            document.body.appendChild(spacer);
+
+        // 1. 순수한 문서 및 타겟 위치 계산을 위해 계산 순간에는 기존 스페이서 영향을 제거/임시 리셋
+        // (스페이서가 이미 커진 상태에서 재계산하면 scrollHeight가 왜곡되는 현원인 차단)
+        const currentSpacerHeight = spacer ? parseFloat(spacer.style.height) || 0 : 0;
+
+        // 2. 타겟의 현재 절대 위치 (문서 최상단 기준)
+        const top = target.getBoundingClientRect().top;
+        const absoluteElementTop = top + window.pageYOffset;
+
+        // 3. 도달해야 하는 최종 스크롤 Y 위치
+        const finalPosition = absoluteElementTop - offset;
+
+        // 4. 스페이서가 '없을 때'의 순수 스크롤 가능 최대 높이 계산
+        const viewportHeight = window.innerHeight;
+        const rawScrollHeight = document.documentElement.scrollHeight - currentSpacerHeight;
+        const rawMaxScrollY = rawScrollHeight - viewportHeight;
+
+        // 5. 정밀한 부족분(shortfall) 계산
+        if (finalPosition > rawMaxScrollY) {
+            // 딱 최종 위치와 순수 최대 스크롤 가능 위치의 '차이'만큼만 필요
+            const exactShortfall = Math.ceil(finalPosition - rawMaxScrollY);
+
+            if (!spacer) {
+                spacer = document.createElement('div');
+                spacer.id = 'scroll-spacer';
+                spacer.style.pointerEvents = 'none';
+                document.body.appendChild(spacer);
+            }
+
+            // 정확히 부족한 픽셀만 딱 설정 (과도한 뻥튀기 제거)
+            spacer.style.height = `${exactShortfall}px`;
+            console.log(`[Scroll] 하단 공간 정확 보정: +${exactShortfall}px`);
+        } else if (spacer) {
+            // 공간이 충분하면 스페이서 제거
+            spacer.style.height = '0px';
         }
 
-        // 부족한 만큼 + 여유분(선택사항)을 높이로 설정
-        spacer.style.height = `${shortfall + offset + 50}px`;
-
-        console.log(`[Scroll] 하단 공간 부족 (${shortfall + offset + 50}px). 스페이서 추가.`);
+        // 6. 스크롤 이동
+        window.scrollTo({
+            top: Math.max(0, finalPosition),
+            behavior: 'auto'
+        });
     }
 
-    // 5. 스크롤 실행
-    window.scrollTo({
-        top: Math.max(0, finalPosition), // 0보다 작아지지 않게 방어
-        behavior: 'auto'
-    });
+    // 1차 스크롤
+    performScroll();
+
+    // 7. 레이아웃 변동 감시 및 미세 오차 보정 루프
+    let retries = 0;
+    const checkInterval = setInterval(() => {
+        retries++;
+
+        const currentTop = target.getBoundingClientRect().top;
+
+        // 목표 오프셋(80px)과 5px 이상 차이가 나면 재조정
+        if (Math.abs(currentTop - offset) > 5) {
+            console.log(`[Scroll Retry ${retries}] 위치 보정 중... (현재: ${Math.round(currentTop)}px, 목표: ${offset}px)`);
+            performScroll();
+        } else {
+            // 정상 도착 시 루프 즉시 종료
+            clearInterval(checkInterval);
+        }
+
+        if (retries >= maxRetries) {
+            clearInterval(checkInterval);
+        }
+    }, interval);
 }
 
 /* ============================================================
