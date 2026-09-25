@@ -36,6 +36,7 @@
 // @grant        GM_getValue
 // @grant        GM_deleteValue
 // @grant        GM_listValues
+// @grant        window.close
 // @connect      *
 // @noframes
 // ==/UserScript==
