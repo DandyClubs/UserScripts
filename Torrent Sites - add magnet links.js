@@ -281,6 +281,17 @@ async function modCell(cell) {
     }
 }
 
+
+function openMagnetBackground(magnetUrl) {
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = magnetUrl;
+    document.body.appendChild(iframe);
+    
+    // 실행 후 메모리 정리
+    setTimeout(() => iframe.remove(), 1000);
+}
+
 async function processJob(el) {
     if (!el.classList.contains('not-processed')) return;
     const tLink = el.dataset.url;
@@ -299,7 +310,8 @@ async function processJob(el) {
             el.classList.replace('not-processed', 'visited');
             el.style.setProperty('color', 'Orange', 'important');
             el.removeEventListener('click', handleMagnetClick);
-            el.click();
+            openMagnetBackground(retrieved); // el.click() 대신 사용
+            //el.click();
         }
     } catch (e) {
         console.error("Fetch error:", e);
