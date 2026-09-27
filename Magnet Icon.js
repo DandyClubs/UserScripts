@@ -19,6 +19,7 @@
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/Masonry.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.js
 // @resource     VIEWER_CSS https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.css
+// @require      https://raw.githubusercontent.com/DandyClubs/Filter/main/Filters.js
 // @grant        GM_getResourceText
 // ==/UserScript==
 
@@ -124,6 +125,17 @@ GM_addStyle(`
 }
 `);
 
+
+const RegexFrom = (strings, flags) =>
+    new RegExp(
+        strings
+            .filter(e => e)
+            .map(t => t.replace(/\s+/g, '\\s'))
+            .join("|"),
+        flags
+    );
+
+
 const ExcludeChar = /[&<\/:>*?"|\\]/g;
 const JapaneseChar = /[ぁ-んァ-ン一-龯]/;
 const cyrillicPattern = /[а-яА-ЯЁё]/g;
@@ -131,6 +143,7 @@ const englishPattern = /[A-Za-z0-9]/;
 const titlePrefixRegex = /^【(?:影片标题|影片名称|影片名称代|影片名稱|檔案名稱|文件名称|资源名称|档案名称)】[：:]\s*/g;
 const skipKeywords = ["最强優片", "最強國產專輯"];
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+const RemoveContentEX = RegexFrom(RemoveContentText.split(/\r?\n/), 'i');
 let firstScrollPos = '';
 
 
@@ -181,6 +194,13 @@ function extractMagnetAndTitles(data) {
     const isMagnet = (e) => /rmdown.com\/link.php\?hash=\d{3}(.+)/.test(e);
     for (let i = 0; i < matchesTitle.length; i++) {
         let title = matchesTitle[i].value.replace(titlePrefixRegex, '').replace(/^\s?\[MP4.*?\]/, '').replace(/\[[a-zA-Z0-9\.\/]+\]/, '').trim();
+        if (RemoveContentEX.test(title)) {
+            console.log(`제외 키워드 발견: ${title}`);
+            if (matchesTitle.length === 1) {
+                console.log("제외 키워드만 존재하여 창을 닫습니다.");
+                self.close();
+            }
+        }
         if (title.match(ExcludeChar)) {
             //console.log(Title.match(ExcludeChar))
             title = FilenameConvert(title);
@@ -318,7 +338,7 @@ async function init() {
     const loaders = new Map();
 
     for (const wrapper of wrappers) {
-        wrapper.style.visibility = 'visible';       
+        wrapper.style.visibility = 'visible';
 
         // 첨부파일 이미지 형태의 로더 생성
         wrapper.insertAdjacentHTML('beforebegin', `<div class="image-loader"><div class="progress-circle" style="--p: 0"></div></div>`);
@@ -345,8 +365,8 @@ async function init() {
             void wrapper.offsetWidth;
             // 2. 레이아웃 최적화 (scaleMap 및 minHeightMap 적용)
             const imgCount = wrapper.querySelectorAll('img').length;
-            const columnCount = imgCount > 2 ? 3 : 2; 
-            const maxHeight = imgCount > 2 ? 600 : 800;           
+            const columnCount = imgCount > 2 ? 3 : 2;
+            const maxHeight = imgCount > 2 ? 600 : 800;
             optimizeSingleLayout(wrapper, columnCount, maxHeight);
 
             // 3. UI 정리
@@ -373,9 +393,9 @@ async function init() {
         }
     });
 
-    
-    
-    await firstPromise;    
+
+
+    await firstPromise;
 
     // [핵심] DOM 레이아웃 배치가 브라우저 프레임에 최종 반영된 후 스크롤을 수행합니다.
     requestAnimationFrame(() => {
@@ -383,11 +403,11 @@ async function init() {
             console.log("첫 번째 섹션 렌더링 완료. 스크롤 위치 조정 중...", firstScrollPos.element);
             scrollToTitlePx(firstScrollPos.element, 80);
         });
-    });    
+    });
 
     // 전체 완료는 따로
     await Promise.all(workers);
-    
+
 
     console.log("모든 렌더링이 완료되었습니다.");
 }
@@ -660,8 +680,8 @@ async function Main() {
         init();
         linkifyNodes(container);
 
-        
-        
+
+
 
         function extractTitles(root) {
             const walker = document.createTreeWalker(
@@ -716,6 +736,15 @@ async function Main() {
                 }
             }
 
+            for (const { title } of titles) {
+                if (RemoveContentEX.test(title)) {
+                    console.log(`제외 키워드 발견: ${title}`);
+                    if (titles.length === 1) {
+                        console.log("제외 키워드만 존재하여 창을 닫습니다.");
+                        self.close();
+                    }
+                }
+            }
             return titles;
         }
 
@@ -866,7 +895,7 @@ async function Main() {
                 e.target.style.setProperty('color', 'Orange', 'important');
 
             }
-            else if (e.target.classList.contains('magnet-link')) {                                                
+            else if (e.target.classList.contains('magnet-link')) {
                 e.target.style.setProperty('color', 'Orange', 'important');
             }
             else if (e.target.classList.contains('close-icon')) {
