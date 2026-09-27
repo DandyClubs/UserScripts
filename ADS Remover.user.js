@@ -24,7 +24,7 @@ const adTagMap = {
     "cosplayjav.pl": ['script[src*="vvqknwws"]', 'script[src*="belexglokmpld"]'],
     "javpink.com": ['script[src*="popcash"]'],
     "eporner.com": ['script[src*="pop4.php"]', 'div[class="ad300px-inner"]', '[class="movieplayer-box-adv-box"]'],
-    "eyny.com": ['#stickthread_12029658', '#separatorline','[id^="ads_ads"]'],
+    "eyny.com": ['#stickthread_12029658', '#separatorline', '[id^="ads_ads"]'],
     "jpavs.net": ['.mh-loop-excerpt'],
     "gomoviz.org": ['div#_atssh', 'iframe[src*="xxtxjxxvdnccc"]', 'script[src*="rndskittytor"]'],
     "pornobunny.org": ['a[href*="https://florenfile.com/free"]'],
@@ -83,7 +83,7 @@ function ADChange() {
         { regex: /supjav\.com/, patterns: ['pcmload.load'] },
         { regex: /blogjav\.net/, patterns: ['termcolonialhedwig', 'earningskingdeliberately'] },
         { regex: /everia\.club/, patterns: ['adConfig'] },
-        { regex: /xchina\.co/, patterns: ['AdProvider'] , closestSelectors: 'div.item'},        
+        { regex: /xchina\.co/, patterns: ['AdProvider'], closestSelectors: 'div.item' },
         { regex: /t66y\.com/, patterns: ['var charset='] },
         { regex: /javarchive\.com/, patterns: ['//cse.google.com/adsense/search/async-ads.js'] },
         { regex: /bestvideosexy\.com/, patterns: [], iframeSandbox: true }
@@ -146,9 +146,9 @@ function ADChange() {
 const SiteHandlers = [
     {
         regex: /trupornolabs\.org/,
-        handler: function(node) {
+        handler: function (node) {
             Array.from(node.querySelectorAll('div#content > table a')).forEach((el) => {
-                if(el && el.textContent.includes('[decen]')){
+                if (el && el.textContent.includes('[decen]')) {
                     el.closest('tr.gai').remove()
                 }
             })
@@ -156,7 +156,7 @@ const SiteHandlers = [
     },
     {
         regex: /maxjav\.com/,
-        handler: function(node) {
+        handler: function (node) {
             const DonationLink = node.querySelector('a[href*="DONATION"]')
             if (DonationLink) {
                 DonationLink.setAttribute('href', "#")
@@ -165,20 +165,20 @@ const SiteHandlers = [
     },
     {
         regex: /t66y\.com/,
-        handler: function(node) {
+        handler: function (node) {
             const adImg = node.querySelector('img[iyl-data="http://a.d/adblo_ck.jpg"]')
-            if(adImg) adImg.removeAttribute('iyl-data')
+            if (adImg) adImg.removeAttribute('iyl-data')
 
             const Img = node.querySelector('div.image-big img')
-            if(Img) Img.replaceWith(Img)
+            if (Img) Img.replaceWith(Img)
 
             const tableAd = node.querySelector('div.tips table.sptable_do_not_remove')
-            if(tableAd) tableAd.closest('div.tips').remove()
+            if (tableAd) tableAd.closest('div.tips').remove()
         }
     },
     {
         regex: /xchina\.co|1909\.me/,
-        handler: function(node) {
+        handler: function (node) {
             Array.from(node.querySelectorAll('a[clickmode]')).forEach((el) => {
                 el.closest('div.item') ? el.closest('div.item').remove() : el.remove()
             })
@@ -188,55 +188,52 @@ const SiteHandlers = [
             })
 
             const btn = node.querySelector('div.swal2-actions > button')
-            if(btn) btn.click()
+            if (btn) btn.click()
 
             const modal = document.querySelector('body')
-            if(modal && modal.classList.contains('modal-open')) {
+            if (modal && modal.classList.contains('modal-open')) {
                 modal.classList.remove('modal-open')
             }
         }
     },
     {
         regex: /eyny\.com\/forum\.php\?mod=viewthread|eyny\.com\/thread.*\.html/,
-        handler: function(node) {
-            let MouseOver = [...node.querySelectorAll('img.zoom, span#visitedforums')]
+        handler: function (node) {
+            const MouseOver = [...node.querySelectorAll('img.zoom, span#visitedforums')]
             MouseOver.forEach(function (item) {
                 item.removeAttribute('onmouseover')
+            })
+
+            const noItems = [...node.querySelectorAll('div#threadlist div ul li h3.ptn a')]
+            noItem.forEach(function (item) {
+                item.closest('li') ? item.closest('li').remove() : item.remove()
             })
         }
     },
     {
-        regex: /newtoki\d+\.com/,
-        handler: function(node) {
-            document.querySelector('div.id_bbn') ? document.querySelector('div.id_bbn').remove() : ''
-            document.querySelector('div.board-tail-banner') ? document.querySelector('div.board-tail-banner').remove() : ''
-            document.querySelector('div.basic-banner') ? document.querySelector('div.basic-banner').remove() : ''
-        }
-    },
-    {
         regex: /namu\.wiki/,
-        handler: function(node) {
+        handler: function (node) {
             ADLink = document.querySelector('img[src*="ww.namu.la/s"]')
-            if(ADLink){
+            if (ADLink) {
                 ADLink.closest('table').remove()
             }
         }
     },
     {
         regex: /jpavs\.net(?!.*\.html)/,
-        handler: function(node) {
+        handler: function (node) {
             ADLink = node.querySelectorAll('div.collapseomatic_content')
-            if(!ADLink){ return }
-            for(let i = 0; i < ADLink.length; i++){
+            if (!ADLink) { return }
+            for (let i = 0; i < ADLink.length; i++) {
                 ADLink[i].style.setProperty('display', 'none')
             }
         }
     },
     {
         regex: /map\.naver\.com/,
-        handler: function(node) {
+        handler: function (node) {
             ADLink = document.querySelector('div.promotion_wrap')
-            if(ADLink){
+            if (ADLink) {
                 ADLink.remove()
                 //ADLink.closest('dynamic-content-outlet.ng-star-inserted') ? ADLink.closest('dynamic-content-outlet.ng-star-inserted').remove() : ''
             }
@@ -244,9 +241,9 @@ const SiteHandlers = [
     },
     {
         regex: /hpjav\.tv/,
-        handler: function(node) {
+        handler: function (node) {
             ADLink = node.querySelector('video#vplayer') || node.querySelector('div.bottom-ad')
-            if(ADLink){
+            if (ADLink) {
                 ADLink.closest('div').remove()
             }
         }
@@ -265,20 +262,20 @@ function ADRemover(node) {
         }
     }
 
-    if(ADTag){
+    if (ADTag) {
         ADTag.forEach(function (item) {
             var removeDoms = [...node.querySelectorAll(item)]
             removeDoms.forEach(function (removeDom) {
                 // console.log('Remove Element: ', removeDom)
-                if(removeDom.closest('div.image-big')){
+                if (removeDom.closest('div.image-big')) {
                     // console.log(removeDom)
                     removeDom.closest('div.image-big').remove()
                 }
-                else if(removeDom.tagName === 'A' && removeDom.closest('b')){
+                else if (removeDom.tagName === 'A' && removeDom.closest('b')) {
                     // console.log(removeDom)
                     removeDom.closest('b').remove()
                 }
-                else{
+                else {
                     // console.log(removeDom)
                     removeDom.remove()
                 }
@@ -330,7 +327,7 @@ const SiteMutationHandlers = [
             })
         }
     },
-        {
+    {
         regex: /xchina\.co/,
         handler: () => {
             document.querySelectorAll('div.content-box div.list.photo-list div.item div.tag div.series').forEach(el => {
@@ -379,20 +376,20 @@ const observer = new MutationObserver(mutations => {
 })
 
 
-document.addEventListener("DOMContentLoaded", function(event) {
+document.addEventListener("DOMContentLoaded", function (event) {
     ADChange()
     ADRemover(document)
-    observer.observe(document, {childList: true, subtree: true})
+    observer.observe(document, { childList: true, subtree: true })
 })
 
 function getElementsByTextContent(node, tag, regex) {
     const results = Array.from(node.querySelectorAll(tag))
-    .reduce((acc, el) => {
-        if (el.textContent && el.textContent.match(regex) !== null) {
-            acc.push(el);
-        }
-        return acc;
-    }, []);
+        .reduce((acc, el) => {
+            if (el.textContent && el.textContent.match(regex) !== null) {
+                acc.push(el);
+            }
+            return acc;
+        }, []);
     return results;
 }
 
