@@ -708,6 +708,7 @@ function MatchRegexElement(Taget, regex, attributeToSearch, ClassName) {
 
 
 const GetTitle = el => el.textContent.trim()
+    .replace(/(\w)\.(com|net)/gi, '$1')
     .replace(/^Nude\sLeaked\s-/i, '')
     .replace(/\s(\[|])[UltraHD|UHD|FullHD|HD|SD|2K].+$/i, '')
     .replace(/\(\d+P\)$/, '')
@@ -774,12 +775,12 @@ function checkVisited(node = Active.root) {
             if (Active.Get === 'GetID') {
                 linkInfo = GetID(el);
             } else if (Active.Get === 'textContent') {
-                linkInfo = el.textContent.trim();
+                linkInfo = el.textContent.replace(/(\w)\.(com|net)/g, '$1').trim();
             } else {
                 linkInfo = GetTitle(el);
             }
             const linkInfoLower = linkInfo.toLowerCase();
-            let T = visited.find(e => e.toLowerCase().includes(linkInfoLower));
+            let T = visited.find(e => e.replace(/(\w)\.(com|net)/g, '$1').trim().toLowerCase().includes(linkInfoLower));
 
             if (T) {
                 let X;
@@ -941,7 +942,7 @@ async function SaveVisited(el) {
     if (Active.Get === 'GetID') {
         linkInfo = GetID(el);
     } else if (Active.Get === 'textContent') {
-        linkInfo = el.textContent.trim();
+        linkInfo = el.textContent.replace(/(\w)\.(com|net)/g, '$1').trim();
     } else {
         linkInfo = GetTitle(el);
     }
