@@ -61,7 +61,8 @@ const adTagMap = {
     img[data-link*="jbc568.com"]
   `],
     "sexy-egirls.com": ['li.g1-injected-unit'],
-    "xchina.co": ['div.push-top', 'div.modal-overlay.modal-show']
+    "xchina.co": ['div.push-top', 'div.modal-overlay.modal-show'],
+    "dhlottery.co.kr": ['div.popup-wrap']
 };
 
 const defaultADTag = ['.top-banner', 'script[src*="ethecountryw"]', '#popmagicldr'];
