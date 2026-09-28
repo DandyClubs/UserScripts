@@ -509,7 +509,7 @@
         if (img.dataset.isFixing) return false;
         if (img.closest('.image-masonry')) return false;
         if (img.closest('.hiddenbox')) return false;
-
+/*
         // 🔥 CSS 가시성 확인 (display: none 등 체크)
         const isVisible = img.checkVisibility({
             checkOpacity: false,
@@ -520,7 +520,7 @@
             console.log('이미지가 화면에 숨겨져 있습니다 (display: none 포함).', img);
             return false;
         }
-
+*/
         let src = img.src || '';
 
         if (src.startsWith('http://data:image')) {
