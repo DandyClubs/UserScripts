@@ -25,7 +25,7 @@
 
     // 재시도 간격 및 횟수
     const RETRY_INTERVAL = 10000;
-    const MAX_RETRY_COUNT = 1;
+    const MAX_RETRY_COUNT = 3;
     const LOAD_TIMEOUT = 30000; // 30초 타임아웃
 
     class Queue {
@@ -47,16 +47,13 @@
 
     const lazyImageQueue = new Queue();
 
-    // 🔥 IntersectionObserver 설정 (화면 진입 감지)
-    const checkImageVisibility = (img) => {
-
-        // 뷰포트에 들어온 시점에 유효성 검사 후 큐에 삽입
+    
+    const checkImageVisibility = (img) => {    
         if (isValidExternalImage(img)) {
             img.setAttribute('loading', 'lazy');
             lazyImageQueue.enqueue(img);
             startLazyWorkers();
         }
-
     };
 
 
@@ -504,28 +501,34 @@
 
     const domainRegex = new RegExp(`(${domainpattern})`, 'i');
 
-    function isValidExternalImage(img) {
+    const useWsrvDomains = new Set([
+        'i.11img.com',
+    ]);
+
+
+    function isValidExternalImage(img) {        
         if (!img) return false;
-        if (img.dataset.isFixing) return false;
+        if (img.dataset.isFixing) return false;        
         if (img.closest('.image-masonry')) return false;
         if (img.closest('.hiddenbox')) return false;
-/*
-        // 🔥 CSS 가시성 확인 (display: none 등 체크)
-        const isVisible = img.checkVisibility({
-            checkOpacity: false,
-            checkVisibilityCSS: false
-        });
-
-        if (!isVisible) {
-            console.log('이미지가 화면에 숨겨져 있습니다 (display: none 포함).', img);
-            return false;
-        }
-*/
+        /*
+                // 🔥 CSS 가시성 확인 (display: none 등 체크)
+                const isVisible = img.checkVisibility({
+                    checkOpacity: false,
+                    checkVisibilityCSS: false
+                });
+        
+                if (!isVisible) {
+                    console.log('이미지가 화면에 숨겨져 있습니다 (display: none 포함).', img);
+                    return false;
+                }
+        */
         let src = img.src || '';
 
         if (src.startsWith('http://data:image')) {
             img.src = src.replace('http://', '');
             src = img.src;
+            return true;
         }
 
         if (src.startsWith('data:image')) {
@@ -536,6 +539,7 @@
                     break;
                 }
             }
+            return true;
         }
 
         if (!src || src.startsWith('blob:') || src.startsWith('data:') || src.startsWith('https://cm-exchange.toast.com/pixel')) {
@@ -564,6 +568,7 @@
                 img.src = src.replace('http://', 'https://');
                 src = img.src;
                 console.log(`[HTTPS-Upgrade] 프로토콜 변경 완료: ${img.src}`);
+                return true;
             }
         }
         /*
