@@ -500,11 +500,7 @@
         .join('|');
 
     const domainRegex = new RegExp(`(${domainpattern})`, 'i');
-
-    const useWsrvDomains = new Set([
-        'i.11img.com',
-    ]);
-
+   
 
     function isValidExternalImage(img) {        
         if (!img) return false;

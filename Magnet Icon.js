@@ -644,7 +644,14 @@ function commit(group) {
     group.forEach(n => wrapper.appendChild(n));
 }
 
+const useWsrvDomains = [
+    'i.11img.com',
+    // 추가할 도메인이 있다면 여기에 입력
+];
+
+
 async function Main() {
+
     if (/t66y\.com/.test(location.href)) {
 
         const container = document.querySelector('.tpc_content');
@@ -660,6 +667,19 @@ async function Main() {
         if (spanWidth) {
             spanWidth.style.width = '100%';
         }
+
+        // wsrv.nl로 시작하지 않고, 지정한 도메인을 포함하는 img 태그만 선택
+        const selector = useWsrvDomains
+            .map(domain => `img[ess-data*="${domain}"]:not([src^="https://wsrv.nl/"]:not([ess-data^="https://wsrv.nl/"])`)
+            .join(', ');
+
+        const images = document.querySelectorAll(selector);
+
+        // 선택된 이미지들에 대해 wsrv.nl 적용
+        images.forEach(img => {
+            console.log('지역 제한 wsrv.nl 프록시 서비스 적용:', img.getAttribute('ess-data'));
+            img.setAttribute('src', `https://wsrv.nl/?url=${encodeURIComponent(img.getAttribute('ess-data'))}`);
+        });
         /* ===============================
        1️⃣ DOM 정리
     =============================== */
