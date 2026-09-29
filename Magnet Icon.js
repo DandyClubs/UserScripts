@@ -41,9 +41,9 @@ GM_addStyle(`
 }
 .CenterBox {
     right: 30%;
-    left: auto;
-    top: 40%;
+    left: auto;    
     margin: 0 auto;
+    top: var(--scroll-top, 120px);
     max-width: max-content;
     position: fixed !important;
     word-spacing: .5rem;
@@ -145,6 +145,7 @@ const skipKeywords = ["最强優片", "最強國產專輯"];
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RemoveContentEX = RegexFrom(RemoveContentText.split(/\r?\n/), 'i');
 let firstScrollPos = '';
+
 
 
 let Title, MagnetLink, InfoArea, FindMagnetHash, GetData;
@@ -678,7 +679,7 @@ async function Main() {
         // 선택된 이미지들에 대해 wsrv.nl 적용
         images.forEach(img => {
             console.log('지역 제한 wsrv.nl 프록시 서비스 적용:', img.getAttribute('ess-data'));
-            img.setAttribute('src', `https://wsrv.nl/?url=${encodeURIComponent(img.getAttribute('ess-data'))}`);
+            img.setAttribute('ess-data', `https://wsrv.nl/?url=${encodeURIComponent(img.getAttribute('ess-data'))}`);
         });
         /* ===============================
        1️⃣ DOM 정리
@@ -948,13 +949,14 @@ async function Main() {
         }
         console.log(Title, MagnetLink);
 
-
-
         Array.from(document.querySelectorAll('IMG')).forEach(el => {
             if (el.getAttribute('onmouseover')) {
                 el.removeAttribute('onmouseover');
             }
         });
+
+        firstScrollPos = document.querySelector('div#postlist table tbody tr td h1 span#thread_subject');
+        scrollToTitlePx(firstScrollPos, 120);
 
     }
     else if (/tanhuazu\.com/.test(PageURL)) {
@@ -1058,7 +1060,7 @@ async function Main() {
 
 function MakeIcon() {
     document.querySelector("body").insertAdjacentHTML('beforeend', '<div class="CenterBox"></>');
-    let CenterBox = document.querySelector('.CenterBox');
+    const CenterBox = document.querySelector('.CenterBox');
     if (MagnetLink) {
         CenterBox.insertAdjacentHTML('beforeend', '<a class="GetMagnetIcon fa-solid fa-magnet" style="color: dodgerblue !important;"></>');
         document.querySelector('.GetMagnetIcon').addEventListener("click", function (e) {
@@ -1067,13 +1069,18 @@ function MakeIcon() {
     }
     if (/t66y\.com/.test(PageURL)) {
         CenterBox.insertAdjacentHTML('beforeend', '<i class="CopyItemIcon fa-regular fa-clipboard"></>');
+    } else {
+        if (firstScrollPos) {
+            // CSS 변수에 계산된 top 위치 할당
+            CenterBox.style.setProperty('--scroll-top', `${firstScrollPos.getBoundingClientRect().top}px`);
+        }
     }
 
     CenterBox.insertAdjacentHTML('beforeend', '<i class="CloseIcon fa-solid fa-square-xmark" style ="color: red !important;"></>');
 
-    var GetDPI = window.devicePixelRatio;
-    var DefaultFontSize = getDefaultFontSize();
-    var CneterBoxFontSize = Number(((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)).toFixed(2)) + 'rem';
+    const GetDPI = window.devicePixelRatio;
+    const DefaultFontSize = getDefaultFontSize();
+    const CneterBoxFontSize = Number(((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)).toFixed(2)) + 'rem';
     document.querySelector('.CenterBox').style.cssText = `font-size: ${CneterBoxFontSize}; display: block;`;
 }
 
