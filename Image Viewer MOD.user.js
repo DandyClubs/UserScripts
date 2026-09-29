@@ -373,7 +373,7 @@ const siteModules = [
         name: 'TurboImageHost',
         hosts: ['turboimagehost.com', 'turboimg.net'],
         enabled: true,
-        linkRegExp: /turboimagehost\.com\/p|turboimg.net\/sp/,
+        linkRegExp: /turboimagehost\.com\/p|turboimg\.net\/sp/,
         imageURLRegExp: /src="(?<url>https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp))"/i, // 정규식 정밀화
         getURL: (link, extractor) => {
             const headers = {
@@ -780,14 +780,14 @@ function GetOnline(details) {
 
 async function getURLFromPage(link, extractor, requestDetails) {
     const html = await getPageHtml({ url: link.url, ...requestDetails });
-    console.log(html, extractor.imageURLRegExp)
+    //console.log(html, extractor.imageURLRegExp)
     const match = extractor.imageURLRegExp?.exec(html);
     let url = match ? (match.groups ? match.groups.url : match[1]) : null;
     if (!url) {
         console.error(`[Image Viewer] Failed to get URL from page source: ${link.url}`);
     }
-    console.log('getURLFromPage: ', url)
-    return url.replace(/&amp;/g, '&'); // &amp;를 &로 변환
+    //console.log('getURLFromPage: ', url)
+    return url?.replace(/&amp;/g, '&'); // &amp;를 &로 변환
 }
 
 
@@ -1116,7 +1116,8 @@ function ImageExists(image) {
         'imgur.com': [{ w: 161, h: 81 }],
         'postimg.cc': [{ w: 320, h: 320 }],
         'fastpic.org': [{ w: 150, h: 113 }, { w: 150, h: 150 }],
-        'fastpic.ru': [{ w: 150, h: 113 }, { w: 150, h: 150 }]
+        'fastpic.ru': [{ w: 150, h: 113 }, { w: 150, h: 150 }],
+        'imgbox.com': [{ w: 240, h: 240 }],
     };
 
     const dimensions = noImageDimensions[RootDomain];

@@ -23,6 +23,7 @@ const adTagMap = {
     "justjavhd.com": ['a[href*="https://filejoker.net/w0zc3ehfs5o2"]'],
     "cosplayjav.pl": ['script[src*="vvqknwws"]', 'script[src*="belexglokmpld"]'],
     "javpink.com": ['script[src*="popcash"]'],
+    "horny69.com": ['script[src*="popmagicldr"]'],
     "eporner.com": ['script[src*="pop4.php"]', 'div[class="ad300px-inner"]', '[class="movieplayer-box-adv-box"]'],
     "eyny.com": ['#stickthread_12029658', '#separatorline', '[id^="ads_ads"]'],
     "jpavs.net": ['.mh-loop-excerpt'],
@@ -130,14 +131,7 @@ function ADChange() {
             el.remove();
             break;
         }
-    }
-
-    const popMagicScripts = document.querySelectorAll('script#popmagicldr');
-    for (const el of popMagicScripts) {
-        // console.log(el);
-        el.remove();
-        break;
-    }
+    }    
 }
 
 
@@ -260,6 +254,14 @@ function ADRemover(node) {
             handler(node)
             break
         }
+    }
+
+
+    const popMagicScripts = node.querySelectorAll('script#popmagicldr');
+    for (const el of popMagicScripts) {
+        // console.log(el);
+        el.remove();
+        break;
     }
 
     if (ADTag) {
