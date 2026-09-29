@@ -92,14 +92,13 @@ const siteModules = [
         name: 'FastPic',
         enabled: true,
         linkRegExp: /fastpic\.(?:ru|org)\/view/,
-        imageURLRegExp: /(?<url>https?:\/\/i\d+\.fastpic\.org\/big\/[^"'\s]+?\.(?:jpg|jpeg|png|gif)\?md5=[^"'\s&]+&expires=\d+[^"'\s]*)/i,
+        imageURLRegExp: /(?<url>https?:\/\/i\d+\.fastpic\.org\/big\/[^"'\s]+?\.(?:jpg|jpeg|png|gif)\?md5=[^"'\s&]+&amp;expires=\d+[^"'\s]*)/i,
         getURL: (link, extractor) => { // 익명 함수로 변경
             const headers = {
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                 "User-Agent": navigator.userAgent,
                 "Referer": "https://fastpic.org/",
-            }           
-        
+            } 
             return getURLFromPage(link, extractor, { headers }); // headers 객체를 requestDetails에 추가
         },
     },
@@ -108,7 +107,7 @@ const siteModules = [
         name: 'FastPic (direct link)',
         enabled: true,
         linkRegExp: /fastpic\.(?:ru|org)\/big/,
-        imageURLRegExp: /(?<url>https?:\/\/i\d+\.fastpic\.org\/big\/[^"'\s]+?\.(?:jpg|jpeg|png|gif)\?md5=[^"'\s&]+&expires=\d+[^"'\s]*)/i,
+        imageURLRegExp: /(?<url>https?:\/\/i\d+\.fastpic\.org\/big\/[^"'\s]+?\.(?:jpg|jpeg|png|gif)\?md5=[^"'\s&]+&amp;expires=\d+[^"'\s]*)/i,
         async getURL(link) {
             const URL_PARTS_REGEXP = /i(\d+).+\.(ru|org)\/big(\/\d+\/\d+\/).+\/([^\/]+)$/;
             const [, index, domain, date, filename] = URL_PARTS_REGEXP.exec(link.url) || [];
@@ -374,9 +373,22 @@ const siteModules = [
         name: 'TurboImageHost',
         hosts: ['turboimagehost.com', 'turboimg.net'],
         enabled: true,
-        linkRegExp: /turboimagehost\.com\/p/,
-        imageURLRegExp: /rel="image_src" href="(?<url>http[^"]+)"/,
-        getURL: getURLFromPage,
+        linkRegExp: /turboimagehost\.com\/p|turboimg.net\/sp/,
+        imageURLRegExp: /src="(?<url>https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp))"/i, // 정규식 정밀화
+        getURL: (link, extractor) => {
+            const headers = {
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-Fetch-User": "?1",
+                "Upgrade-Insecure-Requests": "1",
+                "User-Agent": navigator.userAgent,
+                "Referer": link.url,
+            };
+            return getURLFromPage(link, extractor, { headers, anonymous: false });
+        },
     },
     {
         id: 'vfl',
@@ -768,13 +780,14 @@ function GetOnline(details) {
 
 async function getURLFromPage(link, extractor, requestDetails) {
     const html = await getPageHtml({ url: link.url, ...requestDetails });
-    //console.log(html, extractor.imageURLRegExp)
+    console.log(html, extractor.imageURLRegExp)
     const match = extractor.imageURLRegExp?.exec(html);
     let url = match ? (match.groups ? match.groups.url : match[1]) : null;
     if (!url) {
         console.error(`[Image Viewer] Failed to get URL from page source: ${link.url}`);
     }
-    return url;
+    console.log('getURLFromPage: ', url)
+    return url.replace(/&amp;/g, '&'); // &amp;를 &로 변환
 }
 
 
