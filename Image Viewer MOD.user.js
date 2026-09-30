@@ -574,6 +574,7 @@ async function getFullSizeManagement() {
 
             if (extractor.status === 'offline') {
                 console.warn(`[Image Viewer] Skipped: ${extractor.id} is offline.`, linkElement);
+                image.markAsBroken(linkElement);
                 continue;
             }
 
@@ -1189,6 +1190,7 @@ async function initViewer(node) {
 
         if (extractor.status === 'offline') {
             console.warn(`[Image Viewer] Skipped: ${extractor.id} is offline.`);
+            image.markAsBroken(link);
             continue; // 큐 삽입 및 아래 로직 건너뜀
         }
 
@@ -1206,8 +1208,7 @@ async function initViewer(node) {
                 link.dataset.ivThumbnail = link.href;
             } else if (!img.complete) {
                 image.getSize(img).then(() => {
-                    if (ImageExists(img) && !ImageBigSize(img)) {
-                        console.log('Enqueueing for full size:', link.href);
+                    if (ImageExists(img) && !ImageBigSize(img)) {                        
                         getFullSizeQueue.enqueue(link);
                         if (!isSpawning) {
                             getFullSizeManagement();
@@ -1215,7 +1216,7 @@ async function initViewer(node) {
                     }
                 }).catch(e => console.error(e));
             } else {
-                if (ImageExists(img) && !ImageBigSize(img)) {
+                if (ImageExists(img) && !ImageBigSize(img)) {                    
                     getFullSizeQueue.enqueue(link);
                     if (!isSpawning) {
                         getFullSizeManagement();
