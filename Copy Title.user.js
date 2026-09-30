@@ -60,7 +60,7 @@ GM_addStyle(`
 .CopyTitleCenterBox {
 	right: 30%;
 	left: auto;
-	top: 20%;
+	top: var(--iconTop, 20%);
 	margin: 0 auto;
     display: flex;
 	flex-wrap: nowrap;
@@ -471,6 +471,8 @@ function MakeIcon() {
                 });
             });
         }
+
+        centerBox.style.setProperty('--iconTop', '25%');
     }
 
     // 5. 공통 아이콘 생성 및 이벤트 추가
