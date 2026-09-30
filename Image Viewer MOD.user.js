@@ -97,8 +97,8 @@ const siteModules = [
             const headers = {
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                 "User-Agent": navigator.userAgent,
-                "Referer": "https://fastpic.org/",
-            } 
+                "Referer": link.url,
+            }
             return getURLFromPage(link, extractor, { headers }); // headers 객체를 requestDetails에 추가
         },
     },
@@ -978,7 +978,7 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
                 link.href = decodeURIComponent(m[1]).replace(/\&ver.*/, '');
             }
 
-            /*
+
             // 2) Force HTTPS on known hosts
             ['fastpic', 'imagebam'].forEach(host => {
                 if (link.href.startsWith(`http://${host}`)) {
@@ -988,7 +988,7 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
                     img.src = img.src.replace(/^http:/, 'https:');
                 }
             });
-            */
+
 
             // 3) Resolve a “real” thumbnail URL:
             let thumb = img.src;
@@ -1006,6 +1006,8 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
             items.push({ link, img, thumbnailUrl: thumb });
         });
 
+    console.log('collectImageLinks: ', items);
+
     return items;
 }
 
@@ -1013,6 +1015,7 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
 function CheckViewerList(node) {
     const items = collectImageLinks(node);
     // Filter by extractor availability:
+    console.log('CheckViewerList: ', items)
     return items.some(({ link }) => Boolean(getExtractor(link.href)));
 }
 
@@ -1295,10 +1298,11 @@ const mutCallback = (mutationsList) => {
     const addSet = new Set();
     for (const { addedNodes } of mutationsList) {
         for (const node of addedNodes) {
+            console.log('Added node:', node);
             if (!(node instanceof HTMLElement)) continue;
-            const skip = node.closest('div.sp-body.inited');
+            //const skip = node.closest('div.sp-body.inited');
 
-            if (skip) continue;
+            //if (skip) continue;
 
             let imgs = [];
 
@@ -1324,7 +1328,7 @@ const mutCallback = (mutationsList) => {
             }
         }
     }
-
+    console.log('addSet', addSet);
     if (addSet.size) {
         for (const el of addSet) {
             queue.enqueue(el);
@@ -1469,7 +1473,7 @@ async function Start() {
             }
         })
         .catch(() => {
-
+            console.log('initViewer Error');
         });
 
 
