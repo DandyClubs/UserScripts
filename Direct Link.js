@@ -311,9 +311,14 @@ async function getFinalUrl(startUrl) {
             headers: {
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                 "Accept-Language": "ja-JP,jp;q=0.9,en-US;q=0.8,en;q=0.7",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+                "Sec-Fetch-Site": "cross-site",
+                "Sec-Fetch-User": "?1",
+                "Upgrade-Insecure-Requests": "1",
                 "User-Agent": navigator.userAgent,
-                "Referer": startUrl,
-            },
+                "Referer": startUrl
+            }
             // anonymous: true, // 필요 시 쿠키 없이 요청
         });
 
