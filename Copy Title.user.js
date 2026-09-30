@@ -60,7 +60,7 @@ GM_addStyle(`
 .CopyTitleCenterBox {
 	right: 30%;
 	left: auto;
-	top: 15%;
+	top: 20%;
 	margin: 0 auto;
     display: flex;
 	flex-wrap: nowrap;
