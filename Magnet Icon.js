@@ -140,7 +140,7 @@ const ExcludeChar = /[&<\/:>*?"|\\]/g;
 const JapaneseChar = /[ぁ-んァ-ン一-龯]/;
 const cyrillicPattern = /[а-яА-ЯЁё]/g;
 const englishPattern = /[A-Za-z0-9]/;
-const titlePrefixRegex = /^【(?:影片标题|影片名称|影片名称代|影片名稱|檔案名稱|文件名称|资源名称|档案名称)】[：:]\s*/g;
+const titlePrefixRegex = /^【(?:影片标题|影片名称|影片名称代|影片名稱|檔案名稱|文件名称|资源名称|档案名称|影片名称代号)】[：:]\s*/g;
 const skipKeywords = ["最强優片", "最強國產專輯"];
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RemoveContentEX = RegexFrom(RemoveContentText.split(/\r?\n/), 'i');
@@ -335,6 +335,17 @@ async function init() {
     if (!container) return;
 
     const wrappers = createSectionMasonry(container);
+
+    // 1️⃣ [케이스 1] 이미지가 완전히 없는 경우: 스크롤만 수행 후 종료
+    if (!wrappers || wrappers.length === 0) {
+        console.log("렌더링할 이미지 섹션이 없습니다.");
+        console.log(firstScrollPos, firstScrollPos?.element);
+        if (firstScrollPos?.element) {
+            scrollToTitlePx(firstScrollPos.element, 80);
+        }
+        return;
+    }
+
     initImageGallery(wrappers);
     const loaders = new Map();
 
@@ -348,24 +359,36 @@ async function init() {
     }
 
     // --- 3개 병렬 처리 로직 시작 ---
-    const concurrency = 3; // 동시 실행 개수
-    const queue = [...wrappers]; // 복사본 생성
+    const concurrency = 3;
+    const queue = [...wrappers];
 
     let resolveFirst;
     const firstPromise = new Promise(res => resolveFirst = res);
     const firstWrapper = wrappers[0];
 
-    // 개별 wrapper를 처리하는 핵심 로직을 별도 함수로 분리
     const processWrapper = async (wrapper) => {
         try {
             const currentLoader = loaders.get(wrapper);
+            const imgCount = wrapper.querySelectorAll('img').length;
+
+            // 2️⃣ & 3️⃣ [케이스 2, 3] 이미지가 없는 wrapper인 경우 fast-track 처리
+            if (imgCount === 0) {
+                if (currentLoader) currentLoader.remove();
+                wrapper.classList.add('layout-done');
+                wrapper.style.visibility = '';
+
+                // 첫 번째 wrapper였을 경우 잊지 않고 resolve 호출
+                if (wrapper === firstWrapper) {
+                    resolveFirst();
+                }
+                return;
+            }
 
             // 1. 이미지 프리로딩
             await smartImageLoader(wrapper, currentLoader);
 
             void wrapper.offsetWidth;
-            // 2. 레이아웃 최적화 (scaleMap 및 minHeightMap 적용)
-            const imgCount = wrapper.querySelectorAll('img').length;
+            // 2. 레이아웃 최적화
             const columnCount = imgCount > 2 ? 3 : 2;
             const maxHeight = imgCount > 2 ? 600 : 800;
             optimizeSingleLayout(wrapper, columnCount, maxHeight);
@@ -375,44 +398,43 @@ async function init() {
             wrapper.classList.add('layout-done');
             wrapper.style.visibility = '';
 
+        } catch (err) {
+            console.error("Layout error:", err);
+        } finally {
+            // 예외가 발생하더라도 첫 번째 요소인 경우 스크롤 무한 대기 방지
             if (wrapper === firstWrapper) {
                 resolveFirst();
             }
-
-        } catch (err) {
-            console.error("Layout error:", err);
         }
     };
 
     // 일꾼(Worker) 생성: 큐가 빌 때까지 계속해서 processWrapper를 실행
     const workers = Array(concurrency).fill(null).map(async () => {
         while (queue.length > 0) {
-            const wrapper = queue.shift(); // 큐에서 맨 앞의 wrapper를 꺼냄
+            const wrapper = queue.shift();
             if (wrapper) {
                 await processWrapper(wrapper);
             }
         }
     });
 
-
-
+    // 첫 번째 섹션 로딩/렌더링 완료 후 스크롤 조정
     await firstPromise;
 
-    // [핵심] DOM 레이아웃 배치가 브라우저 프레임에 최종 반영된 후 스크롤을 수행합니다.
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            console.log("첫 번째 섹션 렌더링 완료. 스크롤 위치 조정 중...", firstScrollPos.element);
-            scrollToTitlePx(firstScrollPos.element, 80);
+            console.log("첫 번째 섹션 처리 완료. 스크롤 위치 조정 중...", firstScrollPos?.element);
+            if (firstScrollPos?.element) {
+                scrollToTitlePx(firstScrollPos.element, 80);
+            }
         });
     });
 
-    // 전체 완료는 따로
+    // 모든 작업 대기
     await Promise.all(workers);
-
 
     console.log("모든 렌더링이 완료되었습니다.");
 }
-
 
 function initImageGallery(wrappers) {
     wrappers.forEach(wrapper => {
@@ -697,12 +719,8 @@ async function Main() {
         handleCleaning(container);
         */
 
-        // 실행
-        init();
+        // 실행        
         linkifyNodes(container);
-
-
-
 
         function extractTitles(root) {
             const walker = document.createTreeWalker(
@@ -825,10 +843,10 @@ async function Main() {
 
         const titles = buildMagnetPairs(container);
 
-        if (!titles.length) return;
-        firstScrollPos = titles[0];
+        if (!titles.length) return;       
 
         const total = titles.length;
+       
 
         /* ===============================
        4️⃣ UI 삽입
@@ -894,6 +912,9 @@ async function Main() {
         `);
             item.element = span;
         });
+
+        firstScrollPos = titles[0];
+        init();
 
         /* ===============================
        5️⃣ 이벤트 처리

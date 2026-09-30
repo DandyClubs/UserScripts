@@ -6,7 +6,10 @@
 // @version      2
 // @include      https://araishi.com/redirect-check/*
 // @exclude      /feimaoyun\.com/
-// @connect      *
+// @connect      clear-tv.com
+// @connect      useotools.com
+// @connect      araishi.com
+// @connect      *
 // @grant        GM_xmlhttpRequest
 // @grant        GM_log
 // @run-at       document-body
@@ -236,11 +239,66 @@ function showCloudflareAlert(url, domain) {
 }
 
 
+
+/**
+ * useotools.com 서비스를 활용하여 리다이렉트의 최종 URL을 추출합니다.
+ */
+function withUseotools(targetUrl) {
+    return new Promise((resolve, reject) => {
+        console.log(`[useotools API] 추적 요청: ${targetUrl}`);
+
+        GM_xmlhttpRequest({
+            method: "POST",
+            url: "https://useotools.com/api/server-status-checker",
+            headers: {
+                "Content-Type": "application/json",
+                "Referer": "https://useotools.com/server-status-checker",
+                "User-Agent": navigator.userAgent
+            },
+            data: JSON.stringify({
+                urls: [targetUrl]
+            }),
+            onload: function (response) {
+                try {
+                    //console.log("[useotools 응답]", response);
+                    const data = JSON.parse(response.responseText);
+
+                    if (data && data.results && data.results.length > 0) {
+                        const result = data.results[0];
+                        if (result.ok && result.finalUrl) {
+                            console.log(`[useotools API] 성공: ${result.finalUrl}`);
+                            resolve(result.finalUrl);
+                            return;
+                        }
+                    }
+                    resolve(null);
+                } catch (e) {
+                    console.error("[useotools 파싱 에러]", e);
+                    resolve(null);
+                }
+            },
+            onerror: function (err) {
+                console.error("[useotools 에러]", err);
+                resolve(null);
+            },
+            onabort: function () {
+                console.error("[useotools 요청이 중단됨 (abort)]");
+                resolve(null);
+            },
+            ontimeout: function () {
+                console.error("[useotools 타임아웃]");
+                resolve(null);
+            }
+        });
+    });
+}
+
 async function getFinalUrl(startUrl) {
     const domain = new URL(startUrl).hostname;
 
     // 이미 인증 대기 중인 도메인이라면 즉시 중단 (큐에서 격리될 예정)
     if (pendingAuthDomains.has(domain)) {
+        console.warn(`[중단] ${domain}은 이미 인증 대기 중입니다. 큐에서 격리됩니다.`);
         throw new Error('DOMAIN_LOCKED');
     }
     try {
@@ -250,6 +308,12 @@ async function getFinalUrl(startUrl) {
         const response = await gmRequest({
             method: "GET",
             url: startUrl,
+            headers: {
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "Accept-Language": "ja-JP,jp;q=0.9,en-US;q=0.8,en;q=0.7",
+                "User-Agent": navigator.userAgent,
+                "Referer": startUrl,
+            },
             // anonymous: true, // 필요 시 쿠키 없이 요청
         });
 
@@ -496,7 +560,7 @@ const urlHandlers = {
             const m = link.href.match(/redirect\.php\?url=(.*)/);
             if (m) link.href = decodeURIComponent(m[1]).replace(/\&ver.*/, '');
         }
-    },    
+    },
     'xhamster\\.com': {
         selector: 'a[href*="xhlive.cam/goto/"]',
         run: (link) => {
@@ -546,7 +610,7 @@ const urlHandlers = {
                 link.href = link.href.replace(num, Math.ceil(num));
             }
         }
-    },    
+    },
 };
 
 // B. 범용 링크 핸들러 (Generic-link)
@@ -614,7 +678,18 @@ const genericHandlers = {
     'final_url_jumps': {
         selector: 'a[href*="click.dtiserv2.com/Direct"], a[href*="clear-tv.com/Direct"], a[href*="tiny.cc/"], a[href*="tma.cx"]',
         isAsync: true,
-        run: async (link) => { const f = await getFinalUrl(link.href); if (f) link.href = f; }
+        run: async (link) => {
+            if (/https?:\/\/(click\.dtiserv2\.com|clear-tv.com)\/Direct/.test(link.href)) {
+                console.log(`[직접 추적] ${link.href} -> useotools.com API로 최종 URL 추적 중...`);
+                withUseotools(link.href).then(finalUrl => {
+                    if (finalUrl) link.href = finalUrl;
+                });
+            } else {
+                console.log(`[직접 추적] ${link.href} -> 최종 URL 추적 중...`);
+                const f = await getFinalUrl(link.href);
+                if (f) link.href = f;
+            }
+        }
     },
     'sendurl': {
         selector: 'a[href*="sendurl.me/"]',
