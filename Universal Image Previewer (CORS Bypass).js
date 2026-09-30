@@ -182,11 +182,11 @@ body.modal-open {
     const getConfig = (url) => {
         try {
             const hostname = new URL(url).hostname.toLowerCase();
-            
+
             // Map에서 해당 도메인을 정확히 매칭하거나, 서브도메인을 포함하는 설정 검색
             for (const [domain, configs] of configDomainMap.entries()) {
                 if (hostname === domain || hostname.endsWith('.' + domain)) {
-                    const matchedConfig = configs.find(cfg => 
+                    const matchedConfig = configs.find(cfg =>
                         !cfg.pathPattern || cfg.pathPattern.test(url)
                     );
                     if (matchedConfig) return matchedConfig;
@@ -229,6 +229,17 @@ body.modal-open {
             GM_xmlhttpRequest({
                 method: "GET",
                 url: currentUrl,
+                headers: {
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                    "Accept-Language": "ja-JP,jp;q=0.9,en-US;q=0.8,en;q=0.7",
+                    "Sec-Fetch-Dest": "document",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-Site": "cross-site",
+                    "Sec-Fetch-User": "?1",
+                    "Upgrade-Insecure-Requests": "1",
+                    "User-Agent": navigator.userAgent,
+                    "Referer": startUrl
+                },
                 onload: function (res) {
                     activeRequests.delete(currentUrl);
 
@@ -294,7 +305,7 @@ body.modal-open {
     }
 
     function createImgTag(url) {
-        const config = getConfig(url);        
+        const config = getConfig(url);
 
         if (config) {
             if (typeof config.transform === 'function') {
