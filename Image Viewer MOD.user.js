@@ -1297,12 +1297,11 @@ const mutCallback = (mutationsList) => {
 
     const addSet = new Set();
     for (const { addedNodes } of mutationsList) {
-        for (const node of addedNodes) {
-            console.log('Added node:', node);
+        for (const node of addedNodes) {            
             if (!(node instanceof HTMLElement)) continue;
-            //const skip = node.closest('div.sp-body.inited');
+            const skip = node.closest('div.viewer-container');
 
-            //if (skip) continue;
+            if (skip) continue;
 
             let imgs = [];
 
@@ -1327,8 +1326,7 @@ const mutCallback = (mutationsList) => {
                 }
             }
         }
-    }
-    console.log('addSet', addSet);
+    }    
     if (addSet.size) {
         for (const el of addSet) {
             queue.enqueue(el);
