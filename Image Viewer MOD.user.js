@@ -92,7 +92,7 @@ const siteModules = [
         name: 'FastPic',
         enabled: true,
         linkRegExp: /fastpic\.(?:ru|org)\/view/,
-        imageURLRegExp: /(?<url>https?:\/\/i\d+\.fastpic\.org\/big\/[^"'\s]+?\.(?:jpg|jpeg|png|gif)\?md5=[^"'\s&]+&amp;expires=\d+[^"'\s]*)/i,
+        imageURLRegExp: /(?<url>https?:\/\/i\d+\.fastpic\.org\/big\/[^"'\s]+?\.(?:jpg|jpeg|png|gif)\?md5=[^"'\s&]+&(amp;)?expires=\d+[^"'\s]*)/i,
         getURL: (link, extractor) => { // 익명 함수로 변경
             const headers = {
                 "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
@@ -107,7 +107,7 @@ const siteModules = [
         name: 'FastPic (direct link)',
         enabled: true,
         linkRegExp: /fastpic\.(?:ru|org)\/big/,
-        imageURLRegExp: /(?<url>https?:\/\/i\d+\.fastpic\.org\/big\/[^"'\s]+?\.(?:jpg|jpeg|png|gif)\?md5=[^"'\s&]+&amp;expires=\d+[^"'\s]*)/i,
+        imageURLRegExp: /(?<url>https?:\/\/i\d+\.fastpic\.org\/big\/[^"'\s]+?\.(?:jpg|jpeg|png|gif)\?md5=[^"'\s&]+&(amp;)?expires=\d+[^"'\s]*)/i,
         async getURL(link) {
             const URL_PARTS_REGEXP = /i(\d+).+\.(ru|org)\/big(\/\d+\/\d+\/).+\/([^\/]+)$/;
             const [, index, domain, date, filename] = URL_PARTS_REGEXP.exec(link.url) || [];
