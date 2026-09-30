@@ -35,6 +35,7 @@ const siteModules = [
         id: 'i14xpicsspace',
         name: '14xpics.space',
         enabled: true,
+        status: 'unknown', // 초기 상태: 공백 ("" 또는 "unknown")
         linkRegExp: /14xpics\.space\/image/,
         async getURL(link) { return link.thumbnailURL.replace('.th.', '.'); },
     },
@@ -42,6 +43,7 @@ const siteModules = [
         id: '22pixx',
         name: '22pixx.xyz',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /22pixx\.xyz\/images\/.*\.html/,
         async getURL(link) { return link.thumbnailURL.replace(/\/os\//, '/o/'); },
     },
@@ -49,6 +51,7 @@ const siteModules = [
         id: '37xpics',
         name: '37xpics.space',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /37xpics\.space\/image/,
         async getURL(link) { return link.thumbnailURL.replace('.th.', '.'); },
     },
@@ -56,6 +59,7 @@ const siteModules = [
         id: '3xplanetimg',
         name: '3xplanetimg.com',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /3xplanet\.net\/viewimage\/.*\.html/,
         async getURL(link) { return link.thumbnailURL.replace(/\/s200\//, '/s0/'); },
     },
@@ -63,6 +67,7 @@ const siteModules = [
         id: 'adult-images',
         name: 'Adult-Images.ru',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /\/(adult-images|money-pic)\.ru/,
         async getURL(link) { return link.thumbnailURL.replace('-thumb', ''); },
     },
@@ -70,6 +75,7 @@ const siteModules = [
         id: 'clubwarp',
         name: 'clubwarp.com',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /i\.clubwarp\.com\/image/,
         getURL(link) { return link.thumbnailURL.replace('.th.', '.md.'); },
     },
@@ -77,6 +83,7 @@ const siteModules = [
         id: 'crazyimg',
         name: 'crazyimg.com',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /crazyimg\.com\/images/,
         getURL(link) { return link.thumbnailURL.replace('_tn', ''); },
     },
@@ -84,6 +91,7 @@ const siteModules = [
         id: 'dmm',
         name: 'dmm.co.jp',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /pics\.dmm\.co\.jp\/.+\.jpg/,
         getURL(link) { return link.url; },
     },
@@ -91,6 +99,7 @@ const siteModules = [
         id: 'fastpic',
         name: 'FastPic',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /fastpic\.(?:ru|org)\/view/,
         imageURLRegExp: /(?<url>https?:\/\/i\d+\.fastpic\.org\/big\/[^"'\s]+?\.(?:jpg|jpeg|png|gif)\?md5=[^"'\s&]+&(amp;)?expires=\d+[^"'\s]*)/i,
         getURL: (link, extractor) => { // 익명 함수로 변경
@@ -106,6 +115,7 @@ const siteModules = [
         id: 'fastpicDirect',
         name: 'FastPic (direct link)',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /fastpic\.(?:ru|org)\/big/,
         imageURLRegExp: /(?<url>https?:\/\/i\d+\.fastpic\.org\/big\/[^"'\s]+?\.(?:jpg|jpeg|png|gif)\?md5=[^"'\s&]+&(amp;)?expires=\d+[^"'\s]*)/i,
         async getURL(link) {
@@ -119,6 +129,7 @@ const siteModules = [
         id: 'filesor',
         name: 'filesor / pimpandhost',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /pimpandhost\.com\/image/,
         async getURL(link) { return link.thumbnailURL.replace(/_(l|m|s)\./, '.'); },
     },
@@ -126,14 +137,16 @@ const siteModules = [
         id: 'imagebam',
         name: 'ImageBam',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /www\.imagebam\.com\//,
-        imageURLRegExp: /src="(?<url>[^"]+)".+class="main-image/,
+        imageURLRegExp: /src="(?<url>[^"]+)".+class="main-image"/,
         async getURL(link, extractor) { return getURLFromPage(link, extractor, { cookie: 'nsfw_inter=1' }); },
     },
     {
         id: 'imagebamview',
         name: 'ImageBamView',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /images\d\.imagebam\.com\//,
         getURL(link) { return link.url; },
     },
@@ -141,6 +154,7 @@ const siteModules = [
         id: 'imageban',
         name: 'ImageBan.ru',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /imageban\.ru\/show/,
         async getURL(link) {
             const DATE_PATTERN = /(\d{4})\.(\d{2})\.(\d{2})/;
@@ -151,6 +165,7 @@ const siteModules = [
         id: 'imagebanDirect',
         name: 'ImageBan.ru (direct link)',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /imageban\.ru\/out/,
         async getURL(link) { return link.url; },
     },
@@ -158,6 +173,7 @@ const siteModules = [
         id: 'imagecurl',
         name: 'imagecurl.com',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /imagecurl\.com\/viewer\.php\?file/,
         async getURL(link) {
             const [, root, domain, filename, ext] = /(https?:\/\/).*(imagecurl\.com\/images\/)(.*)_thumb(\.jpg)/.exec(link.thumbnailURL) || [];
@@ -168,6 +184,7 @@ const siteModules = [
         id: 'imagehaha',
         name: 'imagehaha.com',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /imagehaha\.com\//,
         imageURLRegExp: /<img src="(?<url>[^"]*)/im,
         viewMode: 'origin-download',
@@ -177,6 +194,7 @@ const siteModules = [
         id: 'imagetwist',
         name: 'ImageTwist',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /imagetwist\.com/,
         viewMode: 'origin-download',
         async getURL(link) {
@@ -192,6 +210,7 @@ const siteModules = [
         name: 'ImageTwist based (legacy)',
         hosts: ['Picturelol.com', 'PicShick.com', 'Imageshimage.com'],
         enabled: true,
+        status: 'unknown',
         linkRegExp: /(picturelol|picshick|imageshimage)\.com/,
         viewMode: 'origin-download',
         async getURL(link) {
@@ -207,6 +226,7 @@ const siteModules = [
         id: 'imagevenue',
         name: 'ImageVenue.com',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /imagevenue\.com\//,
         imageURLRegExp: /<img src="(?<url>[^"]*).*id="main-image/im,
         getURL: getURLFromPage,
@@ -215,6 +235,7 @@ const siteModules = [
         id: 'imgadult',
         name: 'ImgAdult',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /imgadult\.com/,
         async getURL(link) { return link.thumbnailURL.replace('/small/', '/big/'); },
     },
@@ -222,6 +243,7 @@ const siteModules = [
         id: 'imgbb',
         name: 'ImgBB',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /ibb\.co/,
         imageURLRegExp: /rel="image_src" href="(?<url>http[^"]+)"/,
         async getURL(link) {
@@ -233,6 +255,7 @@ const siteModules = [
         id: 'imgbox',
         name: 'imgbox.com',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /imgbox\.com/,
         async getURL(link) {
             if (link.thumbnailURL.includes('/thumbs')) return link.thumbnailURL.replace('/thumbs', '/images').replace('_t', '_o');
@@ -243,6 +266,7 @@ const siteModules = [
         id: 'imgbum',
         name: 'imgbum.ru',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /imgbum\.(net|ru)/,
         async getURL(link) { return link.thumbnailURL.replace('-thumb', ''); },
     },
@@ -250,6 +274,7 @@ const siteModules = [
         id: 'imgcloud',
         name: 'imgcloud.pw',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /imgcloud\.pw\/image/,
         getURL(link) { return link.thumbnailURL.replace('.md.', '.').replace('.th.', '.'); },
     },
@@ -257,6 +282,7 @@ const siteModules = [
         id: 'imgdrive',
         name: 'ImgDrive.net',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /imgdrive\.net/,
         viewMode: 'origin-download',
         async getURL(link) { return link.thumbnailURL.replace('/small/', '/big/').replace('/small-medium/', '/big/'); },
@@ -265,6 +291,7 @@ const siteModules = [
         id: 'imgspice',
         name: 'ImgSpice',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /imgspice\.com/,
         viewMode: 'origin-download',
         async getURL(link) { return link.thumbnailURL.replace(/_t\./, '.'); },
@@ -273,6 +300,7 @@ const siteModules = [
         id: 'imgtaxi',
         name: 'ImgTaxi.com',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /imgtaxi\.com/,
         viewMode: 'origin-download',
         async getURL(link) { return link.thumbnailURL.replace('/small/', '/big/').replace('/small-medium/', '/big/'); }
@@ -281,6 +309,7 @@ const siteModules = [
         id: 'imgtraffic',
         name: 'imgtraffic.com',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /imgtraffic\.com/,
         async getURL(link) { return link.thumbnailURL.replace('/1s/', '/1/').replace('/i-1/', '/1/'); },
     },
@@ -288,6 +317,7 @@ const siteModules = [
         id: 'javstore',
         name: 'javstore.net',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /img\d+?\.javstore\.net/,
         async getURL(link) { return link.thumbnailURL.replace('.th.', '.'); },
     },
@@ -295,6 +325,7 @@ const siteModules = [
         id: 'fc2',
         name: 'fc2.com',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /^https:\/\/storage\d+-cdn\.contents\.fc2\.com\/file/,
         viewMode: 'origin-download',
         async getURL(link) { return link.url; },
@@ -303,6 +334,7 @@ const siteModules = [
         id: 'fc2Direct',
         name: 'fc2.com',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /^https:\/\/contents-thumbnail2\.fc2\.com/,
         async getURL(link) { return link.url; },
     },
@@ -310,6 +342,7 @@ const siteModules = [
         id: 'piccash',
         name: 'PicCash',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /piccash\.net/,
         async getURL(link) { return link.thumbnailURL.replace('_thumb', '_full').replace('-thumb', ''); },
     },
@@ -318,6 +351,7 @@ const siteModules = [
         name: 'PicForAll',
         hosts: ['freescreens.ru', 'imgclick.ru', 'picclick.ru', 'payforpic.ru', 'picforall.ru', 'imgbase.ru'],
         enabled: true,
+        status: 'unknown',
         linkRegExp: /(freescreens|imgclick|picclick|payforpic|picforall|imgbase)\.ru/,
         async getURL(link) { return link.thumbnailURL.replace('-thumb', ''); },
     },
@@ -325,6 +359,7 @@ const siteModules = [
         id: 'picszone',
         name: 'PicsZone',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /picszone\.net\/viewer\.php\?file/,
         async getURL(link) { return link.thumbnailURL; },
     },
@@ -332,6 +367,7 @@ const siteModules = [
         id: 'picstate',
         name: 'picstate.com',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /picstate\.com\/view\/full/,
         getURL(link) { return link.thumbnailURL.replace('thumbs/small/', ''); },
     },
@@ -339,6 +375,7 @@ const siteModules = [
         id: 'picstateDirect',
         name: 'picstate.com (direct link)',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /picstate\.com\/files\/.*\.jpg/,
         getURL(link) { return link.url; },
     },
@@ -346,6 +383,7 @@ const siteModules = [
         id: 'pixhost',
         name: 'PixHost',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /pixhost\.to\/(show|images)/,
         imageURLRegExp: /class="image-img"\ssrc="(?<url>[^"]+)"/,
         async getURL(link) {
@@ -357,6 +395,7 @@ const siteModules = [
         id: 'pornohosting',
         name: 'pornohosting.ru',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /pornohosting\.ru\/d\+/,
         async getURL(link) { return link.thumbnailURL.replace('-thumb', ''); },
     },
@@ -364,6 +403,7 @@ const siteModules = [
         id: 'postimg',
         name: 'postimg.cc',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /postimg\.cc/,
         imageURLRegExp: /<a href="(?<url>[^"]+)"\sid="download"/,
         async getURL(link, extractor) { return await getURLFromPage(link, extractor); },
@@ -373,6 +413,7 @@ const siteModules = [
         name: 'TurboImageHost',
         hosts: ['turboimagehost.com', 'turboimg.net'],
         enabled: true,
+        status: 'unknown',
         linkRegExp: /turboimagehost\.com\/p|turboimg\.net\/sp/,
         imageURLRegExp: /src="(?<url>https?:\/\/[^"]+\.(?:jpg|jpeg|png|gif|webp))"/i, // 정규식 정밀화
         getURL: (link, extractor) => {
@@ -394,6 +435,7 @@ const siteModules = [
         id: 'vfl',
         name: 'VFL.Ru',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /^http:\/\/vfl\.ru/,
         async getURL(link) {
             const REMOVE_SUFFIX_REGEXP = /_.?(.+)$/;
@@ -404,6 +446,7 @@ const siteModules = [
         id: 'xxxwebdlxxx',
         name: 'xxxwebdlxxx.org',
         enabled: true,
+        status: 'unknown',
         linkRegExp: /xxxwebdlxxx\.org/,
         async getURL(link) { return link.thumbnailURL.replace('/small/', '/big/'); },
     },
@@ -480,10 +523,23 @@ function AddStyles(CSS, ID) {
 
 class Queue {
     constructor() {
-        this.items = []; // 객체 대신 배열 사용 (현대 브라우저에서는 배열 최적화가 더 잘 됨)
+        this.items = [];
+        this.keys = new Set(); // 중복 추적용 Set
     }
-    enqueue(item) { this.items.push(item); }
-    dequeue() { return this.items.shift(); }
+    enqueue(item) {
+        const key = item.href || item;
+        if (!this.keys.has(key)) {
+            this.keys.add(key);
+            this.items.push(item);
+        }
+    }
+    dequeue() {
+        const item = this.items.shift();
+        if (item) {
+            this.keys.delete(item.href || item);
+        }
+        return item;
+    }
     isEmpty() { return this.items.length === 0; }
     get size() { return this.items.length; }
 }
@@ -501,6 +557,7 @@ const processCount = 5; // 👈 동시에 처리할 최대 작업 수
 let activeWorkerCount = 0; // 현재 작동 중인 워커의 수
 let isSpawning = false; // 워커가 생성 중인지 확인하는 플래그
 
+
 async function getFullSizeManagement() {
     if (isSpawning || activeWorkerCount >= processCount || getFullSizeQueue.isEmpty()) return;
 
@@ -511,6 +568,14 @@ async function getFullSizeManagement() {
         while (!getFullSizeQueue.isEmpty()) {
             const linkElement = getFullSizeQueue.dequeue();
             if (!linkElement) continue;
+
+            const imageHost = linkElement.dataset.ivHost;
+            const extractor = getExtractor(linkElement.href);            
+
+            if (extractor.status === 'offline') {
+                console.warn(`[Image Viewer] Skipped: ${extractor.id} is offline.`, linkElement);
+                continue;
+            }
 
             // 이미 처리 중이거나 완료된 링크 건너뛰기
             if (processedElements.has(linkElement.href)) continue;
@@ -523,7 +588,7 @@ async function getFullSizeManagement() {
                     new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), TASK_TIMEOUT_MS))
                 ]);
             } catch (error) {
-                console.warn(`[Queue] Failed: ${linkElement.href}`, error.message);
+                console.warn(`[Queue] Failed: ${linkElement.href}`, linkElement, error, error.message);
                 processedElements.delete(linkElement.href); // 실패 시 재시도 가능하도록 제거
             }
 
@@ -778,18 +843,63 @@ function GetOnline(details) {
     });
 }
 
-async function getURLFromPage(link, extractor, requestDetails) {
-    const html = await getPageHtml({ url: link.url, ...requestDetails });
-    //console.log(html, extractor.imageURLRegExp)
+async function getURLFromPage(linkData, extractor, requestDetails) {
+
+    const urlObj = new URL(linkData.url);
+    const host = urlObj.hostname;
+
+    // 이미 점검 중으로 등록된 호스트라면 요청 없이 즉시 스킵
+    if (extractor.status === 'offline') {
+        console.warn(`[Image Viewer] Skipped: ${extractor.id} is offline.`);
+        return null;
+    }
+
+    const html = await getPageHtml({ url: linkData.url, ...requestDetails });
+
+    if (!html) {
+        console.warn(`[Image Viewer] Empty response from: ${linkData.url}`);
+        return null;
+    }
+
+    
+    if (extractor.status !== 'online') {
+        const maintenanceKeywords = [
+            /Service update/i,
+            /extended downtime/i,
+            /working around the clock to restore/i,
+            /Under Maintenance/i,
+            /Site is down/i,
+            /502 Bad Gateway/i,
+            /503 Service Unavailable/i
+        ];
+
+        const isMaintenancePage = maintenanceKeywords.some(pattern => pattern.test(html));
+
+        if (isMaintenancePage) {
+            console.warn(`[Image Viewer] Maintenance detected! Setting status to offline: ${extractor.id}`);
+
+            // ★ 상태를 offline으로 변경 -> 이후 모든 요청 즉시 차단됨
+            extractor.status = 'offline';
+            return null;
+        }
+    }
+
+    // 정규식 추출
     const match = extractor.imageURLRegExp?.exec(html);
     let url = match ? (match.groups ? match.groups.url : match[1]) : null;
-    if (!url) {
-        console.error(`[Image Viewer] Failed to get URL from page source: ${link.url}`);
-    }
-    //console.log('getURLFromPage: ', url)
-    return url?.replace(/&amp;/g, '&'); // &amp;를 &로 변환
-}
 
+    if (!url) {
+        console.warn(`[Image Viewer] Failed to get URL from page source: ${linkData.url}`);
+        return null;
+    }
+
+
+    // ★ 최초 1회 성공 시 status를 'online'으로 확정
+    // 이후 들어오는 동일 호스트 요청은 2번의 점검 키워드 검사(if)를 통과(Skip)하게 됨
+    extractor.status = 'online';
+    return url.replace(/&amp;/g, '&');
+
+}
 
 // // 헤더 추가 코드
 // async function NewgetURLFromPage(link, extractor, requestDetails = {}) {
@@ -918,22 +1028,62 @@ let PreLoadDB = [];
 
 
 const ExpandTag = new IntersectionObserver(entries => {
-
     for (const entry of entries) {
         const el = entry.target;
         if (el.classList.contains('unfolded')) continue;
-        el.click();
-        const P = entry.target.nextElementSibling;
-        if (P.querySelectorAll('a img').length) {
-            queue.enqueue(P);
+
+        let P = el.nextElementSibling;
+        const targetNode = P || el.parentElement;
+
+        if (targetNode) {
+            const observer = new MutationObserver((mutations, obs) => {
+                P = el.nextElementSibling;
+                if (P) {
+                    // 1. P 내부에서 새로 생성된 접힘 태그(.sp-head) 감지 및 observe 등록
+                    const newExpandTags = P.querySelectorAll('.sp-head.folded.clickable:not(.unfolded)');
+                    newExpandTags.forEach(newEl => ExpandTag.observe(newEl));
+
+                    // 2. P 내부 이미지 감지 시 queue 처리
+                    if (P.querySelectorAll('a img').length) {
+                        if (typeof queue !== 'undefined') {
+                            queue.enqueue(P);
+                        }
+                        obs.disconnect();
+
+                        if (typeof ManagementWorking !== 'undefined' && typeof queue !== 'undefined' && !ManagementWorking && !queue.isEmpty()) {
+                            if (typeof Management === 'function') Management();
+                        }
+                    }
+                }
+            });
+
+            // targetNode(P 또는 부모) 변경 사항 관찰 시작
+            observer.observe(targetNode, { childList: true, subtree: true });
+
+            // 클릭 동작 수행
+            el.click();
+
+            // 클릭 즉시 동기적으로 요소가 생성된 경우 예외 처리
+            P = el.nextElementSibling;
+            if (P) {
+                const immediateNewTags = P.querySelectorAll('.sp-head.folded.clickable:not(.unfolded)');
+                immediateNewTags.forEach(newEl => ExpandTag.observe(newEl));
+
+                if (P.querySelectorAll('a img').length) {
+                    if (typeof queue !== 'undefined') {
+                        queue.enqueue(P);
+                    }
+                    observer.disconnect();
+                }
+            }
         }
+
         ExpandTag.unobserve(el);
     }
 
-    if (!ManagementWorking && !queue.isEmpty()) {
-        Management();
+    if (typeof ManagementWorking !== 'undefined' && typeof queue !== 'undefined' && !ManagementWorking && !queue.isEmpty()) {
+        if (typeof Management === 'function') Management();
     }
-
 }, {
     root: null,
     rootMargin: "0px 0px 500px 0px",
@@ -1006,7 +1156,7 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
             items.push({ link, img, thumbnailUrl: thumb });
         });
 
-    console.log('collectImageLinks: ', items);
+    //console.log('collectImageLinks: ', items);
 
     return items;
 }
@@ -1030,13 +1180,20 @@ async function initViewer(node) {
 
     // 2) Annotate each link + start IO
     for (const { link, thumbnailUrl, img } of items) {
+
         link.classList.add('ivChecked');
 
         const extractor = getExtractor(link.href);
         link.dataset.ivHost = extractor.id;
         link.dataset.ivThumbnail = thumbnailUrl;
 
+        if (extractor.status === 'offline') {
+            console.warn(`[Image Viewer] Skipped: ${extractor.id} is offline.`);
+            continue; // 큐 삽입 및 아래 로직 건너뜀
+        }
+
         const isNewTab = extractor.viewMode === 'new-tab';
+
         link.setAttribute('title', isNewTab ? 'Open in new tab' : 'Open viewer');
         link.classList.add(
             ...linkCommonClasses,
@@ -1050,6 +1207,7 @@ async function initViewer(node) {
             } else if (!img.complete) {
                 image.getSize(img).then(() => {
                     if (ImageExists(img) && !ImageBigSize(img)) {
+                        console.log('Enqueueing for full size:', link.href);
                         getFullSizeQueue.enqueue(link);
                         if (!isSpawning) {
                             getFullSizeManagement();
@@ -1142,6 +1300,16 @@ function ImageExists(image) {
 
 const image = {
     async getFullSizeURL(link) {
+
+        const imageHost = link.dataset.ivHost;
+        const extractor = urlExtractor.getExtractorByHost(imageHost);
+
+        // ★ offline 상태면 네트워크 및 파싱 진입 전 즉시 종료
+        if (extractor && extractor.status === 'offline') {            
+            image.markAsBroken(link);                      
+            return null;
+        }
+
         let imageURL = link.dataset.ivImgUrl;
         let img = link.querySelector('img');
 
@@ -1151,9 +1319,8 @@ const image = {
             return imageURL;
         }
 
-
         const thumbnailURL = link.dataset.ivThumbnail;
-        const imageHost = link.dataset.ivHost;
+
 
         if (!thumbnailURL || !imageHost) {
             throw new Error(
@@ -1174,7 +1341,7 @@ const image = {
             //viewer.update()
             ViewerList.delete(link);
             viewerUpdate();
-            return;
+            return null;
         }
 
         try {
@@ -1187,13 +1354,10 @@ const image = {
                 }
             }
 
-        } catch {
-            console.log(imageURL);
+        } catch {            
             image.markAsBroken(link);
             link.setAttribute('target', '_blank');
         }
-
-
 
         link.dataset.ivImgUrl = imageURL;
         link.classList.add('ViewerGallery');
@@ -1290,6 +1454,7 @@ const image = {
     markAsBroken(link) {
         link.classList.remove('js-image-link');
         link.removeAttribute('title');
+        link.dataset.status = 'offline';           
     },
 };
 
@@ -1297,7 +1462,7 @@ const mutCallback = (mutationsList) => {
 
     const addSet = new Set();
     for (const { addedNodes } of mutationsList) {
-        for (const node of addedNodes) {            
+        for (const node of addedNodes) {
             if (!(node instanceof HTMLElement)) continue;
             const skip = node.closest('div.viewer-container');
 
@@ -1326,7 +1491,7 @@ const mutCallback = (mutationsList) => {
                 }
             }
         }
-    }    
+    }
     if (addSet.size) {
         for (const el of addSet) {
             queue.enqueue(el);
@@ -1436,11 +1601,10 @@ async function Start() {
 
     let Ex = [];
     if (/(rutracker\.org|pornolab\.net|trupornolabs.org)/.test(PageURL)) {
-        let AutoExpandTag = '.sp-head.folded.clickable:not(.unfolded)';
+        const AutoExpandTag = '.sp-head.folded.clickable:not(.unfolded)';
         Ex = [...document.querySelectorAll(AutoExpandTag)];
         Ex.forEach(el => {
             ExpandTag.observe(el);
-            //el.click()
         });
     }
 

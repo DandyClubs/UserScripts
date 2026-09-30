@@ -38,8 +38,12 @@ const FontAwesomeCSS = function () {
 
 GM_addStyle(`
 
-
-
+:root {
+    --iconTop: 20%;
+}
+body[data-site="pornolab.net"] {
+    --iconTop: 25%;
+}
 .GetMaker, .GetLabel {
     text-align: center;
     cursor: pointer;
@@ -59,8 +63,8 @@ GM_addStyle(`
 
 .CopyTitleCenterBox {
 	right: 30%;
-	left: auto;
-	top: var(--iconTop, 20%);
+	left: auto;	
+    top: var(--iconTop);
 	margin: 0 auto;
     display: flex;
 	flex-wrap: nowrap;
@@ -418,7 +422,18 @@ function copyToClipboard(text) {
 
 function MakeIcon() {
     // 1. CenterBox 요소를 한 번만 찾아서 변수에 할당
-    document.querySelector("body").insertAdjacentHTML('afterbegin', '<div class="CopyTitleCenterBox"></div>');
+
+
+
+    document.body.dataset.site = RootDomain;
+
+
+
+
+    document.querySelector("body").insertAdjacentHTML(
+        'afterbegin',
+        `<div class="CopyTitleCenterBox"></div>`
+    );
     const centerBox = document.querySelector('.CopyTitleCenterBox');
 
     // centerBox가 없으면 함수 종료
@@ -435,19 +450,18 @@ function MakeIcon() {
 
     // 3. 아이콘에 클릭 이벤트 추가 함수
     const addEventToIcon = (className, eventCallback) => {
-        // setTimeout을 사용하여 DOM이 업데이트될 시간을 줍니다.
-        setTimeout(() => {
-            const iconElement = centerBox.querySelector(`.${className}`);
-            if (iconElement && eventCallback) {
-                iconElement.addEventListener('click', eventCallback);
-            } else {
-                console.warn(`Icon with class "${className}" not found for event listener.`);
-            }
-        }, 0); // 0ms delay gives the browser time to process the DOM changes
-    };
+        const iconElement = centerBox.querySelector(`.${className}`);
+        if (iconElement && eventCallback) {
+            iconElement.addEventListener('click', eventCallback);
+        } else {
+            console.warn(`Icon with class "${className}" not found for event listener.`);
+        }
+    }
+
 
     // 4. pornolab.net 도메인에 따라 아이콘 생성 및 이벤트 추가
     if (/pornolab\.net/.test(RootDomain)) {
+
         let TorrentFile = document.querySelector('table.attach a.dl-stub.dl-link');
         let relatedTopics = document.querySelector('div.thx-container div.related-topics');
 
@@ -471,8 +485,6 @@ function MakeIcon() {
                 });
             });
         }
-
-        centerBox.style.setProperty('--iconTop', '25%');
     }
 
     // 5. 공통 아이콘 생성 및 이벤트 추가
@@ -657,7 +669,7 @@ const SiteParsers = {
                 cleanTextitleText = cleanTextitleText.replace(releaseDate, '').replace(/\s?\/\)/g, '').replace(/\s?\/ (\.|-)/, '').replace(' / )', ')').replace('(г.) ', '').trim();
                 FixreleaseDate = releaseDate.replace(/-|\//g, '.');
             } else {
-                const infoAreaReleaseDate = SearchMatch(InfoArea, "(Дата релиза|Дата выхода|Дата производства)\s?(:|：)?(.+)", "/\/|-/g, '.'");
+                const infoAreaReleaseDate = SearchMatch(InfoArea, "(Дата релиза|Дата выхода|Дата производства)\\s?(:|：)?(.+)", "[/\\-]", ".");
                 if (infoAreaReleaseDate) {
                     FixreleaseDate = infoAreaReleaseDate.replace(/-|\//g, '.');
                 }
@@ -696,7 +708,7 @@ const SiteParsers = {
             }
 
             // ID
-            const IDSearch = SearchMatch(InfoArea, "Студийный код фильма\s?(:|：)?(.+)", "/\/|-/g, '.'");
+            const IDSearch = SearchMatch(InfoArea, "Студийный код фильма\\s?(:|：)?(.+)", "[/\\-]", ".");
             let ID = IDSearch ? IDSearch.trim() : '';
 
             if (ID) {
