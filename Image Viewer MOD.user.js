@@ -1280,6 +1280,7 @@ function ImageExists(image) {
         'fastpic.org': [{ w: 150, h: 113 }, { w: 150, h: 150 }],
         'fastpic.ru': [{ w: 150, h: 113 }, { w: 150, h: 150 }],
         'imgbox.com': [{ w: 240, h: 240 }],
+        'imageban.ru': [{ w: 150, h: 150 }],
     };
 
     const dimensions = noImageDimensions[RootDomain];
