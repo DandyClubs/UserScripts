@@ -254,7 +254,7 @@ function updateClipboard(CopyData) {
     }
 }
 
-function scrollToTitlePx(target, offset = 80, maxRetries = 10, interval = 250) {
+function scrollToTitlePx(target, offset = 80, maxRetries = 2, interval = 500) {
     if (!target) return;
 
     function performScroll() {
@@ -1174,7 +1174,7 @@ function CheckMagnet(url) {
 
 
 
-
+/*
 function SendWebUI(url) {
     let data = new FormData();
     data.append(`urls`, url);
@@ -1202,6 +1202,7 @@ function SendWebUI(url) {
     });
 
 }
+*/
 
 function removeUriWithParam(baseUrl, key) {
     //console.log(baseUrl)
