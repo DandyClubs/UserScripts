@@ -131,7 +131,7 @@ function ADChange() {
             el.remove();
             break;
         }
-    }    
+    }
 }
 
 
@@ -197,11 +197,29 @@ const SiteHandlers = [
             MouseOver.forEach(function (item) {
                 item.removeAttribute('onmouseover')
             })
-
-            const noItems = [...node.querySelectorAll('div#threadlist div ul li h3.ptn a')]
-            noItem.forEach(function (item) {
-                item.closest('li') ? item.closest('li').remove() : item.remove()
-            })
+        }
+    },    
+    {
+        regex: /eyny\.com\/forum\.php\?mod=forumdisplay/,
+        handler: function (node) {
+        
+            const urlParams = new URLSearchParams(PageURL);
+            const displayMode = urlParams.get('forumdefstyle')
+            if (displayMode && displayMode === 'yes') {
+                const imageModeItems = [...node.querySelectorAll('div#threadlist div ul li h3.ptn a')]
+                imageModeItems.forEach(function (item) {
+                    if (/人妖|厕拍|T娘|CR成人频道源码录影|女如厕|印地语热门|=巡帖線=/.test(item.getAttribute('title'))) {
+                        item.closest('li') ? item.closest('li').remove() : item.remove();
+                    }
+                })
+            } else {
+                const listModeItems = [...node.querySelectorAll('div#threadlist div table tbody tr th.common a')]
+                listModeItems.forEach(function (item) {
+                    if (/人妖|厕拍|T娘|CR成人频道源码录影|女如厕|印地语热门|=巡帖線=/.test(item.innerText)) {
+                        item.closest('li') ? item.closest('li').remove() : item.remove();
+                    }
+                })
+            }
         }
     },
     {
@@ -356,7 +374,7 @@ const SiteMutationHandlers = [
                 }
             })
         }
-    }
+    },
 ]
 
 const observer = new MutationObserver(mutations => {

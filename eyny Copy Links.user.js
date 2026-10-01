@@ -249,7 +249,21 @@ const siteRules = [
         getTitleRegex: /(?<=影片名稱】[：:])(.*?)(?=(?:(\(MP4@KF@無碼|【影片大小).*$)?(?:$))/m,
         getTitleMatchPoint: 0,
         passwordRegex: /(解壓密碼|解壓縮密碼)】[：:]?(.*?)\s*(.+)/,
-        breakPoint: ['需要存取權', '想看A片更多:', '複製代碼', '溫馨小小建議及下載小技巧', '更多優質影片', 'background-color:magenta', '解壓縮出現錯誤', '其他影片分享', '其他精彩主題', '其他影片載點'],
+        breakPoint: [
+            // [소스코드 기반] 빨간색(#ff0000) font 태그 내부에 어떤 문자/문장/줄바꿈이 와도 중단점으로 감지
+            /<br>[\s\S]*?<font[^>]*size="5"[^>]*>[\s\S]*?<font[^>]*color="#ff0000"[^>]*>[\s\S]*?<\/font>[\s\S]*?<\/font>/i,
+
+            // [텍스트 기반] 기존 중단점 목록
+            '需要存取權',
+            '想看A片更多:',
+            '複製代碼',
+            '溫馨小小建議及下載小技巧',
+            '更多優質影片',
+            '解壓縮出現錯誤',
+            '其他影片分享',
+            '其他精彩主題',
+            '其他影片載點'
+        ],
     },
 ]
 
@@ -1204,7 +1218,7 @@ function JDownloader(JdownloaderData, PackageName, PW, Source) {
 */
 
 function JDownloader(JdownloaderData, PackageName, PW, Source) {
-    if (!JdownloaderData) return;       
+    if (!JdownloaderData) return;
 
     // JDownloader API 규격에 맞춘 Payload 구조 ({ params: [...] })
     const payload = {
@@ -1215,7 +1229,7 @@ function JDownloader(JdownloaderData, PackageName, PW, Source) {
                 packageName: PackageName || null,
                 sourceUrl: Source || null,
                 links: JdownloaderData,
-                extractPassword: PW || null,   
+                extractPassword: PW || null,
                 //downloadPassword: PW || null             
             }
         ]
