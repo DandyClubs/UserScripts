@@ -6,6 +6,7 @@
 // @author       You
 // @include      https://www.t66y.com/htm_data/*.html
 // @include      /t66y\.com\/htm_data\/.+\.html/
+// @include      /t66y\.com\/read\.php\?tid=/
 // @include      https://sehuatang.net/*.html
 // @include      /trupornolabs\.org\/torrent\/\d+/
 // @include      https://www.tanhuazu.com/threads/*
@@ -140,7 +141,7 @@ const ExcludeChar = /[&<\/:>*?"|\\]/g;
 const JapaneseChar = /[ぁ-んァ-ン一-龯]/;
 const cyrillicPattern = /[а-яА-ЯЁё]/g;
 const englishPattern = /[A-Za-z0-9]/;
-const titlePrefixRegex = /^【(?:影片标题|影片名称|影片名称代|影片名稱|檔案名稱|文件名称|资源名称|档案名称|影片名称代号)】[：:]\s*/g;
+const titlePrefixRegex = /^【(?:影片标题|影片名称|影片名称代|影片名稱|檔案名稱|文件名称|资源名称|档案名称|影片名称代号|原文片名)】[：:]\s*/g;
 const skipKeywords = ["最强優片", "最強國產專輯"];
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RemoveContentEX = RegexFrom(RemoveContentText.split(/\r?\n/), 'i');
@@ -189,7 +190,7 @@ function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-
+/* ==========================================
 function extractMagnetAndTitles(data) {
     const matchesTitle = data.map((value, index) => ({ value, index })).filter(item => titlePrefixRegex.test(item.value));
     const isMagnet = (e) => /rmdown.com\/link.php\?hash=\d{3}(.+)/.test(e);
@@ -224,6 +225,8 @@ function extractMagnetAndTitles(data) {
         }
     }
 }
+
+*/
 
 function copyToClipboard(text) {
     try {
@@ -479,7 +482,7 @@ function initImageGallery(wrappers) {
 /* ===============================
    1️⃣ DOM 정리 (수정된 부분)
 =============================== */
-
+/**
 function handleCleaning(container) {
 
     // 1️⃣ 빈 span 제거 + processed 부여 (필터링 추가)
@@ -519,6 +522,7 @@ function handleCleaning(container) {
     // 3️⃣ 텍스트 그룹화
     //groupBareText(container);
 }
+*/
 
 function linkifyNodes(root) {
     // TreeWalker를 사용하여 실제 텍스트 노드만 골라냅니다.
@@ -605,6 +609,7 @@ function linkifyNodes(root) {
     });
 }
 
+/*
 function unwrapBoldText(container) {
 
     const bold = container.querySelector(':scope > b');
@@ -666,6 +671,7 @@ function commit(group) {
     group[0].parentNode.insertBefore(wrapper, group[0]);
     group.forEach(n => wrapper.appendChild(n));
 }
+*/
 
 const useWsrvDomains = [
     'i.11img.com',
@@ -760,10 +766,14 @@ async function Main() {
                 // 3. 최종 정제 (숫자 접두어, MP4 태그 등 제거)
                 // 위에서 새로 가져온 제목에도 동일하게 적용됩니다.
                 cleanTitle = cleanTitle
-                    .replace(/^(\d{3,4}[_-]|(?<!\d)\d{1,2}(?!\d))/, '')
+                    .replace(/^\d{3,4}[_-]/, '')
+                    .replace(/^(?!91YCM)\d{1,2}/, '')
                     .replace(/^\s?\[MP4.*?\]/, '')
                     .replace(/\[[a-zA-Z0-9\.\/]+\]/, '')
                     .trim();
+
+                cleanTitle = FilenameConvert(cleanTitle);
+                cleanTitle = mbConvertKana(cleanTitle, 'rans');
 
                 // 최종 결과가 여전히 비어있지 않은 경우에만 배열에 추가
                 if (cleanTitle) {
@@ -784,69 +794,80 @@ async function Main() {
                     }
                 }
             }
+            console.log("추출된 제목 목록:", titles.map(t => t.title));
             return titles;
         }
-
+        
         /* ==========================================
-       2️⃣ rmdown 링크 추출
-    ========================================== */
-
-        function extractRmdownLinks(root) {
-            return [
-                ...root.querySelectorAll(
-                    'a[href*="rmdown.com/link.php?hash="]'
-                )
-            ];
-        }
-
-        /* ==========================================
-       3️⃣ Magnet 매칭 (Title ↔ rmdown 순서 기반)
-    ========================================== */
+               3️⃣ Magnet 매칭 (DOM 위치 기반 Title ↔ Link 매칭)
+            ========================================== */
 
         function buildMagnetPairs(root) {
-
             const titles = extractTitles(root);
-            const rmdownLinks = extractRmdownLinks(root);
+            if (!titles.length) return [];
 
-            const count = Math.min(titles.length, rmdownLinks.length);
             const result = [];
 
-            for (let i = 0; i < count; i++) {
+            titles.forEach((currentTitleObj, i) => {
+                const currentTitleNode = currentTitleObj.textNode;
+                const nextTitleNode = titles[i + 1] ? titles[i + 1].textNode : null;
 
-                const link = rmdownLinks[i];
+                // 1. 현재 타이틀 이후 ~ 다음 타이틀 이전 범위에 있는 <a> 태그들 수집
+                const allLinks = Array.from(root.querySelectorAll('a[href]')).filter(link => {
+                    // 현재 타이틀보다 뒤에 위치하는지 확인
+                    const isAfterCurrent = (currentTitleNode.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
 
-                const match = link.href.match(
-                    /hash=\d{3}([a-f0-9]{40})/i
-                );
+                    // 다음 타이틀이 있다면, 다음 타이틀보다 앞에 위치하는지 확인
+                    const isBeforeNext = nextTitleNode
+                        ? (link.compareDocumentPosition(nextTitleNode) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0
+                        : true;
 
-                if (!match) continue;
+                    return isAfterCurrent && isBeforeNext;
+                });
 
-                const hash = match[1].toLowerCase();
+                let magnet = null;
 
-                const magnet =
-                    `magnet:?xt=urn:btih:${hash}&dn=${encodeURIComponent(titles[i].title)}`;
+                // 2-A. 범위 내 direct magnet 링크가 있는지 검색
+                const directMagnet = allLinks.find(link => link.href.startsWith('magnet:?'));
+                if (directMagnet) {
+                    // 기존 dn 파라미터를 현재 제목으로 업데이트/교체
+                    magnet = updateMagnetParams(directMagnet.href, { dn: currentTitleObj.title });
+                    directMagnet.href = magnet;
+                } else {
+                    // 2-B. direct magnet이 없으면 rmdown 링크 검색
+                    const rmdownLink = allLinks.find(link => /rmdown\.com\/link\.php\?hash=/i.test(link.href));
+                    if (rmdownLink) {
+                        const match = rmdownLink.href.match(/hash=\d{3}([a-f0-9]{40})/i);
+                        if (match) {
+                            const hash = match[1].toLowerCase();
+                            magnet = `magnet:?xt=urn:btih:${hash}&dn=${encodeURIComponent(currentTitleObj.title)}`;
 
-                // rmdown → magnet 교체
-                if (!link.href.startsWith('magnet:?')) {
-                    link.href = magnet;
+                            // rmdown -> magnet 변환 적용
+                            rmdownLink.href = magnet;
+                        }
+                    }
                 }
 
-                result.push({
-                    textNode: titles[i].textNode,
-                    rawText: titles[i].rawText,
-                    title: titles[i].title,
-                    magnet
-                });
-            }
+                // 3. 유효한 마그넷 링크가 매칭된 경우 결과 배열에 수집
+                if (magnet) {
+                    result.push({
+                        textNode: currentTitleObj.textNode,
+                        rawText: currentTitleObj.rawText,
+                        title: currentTitleObj.title,
+                        magnet
+                    });
+                }
+            });
+
             return result;
         }
 
         const titles = buildMagnetPairs(container);
 
-        if (!titles.length) return;       
+        if (!titles.length) return;
 
         const total = titles.length;
-       
+
 
         /* ===============================
        4️⃣ UI 삽입
