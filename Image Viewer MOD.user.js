@@ -19,11 +19,16 @@
 // @grant        GM_openInTab
 // @grant		 GM_addStyle
 // @grant        GM_getResourceText
-// @require      https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.12.0/viewer.js
+// @require      https://cdn.jsdelivr.net/npm/viewerjs@1.15.2/dist/viewer.min.js
+// @resource     VIEWER_CSS https://cdn.jsdelivr.net/npm/viewerjs@1.15.2/dist/viewer.min.css
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
 // @noframes
 // ==/UserScript==
 
+
+
+const viewerCss = GM_getResourceText("VIEWER_CSS");
+GM_addStyle(viewerCss);
 
 
 
@@ -455,13 +460,6 @@ const siteModules = [
 // 알파벳 순서로 모듈 정렬
 siteModules.sort((a, b) => a.name.localeCompare(b.name));
 
-const viewerCSS = function () {
-    let css = document.createElement('link');
-    css.href = 'https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.12.0/viewer.css';
-    css.rel = 'stylesheet';
-    css.type = 'text/css';
-    document.getElementsByTagName('head')[0].appendChild(css);
-};
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const lazyAttributes = [
