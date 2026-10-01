@@ -26,12 +26,6 @@
 // ==/UserScript==
 
 
-
-const viewerCss = GM_getResourceText("VIEWER_CSS");
-GM_addStyle(viewerCss);
-
-
-
 //================================================================================
 // 1. 통합된 사이트 모듈 정의 (Single Source of Truth)
 //================================================================================
@@ -568,7 +562,7 @@ async function getFullSizeManagement() {
             if (!linkElement) continue;
 
             const imageHost = linkElement.dataset.ivHost;
-            const extractor = getExtractor(linkElement.href);            
+            const extractor = getExtractor(linkElement.href);
 
             if (extractor.status === 'offline') {
                 console.warn(`[Image Viewer] Skipped: ${extractor.id} is offline.`, linkElement);
@@ -860,7 +854,7 @@ async function getURLFromPage(linkData, extractor, requestDetails) {
         return null;
     }
 
-    
+
     if (extractor.status !== 'online') {
         const maintenanceKeywords = [
             /Service update/i,
@@ -1206,7 +1200,7 @@ async function initViewer(node) {
                 link.dataset.ivThumbnail = link.href;
             } else if (!img.complete) {
                 image.getSize(img).then(() => {
-                    if (ImageExists(img) && !ImageBigSize(img)) {                        
+                    if (ImageExists(img) && !ImageBigSize(img)) {
                         getFullSizeQueue.enqueue(link);
                         if (!isSpawning) {
                             getFullSizeManagement();
@@ -1214,7 +1208,7 @@ async function initViewer(node) {
                     }
                 }).catch(e => console.error(e));
             } else {
-                if (ImageExists(img) && !ImageBigSize(img)) {                    
+                if (ImageExists(img) && !ImageBigSize(img)) {
                     getFullSizeQueue.enqueue(link);
                     if (!isSpawning) {
                         getFullSizeManagement();
@@ -1305,8 +1299,8 @@ const image = {
         const extractor = urlExtractor.getExtractorByHost(imageHost);
 
         // ★ offline 상태면 네트워크 및 파싱 진입 전 즉시 종료
-        if (extractor && extractor.status === 'offline') {            
-            image.markAsBroken(link);                      
+        if (extractor && extractor.status === 'offline') {
+            image.markAsBroken(link);
             return null;
         }
 
@@ -1354,7 +1348,7 @@ const image = {
                 }
             }
 
-        } catch {            
+        } catch {
             image.markAsBroken(link);
             link.setAttribute('target', '_blank');
         }
@@ -1454,7 +1448,7 @@ const image = {
     markAsBroken(link) {
         link.classList.remove('js-image-link');
         link.removeAttribute('title');
-        link.dataset.status = 'offline';           
+        link.dataset.status = 'offline';
     },
 };
 
@@ -1509,7 +1503,8 @@ function sleep(ms) {
 }
 
 window.addEventListener("load", () => {
-    viewerCSS();
+    const viewerCss = GM_getResourceText("VIEWER_CSS");
+    GM_addStyle(viewerCss);
     Start();
 }, { once: true });
 
