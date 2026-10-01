@@ -772,9 +772,7 @@ async function Main() {
                     .replace(/\[[a-zA-Z0-9\.\/]+\]/, '')
                     .trim();
 
-                cleanTitle = FilenameConvert(cleanTitle);
-                cleanTitle = mbConvertKana(cleanTitle, 'rans');
-
+                
                 // 최종 결과가 여전히 비어있지 않은 경우에만 배열에 추가
                 if (cleanTitle) {
                     titles.push({
