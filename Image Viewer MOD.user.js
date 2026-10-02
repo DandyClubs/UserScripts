@@ -383,7 +383,7 @@ const siteModules = [
         name: 'PixHost',
         enabled: true,
         status: 'unknown',
-        linkRegExp: /pixhost\.to\/(show|images)/,
+        linkRegExp: /pixhost\.(cc|to)\/(show|images)/,
         imageURLRegExp: /class="image-img"\ssrc="(?<url>[^"]+)"/,
         async getURL(link) {
             if (link.thumbnailURL.includes('pixhost')) return link.thumbnailURL.replace('//t', '//img').replace('/thumbs/', '/images/');
