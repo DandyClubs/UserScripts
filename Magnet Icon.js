@@ -254,79 +254,53 @@ function updateClipboard(CopyData) {
     }
 }
 
-function scrollToTitlePx(target, offset = 80, maxRetries = 2, interval = 500) {
+function scrollToTitlePx(target, offset = 80) {
     if (!target) return;
+    let spacer = document.getElementById('scroll-spacer');
 
-    function performScroll() {
-        let spacer = document.getElementById('scroll-spacer');
+    // 1. 순수한 문서 및 타겟 위치 계산을 위해 계산 순간에는 기존 스페이서 영향을 제거/임시 리셋
+    // (스페이서가 이미 커진 상태에서 재계산하면 scrollHeight가 왜곡되는 현원인 차단)
+    const currentSpacerHeight = spacer ? parseFloat(spacer.style.height) || 0 : 0;
 
-        // 1. 순수한 문서 및 타겟 위치 계산을 위해 계산 순간에는 기존 스페이서 영향을 제거/임시 리셋
-        // (스페이서가 이미 커진 상태에서 재계산하면 scrollHeight가 왜곡되는 현원인 차단)
-        const currentSpacerHeight = spacer ? parseFloat(spacer.style.height) || 0 : 0;
+    // 2. 타겟의 현재 절대 위치 (문서 최상단 기준)
+    const top = target.getBoundingClientRect().top;
+    const absoluteElementTop = top + window.pageYOffset;
 
-        // 2. 타겟의 현재 절대 위치 (문서 최상단 기준)
-        const top = target.getBoundingClientRect().top;
-        const absoluteElementTop = top + window.pageYOffset;
+    // 3. 도달해야 하는 최종 스크롤 Y 위치
+    const finalPosition = absoluteElementTop - offset;
 
-        // 3. 도달해야 하는 최종 스크롤 Y 위치
-        const finalPosition = absoluteElementTop - offset;
+    // 4. 스페이서가 '없을 때'의 순수 스크롤 가능 최대 높이 계산
+    const viewportHeight = window.innerHeight;
+    const rawScrollHeight = document.documentElement.scrollHeight - currentSpacerHeight;
+    const rawMaxScrollY = rawScrollHeight - viewportHeight;
 
-        // 4. 스페이서가 '없을 때'의 순수 스크롤 가능 최대 높이 계산
-        const viewportHeight = window.innerHeight;
-        const rawScrollHeight = document.documentElement.scrollHeight - currentSpacerHeight;
-        const rawMaxScrollY = rawScrollHeight - viewportHeight;
+    // 5. 정밀한 부족분(shortfall) 계산
+    if (finalPosition > rawMaxScrollY) {
+        // 딱 최종 위치와 순수 최대 스크롤 가능 위치의 '차이'만큼만 필요
+        const exactShortfall = Math.ceil(finalPosition - rawMaxScrollY);
 
-        // 5. 정밀한 부족분(shortfall) 계산
-        if (finalPosition > rawMaxScrollY) {
-            // 딱 최종 위치와 순수 최대 스크롤 가능 위치의 '차이'만큼만 필요
-            const exactShortfall = Math.ceil(finalPosition - rawMaxScrollY);
-
-            if (!spacer) {
-                spacer = document.createElement('div');
-                spacer.id = 'scroll-spacer';
-                spacer.style.pointerEvents = 'none';
-                document.body.appendChild(spacer);
-            }
-
-            // 정확히 부족한 픽셀만 딱 설정 (과도한 뻥튀기 제거)
-            spacer.style.height = `${exactShortfall}px`;
-            console.log(`[Scroll] 하단 공간 정확 보정: +${exactShortfall}px`);
-        } else if (spacer) {
-            // 공간이 충분하면 스페이서 제거
-            spacer.style.height = '0px';
+        if (!spacer) {
+            spacer = document.createElement('div');
+            spacer.id = 'scroll-spacer';
+            spacer.style.pointerEvents = 'none';
+            document.body.appendChild(spacer);
         }
 
-        // 6. 스크롤 이동
-        window.scrollTo({
-            top: Math.max(0, finalPosition),
-            behavior: 'auto'
-        });
+        // 정확히 부족한 픽셀만 딱 설정 (과도한 뻥튀기 제거)
+        spacer.style.height = `${exactShortfall}px`;
+        console.log(`[Scroll] 하단 공간 정확 보정: +${exactShortfall}px`);
+    } else if (spacer) {
+        // 공간이 충분하면 스페이서 제거
+        spacer.style.height = '0px';
     }
 
-    // 1차 스크롤
-    performScroll();
-
-    // 7. 레이아웃 변동 감시 및 미세 오차 보정 루프
-    let retries = 0;
-    const checkInterval = setInterval(() => {
-        retries++;
-
-        const currentTop = target.getBoundingClientRect().top;
-
-        // 목표 오프셋(80px)과 5px 이상 차이가 나면 재조정
-        if (Math.abs(currentTop - offset) > 5) {
-            console.log(`[Scroll Retry ${retries}] 위치 보정 중... (현재: ${Math.round(currentTop)}px, 목표: ${offset}px)`);
-            performScroll();
-        } else {
-            // 정상 도착 시 루프 즉시 종료
-            clearInterval(checkInterval);
-        }
-
-        if (retries >= maxRetries) {
-            clearInterval(checkInterval);
-        }
-    }, interval);
+    // 6. 스크롤 이동
+    window.scrollTo({
+        top: Math.max(0, finalPosition),
+        behavior: 'auto'
+    });
 }
+
 
 /* ============================================================
    1. 초기화 및 실행 제어 (비동기 및 Lazy Loading 대응)
@@ -772,7 +746,7 @@ async function Main() {
                     .replace(/\[[a-zA-Z0-9\.\/]+\]/, '')
                     .trim();
 
-                
+
                 // 최종 결과가 여전히 비어있지 않은 경우에만 배열에 추가
                 if (cleanTitle) {
                     titles.push({
@@ -795,7 +769,7 @@ async function Main() {
             console.log("추출된 제목 목록:", titles.map(t => t.title));
             return titles;
         }
-        
+
         /* ==========================================
                3️⃣ Magnet 매칭 (DOM 위치 기반 Title ↔ Link 매칭)
             ========================================== */
