@@ -204,7 +204,7 @@ const SiteHandlers = [
         handler: function (node) {
         
             const urlParams = new URLSearchParams(PageURL);
-            const displayMode = urlParams.get('forumdefstyle')
+            const displayMode = document.querySelector('div#threadlist.tl div.th table tbody tr td.by a.chked') ? 'yes' : 'no';
             if (displayMode && displayMode === 'yes') {
                 const imageModeItems = [...node.querySelectorAll('div#threadlist div ul li h3.ptn a')]
                 imageModeItems.forEach(function (item) {

@@ -251,7 +251,7 @@ const siteRules = [
         passwordRegex: /(解壓密碼|解壓縮密碼)】[：:]?(.*?)\s*(.+)/,
         breakPoint: [
             // [소스코드 기반] 빨간색(#ff0000) font 태그 내부에 어떤 문자/문장/줄바꿈이 와도 중단점으로 감지
-            /<br>[\s\S]*?<font[^>]*size="5"[^>]*>[\s\S]*?<font[^>]*color="#ff0000"[^>]*>[\s\S]*?<\/font>[\s\S]*?<\/font>/i,
+            /<font[^>]*size="5"[^>]*>[\s\S]*?<font[^>]*color="#ff0000"[^>]*>[\s\S]*?<\/font>[\s\S]*?<\/font>/i,            
 
             // [텍스트 기반] 기존 중단점 목록
             '需要存取權',
