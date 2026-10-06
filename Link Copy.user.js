@@ -24,6 +24,7 @@
 // @include      https://avsake.com/*
 // @include      https://peepxx.com/*
 // @include      https://peepxx.net/*
+// @include      https://avruby.com/*
 // @include      https://jgirl.co/*
 // @include      /sharepornlink\.com\/.*/
 // @include      https://javarchive.com/*
