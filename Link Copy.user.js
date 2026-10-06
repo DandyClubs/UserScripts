@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy (indexedDB)
-// @version      2026.07.18
+// @version      2026.10.06
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.(org|my|st)/
@@ -1559,14 +1559,7 @@ const siteConfigs = [
         }
     },
     {
-        regex: /avsake\.com\/\?p/,
-        config: {
-            copyOffsetAreaSelector: 'div.article_container h1',
-            downloadAreaSelector: 'div.article_container div.context div#post_content'
-        }
-    },
-    {
-        regex: /peepxx\.(net|com)\/\?p/,
+        regex: /(avsake|avruby|peepxx)\.(net|com)\/\?p/,
         config: {
             copyOffsetAreaSelector: 'div.article_container h1',
             downloadAreaSelector: 'div.article_container div.context div#post_content'
