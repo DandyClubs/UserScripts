@@ -1570,7 +1570,11 @@ const siteConfigs = [
         config: {
             copyOffsetAreaSelector: 'div.article_container h1',
             downloadAreaSelector: 'div.article_container div.context div#post_content'
-        }
+        },
+        getDownloadArea: () => {
+                // 1. 해당 경로의 모든 div 요소를 가져옵니다.
+                return document.querySelector('div.article_container')?.querySelectorAll('div.context div#post_content');
+            }
     },
     {
         regex: /jgirl\.co\/post\//,
