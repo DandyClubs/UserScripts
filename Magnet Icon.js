@@ -277,7 +277,7 @@ function scrollToTitlePx(target, offset = 80) {
     // 5. 정밀한 부족분(shortfall) 계산
     if (finalPosition > rawMaxScrollY) {
         // 딱 최종 위치와 순수 최대 스크롤 가능 위치의 '차이'만큼만 필요
-        const exactShortfall = Math.ceil(finalPosition - rawMaxScrollY + 100);
+        const exactShortfall = Math.ceil(finalPosition - rawMaxScrollY + 120);
 
         if (!spacer) {
             spacer = document.createElement('div');
@@ -289,10 +289,7 @@ function scrollToTitlePx(target, offset = 80) {
         // 정확히 부족한 픽셀만 딱 설정 (과도한 뻥튀기 제거)
         spacer.style.height = `${exactShortfall}px`;
         console.log(`[Scroll] 하단 공간 정확 보정: +${exactShortfall}px`);
-    } else if (spacer) {
-        // 공간이 충분하면 스페이서 제거
-        spacer.style.height = '0px';
-    }
+    } 
 
     // 6. 스크롤 이동
     window.scrollTo({
