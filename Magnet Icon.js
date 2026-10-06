@@ -277,7 +277,7 @@ function scrollToTitlePx(target, offset = 80) {
     // 5. 정밀한 부족분(shortfall) 계산
     if (finalPosition > rawMaxScrollY) {
         // 딱 최종 위치와 순수 최대 스크롤 가능 위치의 '차이'만큼만 필요
-        const exactShortfall = Math.ceil(finalPosition - rawMaxScrollY);
+        const exactShortfall = Math.ceil(finalPosition - rawMaxScrollY + 100);
 
         if (!spacer) {
             spacer = document.createElement('div');
