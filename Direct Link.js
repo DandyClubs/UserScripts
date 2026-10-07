@@ -546,10 +546,12 @@ function safeDecodeURIComponent(uriComponent) {
 
 // A. 특정 사이트 전용 핸들러 (Page-specific)
 const urlHandlers = {
+    /*
     'google\\.com/search': {
         selector: 'a[data-jsarwt], a[href*="url?q="]',
         run: (link) => { if (link.getAttribute('data-jsarwt')) link.setAttribute('data-jsarwt', ''); }
     },
+    */
     't66y|xyz|eyny\\.com': {
         selector: 'a[href*="redircdn.com"]',
         run: (link) => {
@@ -615,7 +617,39 @@ const urlHandlers = {
                 link.href = link.href.replace(num, Math.ceil(num));
             }
         }
+    }, 
+    /*   
+    'maxjav\\.com/\\d+': {
+        // href가 '#'이거나 비어있고, data-key 속성을 가지며 클래스가 s-vlt-link인 요소를 선택
+        selector: 'a.s-vlt-link[data-key][href="#"]',
+        isAsync: true, 
+        run: async (link) => {
+            const dataKey = link.getAttribute('data-key');
+            if (!dataKey) return;
+
+            // data-key를 이용해 실제 maxjav 링크 주소를 조합합니다.
+            // (만약 onmouseenter 이벤트에 정의된 조합 방식이 'https://maxjav.com/v/' + dataKey 형태라면 아래와 같이 구성)
+            const targetUrl = 'https://maxjav.com/v/' + dataKey;
+            
+            console.log(`[직접 추적] 동적 생성된 URL: ${targetUrl} -> 최종 URL 추적 중...`);
+            
+            const chain = await traceRedirect(targetUrl);
+            if (chain && chain.length > 0) {
+                // 리다이렉트 체인 중 마지막(최종) URL을 가져옵니다.
+                const finalUrl = chain[chain.length - 1].url;
+                if (finalUrl && finalUrl !== targetUrl) {
+                    // 링크의 href를 최종 목적지로 변경하고, 마우스 오버 시 발동하는 동적 이벤트도 최종 주소로 덮어씌웁니다.
+                    link.href = finalUrl;
+                    link.setAttribute('onmouseenter', `this.href='${finalUrl}'`);
+                    link.setAttribute('ontouchstart', `this.href='${finalUrl}'`);
+                    console.log(`[최종 URL 도달 성공]: ${finalUrl}`);
+                } else {
+                    link.href = targetUrl;
+                }
+            }
+        }
     },
+    */
 };
 
 // B. 범용 링크 핸들러 (Generic-link)
@@ -751,10 +785,13 @@ let finalSelector = "";
 const requestQueue = [];
 let isProcessing = false;
 
+//console.log(`현재 페이지 URL: ${PageURL}\n적용할 핸들러: ${pageMatchEntry ? pageMatchEntry[0] : '범용 핸들러 사용'}`); ;
+
 if (pageMatchEntry) {
     // 특정 페이지 모드: 해당 사이트용 선택자만 사용
     activeHandler = pageMatchEntry[1];
     finalSelector = activeHandler.selector;
+    //console.log(`핸들러: ${activeHandler.run.toString()}\n선택자: ${finalSelector}`);
 } else {
     // 일반 페이지 모드: 모든 generic 핸들러의 선택자를 합쳐서 사용
     finalSelector = Object.values(genericHandlers).map(h => h.selector).join(', ');

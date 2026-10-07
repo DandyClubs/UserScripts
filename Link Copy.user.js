@@ -697,6 +697,47 @@ function indexedDBUpdate() {
 }
 
 
+function traceRedirect(startUrl, maxRedirects = 10) {
+    return new Promise((resolve) => {
+        function request(currentUrl, depth) {
+            GM_xmlhttpRequest({
+                method: "GET",
+                url: currentUrl,
+                redirect: "manual",
+                timeout: 10000, // 10초 타임아웃 설정
+                onload: function (res) {
+                    const locationMatch = res.responseHeaders.match(/location:\s*(.*)/i);
+                    let nextUrl = locationMatch ? locationMatch[1].trim() : null;
+
+                    // 상대 경로로 전달된 경우(예: /download/file.zip) 절대 경로로 변환
+                    if (nextUrl) {
+                        try {
+                            nextUrl = new URL(nextUrl, currentUrl).href;
+                        } catch (e) {
+                            console.error("[traceRedirect] URL 파싱 실패:", e);
+                        }
+                    }
+
+                    // 3xx 리다이렉트 상태이고, 이동할 URL이 존재하며, 최대 깊이에 도달하지 않은 경우
+                    if (nextUrl && res.status >= 300 && res.status < 400 && depth < maxRedirects) {
+                        request(nextUrl, depth + 1);
+                    } else {
+                        resolve(currentUrl); // 최종 목적지 반환
+                    }
+                },
+                onerror: function () {
+                    resolve(currentUrl); // 오류 발생 시 현재까지 도달한 URL 반환
+                },
+                ontimeout: function () {
+                    resolve(currentUrl); // 타임아웃 발생 시 현재까지 도달한 URL 반환
+                }
+            });
+        }
+
+        request(startUrl, 0);
+    });
+}
+
 // MutationObserver가 종료될 때까지 기다리는 함수
 function waitForObserver(targetElement) {
     return new Promise((resolve, reject) => {
@@ -1566,9 +1607,9 @@ const siteConfigs = [
             downloadAreaSelector: 'div.article_container div.context div#post_content'
         },
         getDownloadArea: () => {
-                // 1. 해당 경로의 모든 div 요소를 가져옵니다.
-                return document.querySelector('div.article_container')?.querySelectorAll('div.context div#post_content');
-            }
+            // 1. 해당 경로의 모든 div 요소를 가져옵니다.
+            return document.querySelector('div.article_container')?.querySelectorAll('div.context div#post_content');
+        }
     },
     {
         regex: /jgirl\.co\/post\//,
@@ -1672,11 +1713,37 @@ const siteConfigs = [
         config: {
             copyOffsetAreaSelector: '.post-single h2.title',
             downloadAreaSelector: 'div.post-single.hentry:first-child div.entry p',
-            postProcess: (config) => {
+            postProcess: async (config) => {
                 copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
                 if (!copyOffsetArea) {
                     location.reload();
                 }
+
+                // [추가된 기능] Direct Link 스크립트의 최종 주소 추적 로직 적용
+                const dynamicLinks = document.querySelectorAll('a.s-vlt-link[data-key][href="#"]');
+
+                if (dynamicLinks.length > 0) {
+                    const promises = Array.from(dynamicLinks).map(async (link) => {
+                        const dataKey = link.getAttribute('data-key');
+                        if (!dataKey) return;
+
+                        const targetUrl = 'https://maxjav.com/v/' + dataKey;
+
+                        // 외부 공용 함수 호출
+                        const finalUrl = await traceRedirect(targetUrl);
+
+                        if (finalUrl && finalUrl !== targetUrl) {
+                            link.href = finalUrl;
+                            link.setAttribute('onmouseenter', `this.href='${finalUrl}'`);
+                            link.setAttribute('ontouchstart', `this.href='${finalUrl}'`);
+                        } else {
+                            link.href = targetUrl;
+                        }
+                    });
+console.log('Dynamic links processed:', promises.length);
+                    await Promise.all(promises);
+                }
+console.log('All dynamic links processed.');
                 DownloadArea = document.querySelectorAll(config.downloadAreaSelector);
                 let initialTitle = copyOffsetArea.innerText;
                 const subtitleMatch = initialTitle.match(/\[.+Subtitle\](.+)/);
@@ -2139,7 +2206,7 @@ async function Start() {
     if (currentConfig) {
         // Step 1: `postProcess`에서 동적 셀렉터를 설정할 경우를 대비해 먼저 실행
         if (currentConfig.postProcess) {
-            currentConfig.postProcess(currentConfig);
+            await currentConfig.postProcess(currentConfig);
         }
 
         // Step 2: `copyOffsetArea`가 이미 설정되지 않았으면 기본 셀렉터로 찾기
@@ -3685,7 +3752,7 @@ async function CopyLink() {
     console.log('Final noticeLines:', noticeLines);
     const noticeEl = document.querySelector('.CopyNotice .copyText');
     noticeEl.textContent = noticeLines.join("\n");
-    
+
 
     if (allLinks.length === 0) {
         SkipTitle = ['Link is Empty'];
