@@ -1373,7 +1373,11 @@ const siteConfigs = [
         regex: /xjapan\.org/,
         config: {
             copyOffsetAreaSelector: 'div.single-post-wrap header.entry-header .entry-title',
-            downloadAreaSelector: 'div.entry-container div.entry-content p'
+            downloadAreaSelector: 'article div.entry-container div.entry-content'
+        },
+        getDownloadArea: () => {
+            // 1. 해당 경로의 모든 div 요소를 가져옵니다.
+            return document.querySelector('article')?.querySelectorAll('div.entry-container div.entry-content');
         }
     },
     {
