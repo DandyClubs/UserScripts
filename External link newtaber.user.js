@@ -56,6 +56,7 @@ const RuleActions = {
 // --- 규칙 데이터 ---
 const alwaysNewTabPatterns = [
     // 개별 사이트 및 패턴 규칙
+    /^https:\/\/redir\.me\//,
     /20pie\.com.*\.html/,
     /avcensdownload.pro\/video(?!tag)/,
     /hdreactor\.club.*\.html/,
