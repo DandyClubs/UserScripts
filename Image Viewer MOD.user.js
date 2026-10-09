@@ -670,7 +670,9 @@ function viewerUpdate() {
     viewerPending = true;
 
     requestAnimationFrame(() => {
-        viewer.update();
+        viewer.update({
+            slideOnTouch: false,
+        });
         ViewerList.clear();
         viewerPending = false;
     });
