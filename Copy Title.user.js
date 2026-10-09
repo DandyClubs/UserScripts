@@ -663,7 +663,7 @@ const SiteParsers = {
             }
 
             // 릴리즈 날짜 추출 및 제거
-            const releaseDate = DateRegEx.test(rawTitleText) && !BetweenRegEx.test(rawTitleText) && !UPDateRegEx.test(rawTitleText) ? rawTitleText.match(DateRegEx)[1].trim() : '';
+            const releaseDate = DateRegEx.test(rawTitleText) && !BetweenRegEx.test(rawTitleText) && !UPDateRegEx.test(rawTitleText) ? rawTitleText.match(DateRegEx)[0].trim() : '';
             let FixreleaseDate = '';
             if (releaseDate) {
                 cleanTextitleText = cleanTextitleText.replace(releaseDate, '').replace(/\s?\/\)/g, '').replace(/\s?\/ (\.|-)/, '').replace(' / )', ')').replace('(г.) ', '').trim();

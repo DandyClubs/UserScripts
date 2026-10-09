@@ -786,7 +786,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         if (!ReleaseDate) {
             const dateMatch = line.match(DateRegEx);
             if (dateMatch) {
-                ReleaseDate = dateMatch[1];
+                ReleaseDate = dateMatch[0].trim();
                 // 원본 배열의 line에서 날짜를 지우고 싶다면 아래 주석 해제 (부모 스코프 영향 필요)
                 infoLines[index] = line.replace(ReleaseDate, '').trim();
                 ReleaseDate = ReleaseDate.replace(/[\/\-_]/g, '.');
