@@ -68,7 +68,7 @@
             const allItems = Array.from(document.querySelectorAll(this.itemSelector));
             return allItems.filter(item => {
                 // 1. [클래스 직접 검사] CSS 계산 이전이라도 hiddenbox 클래스가 들어갔다면 즉시 제외
-                if (item.classList.contains('hiddenbox') || item.classList.contains('hidden')) {
+                if (item.classList.contains('hiddenbox')) {
                     return false;
                 }
 
