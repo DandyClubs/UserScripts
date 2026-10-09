@@ -20,7 +20,7 @@
             config: {
                 itemSelector: '#dle-content .shortstory',
                 topOffset: 10,
-                threshold: 0.8
+                threshold: 0.85
             }
         },
         {
@@ -28,7 +28,7 @@
             config: {
                 itemSelector: 'div#dle-content div.story.box',
                 topOffset: 10,
-                threshold: 0.8
+                threshold: 0.85
             }
         }
     ];
@@ -36,7 +36,7 @@
     const DEFAULT_CONFIG = {
         itemSelector: '.shortstory, .card, .post-item, .grid-item, .product-item',
         topOffset: 10,
-        threshold: 0.8
+        threshold: 0.85
     };
 
     class SmartGridScroller {
@@ -114,8 +114,8 @@
 
             const columnsCount = this.cachedColumnsCount;
             const container = this.containerSelector
-            ? document.querySelector(this.containerSelector)
-            : null;
+                ? document.querySelector(this.containerSelector)
+                : null;
 
             const viewportHeight = container ? container.clientHeight : window.innerHeight;
             const containerTop = container ? container.getBoundingClientRect().top : 0;
@@ -177,9 +177,9 @@
                 }
 
                 const targetItem = items[targetIndex];
-                const targetTop = container 
-                ? targetItem.offsetTop - container.offsetTop - this.topOffset
-                : window.pageYOffset + targetItem.getBoundingClientRect().top - this.topOffset;
+                const targetTop = container
+                    ? targetItem.offsetTop - container.offsetTop - this.topOffset
+                    : window.pageYOffset + targetItem.getBoundingClientRect().top - this.topOffset;
 
                 // ----------------------------------------------------
                 // [동적 피치 계산] 목표 위치까지 이동하기 위해 필요한 실시간 스크롤 거리
@@ -216,20 +216,61 @@
             }
         }
 
-        // 다음 페이지 로딩 후 가시 요소 기준 정렬
+        // 페이지 요소 로딩 감지 및 좌표 재계산 후 이동
         waitForNewContentAndScroll(prevItemCount, targetIndex, container) {
             let checks = 0;
             const checkInterval = setInterval(() => {
                 const newItems = this.getVisibleItems();
                 checks++;
 
+                // 11, 12번 등 새 카드가 DOM에 추가되었거나 1.5초가 지난 경우
                 if (newItems.length > prevItemCount || checks > 15) {
                     clearInterval(checkInterval);
-                    if (newItems[targetIndex]) {
-                        this.scrollToItem(newItems[targetIndex], container);
-                    }
+
+                    // 렌더링 및 CSS Grid 재계산이 완료되도록 2프레임 대기 후 실행
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            const latestItems = this.getVisibleItems();
+                            if (latestItems[targetIndex]) {
+                                // 최신 좌표를 다시 계산하여 스크롤 이동
+                                this.scrollToItem(latestItems[targetIndex], container);
+                            }
+                        });
+                    });
                 }
             }, 100);
+        }
+
+        // 스크롤 실행 및 위치 보장
+        scrollToItem(targetItem, container) {
+            if (!targetItem) return;
+
+            const executeScroll = () => {
+                const targetTop = container
+                    ? targetItem.offsetTop - container.offsetTop - this.topOffset
+                    : window.pageYOffset + targetItem.getBoundingClientRect().top - this.topOffset;
+
+                if (container) {
+                    container.scrollTo({ top: targetTop, behavior: 'smooth' });
+                } else {
+                    window.scrollTo({ top: targetTop, behavior: 'smooth' });
+                }
+            };
+
+            // 1차 스크롤 실행
+            executeScroll();
+
+            // 이미지 로딩/그리드 재배치 등으로 Y좌표가 뒤늦게 뒤틀리는 현상을 방지하기 위해 300ms 후 위치 재검증
+            setTimeout(() => {
+                const currentRect = targetItem.getBoundingClientRect();
+                const containerTop = container ? container.getBoundingClientRect().top : 0;
+                const currentDiff = Math.abs((currentRect.top - containerTop) - this.topOffset);
+
+                // 상단 10px 위치와 5px 이상 차이가 나면 최신 위치로 한 번 더 미세 조정
+                if (currentDiff > 5) {
+                    executeScroll();
+                }
+            }, 300);
         }
 
         scrollBackward(items, columnsCount, containerTop, container) {
