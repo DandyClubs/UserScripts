@@ -333,8 +333,71 @@ function applyLinkRules(el, isAltKeyPressed) {
 }
 
 
-// --- 이벤트 리스너 및 헬퍼 함수 (이전과 동일) ---
+
+
+
+// --- 통합된 클릭 이벤트 리스너 ---
+if (/google\.com\/search/.test(location.href)) {
 document.addEventListener('click', (event) => {
+    // 1. 버튼, 인풋, 바디 클릭 시 무시
+    if (event.target.nodeName === "BUTTON" || event.target.nodeName === "INPUT" || event.target.nodeName === "BODY") {
+        return;
+    }
+
+    const linkElement = findLinkElement(event.target);
+    const isAltKeyPressed = event.altKey;
+
+    // 2. Alt 키 클릭 시 디버깅 처리
+    if (isAltKeyPressed) {
+        event.preventDefault();
+        let ruleName;
+        if (linkElement && linkElement.href) {
+            ruleName = applyLinkRules(linkElement, isAltKeyPressed);
+        }
+        console.log(`[ALT 클릭]`, {
+            '링크 요소': event.target,
+            '링크 URL': linkElement?.href,
+            '적용된 규칙': ruleName
+        });
+        return;
+    }
+
+    if (!linkElement || !linkElement.href || linkElement.href.startsWith(location.href + '#')) {
+        return;
+    }
+
+    // 3. 구글 검색 결과 페이지의 jsaction 가로채기 처리    
+    const hasJsAction = linkElement.hasAttribute('jsaction') || linkElement.closest('[jsaction]');
+
+    if (hasJsAction) {
+        // 구글 스크립트 동작 및 이벤트 버블링 완벽 차단
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+
+        // DOM 상에서 jsaction 제거
+        linkElement.removeAttribute('jsaction');
+        const jsactionParent = linkElement.closest('[jsaction]');
+        if (jsactionParent) {
+            jsactionParent.removeAttribute('jsaction');
+        }
+
+        // insert: false로 설정하여 탭이 역순(4,3,2,1)으로 열리지 않고 맨 우측 끝에 순서대로(1,2,3,4) 열리도록 처리
+        if (typeof GM_openInTab === 'function') {
+            GM_openInTab(linkElement.href, { active: false, insert: false });
+        } else {
+            window.open(linkElement.href, '_blank', 'noopener,noreferrer');
+        }
+        return;
+    }
+
+
+    // 4. 일반 사이트용 파이프라인 규칙 적용
+    applyLinkRules(linkElement);
+}, true); // 👈 capture: true 옵션으로 구글의 jsaction보다 먼저 실행
+} else {
+
+    document.addEventListener('click', (event) => {
     const isAltKeyPressed = event.altKey
     if (event.target.nodeName === "BUTTON" || event.target.nodeName === "INPUT" || event.target.nodeName === "BODY") {
         return;
@@ -359,6 +422,8 @@ document.addEventListener('click', (event) => {
     }
 });
 
+
+}
 function MatchRegexElement(target, regex, attributeToSearch) {
     if (attributeToSearch === 'class') {
         return Array.from(target.classList).some(className => regex.test(className));
