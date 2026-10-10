@@ -47,8 +47,8 @@
 
     const lazyImageQueue = new Queue();
 
-    
-    const checkImageVisibility = (img) => {    
+
+    const checkImageVisibility = (img) => {
         if (isValidExternalImage(img)) {
             img.setAttribute('loading', 'lazy');
             lazyImageQueue.enqueue(img);
@@ -500,11 +500,11 @@
         .join('|');
 
     const domainRegex = new RegExp(`(${domainpattern})`, 'i');
-   
 
-    function isValidExternalImage(img) {        
+
+    function isValidExternalImage(img) {
         if (!img) return false;
-        if (img.dataset.isFixing) return false;        
+        if (img.dataset.isFixing) return false;
         if (img.closest('.image-masonry')) return false;
         if (img.closest('.hiddenbox')) return false;
         /*
@@ -519,30 +519,28 @@
                     return false;
                 }
         */
-        let src = img.src || '';
+        let rawSrc = img.getAttribute('src') || "";        
 
-        if (src.startsWith('http://data:image')) {
-            img.src = src.replace('http://', '');
-            src = img.src;
+        if (rawSrc.startsWith('http://data:image')) {
+            img.src = rawSrc.replace('http://', '');
+            rawSrc = img.src;
             return true;
         }
 
-        if (src.startsWith('data:image')) {
+        if (rawSrc.startsWith('data:image')) {
             for (const attr of img.attributes) {
                 if (lazyAttributesMap[attr.name]) {
                     img.src = attr.value;
-                    src = attr.value;
+                    rawSrc = attr.value;
                     break;
                 }
             }
             return true;
         }
 
-        if (!src || src.startsWith('blob:') || src.startsWith('data:') || src.startsWith('https://cm-exchange.toast.com/pixel')) {
+        if (!rawSrc || rawSrc.startsWith('blob:') || rawSrc.startsWith('data:') || rawSrc.startsWith('https://cm-exchange.toast.com/pixel')) {
             return false;
         }
-
-        const rawSrc = img.getAttribute('src') || "";
 
         if (rawSrc.startsWith('https:///e/attach')) {
             const videoLink = img.closest('a[href*="video.php"]');
@@ -559,28 +557,27 @@
             }
             return false;
         }
-        else if (src.startsWith('http://')) {
-            if (domainRegex.test(src)) {
-                img.src = src.replace('http://', 'https://');
-                src = img.src;
+        else if (rawSrc.startsWith('http://')) {
+            if (domainRegex.test(rawSrc)) {
+                img.src = rawSrc.replace('http://', 'https://');
+                rawSrc = img.src;
                 console.log(`[HTTPS-Upgrade] 프로토콜 변경 완료: ${img.src}`);
                 return true;
             }
         }
-        /*
-        else if (src.startsWith('https://i.maxjav.com/')) {
-            img.src = getRedirectUrl(src, "url");
-            src = img.src;
-        }
-            */
 
-        if (!isRealDomain(src)) {
-            console.warn(`정상적인 도메인이 아닙니다. ${src} `, img);
+        else if (rawSrc.startsWith('https://i.maxjav.com/')) {
+            img.src = getRedirectUrl(rawSrc, "url");
+            rawSrc = img.src;
+        }
+
+        if (!isRealDomain(rawSrc)) {
+            console.warn(`정상적인 도메인이 아닙니다. ${rawSrc} `, img);
             return false;
         }
 
-        if (isBadLink(src)) {
-            console.warn(`[Skip] 이미 404로 기록된 링크입니다: ${src}`);
+        if (isBadLink(rawSrc)) {
+            console.warn(`[Skip] 이미 404로 기록된 링크입니다: ${rawSrc}`);
             img.dataset.isImageState = "false";
             return false;
         }

@@ -544,7 +544,7 @@ const getFullSizeQueue = new Queue();
 // 중복 처리 방지를 위한 Set 추가
 const processedElements = new Set();
 
-const TASK_TIMEOUT_MS = 10000;
+const TASK_TIMEOUT_MS = 60000;
 const processCount = 5; // 👈 동시에 처리할 최대 작업 수
 let activeWorkerCount = 0; // 현재 작동 중인 워커의 수
 let isSpawning = false; // 워커가 생성 중인지 확인하는 플래그
@@ -561,7 +561,6 @@ async function getFullSizeManagement() {
             const linkElement = getFullSizeQueue.dequeue();
             if (!linkElement) continue;
 
-            const imageHost = linkElement.dataset.ivHost;
             const extractor = getExtractor(linkElement.href);
 
             if (extractor.status === 'offline') {
@@ -661,31 +660,23 @@ let isWorking = false;
 
 let lastViewerUpdated = performance.now();
 
-let viewerPending = false;
 
-function viewerUpdate() {
-
-    if (viewerPending) return;
-
-    viewerPending = true;
-
-    requestAnimationFrame(() => {
-        viewer.update({
-            slideOnTouch: false,
-        });
-        ViewerList.clear();
-        viewerPending = false;
-    });
-
-}
-/*
 let viewerUpdateTimer = null;
+let canvasView = null;
 function viewerUpdate() {
     if (viewerUpdateTimer) {
         return;
     }
-    // viewerList의 크기가 0보다 클 때만 타이머를 설정합니다.
-    if (ViewerList.size > 0) {
+    // viewerList의 크기가 0보다 클 때만 타이머를 설정합니다.    
+    if (viewer.isShown && ViewerList.size > 0) {
+
+        // 현재 뷰어 모달 캔버스(.viewer-canvas img)에 표시 중인 실제 src(Blob URL 등) 추출
+        const activeCanvasImg = document.querySelector('.viewer-canvas img');
+        console.log('Active Canvas Image:', activeCanvasImg.src, viewer.index);
+        if (!canvasView && activeCanvasImg && activeCanvasImg.src) {
+            canvasView = activeCanvasImg.src;
+        }
+
         if (ViewerList.size >= 10) {
             viewer.update();
             ViewerList.clear();
@@ -700,9 +691,30 @@ function viewerUpdate() {
                 viewerUpdateTimer = null; // 타이머 실행 후 초기화
             }, 5000);
         }
+
+        // 업데이트 직후, 하단 네비게이션 리스트(.viewer-list li img)에서 
+        // data-original-url가 canvasView와 일치하는 <li> 요소 탐색
+        if (canvasView) {
+            const targetLi = Array.from(document.querySelectorAll('.viewer-navbar .viewer-list li img'))
+                .find(img => img.getAttribute('data-original-url') === canvasView)
+                ?.closest('li');
+            console.log('Target <li> for canvasView:', targetLi);
+            if (targetLi && targetLi.dataset.index !== undefined) {
+                const targetIndex = parseInt(targetLi.dataset.index, 10);
+                console.log('Target index for canvasView:', targetIndex, viewer.index);
+                if (viewer.index !== targetIndex) {
+                    viewer.view(targetIndex);
+                }
+            }
+        }
+    } else {
+        clearTimeout(viewerUpdateTimer);
+        viewerUpdateTimer = null; // 타이머 실행 후 초기화
+        viewer.update();
+        ViewerList.clear();
     }
 }
-*/
+
 let container = document.querySelector('#ViewerJS');
 
 function AddViewer() {
@@ -725,8 +737,7 @@ function AddViewer() {
         // falling back to the src if already a real URL
         url(img) {
             const link = img.closest('a.ViewerGallery');
-            const src = img.src.startsWith('data:') ? img.dataset.src : img.src;
-            return link?.dataset.ivImgUrl || src;
+            return link?.dataset.ivImgUrl;
         },
 
         ready() {
@@ -1233,7 +1244,7 @@ function AddEvent(el) {
             viewer.update();
             ViewerList.clear();
             const galleries = document.querySelectorAll('.ViewerGallery');
-            const index = Array.from(galleries).indexOf(clicked); // ← 현재 클릭한 것의 인덱스
+            const index = Array.from(galleries).indexOf(clicked); // ← 현재 클릭한 것의 인덱스            
             viewer.view(index);  // el 대신 index 사용
         }
     }, true);
@@ -1310,7 +1321,7 @@ const image = {
         let img = link.querySelector('img');
 
         if (imageURL) {
-            link.dataset.ivImgUrl = imageURL;
+            //link.dataset.ivImgUrl = imageURL;
             link.classList.add('ViewerGallery');
             return imageURL;
         }
