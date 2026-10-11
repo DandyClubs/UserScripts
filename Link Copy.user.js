@@ -1373,12 +1373,9 @@ const siteConfigs = [
         regex: /xjapan\.org/,
         config: {
             copyOffsetAreaSelector: 'div.single-post-wrap header.entry-header .entry-title',
-            downloadAreaSelector: 'article div.entry-container div.entry-content'
+            downloadAreaSelector: 'article:nth-of-type(1) div.entry-container div.entry-content',            
         },
-        getDownloadArea: () => {
-            // 1. 해당 경로의 모든 div 요소를 가져옵니다.
-            return document.querySelector('article')?.querySelectorAll('div.entry-container div.entry-content');
-        }
+
     },
     {
         regex: /(pornchil\.com\/)(?!$).*$/,
@@ -1523,16 +1520,14 @@ const siteConfigs = [
         regex: /all4jp\.com/,
         config: {
             copyOffsetAreaSelector: 'article.post > h1#post-title',
-            downloadAreaSelector: 'article p',
-            getDownloadArea: (copyOffsetArea) => copyOffsetArea ? copyOffsetArea.closest('article').querySelectorAll('p') : null
+            downloadAreaSelector: 'article:nth-of-type(1) p',            
         }
     },
     {
         regex: /av18plus\.com/,
         config: {
             copyOffsetAreaSelector: 'div#content div.post-single h2.title',
-            downloadAreaSelector: 'div#content div.post-single div.entry p',
-            getDownloadArea: () => document.querySelectorAll('div#content div.post-single div.entry p')
+            downloadAreaSelector: 'div#content div.post-single div.entry p',            
         }
     },
     {
@@ -1608,11 +1603,7 @@ const siteConfigs = [
         regex: /(avsake|avruby|peepxx)\.(net|com)\/\?p/,
         config: {
             copyOffsetAreaSelector: 'div.article_container h1',
-            downloadAreaSelector: 'div.article_container div.context div#post_content'
-        },
-        getDownloadArea: () => {
-            // 1. 해당 경로의 모든 div 요소를 가져옵니다.
-            return document.querySelector('div.article_container')?.querySelectorAll('div.context div#post_content');
+            downloadAreaSelector: 'div.article_container:nth-of-type(1) div.context div#post_content'
         }
     },
     {
@@ -1744,10 +1735,10 @@ const siteConfigs = [
                             link.href = targetUrl;
                         }
                     });
-console.log('Dynamic links processed:', promises.length);
+                    console.log('Dynamic links processed:', promises.length);
                     await Promise.all(promises);
                 }
-console.log('All dynamic links processed.');
+                console.log('All dynamic links processed.');
                 DownloadArea = document.querySelectorAll(config.downloadAreaSelector);
                 let initialTitle = copyOffsetArea.innerText;
                 const subtitleMatch = initialTitle.match(/\[.+Subtitle\](.+)/);
@@ -2223,14 +2214,13 @@ async function Start() {
         }
 
 
-        // Step 3: `DownloadArea`가 이미 설정되지 않았으면 기본 셀렉터나 동적 함수로 찾기
+        // Step 3: `DownloadArea`가 이미 설정되지 않았으면 기본 셀렉터나 동적 함수로 찾기        
         if (!DownloadArea) {
             if (typeof currentConfig.getDownloadArea === 'function') {
                 DownloadArea = currentConfig.getDownloadArea(copyOffsetArea);
             } else if (currentConfig.downloadAreaSelector) {
                 DownloadArea = document.querySelectorAll(currentConfig.downloadAreaSelector);
             }
-
         }
 
         // Step 4: `CoverImage` 결정
