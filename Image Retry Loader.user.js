@@ -18,6 +18,7 @@
 (function () {
     'use strict';
 
+    const imagesSet = new Set();
     // 이미지 재시도 큐    
     const retryQueue = [];
     const retrySet = new Set();
@@ -376,10 +377,17 @@
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         if (node.tagName === 'IMG') {
+                            if (!imagesSet.has(getPureUrl(node.src))) {
+                                imagesSet.add(getPureUrl(node.src));
+                                checkImageVisibility(node);
+                            }
                             checkImageVisibility(node);
                         }
                         node.querySelectorAll('img').forEach(img => {
-                            checkImageVisibility(img);
+                            if (!imagesSet.has(getPureUrl(img.src))) {
+                                imagesSet.add(getPureUrl(img.src));
+                                checkImageVisibility(img);
+                            }
                         });
                     }
                 });
@@ -519,7 +527,7 @@
                     return false;
                 }
         */
-        let rawSrc = img.getAttribute('src') || "";        
+        let rawSrc = img.src;
 
         if (rawSrc.startsWith('http://data:image')) {
             img.src = rawSrc.replace('http://', '');
@@ -582,7 +590,7 @@
             return false;
         }
 
-        const finalRawSrc = img.getAttribute('src');
+        const finalRawSrc = img.src;
         if (!finalRawSrc || finalRawSrc.trim() === "" || finalRawSrc === window.location.href) {
             return false;
         }
@@ -634,7 +642,10 @@
 
         // 초기 로드시 모든 이미지를 IntersectionObserver에 관찰 등록
         document.querySelectorAll('img').forEach(img => {
-            checkImageVisibility(img);
+            if (!imagesSet.has(getPureUrl(img.src))) {
+                imagesSet.add(getPureUrl(img.src));
+                checkImageVisibility(img);
+            }
         });
 
         observer.observe(document.body, { childList: true, subtree: true });
