@@ -662,21 +662,13 @@ let lastViewerUpdated = performance.now();
 
 
 let viewerUpdateTimer = null;
-let canvasView = null;
+
 function viewerUpdate() {
     if (viewerUpdateTimer) {
         return;
     }
     // viewerList의 크기가 0보다 클 때만 타이머를 설정합니다.    
-    if (viewer.isShown && ViewerList.size > 0) {
-
-        // 현재 뷰어 모달 캔버스(.viewer-canvas img)에 표시 중인 실제 src(Blob URL 등) 추출
-        const activeCanvasImg = document.querySelector('.viewer-canvas img');
-        console.log('Active Canvas Image:', activeCanvasImg.src, viewer.index);
-        if (!canvasView && activeCanvasImg && activeCanvasImg.src) {
-            canvasView = activeCanvasImg.src;
-        }
-
+    if (viewer.isShown && ViewerList.size > 0) {        
         if (ViewerList.size >= 10) {
             viewer.update();
             ViewerList.clear();
@@ -690,23 +682,7 @@ function viewerUpdate() {
                 clearTimeout(viewerUpdateTimer);
                 viewerUpdateTimer = null; // 타이머 실행 후 초기화
             }, 5000);
-        }
-
-        // 업데이트 직후, 하단 네비게이션 리스트(.viewer-list li img)에서 
-        // data-original-url가 canvasView와 일치하는 <li> 요소 탐색
-        if (canvasView) {
-            const targetLi = Array.from(document.querySelectorAll('.viewer-navbar .viewer-list li img'))
-                .find(img => img.getAttribute('data-original-url') === canvasView)
-                ?.closest('li');
-            console.log('Target <li> for canvasView:', targetLi);
-            if (targetLi && targetLi.dataset.index !== undefined) {
-                const targetIndex = parseInt(targetLi.dataset.index, 10);
-                console.log('Target index for canvasView:', targetIndex, viewer.index);
-                if (viewer.index !== targetIndex) {
-                    viewer.view(targetIndex);
-                }
-            }
-        }
+        }        
     } else {
         clearTimeout(viewerUpdateTimer);
         viewerUpdateTimer = null; // 타이머 실행 후 초기화
