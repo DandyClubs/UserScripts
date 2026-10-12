@@ -1487,9 +1487,11 @@ const mutCallback = (mutationsList) => {
             }
 
             for (const img of imgs) {
+                /*
                 if (/faleno\.jp\/top\/wp-content\/uploads/.test(img.src)) {
                     convertImages([img]);
                 }
+                    */
                 const link = img.closest('a');
                 if (!link || link.classList.contains('ivChecked')) continue;
                 const P = link.closest('div, section, article') || link.parentElement?.parentElement;
@@ -1537,11 +1539,13 @@ async function Start() {
     startTime = performance.now();
     let ImageLinks = [];
 
+    /*
     const falenoImages = document.querySelectorAll('img[src*="faleno.jp/top/wp-content/uploads/"]');
 
     Array.from(falenoImages).forEach(async (el) => {
         convertImages([el]);
     });
+    */
 
     if (/javarchive\.com\/.*\.html/.test(PageURL)) {
         let Links = document.querySelectorAll('a[href*="https://pixhost.to/show"]');

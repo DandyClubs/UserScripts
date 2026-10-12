@@ -550,7 +550,7 @@ const SearchIDRegExp = (str) => {
 
     for (const regex of extractPatterns) {
         match = str.match(regex);
-        console.log('SearchIDRegExp Test', { str, regex, match });
+        //console.log('SearchIDRegExp Test', { str, regex, match });
         if (match) break;
     }
     if (match) {
@@ -573,14 +573,17 @@ const DirectLink = (url) => {
             method: "GET",
             url: url,
             onload: function (resp) {
-                //console.log(resp.status)
-                //console.log(resp.responseText)
-                const Final = GetDirectLink(url, resp.finalUrl);
-                resolve(Final);
+                if (resp.status === 200) {
+                    const Final = GetDirectLink(url, resp.finalUrl);
+                    resolve(Final);
+                } else {
+                    console.error(`Request failed with status ${resp.status}`);
+                    resolve(null);
+                }
             },
             onerror: function (error) {
                 console.log(error);
-                reject(null);
+                resolve(null);
             }
         });
     });
@@ -1373,7 +1376,7 @@ const siteConfigs = [
         regex: /xjapan\.org/,
         config: {
             copyOffsetAreaSelector: 'div.single-post-wrap header.entry-header .entry-title',
-            downloadAreaSelector: 'article:nth-of-type(1) div.entry-container div.entry-content',            
+            downloadAreaSelector: 'article:nth-of-type(1) div.entry-container div.entry-content',
         },
 
     },
@@ -1520,14 +1523,14 @@ const siteConfigs = [
         regex: /all4jp\.com/,
         config: {
             copyOffsetAreaSelector: 'article.post > h1#post-title',
-            downloadAreaSelector: 'article:nth-of-type(1) p',            
+            downloadAreaSelector: 'article:nth-of-type(1) p',
         }
     },
     {
         regex: /av18plus\.com/,
         config: {
             copyOffsetAreaSelector: 'div#content div.post-single h2.title',
-            downloadAreaSelector: 'div#content div.post-single div.entry p',            
+            downloadAreaSelector: 'div#content div.post-single div.entry p',
         }
     },
     {
@@ -1990,13 +1993,13 @@ const siteRules = [
                 hasValidLink &&
                 (!hasMaker || !hasJapanese);
 
-            console.log({ needsFilenameFetch });
+            //console.log({ needsFilenameFetch });
 
             const rawID = SearchIDRegExp(rawTitle);
             if (needsFilenameFetch) {
                 try {
                     const tasks = links.map(link => {
-                        const host = detectHost(link);
+                        const host = detectHost(link);                        
                         if (!host) return Promise.reject(new Error('Unknown host'));
 
                         return GetFileName(link, host).then(result => {
@@ -2004,6 +2007,8 @@ const siteRules = [
                             return result;
                         });
                     });
+
+
 
                     const newTitle = await Promise.any(tasks);
 
@@ -2405,6 +2410,8 @@ function createDownloadArea(DB) {
 
 async function GetFileName(targetLink, host) {
 
+    console.log(`Fetching filename from ${host}: ${targetLink}`);
+
     // 호스트 설정이 존재하지 않으면 오류를 반환합니다.
     const config = HOST_CONFIG[host];
     if (!config) {
@@ -2418,6 +2425,7 @@ async function GetFileName(targetLink, host) {
             url: targetLink,
             responseType: 'text',
             onload: (res) => {
+                
                 if (res.status !== 200) {
                     return reject(new Error(`Failed to fetch filename. HTTP status: ${res.status}`));
                 }
@@ -2426,8 +2434,10 @@ async function GetFileName(targetLink, host) {
                 const doc = new DOMParser()
                     .parseFromString(res.responseText, "text/html");
 
+
                 // 설정된 선택자를 사용하여 파일명 요소 찾기
                 const filenameElement = doc.querySelector(config.selector);
+                
                 console.log(`Fetched filename from ${host}:`, filenameElement?.textContent, config.selector);
 
                 if (!filenameElement || !filenameElement.textContent) {
@@ -2905,11 +2915,11 @@ async function RefreshIconSet() {
  */
 const HOST_CONFIG = {
     rapidgator: { selector: 'div.text-block.file-descr div.btm p a' },
-    k2s: { selector: 'div > p[data-testid="fileName"]' },
+    k2s: { selector: 'div > p[data-testid]' },
     mexa: { selector: 'div#page table tbody tr td table tbody tr th a' },
     uploadgig: { selector: 'div.panel-heading span.filename' },
     subyshare: { selector: 'div.container h3' },
-    katfile: { selector: 'form#btn_download div.container h2.text-left span' },
+    katfile: { selector: 'form#btn_download div.container h2.text-left span, h1.kfd-fname' },
     ddl: { selector: '.dl-file-name, h2.dk-dl-name' }
 };
 

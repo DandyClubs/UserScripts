@@ -509,7 +509,6 @@
 
     const domainRegex = new RegExp(`(${domainpattern})`, 'i');
 
-
     function isValidExternalImage(img) {
         if (!img) return false;
         if (img.dataset.isFixing) return false;
@@ -528,7 +527,7 @@
                 }
         */
         let rawSrc = img.src;
-
+        
         if (rawSrc.startsWith('http://data:image')) {
             img.src = rawSrc.replace('http://', '');
             rawSrc = img.src;
@@ -590,6 +589,7 @@
             return false;
         }
 
+        
         const finalRawSrc = img.src;
         if (!finalRawSrc || finalRawSrc.trim() === "" || finalRawSrc === window.location.href) {
             return false;
