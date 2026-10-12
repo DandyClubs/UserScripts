@@ -1,11 +1,12 @@
 // ==UserScript==
-// @name         Forum Post Spacebar Scroller
+// @name         Smart Grid Spacebar Scroller
 // @namespace    http://tampermonkey.net/
-// @version      1.0
-// @description  포럼 게시판에서 스페이스바를 누를 때마다 다음 게시물(포스트)이 상단 10px 위치로 정확히 이동
+// @version      1.9
+// @description  Infy Scroll 로딩 후 최종 안착 위치의 스크롤 값을 히스토리에 정확히 동기화하도록 개선
 // @author       User
-// @match        https://www.forumophilia.com/*.html
-// @match        http://www.planetsuzy.org/t*.html
+// @match        https://k2sprn.com/*
+// @match        https://hidefporn.ws/*
+// @match        https://ultoporn.com/*
 // @grant        none
 // @run-at       document-end
 // ==/UserScript==
@@ -13,133 +14,287 @@
 (function () {
     'use strict';
 
-    // ==========================================
-    // 1. 포럼 사이트별 게시물 요소 선택자(Selector) 설정
-    // ==========================================
     const SITE_CONFIGS = [
-        {         
-            hostPattern: /forumophilia\.com$/,
+        {
+            hostPattern: /(k2sprn\.com|hidefporn\.ws)$/,
             config: {
-                postSelector: 'div.forumline div.row[data-post]', // 포럼 게시물 div 선택자
-                topOffset: 10 // 상단 여백 (px)
+                itemSelector: '#dle-content .shortstory',
+                topOffset: 10,
+                threshold: 0.85
             }
         },
-        {            
-            hostPattern: /planetsuzy\.org$/,
+        {
+            hostPattern: /ultoporn\.com$/,
             config: {
-                postSelector: 'div#posts [id^="post"]', // 포럼 게시물 div 선택자
-                topOffset: 10 // 상단 여백 (px)
+                itemSelector: 'div#dle-content div.story.box',
+                topOffset: 10,
+                threshold: 0.85
             }
         }
     ];
 
-    // 기본(Fallback) 포럼 설정 (일반적인 게시판 구조 자동 대응)
     const DEFAULT_CONFIG = {
-        postSelector: '.post, [id^="post-"]',
-        topOffset: 10
+        itemSelector: '.shortstory, .card, .post-item, .grid-item, .product-item',
+        topOffset: 10,
+        threshold: 0.85
     };
 
-    // ==========================================
-    // 2. Forum Scroller Engine Class
-    // ==========================================
-    class ForumScroller {
+    class SmartGridScroller {
         constructor(config = {}) {
-            this.postSelector = config.postSelector;
+            this.itemSelector = config.itemSelector;
             this.topOffset = config.topOffset ?? 10;
+            this.threshold = config.threshold ?? 0.8;
+            this.containerSelector = config.containerSelector ?? null;
+            this.cachedColumnsCount = 1;
+
+            const container = this.containerSelector ? document.querySelector(this.containerSelector) : null;
+            const initialScrollTop = container ? container.scrollTop : window.pageYOffset;
+
+            this.scrollHistory = [initialScrollTop];
+            this.historyIndex = 0;
 
             this.init();
         }
 
         init() {
             window.addEventListener('keydown', (e) => this.handleKeyDown(e), true);
+
+            const resizeObserver = new ResizeObserver(() => {
+                this.updateColumnsCount();
+            });
+            resizeObserver.observe(document.body);
+
+            this.updateColumnsCount();
         }
 
-        // 화면에 실제로 보이고 공간을 차지하는 포스트만 필터링 (.hiddenbox 등 제외)
-        getVisiblePosts() {
-            const allPosts = Array.from(document.querySelectorAll(this.postSelector));
-            return allPosts.filter(post => {
-                if (post.classList.contains('hiddenbox') || post.classList.contains('hidden')) {
+        getVisibleItems() {
+            const allItems = Array.from(document.querySelectorAll(this.itemSelector));
+            return allItems.filter(item => {
+                if (item.classList.contains('hiddenbox')) {
                     return false;
                 }
-                if (post.offsetParent === null) return false;
+                if (item.offsetParent === null) return false;
 
-                const style = window.getComputedStyle(post);
+                const style = window.getComputedStyle(item);
                 return style.display !== 'none' && style.visibility !== 'hidden';
             });
         }
 
+        updateColumnsCount() {
+            const items = this.getVisibleItems();
+            if (items.length === 0) return;
+
+            const firstRowTop = items[0].offsetTop;
+            let count = 0;
+
+            for (let item of items) {
+                if (Math.abs(item.offsetTop - firstRowTop) < 8) {
+                    count++;
+                } else {
+                    break;
+                }
+            }
+            this.cachedColumnsCount = Math.max(1, count);
+        }
+
         handleKeyDown(e) {
-            // 스페이스바가 아니거나 입력창 내부이면 동작 안 함
-            if (e.code !== 'Space' || 
-                ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) || 
+            if (e.code !== 'Space' ||
+                ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) ||
                 document.activeElement.isContentEditable) {
                 return;
             }
 
-            const posts = this.getVisiblePosts();
-            if (posts.length === 0) return;
+            const items = this.getVisibleItems();
+            if (items.length === 0) return;
 
             e.preventDefault();
             e.stopPropagation();
 
-            const currentScrollTop = window.pageYOffset;
-            const isShift = e.shiftKey; // Shift + Space (이전 게시물로 이동)
+            const columnsCount = this.cachedColumnsCount;
+            const container = this.containerSelector
+                ? document.querySelector(this.containerSelector)
+                : null;
 
-            if (!isShift) {
-                this.scrollForward(posts, currentScrollTop);
+            const viewportHeight = container ? container.clientHeight : window.innerHeight;
+            const containerTop = container ? container.getBoundingClientRect().top : 0;
+
+            if (!e.shiftKey) {
+                this.scrollForward(items, columnsCount, viewportHeight, containerTop, container);
             } else {
-                this.scrollBackward(posts, currentScrollTop);
+                this.scrollBackward(container);
             }
         }
 
-        // 정방향 스크롤: 다음 게시물을 상단으로 이동
-        scrollForward(posts, currentScrollTop) {
-            for (let i = 0; i < posts.length; i++) {
-                const postTop = window.pageYOffset + posts[i].getBoundingClientRect().top;
-                
-                // 현재 화면 상단(여백 포함)보다 아래에 위치한 '첫 번째 게시물' 탐색
-                if (postTop > currentScrollTop + this.topOffset + 10) {
-                    window.scrollTo({
-                        top: postTop - this.topOffset,
-                        behavior: 'smooth'
-                    });
-                    return;
+        // 정방향 스크롤 (Space)
+        scrollForward(items, columnsCount, viewportHeight, containerTop, container) {
+            const scrollElement = container || document.documentElement;
+            const currentScrollTop = container ? container.scrollTop : window.pageYOffset;
+            const totalScrollHeight = scrollElement.scrollHeight;
+            const remainingScroll = totalScrollHeight - (currentScrollTop + viewportHeight);
+
+            let targetRowIndex = -1;
+
+            for (let i = 0; i < items.length; i += columnsCount) {
+                const rect = items[i].getBoundingClientRect();
+                const relativeTop = rect.top - containerTop;
+
+                if (relativeTop < viewportHeight && (relativeTop + rect.height) > 15) {
+                    targetRowIndex = i;
                 }
             }
 
-            // 만약 더 이상 아래에 게시물이 없다면 문서 맨 바닥으로 이동
-            window.scrollTo({
-                top: document.documentElement.scrollHeight,
-                behavior: 'smooth'
-            });
+            if (targetRowIndex !== -1) {
+                const i = targetRowIndex;
+                const currentLineItems = items.slice(i, Math.min(i + columnsCount, items.length));
+
+                let maxHeightItem = currentLineItems[0];
+                let maxRect = maxHeightItem.getBoundingClientRect();
+
+                for (let item of currentLineItems) {
+                    const itemRect = item.getBoundingClientRect();
+                    if (itemRect.height > maxRect.height) {
+                        maxHeightItem = item;
+                        maxRect = itemRect;
+                    }
+                }
+
+                const maxRelativeTop = maxRect.top - containerTop;
+                const visibleRatio = (viewportHeight - maxRelativeTop) / maxRect.height;
+
+                let targetIndex = i;
+
+                if (visibleRatio >= this.threshold && (i + columnsCount) < items.length) {
+                    targetIndex = i + columnsCount;
+                }
+
+                // 히스토리 포인터 제어 및 자리 확보
+                if (this.historyIndex < this.scrollHistory.length - 1) {
+                    this.historyIndex++;
+                } else {
+                    this.scrollHistory.push(currentScrollTop);
+                    this.historyIndex = this.scrollHistory.length - 1;
+                }
+
+                const targetItem = items[targetIndex];
+                const targetTop = container
+                    ? targetItem.offsetTop - container.offsetTop - this.topOffset
+                    : window.pageYOffset + targetItem.getBoundingClientRect().top - this.topOffset;
+
+                const requiredScrollDistance = targetTop - currentScrollTop;
+
+                // 바닥 공간이 부족하여 무한 스크롤 로딩이 필요한 경우
+                if (remainingScroll < requiredScrollDistance || remainingScroll < 10) {
+                    if (container) {
+                        container.scrollTo({ top: totalScrollHeight, behavior: 'smooth' });
+                    } else {
+                        window.scrollTo({ top: totalScrollHeight, behavior: 'smooth' });
+                    }
+
+                    // 로딩 대기 후 새 콘텐츠 위치로 이동하면서 최종 안착된 스크롤 값을 히스토리에 반영
+                    this.waitForNewContentAndScroll(items.length, targetIndex, container, this.historyIndex);
+                    return;
+                }
+
+                this.scrollToItem(targetItem, container);
+                return;
+            }
+
+            if (remainingScroll < 50) {
+                if (container) {
+                    container.scrollTo({ top: totalScrollHeight, behavior: 'smooth' });
+                } else {
+                    window.scrollTo({ top: totalScrollHeight, behavior: 'smooth' });
+                }
+            }
         }
 
-        // 역방향 스크롤 (Shift + Space): 이전 게시물로 이동
-        scrollBackward(posts, currentScrollTop) {
-            for (let i = posts.length - 1; i >= 0; i--) {
-                const postTop = window.pageYOffset + posts[i].getBoundingClientRect().top;
+        // 페이지 요소 로딩 감지 후 이동 및 실제 안착된 스크롤 값을 히스토리에 갱신
+        waitForNewContentAndScroll(prevItemCount, targetIndex, container, historyTargetIndex) {
+            let checks = 0;
+            const checkInterval = setInterval(() => {
+                const newItems = this.getVisibleItems();
+                checks++;
 
-                // 현재 화면 상단보다 위에 위치한 게시물 탐색 (거꾸로 순회)
-                if (postTop < currentScrollTop - 10) {
-                    window.scrollTo({
-                        top: postTop - this.topOffset,
-                        behavior: 'smooth'
+                if (newItems.length > prevItemCount || checks > 15) {
+                    clearInterval(checkInterval);
+
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            const latestItems = this.getVisibleItems();
+                            if (latestItems[targetIndex]) {
+                                const targetItem = latestItems[targetIndex];
+                                const targetTop = container
+                                    ? targetItem.offsetTop - container.offsetTop - this.topOffset
+                                    : window.pageYOffset + targetItem.getBoundingClientRect().top - this.topOffset;
+
+                                if (container) {
+                                    container.scrollTo({ top: targetTop, behavior: 'smooth' });
+                                } else {
+                                    window.scrollTo({ top: targetTop, behavior: 'smooth' });
+                                }
+
+                                // 스크롤이 최종 안착된 시점의 실제 위치를 해당 히스토리 인덱스에 정확히 갱신
+                                setTimeout(() => {
+                                    const finalScrollTop = container ? container.scrollTop : window.pageYOffset;
+                                    this.scrollHistory[historyTargetIndex] = finalScrollTop;
+                                }, 350);
+                            }
+                        });
                     });
-                    return;
+                }
+            }, 100);
+        }
+
+        // 역방향 스크롤 (Shift + Space)
+        scrollBackward(container) {
+            if (this.historyIndex > 0) {
+                this.historyIndex--;
+                const targetScrollTop = this.scrollHistory[this.historyIndex];
+
+                if (container) {
+                    container.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+                } else {
+                    window.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+                }
+            } else if (this.historyIndex === 0) {
+                const targetScrollTop = this.scrollHistory[0];
+                if (container) {
+                    container.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+                } else {
+                    window.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
                 }
             }
+        }
 
-            // 맨 위로 도달한 경우
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
+        scrollToItem(targetItem, container) {
+            if (!targetItem) return;
+
+            const executeScroll = () => {
+                const targetTop = container
+                    ? targetItem.offsetTop - container.offsetTop - this.topOffset
+                    : window.pageYOffset + targetItem.getBoundingClientRect().top - this.topOffset;
+
+                if (container) {
+                    container.scrollTo({ top: targetTop, behavior: 'smooth' });
+                } else {
+                    window.scrollTo({ top: targetTop, behavior: 'smooth' });
+                }
+            };
+
+            executeScroll();
+
+            setTimeout(() => {
+                const currentRect = targetItem.getBoundingClientRect();
+                const containerTop = container ? container.getBoundingClientRect().top : 0;
+                const currentDiff = Math.abs((currentRect.top - containerTop) - this.topOffset);
+
+                if (currentDiff > 5) {
+                    executeScroll();
+                }
+            }, 300);
         }
     }
 
-    // ==========================================
-    // 3. 초기화 및 실행부
-    // ==========================================
     function init() {
         const currentHost = window.location.hostname;
 
@@ -153,8 +308,8 @@
         const finalConfig = matched ? matched.config : DEFAULT_CONFIG;
 
         const startScroller = () => {
-            if (document.querySelector(finalConfig.postSelector)) {
-                new ForumScroller(finalConfig);
+            if (document.querySelector(finalConfig.itemSelector)) {
+                new SmartGridScroller(finalConfig);
                 return true;
             }
             return false;
