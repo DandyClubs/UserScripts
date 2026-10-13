@@ -755,8 +755,8 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
             }
 
             // 특정 패턴(Title:)으로 시작하는 경우 예외 처리
-            if (!Title && /^(Title|Video\s?Name)\s?:/i.test(line)) {
-                Title = line.replace(/^(Title|Video\s?Name)\s?:/i, '').replace(/\s\｜.+/, '').trim();
+            if (!Title && /^(Title|Video\s?Name|Video\sinfo)\s?:/i.test(line)) {
+                Title = line.replace(/^(Title|Video\s?Name|Video\sinfo|Video\sinfo)\s?:/i, '').replace(/\s\｜.+/, '').trim();
             }
 
             if (Title) Title = Title.replace(/^\s?(::|:|：)/, '').trim() + ' ';
@@ -829,7 +829,7 @@ function extractInfoFromText(infoLines, fallbackTitle, options = {}) {
         .replace('File:-', '')
         .trim()
         .split('\n')
-        .filter(line => line.trim() && !/^(http|Download|Duration|Resolution|Categories|About)/i.test(line));
+        .filter(line => line.trim() && !/^(http|Download|Duration|Resolution|Categories|About|Screenshot)/i.test(line));
 
     console.log({ CopyTitle, Title, infoLines, cleanedinfoLines });
     const infoLinesFinalTitle = Title ? (Maker || ID ? `${Maker}${ID ? ID + ' ' : ''}${ReleaseDate}${Title}${ModelName}`.replace(/\s+/g, ' ').trim() : `${Title}${ModelName} ${ReleaseDate ? `(${ReleaseDate})` : ''}`.replace(/\s+/g, ' ').trim()) : '';
