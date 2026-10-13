@@ -457,12 +457,13 @@ async function processContent(node, selector, isExtra = false) {
             const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
             if (resolution) {
                 const Title = textContent.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(resolutionMatch[0], '').replace(/^(.*?)(?<=:)/gi, '').trim().toLowerCase();
+                //console.log('Resolution:', resolution, 'Title:', Title);
                 if (Title.split(' ').length < 2 || Title.length < 10) continue;
                 const CheckDB = (text, DB) => DB.some(s => s.K.toLowerCase().includes(text.toLowerCase()));
                 if (resolution >= 1080 && !CheckDB(Title, contentCache)) {
                     //console.log('Title:', Title, '\nResolution:', resolution);
                     await contentManager.add(Title, AddDate);
-                    contentCache = await contentDBUpdate();
+                    contentCache.push({ K: Title, D: AddDate });
                 }
                 else if (resolution <= 720 && CheckDB(Title, contentCache)) {
                     console.log('Low resolution content removed:', resolution, Title);
