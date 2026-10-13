@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      4.5
 // @description  모달 등장과 원본 카드의 인디케이터 생성을 조건 만족할 때까지 정확하게 감시하여 동기화하는 스크립트입니다.
-// @match        https://*.example.com/*
+// @match        https://jgirl.co/*
 // @run-at       document-end
 // @grant        GM_xmlhttpRequest
 // @connect      *
@@ -106,12 +106,14 @@
         });
 
         rawUrls = [...new Set(rawUrls)].filter(url => !url.includes('poster_s'));
-        if (rawUrls.length <= 1) return;
 
         if (overlayContainer) {
             overlayContainer.remove();
         }
 
+        if (rawUrls.length <= 1) return;
+
+        
         previewParent.dataset.converted = 'true';
 
         const container = previewParent.querySelector('.preview-container');
