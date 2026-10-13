@@ -21,14 +21,14 @@
             hostPattern: /forumophilia\.com$/,
             config: {
                 postSelector: 'div.forumline div.row[data-post]', // 포럼 게시물 div 선택자
-                topOffset: 10 // 상단 여백 (px)
+                topOffset: 15 // 상단 여백 (px)
             }
         },
         {
             hostPattern: /planetsuzy\.org$/,
             config: {
                 postSelector: 'div#posts table[id^="post"]', // 포럼 게시물 div 선택자
-                topOffset: 10 // 상단 여백 (px)
+                topOffset: 15 // 상단 여백 (px)
             }
         }
     ];

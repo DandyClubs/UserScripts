@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Smart Grid Spacebar Scroller
 // @namespace    http://tampermonkey.net/
-// @version      1.4
-// @description  Infy Scroll 등 무한 스크롤 확장과의 충돌 방지 및 최하단 자동 로딩 유도 기능 추가
+// @version      1.9
+// @description  Infy Scroll 로딩 후 최종 안착 위치의 스크롤 값을 히스토리에 정확히 동기화하도록 개선
 // @author       User
 // @match        https://k2sprn.com/*
 // @match        https://hidefporn.ws/*
@@ -47,6 +47,12 @@
             this.containerSelector = config.containerSelector ?? null;
             this.cachedColumnsCount = 1;
 
+            const container = this.containerSelector ? document.querySelector(this.containerSelector) : null;
+            const initialScrollTop = container ? container.scrollTop : window.pageYOffset;
+
+            this.scrollHistory = [initialScrollTop];
+            this.historyIndex = 0;
+
             this.init();
         }
 
@@ -61,18 +67,12 @@
             this.updateColumnsCount();
         }
 
-        // ----------------------------------------------------
-        // [핵심 해결책] 화면에 실제 보이는(공간을 차지하는) 요소만 필터링
-        // ----------------------------------------------------
         getVisibleItems() {
             const allItems = Array.from(document.querySelectorAll(this.itemSelector));
             return allItems.filter(item => {
-                // 1. [클래스 직접 검사] CSS 계산 이전이라도 hiddenbox 클래스가 들어갔다면 즉시 제외
                 if (item.classList.contains('hiddenbox')) {
                     return false;
                 }
-
-                // 2. [DOM 렌더링 상태 검사] offsetParent가 null이거나 display/visibility 조건 확인
                 if (item.offsetParent === null) return false;
 
                 const style = window.getComputedStyle(item);
@@ -80,7 +80,6 @@
             });
         }
 
-        // 창 크기 변경 시 보이는 요소들 기준으로만 열(Column) 개수 재계산
         updateColumnsCount() {
             const items = this.getVisibleItems();
             if (items.length === 0) return;
@@ -105,7 +104,6 @@
                 return;
             }
 
-            // 숨겨진 요소(.hiddenbox 등)가 제거된 가시적인 아이템 배열만 가져옴
             const items = this.getVisibleItems();
             if (items.length === 0) return;
 
@@ -123,28 +121,23 @@
             if (!e.shiftKey) {
                 this.scrollForward(items, columnsCount, viewportHeight, containerTop, container);
             } else {
-                this.scrollBackward(items, columnsCount, containerTop, container);
+                this.scrollBackward(container);
             }
         }
 
-        // 정방향 스크롤 (Space)
         // 정방향 스크롤 (Space)
         scrollForward(items, columnsCount, viewportHeight, containerTop, container) {
             const scrollElement = container || document.documentElement;
             const currentScrollTop = container ? container.scrollTop : window.pageYOffset;
             const totalScrollHeight = scrollElement.scrollHeight;
-
-            // 현재 스크롤바가 최하단까지 내려갈 수 있는 남은 총 여유 거리
             const remainingScroll = totalScrollHeight - (currentScrollTop + viewportHeight);
 
-            // 1. 화면 하단 한계선에 걸쳐 있는 '가장 아래쪽 행' 탐색
             let targetRowIndex = -1;
 
             for (let i = 0; i < items.length; i += columnsCount) {
                 const rect = items[i].getBoundingClientRect();
                 const relativeTop = rect.top - containerTop;
 
-                // 뷰포트 내에 일부라도 존재하는 행 탐색
                 if (relativeTop < viewportHeight && (relativeTop + rect.height) > 15) {
                     targetRowIndex = i;
                 }
@@ -154,7 +147,6 @@
                 const i = targetRowIndex;
                 const currentLineItems = items.slice(i, Math.min(i + columnsCount, items.length));
 
-                // 행 내부의 최대 높이 카드를 기준으로 노출 비율 계산
                 let maxHeightItem = currentLineItems[0];
                 let maxRect = maxHeightItem.getBoundingClientRect();
 
@@ -171,9 +163,16 @@
 
                 let targetIndex = i;
 
-                // 노출 비율이 설정값(기본 80%) 이상이면 다음 라인으로 target 변경
                 if (visibleRatio >= this.threshold && (i + columnsCount) < items.length) {
                     targetIndex = i + columnsCount;
+                }
+
+                // 히스토리 포인터 제어 및 자리 확보
+                if (this.historyIndex < this.scrollHistory.length - 1) {
+                    this.historyIndex++;
+                } else {
+                    this.scrollHistory.push(currentScrollTop);
+                    this.historyIndex = this.scrollHistory.length - 1;
                 }
 
                 const targetItem = items[targetIndex];
@@ -181,32 +180,25 @@
                     ? targetItem.offsetTop - container.offsetTop - this.topOffset
                     : window.pageYOffset + targetItem.getBoundingClientRect().top - this.topOffset;
 
-                // ----------------------------------------------------
-                // [동적 피치 계산] 목표 위치까지 이동하기 위해 필요한 실시간 스크롤 거리
-                // ----------------------------------------------------
                 const requiredScrollDistance = targetTop - currentScrollTop;
 
-                // 남아있는 스크롤 가능 공간이 '실제 필요한 스크롤 거리'보다 작다면
-                // (즉, 바닥에 막혀 목표 카드가 top: 10px 위치까지 못 올라오는 상황)
+                // 바닥 공간이 부족하여 무한 스크롤 로딩이 필요한 경우
                 if (remainingScroll < requiredScrollDistance || remainingScroll < 10) {
-                    // 바닥으로 밀어서 Infy Scroll 2페이지 로딩 유도
                     if (container) {
                         container.scrollTo({ top: totalScrollHeight, behavior: 'smooth' });
                     } else {
                         window.scrollTo({ top: totalScrollHeight, behavior: 'smooth' });
                     }
 
-                    // 로딩 후 원래 가려던 targetIndex 위치로 스크롤 이동
-                    this.waitForNewContentAndScroll(items.length, targetIndex, container);
+                    // 로딩 대기 후 새 콘텐츠 위치로 이동하면서 최종 안착된 스크롤 값을 히스토리에 반영
+                    this.waitForNewContentAndScroll(items.length, targetIndex, container, this.historyIndex);
                     return;
                 }
 
-                // 이동 공간이 충분하면 목표 위치로 정렬 스크롤
                 this.scrollToItem(targetItem, container);
                 return;
             }
 
-            // 바닥 근처에 있는 경우 Infy Scroll 유도
             if (remainingScroll < 50) {
                 if (container) {
                     container.scrollTo({ top: totalScrollHeight, behavior: 'smooth' });
@@ -216,24 +208,36 @@
             }
         }
 
-        // 페이지 요소 로딩 감지 및 좌표 재계산 후 이동
-        waitForNewContentAndScroll(prevItemCount, targetIndex, container) {
+        // 페이지 요소 로딩 감지 후 이동 및 실제 안착된 스크롤 값을 히스토리에 갱신
+        waitForNewContentAndScroll(prevItemCount, targetIndex, container, historyTargetIndex) {
             let checks = 0;
             const checkInterval = setInterval(() => {
                 const newItems = this.getVisibleItems();
                 checks++;
 
-                // 11, 12번 등 새 카드가 DOM에 추가되었거나 1.5초가 지난 경우
                 if (newItems.length > prevItemCount || checks > 15) {
                     clearInterval(checkInterval);
 
-                    // 렌더링 및 CSS Grid 재계산이 완료되도록 2프레임 대기 후 실행
                     requestAnimationFrame(() => {
                         requestAnimationFrame(() => {
                             const latestItems = this.getVisibleItems();
                             if (latestItems[targetIndex]) {
-                                // 최신 좌표를 다시 계산하여 스크롤 이동
-                                this.scrollToItem(latestItems[targetIndex], container);
+                                const targetItem = latestItems[targetIndex];
+                                const targetTop = container
+                                    ? targetItem.offsetTop - container.offsetTop - this.topOffset
+                                    : window.pageYOffset + targetItem.getBoundingClientRect().top - this.topOffset;
+
+                                if (container) {
+                                    container.scrollTo({ top: targetTop, behavior: 'smooth' });
+                                } else {
+                                    window.scrollTo({ top: targetTop, behavior: 'smooth' });
+                                }
+
+                                // 스크롤이 최종 안착된 시점의 실제 위치를 해당 히스토리 인덱스에 정확히 갱신
+                                setTimeout(() => {
+                                    const finalScrollTop = container ? container.scrollTop : window.pageYOffset;
+                                    this.scrollHistory[historyTargetIndex] = finalScrollTop;
+                                }, 350);
                             }
                         });
                     });
@@ -241,7 +245,27 @@
             }, 100);
         }
 
-        // 스크롤 실행 및 위치 보장
+        // 역방향 스크롤 (Shift + Space)
+        scrollBackward(container) {
+            if (this.historyIndex > 0) {
+                this.historyIndex--;
+                const targetScrollTop = this.scrollHistory[this.historyIndex];
+
+                if (container) {
+                    container.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+                } else {
+                    window.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+                }
+            } else if (this.historyIndex === 0) {
+                const targetScrollTop = this.scrollHistory[0];
+                if (container) {
+                    container.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+                } else {
+                    window.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+                }
+            }
+        }
+
         scrollToItem(targetItem, container) {
             if (!targetItem) return;
 
@@ -257,45 +281,17 @@
                 }
             };
 
-            // 1차 스크롤 실행
             executeScroll();
 
-            // 이미지 로딩/그리드 재배치 등으로 Y좌표가 뒤늦게 뒤틀리는 현상을 방지하기 위해 300ms 후 위치 재검증
             setTimeout(() => {
                 const currentRect = targetItem.getBoundingClientRect();
                 const containerTop = container ? container.getBoundingClientRect().top : 0;
                 const currentDiff = Math.abs((currentRect.top - containerTop) - this.topOffset);
 
-                // 상단 10px 위치와 5px 이상 차이가 나면 최신 위치로 한 번 더 미세 조정
                 if (currentDiff > 5) {
                     executeScroll();
                 }
             }, 300);
-        }
-
-        scrollBackward(items, columnsCount, containerTop, container) {
-            for (let i = items.length - 1; i >= 0; i--) {
-                const rect = items[i].getBoundingClientRect();
-                const relativeTop = rect.top - containerTop;
-
-                if (relativeTop < -15) {
-                    const targetIndex = Math.max(0, i - (i % columnsCount));
-                    this.scrollToItem(items[targetIndex], container);
-                    break;
-                }
-            }
-        }
-
-        scrollToItem(targetItem, container) {
-            if (!targetItem) return;
-
-            if (container) {
-                const targetTop = targetItem.offsetTop - container.offsetTop - this.topOffset;
-                container.scrollTo({ top: targetTop, behavior: 'smooth' });
-            } else {
-                const targetTop = window.pageYOffset + targetItem.getBoundingClientRect().top - this.topOffset;
-                window.scrollTo({ top: targetTop, behavior: 'smooth' });
-            }
         }
     }
 
