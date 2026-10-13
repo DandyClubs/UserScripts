@@ -227,7 +227,7 @@ function scrollToTitlePx(target, offset = 80) {
     const rawMaxScrollY = rawScrollHeight - viewportHeight;
 
     if (finalPosition > rawMaxScrollY) {
-        const exactShortfall = Math.ceil(finalPosition - rawMaxScrollY + 120);
+        const exactShortfall = Math.ceil(finalPosition - rawMaxScrollY + 140);
 
         if (!spacer) {
             spacer = document.createElement('div');
@@ -354,12 +354,12 @@ function initImageGallery(wrappers) {
             transition: true,
             fullscreen: true,
             keyboard: true,
-            viewed() {}
+            viewed() { }
         });
 
         wrapper.querySelectorAll('img').forEach(img => {
             img.style.cursor = 'pointer';
-            img.addEventListener('click', (e) => {});
+            img.addEventListener('click', (e) => { });
         });
     });
 }
@@ -683,28 +683,28 @@ async function Main() {
         });
 
         // 🛠️ 스페이스바 키다운 이벤트: 정의된 currentIndex를 기반으로 안전하게 순환
-        if(total > 1) {
-        document.addEventListener('keydown', e => {
-            if (e.code !== 'Space' ||
-                ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) ||
-                document.activeElement.isContentEditable) {
-                return;
-            }
-            e.preventDefault();
-            e.stopPropagation();
+        if (total > 1) {
+            document.addEventListener('keydown', e => {
+                if (e.code !== 'Space' ||
+                    ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) ||
+                    document.activeElement.isContentEditable) {
+                    return;
+                }
+                e.preventDefault();
+                e.stopPropagation();
 
-            if (!e.shiftKey) {
-                currentIndex = (currentIndex + 1) % titles.length;
-                const next = titles[currentIndex];
-                scrollToTitlePx(next.element, 80);
-            } else {
-                currentIndex = (currentIndex - 1 + titles.length) % titles.length;
-                const prev = titles[currentIndex];
-                scrollToTitlePx(prev.element, 80);
-            }
-        });
-    }
-        
+                if (!e.shiftKey) {
+                    currentIndex = (currentIndex + 1) % titles.length;
+                    const next = titles[currentIndex];
+                    scrollToTitlePx(next.element, 80);
+                } else {
+                    currentIndex = (currentIndex - 1 + titles.length) % titles.length;
+                    const prev = titles[currentIndex];
+                    scrollToTitlePx(prev.element, 80);
+                }
+            });
+        }
+
         return;
     }
 
