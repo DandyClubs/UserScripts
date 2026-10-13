@@ -944,6 +944,20 @@ async function Main() {
 
 
         });
+        document.addEventListener('keydown', e => {
+            if (e.code !== 'Space' ||
+                ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) ||
+                document.activeElement.isContentEditable) {
+                return;
+            }
+if (!e.shiftKey) {
+                const next = titles[(index + 1) % titles.length];
+                scrollToTitlePx(next.element, 80);
+            } else {
+                const prev = titles[(index - 1 + titles.length) % titles.length];
+                scrollToTitlePx(prev.element, 80);
+            }
+        })
         return;
     }
 
