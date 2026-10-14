@@ -242,12 +242,12 @@
                                 setTimeout(() => {
                                     const finalScrollTop = container ? container.scrollTop : window.pageYOffset;
                                     this.scrollHistory[historyTargetIndex] = finalScrollTop;
-                                }, 350);
+                                }, 500);
                             }
                         });
                     });
                 }
-            }, 100);
+            }, 500);
         }
 
         scrollBackward(container) {
