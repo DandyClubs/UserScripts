@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Smart Grid Spacebar Scroller
+// @name         Smart Grid Spacebar Scroller (No Reflow)
 // @namespace    http://tampermonkey.net/
-// @version      1.9
-// @description  Infy Scroll 로딩 후 최종 안착 위치의 스크롤 값을 히스토리에 정확히 동기화하도록 개선
+// @version      2.0
+// @description  getBoundingClientRect 없이 offsetTop 및 offsetHeight 기반으로 그리드 스크롤 제어
 // @author       User
 // @match        https://k2sprn.com/*
 // @match        https://hidefporn.ws/*
@@ -38,6 +38,17 @@
         topOffset: 10,
         threshold: 0.85
     };
+
+    // 절대 Y 좌표 산출 유틸리티 함수
+    function getAbsoluteTop(element) {
+        let top = 0;
+        let current = element;
+        while (current) {
+            top += current.offsetTop;
+            current = current.offsetParent;
+        }
+        return top;
+    }
 
     class SmartGridScroller {
         constructor(config = {}) {
@@ -115,30 +126,29 @@
                 ? document.querySelector(this.containerSelector)
                 : null;
 
-            const viewportHeight = container ? container.clientHeight : window.innerHeight;
-            const containerTop = container ? container.getBoundingClientRect().top : 0;
-
             if (!e.shiftKey) {
-                this.scrollForward(items, columnsCount, viewportHeight, containerTop, container);
+                this.scrollForward(items, columnsCount, container);
             } else {
                 this.scrollBackward(container);
             }
         }
 
-        // 정방향 스크롤 (Space)
-        scrollForward(items, columnsCount, viewportHeight, containerTop, container) {
+        scrollForward(items, columnsCount, container) {
             const scrollElement = container || document.documentElement;
             const currentScrollTop = container ? container.scrollTop : window.pageYOffset;
+            const viewportHeight = container ? container.clientHeight : window.innerHeight;
             const totalScrollHeight = scrollElement.scrollHeight;
             const remainingScroll = totalScrollHeight - (currentScrollTop + viewportHeight);
+            const containerAbsoluteTop = container ? getAbsoluteTop(container) : 0;
 
             let targetRowIndex = -1;
 
             for (let i = 0; i < items.length; i += columnsCount) {
-                const rect = items[i].getBoundingClientRect();
-                const relativeTop = rect.top - containerTop;
+                const item = items[i];
+                const absoluteTop = getAbsoluteTop(item);
+                const relativeTop = absoluteTop - containerAbsoluteTop - currentScrollTop;
 
-                if (relativeTop < viewportHeight && (relativeTop + rect.height) > 15) {
+                if (relativeTop < viewportHeight && (relativeTop + item.offsetHeight) > 15) {
                     targetRowIndex = i;
                 }
             }
@@ -148,18 +158,18 @@
                 const currentLineItems = items.slice(i, Math.min(i + columnsCount, items.length));
 
                 let maxHeightItem = currentLineItems[0];
-                let maxRect = maxHeightItem.getBoundingClientRect();
+                let maxHeight = maxHeightItem.offsetHeight;
 
                 for (let item of currentLineItems) {
-                    const itemRect = item.getBoundingClientRect();
-                    if (itemRect.height > maxRect.height) {
+                    if (item.offsetHeight > maxHeight) {
                         maxHeightItem = item;
-                        maxRect = itemRect;
+                        maxHeight = item.offsetHeight;
                     }
                 }
 
-                const maxRelativeTop = maxRect.top - containerTop;
-                const visibleRatio = (viewportHeight - maxRelativeTop) / maxRect.height;
+                const maxAbsoluteTop = getAbsoluteTop(maxHeightItem);
+                const maxRelativeTop = maxAbsoluteTop - containerAbsoluteTop - currentScrollTop;
+                const visibleRatio = (viewportHeight - maxRelativeTop) / maxHeight;
 
                 let targetIndex = i;
 
@@ -167,7 +177,6 @@
                     targetIndex = i + columnsCount;
                 }
 
-                // 히스토리 포인터 제어 및 자리 확보
                 if (this.historyIndex < this.scrollHistory.length - 1) {
                     this.historyIndex++;
                 } else {
@@ -177,12 +186,11 @@
 
                 const targetItem = items[targetIndex];
                 const targetTop = container
-                    ? targetItem.offsetTop - container.offsetTop - this.topOffset
-                    : window.pageYOffset + targetItem.getBoundingClientRect().top - this.topOffset;
+                    ? getAbsoluteTop(targetItem) - getAbsoluteTop(container) - this.topOffset
+                    : getAbsoluteTop(targetItem) - this.topOffset;
 
                 const requiredScrollDistance = targetTop - currentScrollTop;
 
-                // 바닥 공간이 부족하여 무한 스크롤 로딩이 필요한 경우
                 if (remainingScroll < requiredScrollDistance || remainingScroll < 10) {
                     if (container) {
                         container.scrollTo({ top: totalScrollHeight, behavior: 'smooth' });
@@ -190,7 +198,6 @@
                         window.scrollTo({ top: totalScrollHeight, behavior: 'smooth' });
                     }
 
-                    // 로딩 대기 후 새 콘텐츠 위치로 이동하면서 최종 안착된 스크롤 값을 히스토리에 반영
                     this.waitForNewContentAndScroll(items.length, targetIndex, container, this.historyIndex);
                     return;
                 }
@@ -208,7 +215,6 @@
             }
         }
 
-        // 페이지 요소 로딩 감지 후 이동 및 실제 안착된 스크롤 값을 히스토리에 갱신
         waitForNewContentAndScroll(prevItemCount, targetIndex, container, historyTargetIndex) {
             let checks = 0;
             const checkInterval = setInterval(() => {
@@ -224,8 +230,8 @@
                             if (latestItems[targetIndex]) {
                                 const targetItem = latestItems[targetIndex];
                                 const targetTop = container
-                                    ? targetItem.offsetTop - container.offsetTop - this.topOffset
-                                    : window.pageYOffset + targetItem.getBoundingClientRect().top - this.topOffset;
+                                    ? getAbsoluteTop(targetItem) - getAbsoluteTop(container) - this.topOffset
+                                    : getAbsoluteTop(targetItem) - this.topOffset;
 
                                 if (container) {
                                     container.scrollTo({ top: targetTop, behavior: 'smooth' });
@@ -233,7 +239,6 @@
                                     window.scrollTo({ top: targetTop, behavior: 'smooth' });
                                 }
 
-                                // 스크롤이 최종 안착된 시점의 실제 위치를 해당 히스토리 인덱스에 정확히 갱신
                                 setTimeout(() => {
                                     const finalScrollTop = container ? container.scrollTop : window.pageYOffset;
                                     this.scrollHistory[historyTargetIndex] = finalScrollTop;
@@ -245,7 +250,6 @@
             }, 100);
         }
 
-        // 역방향 스크롤 (Shift + Space)
         scrollBackward(container) {
             if (this.historyIndex > 0) {
                 this.historyIndex--;
@@ -271,8 +275,8 @@
 
             const executeScroll = () => {
                 const targetTop = container
-                    ? targetItem.offsetTop - container.offsetTop - this.topOffset
-                    : window.pageYOffset + targetItem.getBoundingClientRect().top - this.topOffset;
+                    ? getAbsoluteTop(targetItem) - getAbsoluteTop(container) - this.topOffset
+                    : getAbsoluteTop(targetItem) - this.topOffset;
 
                 if (container) {
                     container.scrollTo({ top: targetTop, behavior: 'smooth' });
@@ -284,9 +288,10 @@
             executeScroll();
 
             setTimeout(() => {
-                const currentRect = targetItem.getBoundingClientRect();
-                const containerTop = container ? container.getBoundingClientRect().top : 0;
-                const currentDiff = Math.abs((currentRect.top - containerTop) - this.topOffset);
+                const currentAbsoluteTop = getAbsoluteTop(targetItem);
+                const currentContainerTop = container ? getAbsoluteTop(container) : 0;
+                const currentRelativeTop = currentAbsoluteTop - currentContainerTop - (container ? container.scrollTop : window.pageYOffset);
+                const currentDiff = Math.abs(currentRelativeTop - this.topOffset);
 
                 if (currentDiff > 5) {
                     executeScroll();
@@ -297,7 +302,6 @@
 
     function init() {
         const currentHost = window.location.hostname;
-
         const matched = SITE_CONFIGS.find(site => {
             if (site.hostPattern instanceof RegExp) {
                 return site.hostPattern.test(currentHost);

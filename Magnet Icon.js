@@ -213,32 +213,37 @@ function updateClipboard(CopyData) {
     }
 }
 
+function getAbsoluteTop(element) {
+    let top = 0;
+    let current = element;
+    while (current) {
+        top += current.offsetTop;
+        current = current.offsetParent;
+    }
+    return top;
+}
+
 function scrollToTitlePx(target, offset = 80) {
     if (!target) return;
     let spacer = document.getElementById('scroll-spacer');
 
-    let attempts = 0;
-    const maxAttempts = 3;
+    // 1. 기존 스페이서 높이 파악 (없으면 0)
+    const currentSpacerHeight = spacer ? parseFloat(spacer.style.height) || 0 : 0;
 
-    function adjustScroll() {
-        attempts++;
+    // 2. offsetTop 기반으로 타겟의 절대 Y 좌표 계산 (getBoundingClientRect 미사용)
+    const absoluteTop = getAbsoluteTop(target);
+    let finalPosition = absoluteTop - offset;
 
-        // 1. 현재 스페이서가 있다면 그 높이를 미리 파악 (없으면 0)
-        const currentSpacerHeight = spacer ? parseFloat(spacer.style.height) || 0 : 0;
+    // 3. 스페이서를 제외한 '순수한' 문서의 최대 스크롤 가능 높이 계산
+    const viewportHeight = window.innerHeight;
+    const rawScrollHeight = document.documentElement.scrollHeight - currentSpacerHeight;
+    const rawMaxScrollY = rawScrollHeight - viewportHeight;
 
-        // 2. 현재 타겟의 절대 Y 좌표 계산
-        let currentTop = target.getBoundingClientRect().top + window.pageYOffset;
-        let finalPosition = currentTop - offset;
+    // 4. 순수 최대 높이보다 도달 위치가 크다면, 부족분만큼 스페이서 높이 재설정
+    if (finalPosition > rawMaxScrollY) {
+        let exactShortfall = Math.ceil(finalPosition - rawMaxScrollY + 120);
 
-        // 3. 스페이서를 제외한 '순수한' 문서의 최대 스크롤 높이 계산
-        const viewportHeight = window.innerHeight;
-        const rawScrollHeight = document.documentElement.scrollHeight - currentSpacerHeight;
-        const rawMaxScrollY = rawScrollHeight - viewportHeight;
-
-        // 4. 순수 최대 높이보다 도달 위치가 크다면, 부족분만큼 스페이서 높이 재설정
-        if (finalPosition > rawMaxScrollY) {
-            let exactShortfall = Math.ceil(finalPosition - rawMaxScrollY + 120);
-
+        if (exactShortfall > currentSpacerHeight) {
             if (!spacer) {
                 spacer = document.createElement('div');
                 spacer.id = 'scroll-spacer';
@@ -246,34 +251,16 @@ function scrollToTitlePx(target, offset = 80) {
                 document.body.appendChild(spacer);
             }
 
-            // 기존 높이를 깎아먹지 않고 필요한 만큼만 정확히 반영
             spacer.style.height = `${exactShortfall}px`;
-            console.log(`스페이서 높이 조정: ${exactShortfall}px (기존: ${currentSpacerHeight}px)`);
-
-            // 스페이서 변경 후 바뀐 좌표 다시 측정
-            currentTop = target.getBoundingClientRect().top + window.pageYOffset;
-            finalPosition = currentTop - offset;
+            console.log(`스페이서 높이 조정: ${exactShortfall}px`);
         }
-
-        // 5. 스크롤 이동
-        const targetScrollTop = Math.max(0, finalPosition);
-        window.scrollTo({
-            top: targetScrollTop,
-            behavior: 'auto'
-        });
-
-        // 6. 스크롤 이동 후 실제 위치 검증 및 오차 재조정
-        requestAnimationFrame(() => {
-            const actualRectTop = target.getBoundingClientRect().top;
-            const error = Math.abs(actualRectTop - offset);
-
-            if (error > 2 && attempts < maxAttempts) {
-                adjustScroll();
-            }
-        });
     }
 
-    adjustScroll();
+    // 5. 최종 스크롤 이동
+    window.scrollTo({
+        top: Math.max(0, finalPosition),
+        behavior: 'auto'
+    });
 }
 
 const containerSelector = '.tpc_content.do_not_catch';
