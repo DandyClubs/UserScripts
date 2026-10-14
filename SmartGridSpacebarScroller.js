@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Smart Grid Spacebar Scroller (No Reflow)
+// @name         Smart Grid Spacebar Scroller (No Reflow & Precise Backward)
 // @namespace    http://tampermonkey.net/
-// @version      2.0
-// @description  getBoundingClientRect 없이 offsetTop 및 offsetHeight 기반으로 그리드 스크롤 제어
+// @version      2.1
+// @description  getBoundingClientRect 없이 offsetTop 기반으로 상/하단 노출도를 완벽히 계산하는 스페이스바 스크롤러
 // @author       User
 // @match        https://k2sprn.com/*
 // @match        https://hidefporn.ws/*
@@ -39,7 +39,7 @@
         threshold: 0.85
     };
 
-    // 절대 Y 좌표 산출 유틸리티 함수
+    // 절대 Y 좌표 산출 유틸리티 함수 (getBoundingClientRect 미사용)
     function getAbsoluteTop(element) {
         let top = 0;
         let current = element;
@@ -57,13 +57,7 @@
             this.threshold = config.threshold ?? 0.8;
             this.containerSelector = config.containerSelector ?? null;
             this.cachedColumnsCount = 1;
-
-            const container = this.containerSelector ? document.querySelector(this.containerSelector) : null;
-            const initialScrollTop = container ? container.scrollTop : window.pageYOffset;
-
-            this.scrollHistory = [initialScrollTop];
-            this.historyIndex = 0;
-
+            
             this.init();
         }
 
@@ -129,10 +123,11 @@
             if (!e.shiftKey) {
                 this.scrollForward(items, columnsCount, container);
             } else {
-                this.scrollBackward(container);
+                this.scrollBackward(items, columnsCount, container);
             }
         }
 
+        // 정방향 스크롤 (Space)
         scrollForward(items, columnsCount, container) {
             const scrollElement = container || document.documentElement;
             const currentScrollTop = container ? container.scrollTop : window.pageYOffset;
@@ -177,13 +172,6 @@
                     targetIndex = i + columnsCount;
                 }
 
-                if (this.historyIndex < this.scrollHistory.length - 1) {
-                    this.historyIndex++;
-                } else {
-                    this.scrollHistory.push(currentScrollTop);
-                    this.historyIndex = this.scrollHistory.length - 1;
-                }
-
                 const targetItem = items[targetIndex];
                 const targetTop = container
                     ? getAbsoluteTop(targetItem) - getAbsoluteTop(container) - this.topOffset
@@ -198,7 +186,7 @@
                         window.scrollTo({ top: totalScrollHeight, behavior: 'smooth' });
                     }
 
-                    this.waitForNewContentAndScroll(items.length, targetIndex, container, this.historyIndex);
+                    this.waitForNewContentAndScroll(items.length, targetIndex, container);
                     return;
                 }
 
@@ -215,61 +203,149 @@
             }
         }
 
-        waitForNewContentAndScroll(prevItemCount, targetIndex, container, historyTargetIndex) {
-            let checks = 0;
-            const checkInterval = setInterval(() => {
+        // 역방향 스크롤 (Shift + Space): 상단 요소 노출도 체크 기반 정밀 보정
+        scrollBackward(items, columnsCount, container) {
+            const currentScrollTop = container ? container.scrollTop : window.pageYOffset;
+            const viewportHeight = container ? container.clientHeight : window.innerHeight;
+            const containerAbsoluteTop = container ? getAbsoluteTop(container) : 0;
+
+            // 1. 현재 화면 상단(또는 뷰포트 내부 최상단 영역)에 걸쳐 있는 '첫 번째 행'의 시작 인덱스 찾기
+            let topRowIndex = -1;
+
+            for (let i = 0; i < items.length; i += columnsCount) {
+                const item = items[i];
+                const absoluteTop = getAbsoluteTop(item);
+                const relativeTop = absoluteTop - containerAbsoluteTop - currentScrollTop;
+
+                // 행의 높이 (해당 행 내 아이템 중 최대 높이)
+                const lineItems = items.slice(i, Math.min(i + columnsCount, items.length));
+                const maxHeight = Math.max(...lineItems.map(it => it.offsetHeight));
+
+                // 만약 이 행이 화면 상단 부근에 걸쳐 있거나 아래에 있다면 (상단 잘림 여부 판단 대상)
+                if (relativeTop + maxHeight > this.topOffset) {
+                    topRowIndex = i;
+                    break;
+                }
+            }
+
+            // 만약 상단에 보일 만한 요소를 찾지 못했거나 맨 위에 도달한 경우 문서 최상단으로 이동
+            if (topRowIndex === -1 || topRowIndex === 0) {
+                if (container) {
+                    container.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+                return;
+            }
+
+            const topItem = items[topRowIndex];
+            const topAbsoluteTop = getAbsoluteTop(topItem);
+            const topRelativeTop = topAbsoluteTop - containerAbsoluteTop - currentScrollTop;
+            const lineMaxHeight = Math.max(...items.slice(topRowIndex, Math.min(topRowIndex + columnsCount, items.length)).map(it => it.offsetHeight));
+
+            // 상단 윗줄의 노출도 계산 (화면 상단 안에 얼마나 들어와 있는지)
+            // 예컨대 topRelativeTop이 음수라면 그만큼 잘려 있는 상태입니다.
+            const visibleHeight = Math.min(lineMaxHeight, Math.max(0, viewportHeight - topRelativeTop));
+            const exposureRatio = visibleHeight / lineMaxHeight;
+
+            let targetRowIndex = topRowIndex;
+
+            // ⭐️ 규칙 적용:
+            // 1. 제일 윗줄이 충분히 노출되어 있다면(예: 80% 이상 노출), 그 '위쪽 행'을 타겟으로 잡음
+            // 2. 잘려 있거나 노출도가 부족하다면, 현재 윗줄 자체를 타겟으로 잡음
+            if (exposureRatio >= 0.75 && topRowIndex >= columnsCount) {
+                targetRowIndex = topRowIndex - columnsCount;
+            }
+
+            // 타겟 행이 화면 하단에 100% 온전하게 보이도록 스크롤 위치 계산
+            // (타겟 행의 맨 아래가 뷰포트 하단에 안착하거나, 혹은 타겟 행이 화면에 완전히 들어오도록 설정)
+            const targetItem = items[targetRowIndex];
+            const targetLineItems = items.slice(targetRowIndex, Math.min(targetRowIndex + columnsCount, items.length));
+            const targetMaxHeight = Math.max(...targetLineItems.map(it => it.offsetHeight));
+
+            const targetAbsoluteTop = getAbsoluteTop(targetItem);
+
+            // 타겟 행이 화면 아래쪽에 완전히 들어오도록 하는 스크롤 위치 산출:
+            // 타겟의 절대 상단 좌표에서 (뷰포트 높이 - 타겟 행 높이 - 여백)을 빼면 
+            // 타겟 행이 화면 하단에 100% 보이게 안착합니다.
+            let targetTop = (container ? targetAbsoluteTop - containerAbsoluteTop : targetAbsoluteTop) - viewportHeight + targetMaxHeight + 15;
+
+            // 만약 위 계산식보다 더 확실하게 위로 올려야 한다면 상단 기준 정렬과 비교하여 안전하게 처리
+            const alternativeTop = (container ? targetAbsoluteTop - containerAbsoluteTop : targetAbsoluteTop) - this.topOffset;
+
+            // 현재 스크롤보다 확실히 위로 가도록 보정
+            if (targetTop >= currentScrollTop) {
+                targetTop = Math.max(0, alternativeTop);
+            }
+
+            if (container) {
+                container.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+            } else {
+                window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+            }
+        }
+        
+        // 페이지 요소 로딩 감지 후 이동 (MutationObserver 활용)
+        waitForNewContentAndScroll(prevItemCount, targetIndex, container) {
+            const observerTarget = container || document.body;
+
+            // DOM 변화를 실시간으로 감지하는 MutationObserver 생성
+            const observer = new MutationObserver((mutations, obs) => {
                 const newItems = this.getVisibleItems();
-                checks++;
 
-                if (newItems.length > prevItemCount || checks > 15) {
-                    clearInterval(checkInterval);
+                // 새로운 아이템이 추가되었고, 목표로 하는 targetIndex 아이템이 DOM에 존재하는지 확인
+                if (newItems.length > prevItemCount && newItems[targetIndex]) {
+                    obs.disconnect(); // 감지 완료 즉시 옵저버 해제
 
-                    requestAnimationFrame(() => {
+                    // 레이아웃 안정화를 위한 짧은 지연 후 실행
+                    setTimeout(() => {
                         requestAnimationFrame(() => {
-                            const latestItems = this.getVisibleItems();
-                            if (latestItems[targetIndex]) {
-                                const targetItem = latestItems[targetIndex];
+                            const targetItem = newItems[targetIndex];
+
+                            const executeScroll = () => {
                                 const targetTop = container
                                     ? getAbsoluteTop(targetItem) - getAbsoluteTop(container) - this.topOffset
                                     : getAbsoluteTop(targetItem) - this.topOffset;
 
                                 if (container) {
-                                    container.scrollTo({ top: targetTop, behavior: 'smooth' });
+                                    container.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
                                 } else {
-                                    window.scrollTo({ top: targetTop, behavior: 'smooth' });
+                                    window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
                                 }
+                            };
 
-                                setTimeout(() => {
-                                    const finalScrollTop = container ? container.scrollTop : window.pageYOffset;
-                                    this.scrollHistory[historyTargetIndex] = finalScrollTop;
-                                }, 500);
-                            }
+                            executeScroll();
+
+                            // 스크롤 안착 후 topOffset 오차 실시간 재보정 및 히스토리 갱신
+                            setTimeout(() => {
+                                const currentAbsoluteTop = getAbsoluteTop(targetItem);
+                                const currentContainerTop = container ? getAbsoluteTop(container) : 0;
+                                const currentScrollTop = container ? container.scrollTop : window.pageYOffset;
+                                const currentRelativeTop = currentAbsoluteTop - currentContainerTop - currentScrollTop;
+                                const currentDiff = Math.abs(currentRelativeTop - this.topOffset);
+
+                                if (currentDiff > 5) {
+                                    executeScroll();
+                                }
+                                
+                            }, 350);
                         });
-                    });
+                    }, 100);
                 }
-            }, 500);
+            });
+
+            // 문서 또는 컨테이너 하위의 DOM 추가/변경 감지 시작
+            observer.observe(observerTarget, {
+                childList: true,
+                subtree: true
+            });
+
+            // 안전장치: 네트워크 지연 등으로 일정 시간(예: 5초) 이상 새 콘텐츠가 안 들어올 경우 무한 대기 방지용 해제
+            setTimeout(() => {
+                observer.disconnect();
+            }, 5000);
         }
-
-        scrollBackward(container) {
-            if (this.historyIndex > 0) {
-                this.historyIndex--;
-                const targetScrollTop = this.scrollHistory[this.historyIndex];
-
-                if (container) {
-                    container.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
-                } else {
-                    window.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
-                }
-            } else if (this.historyIndex === 0) {
-                const targetScrollTop = this.scrollHistory[0];
-                if (container) {
-                    container.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
-                } else {
-                    window.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
-                }
-            }
-        }
-
+        
         scrollToItem(targetItem, container) {
             if (!targetItem) return;
 
@@ -325,7 +401,7 @@
                     obs.disconnect();
                 }
             });
-            observer.observe(document.body, { childList: true, subtree: true });
+            observer.observe(document.body, { childList: true, subtree: `true` });
         }
     }
 
