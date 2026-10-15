@@ -84,7 +84,7 @@ function ADChange() {
         { regex: /supjav\.com/, patterns: ['pcmload.load'] },
         { regex: /blogjav\.net/, patterns: ['termcolonialhedwig', 'earningskingdeliberately'] },
         { regex: /everia\.club/, patterns: ['adConfig'] },
-        { regex: /xchina\.co/, patterns: ['AdProvider'], closestSelectors: 'div.item, div.relative' },
+        { regex: /xchina\.co/, patterns: ['AdProvider'], closestSelectors: 'div.item, div.relative, div.ph'},
         { regex: /t66y\.com/, patterns: ['var charset='] },
         { regex: /javarchive\.com/, patterns: ['//cse.google.com/adsense/search/async-ads.js'] },
         { regex: /bestvideosexy\.com/, patterns: [], iframeSandbox: true }
