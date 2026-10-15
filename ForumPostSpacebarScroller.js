@@ -32,7 +32,7 @@
         {
             hostPattern: /pornbb\.org$/,
             config: {
-                postSelector: 'div.forumline > div:has(div.cattitle)',
+                postSelector: 'div.forumline > div:has(div.post-head)',
                 topOffset: 15
             }
         }
@@ -102,6 +102,16 @@
         }
 
         scrollForward(posts, currentScrollTop) {
+            // 페이지 최상단 부근에 있고 게시물이 2개 이상인 경우, 첫 스크롤 시 무조건 두 번째 요소(posts[1])로 이동
+            if (currentScrollTop < 100 && posts.length > 1) {
+                const postTop = getAbsoluteTop(posts[1]);
+                window.scrollTo({
+                    top: postTop - this.topOffset,
+                    behavior: 'smooth'
+                });
+                return;
+            }
+
             for (let i = 0; i < posts.length; i++) {
                 const postTop = getAbsoluteTop(posts[i]); // getBoundingClientRect 제거
 
