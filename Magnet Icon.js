@@ -700,6 +700,7 @@ async function Main() {
         });
 
         // 🛠️ 스페이스바 키다운 이벤트: 정의된 currentIndex를 기반으로 안전하게 순환
+        // 🛠️ 스페이스바 키다운 이벤트: 뷰포트 위치가 속한 컨텐츠 구간을 판별하여 정확한 currentIndex 동기화
         if (total > 1) {
             document.addEventListener('keydown', e => {
                 if (e.code !== 'Space' ||
@@ -710,6 +711,30 @@ async function Main() {
                 e.preventDefault();
                 e.stopPropagation();
 
+                const checkPosition = window.scrollY + (window.innerHeight / 2);
+                let activeIndex = currentIndex;
+
+                for (let i = 0; i < titles.length; i++) {
+                    const currentTop = getAbsoluteTop(titles[i].element);
+                    const nextTop = titles[i + 1]
+                        ? getAbsoluteTop(titles[i + 1].element)
+                        : document.documentElement.scrollHeight;
+
+                    // 화면 중앙에 위치한 좌표가 해당 타이틀 구간 내에 있는지 판별
+                    if (checkPosition >= currentTop && checkPosition < nextTop) {
+                        activeIndex = i;
+                        break;
+                    }
+
+                    if (i === 0 && checkPosition < currentTop) {
+                        activeIndex = 0;
+                        break;
+                    }
+                }
+
+                currentIndex = activeIndex;
+
+                // 4. 다음/이전 항목으로 스크롤 이동
                 if (!e.shiftKey) {
                     currentIndex = (currentIndex + 1) % titles.length;
                     const next = titles[currentIndex];
@@ -721,7 +746,7 @@ async function Main() {
                 }
             });
         }
-
+        
         return;
     }
 
@@ -839,7 +864,7 @@ function MakeIcon() {
         CenterBox.insertAdjacentHTML('beforeend', '<i class="CopyItemIcon fa-regular fa-clipboard"></>');
     } else {
         if (firstScrollPos) {
-            CenterBox.style.setProperty('--scroll-top', `${firstScrollPos.getBoundingClientRect().top}px`);
+            CenterBox.style.setProperty('--scroll-top', `${firstScrollPos.getBoundingClientRect().top} px`);
         }
     }
 
@@ -848,7 +873,7 @@ function MakeIcon() {
     const GetDPI = window.devicePixelRatio;
     const DefaultFontSize = getDefaultFontSize();
     const CneterBoxFontSize = Number(((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize)).toFixed(2)) + 'rem';
-    document.querySelector('.CenterBox').style.cssText = `font-size: ${CneterBoxFontSize}; display: block;`;
+    document.querySelector('.CenterBox').style.cssText = `font - size: ${CneterBoxFontSize}; display: block; `;
 }
 
 FontAwesomeCSS();
@@ -919,7 +944,7 @@ function updateMagnetParams(magnet, params) {
             searchParams.set(key, value);
         }
     }
-    return `${protocol}?${decodeURIComponent(searchParams.toString())}`;
+    return `${protocol}?${decodeURIComponent(searchParams.toString())} `;
 }
 
 function FilenameConvert(text) {
