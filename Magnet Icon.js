@@ -662,8 +662,13 @@ async function Main() {
             item.element = span;
         });
 
+        let cachedTops = null;
+
         firstScrollPos = titles[0];
-        init();
+        init().then(() => {
+            cachedTops = titles.map(item => getAbsoluteTop(item.element));
+            console.log("좌표 캐시 생성 완료:", cachedTops);
+        });
 
         // 🛠️ 클릭 이벤트: 클릭한 항목의 인덱스로 currentIndex 동기화
         document.addEventListener('click', e => {
@@ -699,8 +704,8 @@ async function Main() {
             }
         });
 
-        // 🛠️ 스페이스바 키다운 이벤트: 정의된 currentIndex를 기반으로 안전하게 순환
-        // 🛠️ 스페이스바 키다운 이벤트: 뷰포트 위치가 속한 컨텐츠 구간을 판별하여 정확한 currentIndex 동기화
+
+
         if (total > 1) {
             document.addEventListener('keydown', e => {
                 if (e.code !== 'Space' ||
@@ -712,24 +717,34 @@ async function Main() {
                 e.stopPropagation();
 
                 const checkPosition = window.scrollY + (window.innerHeight / 2);
+
+                // 캐시가 없거나 화면 크기 변화 등으로 다시 잡아야 할 때 방어 코드
+                if (!cachedTops || cachedTops.length !== titles.length) {
+                    cachedTops = titles.map(item => getAbsoluteTop(item.element));
+                }
+
                 let activeIndex = currentIndex;
+                let low = 0;
+                let high = cachedTops.length - 1;
 
-                for (let i = 0; i < titles.length; i++) {
-                    const currentTop = getAbsoluteTop(titles[i].element);
-                    const nextTop = titles[i + 1]
-                        ? getAbsoluteTop(titles[i + 1].element)
-                        : document.documentElement.scrollHeight;
+                // 이진 탐색으로 600이 어느 구간에 속하는지 즉시 판별 ([101, 513, 1559, ...] 기준 513과 1559 사이인 index 1 탐색)
+                while (low <= high) {
+                    const mid = Math.floor((low + high) / 2);
+                    const currentTop = cachedTops[mid];
+                    const nextTop = (mid + 1 < cachedTops.length) ? cachedTops[mid + 1] : document.documentElement.scrollHeight;
 
-                    // 화면 중앙에 위치한 좌표가 해당 타이틀 구간 내에 있는지 판별
                     if (checkPosition >= currentTop && checkPosition < nextTop) {
-                        activeIndex = i;
+                        activeIndex = mid;
                         break;
+                    } else if (checkPosition < currentTop) {
+                        high = mid - 1;
+                    } else {
+                        low = mid + 1;
                     }
+                }
 
-                    if (i === 0 && checkPosition < currentTop) {
-                        activeIndex = 0;
-                        break;
-                    }
+                if (checkPosition < cachedTops[0]) {
+                    activeIndex = 0;
                 }
 
                 currentIndex = activeIndex;
@@ -746,7 +761,7 @@ async function Main() {
                 }
             });
         }
-        
+
         return;
     }
 
