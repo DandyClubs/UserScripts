@@ -1999,7 +1999,7 @@ const siteRules = [
             if (needsFilenameFetch) {
                 try {
                     const tasks = links.map(link => {
-                        const host = detectHost(link);                        
+                        const host = detectHost(link);
                         if (!host) return Promise.reject(new Error('Unknown host'));
 
                         return GetFileName(link, host).then(result => {
@@ -2111,7 +2111,9 @@ const waitDownloadArea = [
                 });
             });
             scrollToTop();
-            RefreshIconSet();
+            requestAnimationFrame(() => {                
+                RefreshIconSet();
+            });
         },
     },
     {
@@ -2128,7 +2130,9 @@ const waitDownloadArea = [
 
             const downloadArea = await waitElement(DownloadAreaSelector);
             DownloadArea = [downloadArea];
-            RefreshIconSet();
+            requestAnimationFrame(() => {
+                RefreshIconSet();
+            });
         },
     },
     {
@@ -2156,7 +2160,9 @@ const waitDownloadArea = [
                                 if (foundArea?.length) {
                                     obs.disconnect();
                                     scrollToTop();
-                                    RefreshIconSet();
+                                    requestAnimationFrame(() => {
+                                        RefreshIconSet();
+                                    });
                                     resolve(foundArea); // 👈 여기서 resolve가 호출되어야만 handler의 await가 풀립니다!
                                 }
                             }
@@ -2191,8 +2197,11 @@ const waitDownloadArea = [
                         }
                     });
                 }
+                
                 scrollToTop();
-                RefreshIconSet();
+                requestAnimationFrame(() => {                    
+                    RefreshIconSet();
+                });
             }
             Resolution = !Resolution && copyOffsetArea?.innerText.match(/[0-9]{3,4}p/) ? ' ' + copyOffsetArea.innerText.match(/[0-9]{3,4}p/)[0] : '';
         },
@@ -2425,7 +2434,7 @@ async function GetFileName(targetLink, host) {
             url: targetLink,
             responseType: 'text',
             onload: (res) => {
-                
+
                 if (res.status !== 200) {
                     return reject(new Error(`Failed to fetch filename. HTTP status: ${res.status}`));
                 }
@@ -2437,7 +2446,7 @@ async function GetFileName(targetLink, host) {
 
                 // 설정된 선택자를 사용하여 파일명 요소 찾기
                 const filenameElement = doc.querySelector(config.selector);
-                
+
                 console.log(`Fetched filename from ${host}:`, filenameElement?.textContent, config.selector);
 
                 if (!filenameElement || !filenameElement.textContent) {
@@ -2839,7 +2848,9 @@ async function SecondProcess() {
     }
 
     if (/0xxx\.ws\/articles|pornrip\.cc\/download/.test(PageURL)) {
-        RefreshIconSet();
+        requestAnimationFrame(() => {
+            RefreshIconSet();
+        });
     }
 
     // 3. Base64 URL 디코딩
@@ -2872,7 +2883,9 @@ async function SecondProcess() {
         await CopyGo(SkipTitle);
     }
 
-    RefreshIconSet();
+    requestAnimationFrame(() => {
+        RefreshIconSet();
+    });
 
     // 6. 결과 반환 (기존 resolve 대용)
     return { CopyTitle, DownloadArea };
