@@ -136,7 +136,7 @@ const specializedRulesData = [
     { site: /bo_table=(AVSubs_E|AVSubs_M|AVSubs_S|AVSubs_C)/, c: el => /bo_table=(AVSubs_E|AVSubs_M|AVSubs_S|AVSubs_C)&wr_id/.test(el.href), a: 'NEW_TAB' },
     { site: /eyny\.com/, c: el => /圖片模式/.test(el.textContent), a: 'SAME_TAB' },
     { site: /porndude\.tv/, c: el => el.closest('article.movie-item'), a: 'NEW_TAB' },
-    { site: /xchina\.co/, c: el => el.closest('div.list div.item'), a: 'NEW_TAB' },
+    { site: /xchina\.co/, c: el => el.closest('div.list div.item, .group.block'), a: 'NEW_TAB' },
     { site: /thotsbay|cyberleaks/, c: el => el.parentElement.classList.contains('structItem-title'), a: 'NEW_TAB' },
     { site: /theleaksbay\.com/, c: el => el.classList.contains('image-link'), a: 'NEW_TAB' },
     { site: /planetsuzy\.org/, c: el => el.closest('td')?.getAttribute('id')?.match(/td_threadtitle/), a: 'NEW_TAB' },
