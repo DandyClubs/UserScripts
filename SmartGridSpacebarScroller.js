@@ -7,6 +7,7 @@
 // @match        https://k2sprn.com/*
 // @match        https://hidefporn.ws/*
 // @match        https://ultoporn.com/*
+// @match        http://wetholefans.com/*
 // @grant        none
 // @run-at       document-end
 // ==/UserScript==
@@ -28,6 +29,14 @@
             config: {
                 itemSelector: 'div#dle-content div.story.box',
                 topOffset: 10,
+                threshold: 0.85
+            }
+        },        
+        {
+            hostPattern: /wetholefans\.com$/,
+            config: {
+                itemSelector: 'div#dle-content div.short-story',
+                topOffset: 15,
                 threshold: 0.85
             }
         }

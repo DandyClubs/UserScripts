@@ -6,6 +6,7 @@
 // @author       User
 // @match        https://www.forumophilia.com/*.html
 // @match        http://www.planetsuzy.org/t*.html
+// @match        https://www.pornbb.org/*
 // @grant        none
 // @run-at       document-end
 // ==/UserScript==
@@ -25,6 +26,13 @@
             hostPattern: /planetsuzy\.org$/,
             config: {
                 postSelector: 'div#posts table[id^="post"]',
+                topOffset: 15
+            }
+        },
+        {
+            hostPattern: /pornbb\.org$/,
+            config: {
+                postSelector: 'div.forumline > div:has(div.cattitle)',
                 topOffset: 15
             }
         }
