@@ -32,6 +32,7 @@
 // @include      /(hpjav|hpav)\.tv/
 // @include      /kbjme\.com\/\d+/
 // @include      /(vipbj\.[a-zA-Z]+|avtv\..+|avav\..+|aaav\.me|aaaav\.sbs)/
+// @include      /aaaav\.makeup/
 // @include      /av18plus\.com/
 // @include      /all4jp\.com/
 // @include      /jappydolls\.net/
@@ -1656,7 +1657,7 @@ const siteConfigs = [
         }
     },
     {
-        regex: /vipbj\.[a-zA-Z]+\/.+|avtv\..+|avav\..+|aaav\.me|aaaav\.sbs/,
+        regex: /vipbj\.[a-zA-Z]+\/.+|avtv\..+|avav\..+|aaav\.me|aaaav\.(sbs|makeup)/,
         condition: () => {
             if (document.querySelector('article.hentry header.entry-header .entry-title')?.children?.length) {
                 userClose = false;
@@ -1665,15 +1666,8 @@ const siteConfigs = [
             return true;
         },
         config: {
-            copyOffsetAreaSelector: 'article.hentry header.entry-header > .entry-title',
-            downloadAreaSelector: 'article.hentry div.entry-content.post_content',
-            getDownloadArea: () => {
-                const figureLinks = document.querySelectorAll('article.hentry div.entry-content.post_content figure a');
-                if (figureLinks?.length > 0) {
-                    return document.querySelectorAll('article.hentry div.entry-content.post_content figure');
-                }
-                return document.querySelectorAll('article.hentry div.entry-content.post_content');
-            }
+            copyOffsetAreaSelector: 'article.hentry:nth-of-type(1) header.entry-header > .entry-title',
+            downloadAreaSelector: 'article.hentry:nth-of-type(1) div.entry-content.post_content',            
         }
     },
     {
