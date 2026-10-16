@@ -2111,7 +2111,7 @@ const waitDownloadArea = [
                 });
             });
             scrollToTop();
-            requestAnimationFrame(() => {                
+            requestAnimationFrame(() => {
                 RefreshIconSet();
             });
         },
@@ -2197,11 +2197,13 @@ const waitDownloadArea = [
                         }
                     });
                 }
-                
+
                 scrollToTop();
-                requestAnimationFrame(() => {                    
-                    RefreshIconSet();
-                });
+                document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                RefreshIconSet();
+            }
+        });        
             }
             Resolution = !Resolution && copyOffsetArea?.innerText.match(/[0-9]{3,4}p/) ? ' ' + copyOffsetArea.innerText.match(/[0-9]{3,4}p/)[0] : '';
         },
@@ -2848,9 +2850,11 @@ async function SecondProcess() {
     }
 
     if (/0xxx\.ws\/articles|pornrip\.cc\/download/.test(PageURL)) {
-        requestAnimationFrame(() => {
-            RefreshIconSet();
-        });
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                RefreshIconSet();
+            }
+        });        
     }
 
     // 3. Base64 URL 디코딩
