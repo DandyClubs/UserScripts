@@ -131,16 +131,6 @@ function ADChange() {
             el.remove();
             break;
         }
-        else if (el.outerHTML.includes('tsyndicate')) {
-            // console.log(el)
-            el.remove();
-            break;
-        }
-        else if (el.outerHTML.includes('ethnicexpressions')) {
-            // console.log(el)
-            el.remove();
-            break;
-        }
     }
 }
 
