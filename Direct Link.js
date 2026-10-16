@@ -715,7 +715,7 @@ const genericHandlers = {
         run: async (link) => { const f = await getUrlFromMetaRefresh(link.href); if (f) link.href = f; }
     },
     'final_url_jumps': {
-        selector: 'a[href*="click.dtiserv2.com/Direct"], a[href*="clear-tv.com/Direct"], a[href*="tiny.cc/"], a[href*="tma.cx"]',
+        selector: 'a[href*="click.dtiserv2.com/Direct"], a[href*="clear-tv.com/Direct"], a[href*="tiny.cc/"]',
         isAsync: true,
         run: async (link) => {
             if (/https?:\/\/(click\.dtiserv2\.com|clear-tv.com)\/Direct/.test(link.href)) {
