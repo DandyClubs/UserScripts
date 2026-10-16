@@ -2111,8 +2111,10 @@ const waitDownloadArea = [
                 });
             });
             scrollToTop();
-            requestAnimationFrame(() => {
-                RefreshIconSet();
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    RefreshIconSet();
+                }
             });
         },
     },
@@ -2130,8 +2132,10 @@ const waitDownloadArea = [
 
             const downloadArea = await waitElement(DownloadAreaSelector);
             DownloadArea = [downloadArea];
-            requestAnimationFrame(() => {
-                RefreshIconSet();
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    RefreshIconSet();
+                }
             });
         },
     },
@@ -2160,8 +2164,10 @@ const waitDownloadArea = [
                                 if (foundArea?.length) {
                                     obs.disconnect();
                                     scrollToTop();
-                                    requestAnimationFrame(() => {
-                                        RefreshIconSet();
+                                    document.addEventListener('visibilitychange', () => {
+                                        if (!document.hidden) {
+                                            RefreshIconSet();
+                                        }
                                     });
                                     resolve(foundArea); // 👈 여기서 resolve가 호출되어야만 handler의 await가 풀립니다!
                                 }
@@ -2200,10 +2206,10 @@ const waitDownloadArea = [
 
                 scrollToTop();
                 document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                RefreshIconSet();
-            }
-        });        
+                    if (!document.hidden) {
+                        RefreshIconSet();
+                    }
+                });
             }
             Resolution = !Resolution && copyOffsetArea?.innerText.match(/[0-9]{3,4}p/) ? ' ' + copyOffsetArea.innerText.match(/[0-9]{3,4}p/)[0] : '';
         },
@@ -2854,7 +2860,7 @@ async function SecondProcess() {
             if (!document.hidden) {
                 RefreshIconSet();
             }
-        });        
+        });
     }
 
     // 3. Base64 URL 디코딩
@@ -2887,9 +2893,16 @@ async function SecondProcess() {
         await CopyGo(SkipTitle);
     }
 
-    requestAnimationFrame(() => {
+    if (!document.hidden) {
         RefreshIconSet();
-    });
+    }
+    else {
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                RefreshIconSet();
+            }
+        });
+    }
 
     // 6. 결과 반환 (기존 resolve 대용)
     return { CopyTitle, DownloadArea };
