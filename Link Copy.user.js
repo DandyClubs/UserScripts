@@ -1795,15 +1795,15 @@ const siteConfigs = [
                         let infoAreaID;
                         if (infoTitle && entryID) {
                             infoAreaID = SearchIDRegExp(infoTitle);
-                            cleanIDTitle = Title.replace(entryID, '').trim();
-                            cleanIDInfoTitle = infoTitle.replace(infoAreaID, '').trim();
+                            cleanIDTitle = Title.replace(entryID, '').replace(/–\s(HD|4K)$/i, '').trim();
+                            cleanIDInfoTitle = infoTitle.replace(infoAreaID, '').replace(/–\s(HD|4K)$/i, '').trim();
                         } else {
                             infoTitle = InfoArea.find(line => line.match(ID3D));
                             infoAreaID = infoTitle?.match(ID3D)?.[1] || '';
                             entryID = Title.match(ID3D)?.[1] || '';
                             if (infoAreaID && entryID) {
-                                cleanIDTitle = Title.replace(entryID, '').trim();
-                                cleanIDInfoTitle = infoTitle.replace(infoAreaID, '').trim();
+                                cleanIDTitle = Title.replace(entryID, '').replace(/–\s(HD|4K)$/i, '').trim();
+                                cleanIDInfoTitle = infoTitle.replace(infoAreaID, '').replace(/–\s(HD|4K)$/i, '').trim();
                             }
                         }
                         console.log({ entryID, infoAreaID, cleanIDTitle, cleanIDInfoTitle });
