@@ -50,6 +50,7 @@ GM_addStyle(`
     word-spacing: .5rem;
     font-style: initial !important;
     text-align: center;
+    font-size: 1rem;
     color: dodgerblue !important;
     border-radius: .25em !important;
     text-shadow: 2px 4px 4px rgba(0,0,0,0.2),
@@ -141,7 +142,7 @@ const ExcludeChar = /[&<\/:>*?"|\\]/g;
 const JapaneseChar = /[ぁ-んァ-ン一-龯]/;
 const cyrillicPattern = /[а-яА-ЯЁё]/g;
 const englishPattern = /[A-Za-z0-9]/;
-const titlePrefixRegex = /^【(?:影片标题|影片名称|影片名称代|影片名稱|檔案名稱|文件名称|资源名称|档案名称|影片名称代号|原文片名)】[：:]\s*/g;
+const titlePrefixRegex = /^【(?:影片标题|影片名称|影片名称代|影片名稱|檔案名稱|文件名称|资源名称|档案名称|影片名称代号|原文片名)】[：:]?\s*/g;
 const skipKeywords = ["最强優片", "最強國產專輯"];
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RemoveContentEX = RegexFrom(RemoveContentText.split(/\r?\n/), 'i');
@@ -499,7 +500,7 @@ async function Main() {
 
             while (walker.nextNode()) {
                 let currentNode = walker.currentNode;
-                let raw = currentNode.textContent;
+                let raw = currentNode.textContent;                
 
                 if (!titlePrefixRegex.test(raw)) continue;
 
