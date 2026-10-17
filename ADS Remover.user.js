@@ -131,6 +131,11 @@ function ADChange() {
             el.remove();
             break;
         }
+        if (el.outerHTML.includes('popCount ')) {
+            // console.log(el)
+            el.remove();
+            break;
+        }
     }
 }
 
