@@ -344,7 +344,6 @@ async function init() {
 
     await firstPromise;
 
-
     requestAnimationFrame(() => {
         console.log("첫 번째 섹션 처리 완료. 스크롤 위치 조정 중...", firstScrollPos?.element);
         if (firstScrollPos?.element) {
@@ -500,7 +499,7 @@ async function Main() {
 
             while (walker.nextNode()) {
                 let currentNode = walker.currentNode;
-                let raw = currentNode.textContent;                
+                let raw = currentNode.textContent;
 
                 if (!titlePrefixRegex.test(raw)) continue;
 
@@ -666,9 +665,51 @@ async function Main() {
         let cachedTops = null;
 
         firstScrollPos = titles[0];
+
         init().then(() => {
             cachedTops = titles.map(item => getAbsoluteTop(item.element));
             console.log("좌표 캐시 생성 완료:", cachedTops);
+
+            if (total === 1 && titles.length === 1) {
+                // 브라우저가 스크롤 이동을 완료하고 렌더링을 마칠 수 있도록 한 프레임 대기
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        const targetElement = titles[0].element;
+                        const titleUi = titles[0].element.querySelector('.title-ui');
+
+                        if (titleUi && targetElement) {
+                            const rect = titleUi.getBoundingClientRect();
+
+                            // IntersectionObserver로 targetElement 자체를 관찰
+                            const observer = new IntersectionObserver(([entry]) => {
+                                if (entry.isIntersecting) {
+                                    // 1. 위로 스크롤하여 본래 자리로 돌아왔을 때 (고정 해제)
+                                    titleUi.style.position = 'absolute';
+                                    titleUi.style.top = '17.6px';                                    
+                                    titleUi.style.left = '85%';
+                                    titleUi.style.transform = 'translateY(-50%)';
+                                    titleUi.style.zIndex = '';                                    
+                                }
+                                else {
+                                    titleUi.style.position = 'fixed';
+                                    titleUi.style.top = `${rect.top}px`;
+                                    titleUi.style.left = `${rect.left}px`;
+                                    titleUi.style.transform = 'none';
+                                    titleUi.style.zIndex = '9999';
+                                }
+                            }, {
+                                root: null,
+                                rootMargin: '-80px 0px 0px 0px', // 상단 80px 지점을 기준선으로 설정
+                                threshold: 0
+                            });
+
+                            // 타이틀 요소 관찰 시작
+                            observer.observe(targetElement);
+                        }
+
+                    });
+                });
+            }
         });
 
         // 🛠️ 클릭 이벤트: 클릭한 항목의 인덱스로 currentIndex 동기화
