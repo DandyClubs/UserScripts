@@ -8,6 +8,8 @@
 // @match        https://hidefporn.ws/*
 // @match        https://ultoporn.com/*
 // @match        http://wetholefans.com/*
+// @match        https://www.naughtyblog.st/*
+// @match        https://www.naughtyblog.org/*
 // @grant        none
 // @run-at       document-end
 // ==/UserScript==
@@ -39,7 +41,16 @@
                 topOffset: 15,
                 threshold: 0.85
             }
+        },        
+        {
+            hostPattern: /naughtyblog\.(st|org)$/,
+            config: {
+                itemSelector: 'div#main-content > .post-overview',
+                topOffset: 15,
+                threshold: 0.85
+            }
         }
+
     ];
 
     const DEFAULT_CONFIG = {
