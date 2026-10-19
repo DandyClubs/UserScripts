@@ -88,8 +88,9 @@ class ContentDB {
     }
 
 
-    async add(K, D) {
-        return this._tx('readwrite', store => store.put({ K: K, D: D }));
+    // R (Resolution) 매개변수를 추가하여 해상도 정보도 함께 저장/갱신합니다.
+    async add(K, D, R = 0) {
+        return this._tx('readwrite', store => store.put({ K: K, D: D, R: R }));
     }
 
     async remove(K) {
@@ -455,24 +456,70 @@ async function processContent(node, selector, isExtra = false) {
         else if (/hidefporn\.ws|ultoporn\.com|(k2sporn|k2sprn)\.com|wetholefans\.com/.test(PageURL)) {
             const resolutionMatch = textContent.match(/(\d{3,4})p/);
             const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
+
             if (resolution) {
-                const Title = textContent.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(resolutionMatch[0], '').replace(/^(.*?)(?<=:)/gi, '').trim().toLowerCase();
-                //console.log('Resolution:', resolution, 'Title:', Title);
-                if (Title.split(' ').length < 2 || Title.length < 10) continue;
-                const CheckDB = (text, DB) => DB.some(s => s.K.toLowerCase().includes(text.toLowerCase()));
-                if (resolution >= 1080 && !CheckDB(Title, contentCache)) {
-                    //console.log('Title:', Title, '\nResolution:', resolution);
-                    await contentManager.add(Title, AddDate);
-                    contentCache.push({ K: Title, D: AddDate });
+
+                function cleanTitle(str) {
+                    return str
+                        // 1. S숫자:E숫자 형태가 아닌 일반 '텍스트:' 구분자 패턴만 제거
+                        .replace(/^.*?:/gi, (match) => {
+                            // 매칭된 콜론 영역에 S숫자:E숫자 패턴이 포함되어 있다면 치환하지 않고 유지
+                            if (/s\d{1,2}\s*:\s*e?\d{1,3}/i.test(match)) {
+                                return match;
+                            }
+                            // 일반 스튜디오/카테고리 구분자 콜론인 경우 삭제
+                            return '';
+                        })
+                        // 2. 끝 부분의 날짜 (- MM/DD/YY) 제거
+                        .replace(/\s*-\s*\d{1,4}[.\-\/]\d{1,2}[.\-\/]\d{1,4}$/gi, '')
+                        .trim();
                 }
-                else if (resolution <= 720 && CheckDB(Title, contentCache)) {
-                    console.log('Low resolution content removed:', resolution, Title);
-                    const parentElement = item.closest(Active.removeTagSelector);
-                    if (parentElement) {
-                        parentElement.classList.add('hiddenbox');
-                        parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
+                let Title = cleanTitle(textContent).replace(/^Nude\sLeaked\s-/i, '')
+                    .replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '')
+                    .replace(resolutionMatch[0], '')
+                    .trim().toLowerCase();
+
+
+
+                if (Title.split(' ').length >= 2 && Title.length >= 10) {
+
+                    // 캐시에서 동일 Title 검색
+                    const existingIndex = contentCache.findIndex(s => s.K.toLowerCase() === Title);
+                    const existingItem = existingIndex !== -1 ? contentCache[existingIndex] : null;
+
+                    // 공통 제거 함수
+                    const hideElement = (targetItem) => {
+                        const parentElement = targetItem.closest(Active.removeTagSelector);
+                        if (parentElement) {
+                            parentElement.classList.add('hiddenbox');
+                            parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
+                        }
+                    };
+
+                    if (resolution) {
+                        if (!existingItem) {
+                            // [1. 최초 등록] 해당 타이틀이 없으면 무조건 등록 (해상도 포함)
+                            await contentManager.add(Title, AddDate, resolution);
+                            contentCache.push({ K: Title, D: AddDate, R: resolution, el: item });
+                        }
+                        else if (resolution > (existingItem.R || 0)) {
+                            // [2. 더 높은 해상도 발견] DB/캐시 갱신 + 이전에 탐색된 저해상도 DOM 요소 숨김
+                            console.log(`Higher resolution detected (${existingItem.R || 0}p -> ${resolution}p):`, Title, item);
+
+                            if (existingItem.el) {
+                                hideElement(existingItem.el);
+                            }
+
+                            await contentManager.add(Title, AddDate, resolution);
+                            contentCache[existingIndex] = { K: Title, D: AddDate, R: resolution, el: item };
+                        }
+                        else if (resolution < (existingItem.R || 0)) {
+                            // [3. 더 낮은 해상도 발견] 현재 들어온 낮은 해상도 요소만 숨김
+                            console.log(`Low resolution content removed (${resolution}p < ${existingItem.R}p):`, Title, item);
+                            hideElement(item);
+                            continue;
+                        }
                     }
-                    continue;
                 }
             }
         }
@@ -590,7 +637,7 @@ function getClearTitle(name) {
 document.addEventListener("DOMContentLoaded", async () => {
     await contentManager.init();
     console.log('Start Remove Content!');
-    
+
     const rootElements = Active.rootSelector
         ? Array.from(document.querySelectorAll(Active.rootSelector))
         : [document.body];
