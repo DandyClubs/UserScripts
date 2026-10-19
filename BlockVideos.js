@@ -5,6 +5,7 @@
 // @description  동영상 마우스 오버 시 블럭 아이콘을 추가하여 사이트별로 채널명 및 제목 필터를 개별 설정하고 해당 동영상을 제거합니다.
 // @match        https://www.pornhub.com/*
 // @match        https://www.xvideos.com/*
+// @match        https://xhamster.com/*
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
@@ -20,14 +21,24 @@
             cardSelector: '#singleFeedSection .pcVideoListItem, ul li.pcVideoListItem',
             titleSelector: 'div.vidTitleWrapper span.title a, div.thumbnail-info span.title a',
             channelSelector: 'div.usernameWrap a',
-            insertSelector: 'div.vidTitleWrapper, div.thumbnail-info'
+            insertSelector: 'div.vidTitleWrapper, div.thumbnail-info',
+            className: 'hidden'
         },
         {
             host: 'xvideos.com',
             cardSelector: 'div.mozaique div.thumb-block',
             titleSelector: 'div.thumb-under p.title a',
             channelSelector: 'p.metadata span.bg span a span.name',
-            insertSelector: 'p.metadata'
+            insertSelector: 'p.metadata',
+            className: 'hidden'
+        },
+        {
+            host: 'xhamster.com',
+            cardSelector: 'div.mixed-section div.thumb-list div.video-thumb',
+            titleSelector: 'div.video-thumb-info > div > a.video-thumb-info__name',
+            channelSelector: 'div.video-uploader-data a.video-uploader__name',
+            insertSelector: 'div.video-thumb-info',
+            className: 'hiddenbox'
         }
     ];
 
@@ -36,6 +47,7 @@
 
     const STORAGE_KEY = `video_filters_${currentConfig.host}`;
     let filters = GM_getValue(STORAGE_KEY, { channels: [], titles: [] });
+    
 
 
     // 새로 추가되어 처리가 필요한 요소들을 모아두는 큐(Set)
@@ -60,55 +72,64 @@
     }
 
 
+    // 카드를 숨기는 공통 처리 함수
+    function hideCard(card) {
+        if (!card) return;
+        const className = currentConfig.className || 'hiddenbox';
+        card.classList.add(className);
+        console.log('Card hidden:', card);
+
+    }
+
     // 뷰포트 하단 200px 감지 Observer
-    const viewportObserver = new IntersectionObserver((entries, observer) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const card = entry.target;
-
-                // 감지 완료 후 관찰 해제 (1회성 검사)
-                observer.unobserve(card);
-
-                // 화면 진입 시점에 차단 및 처리
-                card.classList.add('hidden');                                
-            }
-        });
-    }, {
-        root: null,
-        rootMargin: '0px 0px 200px 0px', // 하단 200px 여유 영역
-        threshold: 0
-    });
-
-    // 2. 단일 카드 요소 필터 검사 및 처리
+    
     function processCard(card) {
         if (!card || !(card instanceof HTMLElement)) return;
-        if (card.classList.contains('hidden') || card.style.display === 'none' || card.offsetParent === null) {
+        if (card.classList.contains(currentConfig.className) || card.style.display === 'none' || card.offsetParent === null) {
             return;
         }
-        if (card.dataset.tmProcessed === 'true') return; // 중복 검사 방지
+        if (card.dataset.tmProcessed === 'true') return;
 
+        card.dataset.tmProcessed = 'true'; // 검사 등록 완료 플래그
+
+        // 마우스가 카드에 들어올 때 (mouseenter) 버튼 및 데이터 동적 확인
+        card.addEventListener('mouseenter', () => {
+            handleCardHover(card);
+        });
+
+        // 초기 진입 시점에 이미 필터 대상인지 미리 1회 검사
         const titleEl = card.querySelector(currentConfig.titleSelector);
         const channelEl = card.querySelector(currentConfig.channelSelector);
-
         const titleText = titleEl ? titleEl.textContent.trim() : '';
         const channelText = channelEl ? channelEl.textContent.trim() : '';
 
-        const isChannelBlocked = filters.channels.some(ch =>
-            ch && channelText.toLowerCase() === ch.toLowerCase()
+        const isChannelBlocked = filters.channels.some(ch => 
+            ch && channelText.toLowerCase() === ch.toLowerCase()        
         );
-
         const isTitleBlocked = filters.titles.some(keyword =>
             keyword && titleText.toLowerCase().includes(keyword.toLowerCase())
         );
 
+        
         if (isChannelBlocked || isTitleBlocked) {
-            viewportObserver.observe(card);
-        } else {
-            card.dataset.tmProcessed = 'true'; // 처리 완료 플래그
-            const insertEl = card.querySelector(currentConfig.insertSelector);
-            if (insertEl) {
-                injectBlockButton(card, insertEl, channelText, titleText);
-            }
+            hideCard(card);
+        }
+    };
+
+    // 3. 카드 mouseenter 시 실행할 동적 검사 및 버튼 주입
+    function handleCardHover(card) {
+        // 이미 차단된 요소거나 버튼이 이미 존재하는 경우 스킵
+        if (card.classList.contains('hidden') || card.querySelector('.tm-block-btn-container')) return;
+
+        const titleEl = card.querySelector(currentConfig.titleSelector);
+        const channelEl = card.querySelector(currentConfig.channelSelector);
+        const titleText = titleEl ? titleEl.textContent.trim() : '';
+        const channelText = channelEl ? channelEl.textContent.trim() : '';
+
+        // 지연 로딩된 insertEl 동적 재탐색
+        const insertEl = card.querySelector(currentConfig.insertSelector);
+        if (insertEl) {
+            injectBlockButton(card, insertEl, channelText, titleText);
         }
     }
 
@@ -139,7 +160,7 @@
 
     // 3. 기존 전체 요소 스캔 (초기 실행 및 필터 추가 시에만 호출)
     function scanAllExistingCards() {
-        const cards = document.querySelectorAll(currentConfig.cardSelector);
+        const cards = document.querySelectorAll(currentConfig.cardSelector);        
         cards.forEach(card => processCard(card));
     }
 
@@ -193,7 +214,7 @@
                 if (!filters.channels.includes(channelName)) {
                     filters.channels.push(channelName);
                     popup.remove();
-                    card.classList.add('hidden');
+                    hideCard(card);
                     //card.style.display = 'none';
                     saveFilters();  // 전체 필터 재저장 및 기존 카드 검사
                 }
@@ -223,7 +244,7 @@
                     filters.titles.push(val);
                 }
                 popup.remove();
-                card.classList.add('hidden');
+                hideCard(card);
                 //card.style.display = 'none';
                 saveFilters();  // 전체 필터 재저장 및 기존 카드 검사
             }
@@ -334,19 +355,9 @@
         .tm-add-btn:hover {
             background: #b80710 !important;
         } 
-
-        div.mozaique div.thumb-block[style*="display: none"],
-        div.mozaique div.thumb-block.hidden,
-        #singleFeedSection .pcVideoListItem[style*="display: none"],
-        #singleFeedSection .pcVideoListItem.hidden {            
-            width: 0 !important;
-            height: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-        }       
+            .hiddenbox{
+                display: none !important;
+                }
             
     `;
     document.head.appendChild(style);
