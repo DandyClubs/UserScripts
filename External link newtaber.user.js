@@ -193,7 +193,8 @@ const classBasedNewTabPatterns = {
         /topictitle/,
         /post-box-title/,
         /list-row/,
-        /torTopic/
+        /torTopic/,
+        /structItem-title/,
     ]
 };
 
