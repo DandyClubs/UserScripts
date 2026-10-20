@@ -252,6 +252,7 @@ const siteRules = [
         breakPoint: [
             // [소스코드 기반] 빨간색(#ff0000) font 태그 내부에 어떤 문자/문장/줄바꿈이 와도 중단점으로 감지
             /<font[^>]*size="\d"[^>]*>\s*<font[^>]*color="#ff0000"[^>]*>[\s\S]*?<\/font>\s*<\/font>/i,
+            /<font[^>]*style="background-color:red"[^>]*>[\s\S]*?<font[^>]*size="\d"[^>]*>\s*<strong>\w+<\/strong>\s*<\/font>\s*<\/font>/i,
 
             // [텍스트 기반] 기존 중단점 목록
             '需要存取權',

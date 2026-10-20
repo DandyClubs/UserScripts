@@ -87,7 +87,9 @@ function ADChange() {
         { regex: /xchina\.co/, patterns: ['AdProvider'], closestSelectors: 'div.item, div.relative, div.ph'},
         { regex: /t66y\.com/, patterns: ['var charset='] },
         { regex: /javarchive\.com/, patterns: ['//cse.google.com/adsense/search/async-ads.js'] },
-        { regex: /bestvideosexy\.com/, patterns: [], iframeSandbox: true }
+        { regex: /bestvideosexy\.com/, patterns: [], iframeSandbox: true },
+        { regex: /cosplaytele\.com/, patterns: ['sore-war.com'] },
+
     ];
 
     // 사이트 매칭 & 처리
@@ -131,7 +133,7 @@ function ADChange() {
             el.remove();
             break;
         }
-        if (el.outerHTML.includes('popCount ')) {
+        if (el.outerHTML.includes('popCount')) {
             // console.log(el)
             el.remove();
             break;
