@@ -517,7 +517,7 @@ const K2SRegExp = /(.*k2s\.cc\/file\/)(.*\/?)/;
 const TurboBitRegExp = /^https:\/\/trbt\.cc\//;
 const DateRegEx = /\b(?:(?:19|20)\d{2}[.\/\-\s](?:1[0-2]|0?[1-9])[.\/\-\s](?:3[01]|[12]\d|0?[1-9])|(?:3[01]|[12]\d|0?[1-9])[.\/\-\s](?:1[0-2]|0?[1-9])[.\/\-\s](?:19|20)?\d{2}|(?:1[0-2]|0?[1-9])[.\/\-\s](?:3[01]|[12]\d|0?[1-9])[.\/\-\s](?:19|20)\d{2})\b/g;
 const ID3D = /(MCB3DBD-\d+)(.*)$/i;
-
+const siteParamRegex = /\?(site|referer)=.+$/;
 
 
 const SearchIDRegExp = (str) => {
@@ -3204,34 +3204,92 @@ async function CollectionCoverImage(CoverImage) {
     return result;
 }
 
+function getVersionGroupLinks(div) {
+
+    const groups = {};
+    const childrenNodes = Array.from(div.childNodes);
+    let currentVersion = null; // 초기 상태는 빈 값
+
+    for (const el of childrenNodes) {
+        const text = el?.textContent || '';
+
+        // 1. 텍스트 감지 후 상태 변경 및 그룹 배열 생성
+        if (/Original version/i.test(text)) {
+            currentVersion = 'Original';
+            if (!groups[currentVersion]) groups[currentVersion] = [];
+        } else if (/Watermark version/i.test(text)) {
+            currentVersion = 'Watermark';
+            if (!groups[currentVersion]) groups[currentVersion] = [];
+        }
+
+        // 2. 현재 버전에 맞게 하위 <a> 태그 수집
+        if (currentVersion && el.nodeType === Node.ELEMENT_NODE) {
+            let linksInNode = Array.from(el.querySelectorAll('span.link_archive_innew a'));
+
+            // 노드 자체가 <a> 태그인 경우
+            if (el.tagName === 'A' && !el.querySelector('IMG')) {                
+                linksInNode.push(el);
+            }
+
+            linksInNode.forEach(a => {
+                let url = a.href;
+                if (siteParamRegex.test(url)) {
+                    url = url.replace(siteParamRegex, '');
+                }
+                a.setAttribute('href', url);
+                const isDuplicate = groups[currentVersion].some(existingA => existingA.href === a.href);
+                if (!isDuplicate) {
+                    groups[currentVersion].push(a);
+                }
+            });
+        }
+    }
+
+    // 3. Original이 하나라도 있으면 Original 반환, 없으면 모든 <a> 태그 반환
+    if (groups['Original'] && groups['Original'].length > 0) {
+        console.log('[1단계] Original version 링크 추출 성공:', groups['Original']);
+        return groups['Original'];
+    }
+
+    console.log('[1단계] Original version이 없어 전체 링크를 반환합니다.');
+    return Array.from(div.querySelectorAll('span.link_archive_innew a'));
+}
 
 
 async function CollectionLinks(DownloadArea) {
     const CollectionATag = [];
     const shortLinkRegex = /(\/|=)(aHR0c[a-zA-Z0-9]+={0,2})(?=$|[\/?&;\-])/;
-    const siteParamRegex = /\?(site|referer)=.+$/;
     const skipFileNameRegex = SkipFileName;
 
-    // 1) Gather all <a> elements and normalize their hrefs
-    for (let i = 0; i < DownloadArea.length; i++) {
-        // For xscandals.com, only process the first paragraph
-        if (/xscandals\.com/.test(PageURL) && i > 0) break;
 
-        const anchors = Array.from(DownloadArea[i].querySelectorAll('a'));
-        for (const a of anchors) {
-            let url = a.href;
+    if (/javarchive\.com/.test(RootDomain)) {
+        // DownloadArea 노드(들)로부터 Original 또는 전체 링크 추출
+        const area = document.querySelector('div.category_news_phai_chinh div.news');
+        const versionLinks = getVersionGroupLinks(area);
+        CollectionATag.push(...versionLinks);
 
-            // Decode “aHR0c…” short links
-            const m = url.match(shortLinkRegex);
-            if (m) {
-                url = atob(m[2]);
+    } else {
+        // 1) Gather all <a> elements and normalize their hrefs
+        for (let i = 0; i < DownloadArea.length; i++) {
+            // For xscandals.com, only process the first paragraph
+            if (/xscandals\.com/.test(PageURL) && i > 0) break;
+
+            const anchors = Array.from(DownloadArea[i].querySelectorAll('a'));
+            for (const a of anchors) {
+                let url = a.href;
+
+                // Decode “aHR0c…” short links
+                const m = url.match(shortLinkRegex);
+                if (m) {
+                    url = atob(m[2]);
+                }
+                // Strip trailing “?site=…”
+                else if (siteParamRegex.test(url)) {
+                    url = url.replace(siteParamRegex, '');
+                }
+                a.setAttribute('href', url);
+                CollectionATag.push(a);
             }
-            // Strip trailing “?site=…”
-            else if (siteParamRegex.test(url)) {
-                url = url.replace(siteParamRegex, '');
-            }
-            a.setAttribute('href', url);
-            CollectionATag.push(a);
         }
     }
 
@@ -3304,7 +3362,7 @@ async function CollectionLinks(DownloadArea) {
         if (finalDownloadLinks.length > 0) {
             links = finalDownloadLinks;
         }
-    } else if (/javarchive/.test(RootDomain)) {
+    } else if (/javarchive\.com/.test(RootDomain)) {
         const noSuby = links.filter(a => !/subyshare\.com/i.test(a.textContent));
         const parts = noSuby.filter(a => /part\d+\.rar/i.test(a.textContent));
         if (noSuby.length >= 3) {
@@ -3836,7 +3894,6 @@ function checkSkipFilter(el) {
 async function checkList(areas) {
     if (!areas) return;
     const seenAnchors = new Set();
-    const siteParamRegex = /\?(site|referer)=.+$/;
 
     // 1) 각 영역별 <a> 요소 수집
     for (const area of areas) {
