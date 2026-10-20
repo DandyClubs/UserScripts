@@ -2,7 +2,7 @@
 // @name         Smart Grid Spacebar Scroller (No Reflow & Precise Backward)
 // @namespace    http://tampermonkey.net/
 // @version      2.1
-// @description  getBoundingClientRect 없이 offsetTop 기반으로 상/하단 노출도를 완벽히 계산하는 스페이스바 스크롤러
+// @description  offsetTop 기반으로 상/하단 노출도를 완벽히 계산하는 스페이스바 스크롤러
 // @author       User
 // @match        https://k2sprn.com/*
 // @match        https://hidefporn.ws/*
@@ -33,7 +33,7 @@
                 topOffset: 10,
                 threshold: 0.85
             }
-        },        
+        },
         {
             hostPattern: /wetholefans\.com$/,
             config: {
@@ -41,7 +41,7 @@
                 topOffset: 15,
                 threshold: 0.85
             }
-        },        
+        },
         {
             hostPattern: /naughtyblog\.(st|org)$/,
             config: {
@@ -77,7 +77,9 @@
             this.threshold = config.threshold ?? 0.8;
             this.containerSelector = config.containerSelector ?? null;
             this.cachedColumnsCount = 1;
-            
+
+            this.isScrolling = false;
+
             this.init();
         }
 
@@ -126,6 +128,12 @@
             if (e.code !== 'Space' ||
                 ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName) ||
                 document.activeElement.isContentEditable) {
+                return;
+            }
+
+            if (this.isScrolling) {
+                e.preventDefault();
+                e.stopPropagation();
                 return;
             }
 
@@ -206,7 +214,7 @@
                         window.scrollTo({ top: totalScrollHeight, behavior: 'smooth' });
                     }
 
-                    this.waitForNewContentAndScroll(items.length, targetIndex, container);
+                    this.waitForNewContentAndScroll(targetIndex, columnsCount, container);
                     return;
                 }
 
@@ -304,40 +312,35 @@
                 window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
             }
         }
-        
-        // 페이지 요소 로딩 감지 후 이동 (MutationObserver 활용)
-        waitForNewContentAndScroll(prevItemCount, targetIndex, container) {
-            const observerTarget = container || document.body;
 
-            // DOM 변화를 실시간으로 감지하는 MutationObserver 생성
+        // 페이지 요소 로딩 감지 후 이동 (MutationObserver 활용)        
+        waitForNewContentAndScroll(targetIndex, columnsCount, container) {
+            this.isScrolling = true; // 스크롤 대기 및 실행 동안 중복 입력 잠금
+
+            const observerTarget = container || document.body;
+            const scrollTarget = container || window;
+
             const observer = new MutationObserver((mutations, obs) => {
                 const newItems = this.getVisibleItems();
 
-                // 새로운 아이템이 추가되었고, 목표로 하는 targetIndex 아이템이 DOM에 존재하는지 확인
-                if (newItems.length > prevItemCount && newItems[targetIndex]) {
+                // targetIndex 기준 다음 줄의 최소 요소까지 확보되었는지 확인
+                if (newItems.length >= (targetIndex + columnsCount) && newItems[targetIndex]) {
                     obs.disconnect(); // 감지 완료 즉시 옵저버 해제
 
-                    // 레이아웃 안정화를 위한 짧은 지연 후 실행
-                    setTimeout(() => {
-                        requestAnimationFrame(() => {
-                            const targetItem = newItems[targetIndex];
+                    // DOM 및 레이아웃 안정화 직후 스크롤 실행
+                    requestAnimationFrame(() => {
+                        const targetItem = newItems[targetIndex];
 
-                            const executeScroll = () => {
-                                const targetTop = container
-                                    ? getAbsoluteTop(targetItem) - getAbsoluteTop(container) - this.topOffset
-                                    : getAbsoluteTop(targetItem) - this.topOffset;
+                        const targetTop = container
+                            ? getAbsoluteTop(targetItem) - getAbsoluteTop(container) - this.topOffset
+                            : getAbsoluteTop(targetItem) - this.topOffset;
 
-                                if (container) {
-                                    container.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
-                                } else {
-                                    window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
-                                }
-                            };
+                        // 스크롤이 끝났을 때 실행될 리스너
+                        const handleScrollEnd = () => {
+                            scrollTarget.removeEventListener('scrollend', handleScrollEnd);
 
-                            executeScroll();
-
-                            // 스크롤 안착 후 topOffset 오차 실시간 재보정 및 히스토리 갱신
-                            setTimeout(() => {
+                            // 화면 프레임 안착 후 오차 측정 및 최종 보정
+                            requestAnimationFrame(() => {
                                 const currentAbsoluteTop = getAbsoluteTop(targetItem);
                                 const currentContainerTop = container ? getAbsoluteTop(container) : 0;
                                 const currentScrollTop = container ? container.scrollTop : window.pageYOffset;
@@ -345,54 +348,127 @@
                                 const currentDiff = Math.abs(currentRelativeTop - this.topOffset);
 
                                 if (currentDiff > 5) {
-                                    executeScroll();
+                                    const finalTop = container
+                                        ? getAbsoluteTop(targetItem) - getAbsoluteTop(container) - this.topOffset
+                                        : getAbsoluteTop(targetItem) - this.topOffset;
+
+                                    if (container) {
+                                        container.scrollTo({ top: Math.max(0, finalTop), behavior: 'instant' });
+                                    } else {
+                                        window.scrollTo({ top: Math.max(0, finalTop), behavior: 'instant' });
+                                    }
                                 }
-                                
-                            }, 350);
+
+                                this.isScrolling = false; // 스크롤 종료 후 잠금 해제
+                            });
+                        };
+
+                        // scrollend 이벤트 등록
+                        scrollTarget.addEventListener('scrollend', handleScrollEnd);
+
+                        // 스크롤 수행
+                        if (container) {
+                            container.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+                        } else {
+                            window.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+                        }
+
+                        // 이미 목표 스크롤 위치에 도달해 있어 scrollend 이벤트가 발생하지 않는 예외 상황 처리
+                        requestAnimationFrame(() => {
+                            const currentScrollTop = container ? container.scrollTop : window.pageYOffset;
+                            if (Math.abs(currentScrollTop - Math.max(0, targetTop)) < 2) {
+                                handleScrollEnd();
+                            }
                         });
-                    }, 100);
+                    });
                 }
             });
 
-            // 문서 또는 컨테이너 하위의 DOM 추가/변경 감지 시작
+            // DOM 변경 감지 시작
             observer.observe(observerTarget, {
                 childList: true,
                 subtree: true
             });
 
-            // 안전장치: 네트워크 지연 등으로 일정 시간(예: 5초) 이상 새 콘텐츠가 안 들어올 경우 무한 대기 방지용 해제
+            // 안전장치: 네트워크 지연이나 마지막 페이지로 인해 3초 간 신규 로딩이 없을 때 예외 처리
             setTimeout(() => {
                 observer.disconnect();
-            }, 5000);
+
+                const currentItems = this.getVisibleItems();
+                if (currentItems.length < targetIndex + columnsCount) {
+                    const scrollElement = container || document.documentElement;
+                    const totalScrollHeight = scrollElement.scrollHeight;
+
+                    if (container) {
+                        container.scrollTo({ top: totalScrollHeight, behavior: 'smooth' });
+                    } else {
+                        window.scrollTo({ top: totalScrollHeight, behavior: 'smooth' });
+                    }
+                }
+
+                this.isScrolling = false; // 타임아웃 해제 시 잠금 풀어주기
+            }, 3000);
         }
-        
+
         scrollToItem(targetItem, container) {
             if (!targetItem) return;
 
-            const executeScroll = () => {
-                const targetTop = container
-                    ? getAbsoluteTop(targetItem) - getAbsoluteTop(container) - this.topOffset
-                    : getAbsoluteTop(targetItem) - this.topOffset;
+            this.isScrolling = true; // 스크롤 시작 (연타 방지 플래그)
 
-                if (container) {
-                    container.scrollTo({ top: targetTop, behavior: 'smooth' });
-                } else {
-                    window.scrollTo({ top: targetTop, behavior: 'smooth' });
-                }
+            const scrollTarget = container || window;
+
+            // 목표 스크롤 위치 계산
+            const targetTop = container
+                ? getAbsoluteTop(targetItem) - getAbsoluteTop(container) - this.topOffset
+                : getAbsoluteTop(targetItem) - this.topOffset;
+
+            // 스크롤 완료 후 재보정 및 플래그 해제 함수
+            const handleScrollEnd = () => {
+                // 이벤트 중복 실행 방지 리스너 해제
+                scrollTarget.removeEventListener('scrollend', handleScrollEnd);
+
+                // 렌더링 프레임이 완전히 안정화된 후 오차 측정 및 보정
+                requestAnimationFrame(() => {
+                    const currentAbsoluteTop = getAbsoluteTop(targetItem);
+                    const currentContainerTop = container ? getAbsoluteTop(container) : 0;
+                    const currentScrollTop = container ? container.scrollTop : window.pageYOffset;
+                    const currentRelativeTop = currentAbsoluteTop - currentContainerTop - currentScrollTop;
+                    const currentDiff = Math.abs(currentRelativeTop - this.topOffset);
+
+                    // 여전히 오차가 5px 초과로 남아있는 경우 최종 위치 보정
+                    if (currentDiff > 5) {
+                        const finalTop = container
+                            ? getAbsoluteTop(targetItem) - getAbsoluteTop(container) - this.topOffset
+                            : getAbsoluteTop(targetItem) - this.topOffset;
+
+                        if (container) {
+                            container.scrollTo({ top: finalTop, behavior: 'instant' });
+                        } else {
+                            window.scrollTo({ top: finalTop, behavior: 'instant' });
+                        }
+                    }
+
+                    this.isScrolling = false; // 완료 후 잠금 해제
+                });
             };
 
-            executeScroll();
+            // 스크롤 동작 완료 감지 이벤트 등록
+            scrollTarget.addEventListener('scrollend', handleScrollEnd);
 
-            setTimeout(() => {
-                const currentAbsoluteTop = getAbsoluteTop(targetItem);
-                const currentContainerTop = container ? getAbsoluteTop(container) : 0;
-                const currentRelativeTop = currentAbsoluteTop - currentContainerTop - (container ? container.scrollTop : window.pageYOffset);
-                const currentDiff = Math.abs(currentRelativeTop - this.topOffset);
+            // 스크롤 실행
+            if (container) {
+                container.scrollTo({ top: targetTop, behavior: 'smooth' });
+            } else {
+                window.scrollTo({ top: targetTop, behavior: 'smooth' });
+            }
 
-                if (currentDiff > 5) {
-                    executeScroll();
+            // 만약 이미 목표 위치에 있어 scrollend 이벤트가 발생하지 않을 경우를 대비한 안전장치
+            requestAnimationFrame(() => {
+                const currentScrollTop = container ? container.scrollTop : window.pageYOffset;
+                if (Math.abs(currentScrollTop - targetTop) < 2) {
+                    handleScrollEnd();
                 }
-            }, 300);
+            });
         }
     }
 

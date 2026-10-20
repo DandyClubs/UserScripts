@@ -2,7 +2,7 @@
 // @name         Forum Post Spacebar Scroller (No Reflow)
 // @namespace    http://tampermonkey.net/
 // @version      1.1
-// @description  getBoundingClientRect 없이 offsetTop 기반으로 포럼 게시물 간 스페이스바 이동
+// @description  offsetTop 기반으로 포럼 게시물 간 스페이스바 이동
 // @author       User
 // @match        https://www.forumophilia.com/*.html
 // @match        http://www.planetsuzy.org/t*.html
@@ -58,6 +58,7 @@
         constructor(config = {}) {
             this.postSelector = config.postSelector;
             this.topOffset = config.topOffset ?? 10;
+            this.isScrolling = false;
             this.init();
         }
 
@@ -85,6 +86,12 @@
                 return;
             }
 
+            if (this.isScrolling) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+
             const posts = this.getVisiblePosts();
             if (posts.length === 0) return;
 
@@ -102,12 +109,16 @@
         }
 
         scrollForward(posts, currentScrollTop) {
+            this.isScrolling = true; // 스크롤 시작
             // 페이지 최상단 부근에 있고 게시물이 2개 이상인 경우, 첫 스크롤 시 무조건 두 번째 요소(posts[1])로 이동
             if (currentScrollTop < 100 && posts.length > 1) {
                 const postTop = getAbsoluteTop(posts[1]);
                 window.scrollTo({
                     top: postTop - this.topOffset,
                     behavior: 'smooth'
+                });
+                requestAnimationFrame(() => {
+                    this.isScrolling = false; // 스크롤 잠금 해제
                 });
                 return;
             }
@@ -120,6 +131,9 @@
                         top: postTop - this.topOffset,
                         behavior: 'smooth'
                     });
+                    requestAnimationFrame(() => {
+                        this.isScrolling = false; // 스크롤 잠금 해제
+                    });
                     return;
                 }
             }
@@ -128,9 +142,13 @@
                 top: document.documentElement.scrollHeight,
                 behavior: 'smooth'
             });
+            requestAnimationFrame(() => {
+                this.isScrolling = false; // 스크롤 잠금 해제
+            });
         }
 
         scrollBackward(posts, currentScrollTop) {
+            this.isScrolling = true; // 스크롤 시작
             for (let i = posts.length - 1; i >= 0; i--) {
                 const postTop = getAbsoluteTop(posts[i]); // getBoundingClientRect 제거
 
@@ -139,6 +157,9 @@
                         top: postTop - this.topOffset,
                         behavior: 'smooth'
                     });
+                    requestAnimationFrame(() => {
+                        this.isScrolling = false; // 스크롤 잠금 해제
+                    });
                     return;
                 }
             }
@@ -146,6 +167,9 @@
             window.scrollTo({
                 top: 0,
                 behavior: 'smooth'
+            });
+            requestAnimationFrame(() => {
+                this.isScrolling = false; // 스크롤 잠금 해제
             });
         }
     }

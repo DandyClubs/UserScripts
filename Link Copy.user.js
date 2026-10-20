@@ -1667,7 +1667,7 @@ const siteConfigs = [
         },
         config: {
             copyOffsetAreaSelector: 'article.hentry:nth-of-type(1) header.entry-header > .entry-title',
-            downloadAreaSelector: 'article.hentry:nth-of-type(1) div.entry-content.post_content',            
+            downloadAreaSelector: 'article.hentry:nth-of-type(1) div.entry-content.post_content',
         }
     },
     {
@@ -1906,15 +1906,13 @@ const siteRules = [
                     .filter(line => line); // Filter out empty lines
             };
 
-            let Resolution = '';
             const bodyContentText = document.querySelector('div.body-content');
             if (bodyContentText) {
                 let info = cleanText(document.querySelector('div.body-content')?.innerText);
                 const subTitle = info.find(txt => /^Name\s?:/.test(txt))?.match(/^Name\s?:\s?(.+)/)?.[1]?.trim().replace(/\.?mp4$/i, '');
                 const compareText = compareSentencesByWordMatch(subTitle, title);
 
-
-                Resolution = /[0-9]{3,4}p/.test(title)
+                const Resolution = /[0-9]{3,4}p/.test(title)
                     ? title.match(/[0-9]{3,4}p/)[0]
                     : /[0-9]{3,4}p/.test(subTitle)
                         ? subTitle.match(/[0-9]{3,4}p/)[0]
@@ -1922,7 +1920,9 @@ const siteRules = [
                 title = compareText.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim();
             }
             else {
-                Resolution = /[0-9]{3,4}p/.test(title);
+                const Resolution = /[0-9]{3,4}p/.test(title)
+                    ? title.match(/[0-9]{3,4}p/)[0]
+                    : '';
                 title = title.replace(/^Nude\sLeaked\s-/i, '').replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '').replace(Resolution, '').replace(/\[\]/g, '').replace("Let s ", "Let's ").trim();
             }
             return `${title} ${Resolution}`;
