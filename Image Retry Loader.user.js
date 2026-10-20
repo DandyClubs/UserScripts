@@ -509,6 +509,14 @@
 
     const domainRegex = new RegExp(`(${domainpattern})`, 'i');
 
+    const proxyImageDomainsPattern = `
+    gifyu.com
+    `.trim()
+        .split('\n')
+        .map(d => d.replace(/\./g, '\\.').trim())
+        .filter(Boolean)
+        .join('|');
+
     function isValidExternalImage(img) {
         if (!img) return false;
         if (img.dataset.isFixing) return false;
@@ -527,14 +535,19 @@
                 }
         */
         let rawSrc = img.src;
-        
-        if (rawSrc.startsWith('http://data:image')) {
+
+        if (!rawSrc.startsWith('https://wsrv.nl') && new RegExp(`(${proxyImageDomainsPattern})`, 'i').test(rawSrc)) {
+            img.setAttribute('src', `https://wsrv.nl/?url=${encodeURIComponent(rawSrc)}`);
+            return true;
+        }
+
+        else if (rawSrc.startsWith('http://data:image')) {
             img.src = rawSrc.replace('http://', '');
             rawSrc = img.src;
             return true;
         }
 
-        if (rawSrc.startsWith('data:image')) {
+        else if (rawSrc.startsWith('data:image')) {
             for (const attr of img.attributes) {
                 if (lazyAttributesMap[attr.name]) {
                     img.src = attr.value;
@@ -589,7 +602,7 @@
             return false;
         }
 
-        
+
         const finalRawSrc = img.src;
         if (!finalRawSrc || finalRawSrc.trim() === "" || finalRawSrc === window.location.href) {
             return false;

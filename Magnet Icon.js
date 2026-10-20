@@ -454,6 +454,7 @@ function linkifyNodes(root) {
 
 const useWsrvDomains = [
     'i.11img.com',
+    'gifyu.com',
 ];
 
 async function Main() {
@@ -475,14 +476,16 @@ async function Main() {
         }
 
         const selector = useWsrvDomains
-            .map(domain => `img[ess-data*="${domain}"]:not([src^="https://wsrv.nl/"]:not([ess-data^="https://wsrv.nl/"])`)
+            .map(domain => `img[ess-data*="${domain}"]:not([ess-data^="https://wsrv.nl/"])`)
             .join(', ');
 
         const images = document.querySelectorAll(selector);
 
         images.forEach(img => {
-            console.log('지역 제한 wsrv.nl 프록시 서비스 적용:', img.getAttribute('ess-data'));
-            img.setAttribute('ess-data', `https://wsrv.nl/?url=${encodeURIComponent(img.getAttribute('ess-data'))}`);
+            if (!img.src.startsWith('https://wsrv.nl/')) {
+                console.log('지역 제한 wsrv.nl 프록시 서비스 적용:', img.getAttribute('ess-data'));
+                img.setAttribute('ess-data', `https://wsrv.nl/?url=${encodeURIComponent(img.getAttribute('ess-data'))}`);
+            }
         });
 
         linkifyNodes(container);
@@ -685,10 +688,10 @@ async function Main() {
                                 if (entry.isIntersecting) {
                                     // 1. 위로 스크롤하여 본래 자리로 돌아왔을 때 (고정 해제)
                                     titleUi.style.position = 'absolute';
-                                    titleUi.style.top = '17.6px';                                    
+                                    titleUi.style.top = '17.6px';
                                     titleUi.style.left = '85%';
                                     titleUi.style.transform = 'translateY(-50%)';
-                                    titleUi.style.zIndex = '';                                    
+                                    titleUi.style.zIndex = '';
                                 }
                                 else {
                                     titleUi.style.position = 'fixed';
