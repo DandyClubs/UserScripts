@@ -503,15 +503,20 @@ async function processContent(node, selector, isExtra = false) {
                             contentCache.push({ K: Title, D: AddDate, R: resolution, el: item });
                         }
                         else if (resolution > (existingItem.R || 0)) {
-                            // [2. 더 높은 해상도 발견] DB/캐시 갱신 + 이전에 탐색된 저해상도 DOM 요소 숨김
-                            console.log(`Higher resolution detected (${existingItem.R || 0}p -> ${resolution}p):`, Title, item);
 
-                            if (existingItem.el) {
-                                hideElement(existingItem.el);
+                            if (existingItem.R < 1080) {
+                                // [2. 더 높은 해상도 발견] DB/캐시 갱신 + 이전에 탐색된 저해상도 DOM 요소 숨김
+                                console.log(`Higher resolution detected (${existingItem.R || 0}p -> ${resolution}p):`, Title, item);
+
+                                if (existingItem.el) {
+                                    hideElement(existingItem.el);
+                                }
+
+                                await contentManager.add(Title, AddDate, resolution);
+                                contentCache[existingIndex] = { K: Title, D: AddDate, R: resolution, el: item };
+                            } else {
+                                continue;
                             }
-
-                            await contentManager.add(Title, AddDate, resolution);
-                            contentCache[existingIndex] = { K: Title, D: AddDate, R: resolution, el: item };
                         }
                         else if (resolution < (existingItem.R || 0)) {
                             // [3. 더 낮은 해상도 발견] 현재 들어온 낮은 해상도 요소만 숨김
