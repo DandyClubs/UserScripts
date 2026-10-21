@@ -513,9 +513,8 @@ async function processContent(node, selector, isExtra = false) {
 
                                 if (existingItem.el) {
                                     hideElement(existingItem.el);
-                                               continue;
-                                }                                
-                            } 
+                                }
+                            }
                         }
                         else if (resolution < (existingItem.R || 0)) {
                             // [3. 더 낮은 해상도 발견] 현재 들어온 낮은 해상도 요소만 숨김
