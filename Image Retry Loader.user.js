@@ -29,6 +29,8 @@
     const MAX_RETRY_COUNT = 3;
     const LOAD_TIMEOUT = 30000; // 30초 타임아웃
 
+    const proxy = ['https://proxy.duckduckgo.com/iu/?u=', 'https://wsrv.nl/?url=']
+
     class Queue {
         constructor() {
             this.items = {};
