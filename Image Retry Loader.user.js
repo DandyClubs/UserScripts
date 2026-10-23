@@ -335,7 +335,14 @@
 
         try {
             const imgElement = item.imgElement;
+
             let retryCount = parseInt(imgElement.dataset.retryCount);
+
+            // src 유효성 검사 뒤, checkImage() 전에
+            if (retryCount >= MAX_RETRY_COUNT) {
+                console.warn(`[ImageRetry] 최대 재시도 횟수(${MAX_RETRY_COUNT}회)에 도달했습니다.`, imgElement);
+                return;
+            }            
 
             const imgElementSrc = imgElement.getAttribute('src');
             if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:') || imgElementSrc.startsWith('https://wsrv.nl')) {
