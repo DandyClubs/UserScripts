@@ -311,13 +311,17 @@ class LinkCopyDB {
         this.dbName = 'LinkCopyDB';
         this.storeName = 'Links';
         this.db = null;
+        this.opening = null;
 
         // 이벤트 채널
         this.bc = new BroadcastChannel("LinkCopyDBChannel");
     }
 
     async init() {
-        return new Promise((resolve, reject) => {
+        if (this.db) return this.db;
+        if (this.opening) return this.opening;
+
+        this.opening = new Promise((resolve, reject) => {
             const request = indexedDB.open(this.dbName, 1);
 
             request.onupgradeneeded = (e) => {
@@ -327,13 +331,30 @@ class LinkCopyDB {
                 }
             };
 
-            request.onsuccess = (e) => {
-                this.db = e.target.result;
-                resolve();
+            request.onsuccess = () => {
+                const db = request.result;
+                db.onversionchange = () => {
+                    db.close();
+                    if (this.db === db) this.db = null;
+                };
+                db.onclose = () => {
+                    if (this.db === db) this.db = null;
+                };
+                this.db = db;
+                resolve(db);
             };
 
-            request.onerror = (e) => reject(e.target.error);
+            request.onerror = () => reject(request.error);
+            request.onblocked = () => {
+                console.warn(`[LinkCopyDB] DB 열기가 다른 탭에 의해 대기 중입니다: ${this.dbName}`);
+            };
         });
+
+        try {
+            return await this.opening;
+        } finally {
+            this.opening = null;
+        }
     }
 
     async add(data) {
@@ -363,13 +384,30 @@ class LinkCopyDB {
     }
 
     async _tx(mode, action) {
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction([this.storeName], mode);
-            const store = tx.objectStore(this.storeName);
-            const request = action(store);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        for (let attempt = 0; attempt < 2; attempt++) {
+            const db = await this.init();
+            try {
+                return await new Promise((resolve, reject) => {
+                    const tx = db.transaction([this.storeName], mode);
+                    const store = tx.objectStore(this.storeName);
+                    const request = action(store);
+                    let result;
+
+                    request.onsuccess = () => {
+                        result = request.result;
+                    };
+                    tx.oncomplete = () => resolve(result);
+                    tx.onerror = () => reject(tx.error);
+                    tx.onabort = () => reject(tx.error || new Error('IndexedDB transaction aborted'));
+                });
+            } catch (error) {
+                if (attempt === 0 && error.name === 'InvalidStateError') {
+                    if (this.db === db) this.db = null;
+                    continue;
+                }
+                throw error;
+            }
+        }
     }
 
     // 내부 알림 → BroadcastChannel
@@ -383,15 +421,16 @@ class LinkCopyDB {
 const linkDB = new LinkCopyDB();
 let indexedDBCache = [];
 
-linkDB.init().then(() => {
-    // 외부에서 DB 변경 감지
-    linkDB.onchange = async (event) => {
-        indexedDBCache = await indexedDBUpdate();
-    };
+// 외부 및 같은 탭의 DB 변경 감지
+linkDB.onchange = async () => {
+    indexedDBCache = await indexedDBUpdate();
+};
 
-    linkDB.bc.onmessage = async (event) => {
-        indexedDBCache = await indexedDBUpdate();
-    };
+linkDB.bc.onmessage = async () => {
+    indexedDBCache = await indexedDBUpdate();
+};
+linkDB.init().catch(error => {
+    console.error('[LinkCopyDB] DB 초기화 실패:', error);
 });
 
 let CopyLinks = [];
@@ -686,18 +725,13 @@ function observeDownloadArea(WatchArea, downloadAreaSelector) {
 }
 
 
-function indexedDBUpdate() {
-    return new Promise((resolve, reject) => {
-        linkDB.getAll().then((result) => {
-            indexedDBCache = result;
-            GetState = indexedDBCache.length;
-            PackageCount = PackageList(indexedDBCache).length;
-            updateUI(GetState, PackageCount);
-            resolve(indexedDBCache);
-        }).catch(error => {
-            console.error("Failed get data:", error);
-        });
-    });
+async function indexedDBUpdate() {
+    const result = await linkDB.getAll();
+    indexedDBCache = result;
+    GetState = indexedDBCache.length;
+    PackageCount = PackageList(indexedDBCache).length;
+    updateUI(GetState, PackageCount);
+    return indexedDBCache;
 }
 
 
@@ -4553,4 +4587,3 @@ document.addEventListener("DOMContentLoaded", () => {
     FontAwesomeCSS();
     FirstStep();
 }, { once: true });
-
