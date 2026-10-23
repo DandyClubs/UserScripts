@@ -65,10 +65,10 @@
         clearTimeout(id);
     };
 
-    // 필터 추가/수정 시 전체 페이지 1회 재스캔
-    function saveFilters() {
+    // 새 필터는 기존 카드에만 따로 적용해 전체 필터를 반복 비교하지 않는다.
+    function saveFilters(addedFilter) {
         GM_setValue(STORAGE_KEY, filters);
-        scanAllExistingCards();
+        scanAllExistingCards(addedFilter);
     }
 
 
@@ -83,38 +83,55 @@
 
     // 뷰포트 하단 200px 감지 Observer
     
-    function processCard(card) {
+    function processCard(card, addedFilter = null) {
         if (!card || !(card instanceof HTMLElement)) return;
-        if (card.classList.contains(currentConfig.className) || card.style.display === 'none' || card.offsetParent === null) {
+        if (
+            card.classList.contains(currentConfig.className) ||
+            card.style.display === 'none' ||
+            (!addedFilter && (card.offsetParent === null || card.dataset.tmProcessed === 'true'))
+        ) {
             return;
         }
-        if (card.dataset.tmProcessed === 'true') return;
 
-        card.dataset.tmProcessed = 'true'; // 검사 등록 완료 플래그
-
-        // 마우스가 카드에 들어올 때 (mouseenter) 버튼 및 데이터 동적 확인
-        card.addEventListener('mouseenter', () => {
-            handleCardHover(card);
-        });
-
-        // 초기 진입 시점에 이미 필터 대상인지 미리 1회 검사
         const titleEl = card.querySelector(currentConfig.titleSelector);
         const channelEl = card.querySelector(currentConfig.channelSelector);
         const titleText = titleEl ? titleEl.textContent.trim() : '';
         const channelText = channelEl ? channelEl.textContent.trim() : '';
 
-        const isChannelBlocked = filters.channels.some(ch => 
-            ch && channelText.toLowerCase() === ch.toLowerCase()        
-        );
-        const isTitleBlocked = filters.titles.some(keyword =>
-            keyword && titleText.toLowerCase().includes(keyword.toLowerCase())
-        );
+        let isBlocked = addedFilter
+            ? addedFilter.type === 'channel'
+                ? channelText.toLowerCase() === addedFilter.value.toLowerCase()
+                : titleText.toLowerCase().includes(addedFilter.value.toLowerCase())
+            : filters.channels.some(ch =>
+                ch && channelText.toLowerCase() === ch.toLowerCase()
+            ) || filters.titles.some(keyword =>
+                keyword && titleText.toLowerCase().includes(keyword.toLowerCase())
+            );
 
-        
-        if (isChannelBlocked || isTitleBlocked) {
-            hideCard(card);
+        if (!isBlocked && addedFilter && card.dataset.tmProcessed !== 'true') {
+            isBlocked = filters.channels.some(ch =>
+                ch && channelText.toLowerCase() === ch.toLowerCase()
+            ) || filters.titles.some(keyword =>
+                keyword && titleText.toLowerCase().includes(keyword.toLowerCase())
+            );
         }
-    };
+
+        if (isBlocked) {
+            hideCard(card);
+            return;
+        }
+
+        if (card.dataset.tmProcessed === 'true' || card.style.display === 'none' || card.offsetParent === null) {
+            return;
+        }
+
+        card.dataset.tmProcessed = 'true';
+
+        // 마우스가 카드에 들어올 때 (mouseenter) 버튼 및 데이터 동적 확인
+        card.addEventListener('mouseenter', () => {
+            handleCardHover(card);
+        });
+    }
 
     // 3. 카드 mouseenter 시 실행할 동적 검사 및 버튼 주입
     function handleCardHover(card) {
@@ -159,9 +176,9 @@
     }
 
     // 3. 기존 전체 요소 스캔 (초기 실행 및 필터 추가 시에만 호출)
-    function scanAllExistingCards() {
+    function scanAllExistingCards(addedFilter = null) {
         const cards = document.querySelectorAll(currentConfig.cardSelector);        
-        cards.forEach(card => processCard(card));
+        cards.forEach(card => processCard(card, addedFilter));
     }
 
     // 4. 차단 버튼 삽입
@@ -214,9 +231,10 @@
                 if (!filters.channels.includes(channelName)) {
                     filters.channels.push(channelName);
                     popup.remove();
+                    saveFilters({ type: 'channel', value: channelName });
+                } else {
+                    popup.remove();
                     hideCard(card);
-                    //card.style.display = 'none';
-                    saveFilters();  // 전체 필터 재저장 및 기존 카드 검사
                 }
             });
             popup.appendChild(chBtn);
@@ -242,11 +260,12 @@
             if (val) {
                 if (!filters.titles.includes(val)) {
                     filters.titles.push(val);
+                    popup.remove();
+                    saveFilters({ type: 'title', value: val });
+                } else {
+                    popup.remove();
+                    hideCard(card);
                 }
-                popup.remove();
-                hideCard(card);
-                //card.style.display = 'none';
-                saveFilters();  // 전체 필터 재저장 및 기존 카드 검사
             }
         };
 
