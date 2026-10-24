@@ -9,6 +9,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
+// @run-at       document-start
 // ==/UserScript==
 
 (function () {
@@ -47,7 +48,7 @@
 
     const STORAGE_KEY = `video_filters_${currentConfig.host}`;
     let filters = GM_getValue(STORAGE_KEY, { channels: [], titles: [] });
-    
+
 
 
     // 새로 추가되어 처리가 필요한 요소들을 모아두는 큐(Set)
@@ -82,7 +83,7 @@
     }
 
     // 뷰포트 하단 200px 감지 Observer
-    
+
     function processCard(card, addedFilter = null) {
         if (!card || !(card instanceof HTMLElement)) return;
         if (
@@ -177,7 +178,7 @@
 
     // 3. 기존 전체 요소 스캔 (초기 실행 및 필터 추가 시에만 호출)
     function scanAllExistingCards(addedFilter = null) {
-        const cards = document.querySelectorAll(currentConfig.cardSelector);        
+        const cards = document.querySelectorAll(currentConfig.cardSelector);
         cards.forEach(card => processCard(card, addedFilter));
     }
 
@@ -379,9 +380,9 @@
                 }
             
     `;
-    document.head.appendChild(style);
 
-    // 8. MutationObserver에서 Idle 콜백 스케줄링
+
+
     const observer = new MutationObserver((mutations) => {
         let hasNewNodes = false;
 
@@ -400,18 +401,25 @@
         }
     });
 
-    // Observer 관찰 시작
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    // 초기 실행
-    scanAllExistingCards();
 
 
-    // 메뉴 등록
-    GM_registerMenuCommand(`현재 사이트(${currentConfig.host}) 필터 초기화`, () => {
-        if (confirm(`[${currentConfig.host}]의 모든 필터를 초기화하시겠습니까?`)) {
-            GM_setValue(STORAGE_KEY, { channels: [], titles: [] });
-            location.reload();
-        }
-    });
+    document.addEventListener("DOMContentLoaded", () => {
+        document.head.appendChild(style);
+
+        // Observer 관찰 시작
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        // 초기 실행
+        scanAllExistingCards();
+
+        // 메뉴 등록
+        GM_registerMenuCommand(`현재 사이트(${currentConfig.host}) 필터 초기화`, () => {
+            if (confirm(`[${currentConfig.host}]의 모든 필터를 초기화하시겠습니까?`)) {
+                GM_setValue(STORAGE_KEY, { channels: [], titles: [] });
+                location.reload();
+            }
+        });
+    }, { once: true });
+
+
 })();
