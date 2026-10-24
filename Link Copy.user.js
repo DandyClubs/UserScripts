@@ -32,7 +32,7 @@
 // @include      /(hpjav|hpav)\.tv/
 // @include      /kbjme\.com\/\d+/
 // @include      /(vipbj\.[a-zA-Z]+|avtv\..+|avav\..+|aaav\.me|aaaav\.sbs)/
-// @include      /aaaav\.makeup/
+// @include      /aaaav\..+/
 // @include      /av18plus\.com/
 // @include      /all4jp\.com/
 // @include      /jappydolls\.net/
@@ -1691,7 +1691,7 @@ const siteConfigs = [
         }
     },
     {
-        regex: /vipbj\.[a-zA-Z]+\/.+|avtv\..+|avav\..+|aaav\.me|aaaav\.(sbs|makeup)/,
+        regex: /vipbj\.[a-zA-Z]+\/.+|avtv\..+|avav\..+|aaav\.me|aaaav\..+/,
         condition: () => {
             if (document.querySelector('article.hentry header.entry-header .entry-title')?.children?.length) {
                 userClose = false;
