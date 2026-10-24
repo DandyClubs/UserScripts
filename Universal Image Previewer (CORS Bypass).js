@@ -136,6 +136,7 @@ body.modal-open {
                 'kin8-jav.com', 'porn-pig.com', 'hentaicovid.org', 's-porn.com',
                 '3minx.com', 'gofile.download', 'hentaicovid.vip', 'fc2ppv.stream', 'hentaicovid.com',
                 'javtele.net', 'hentai4f.com', 'cnpics.org', 'porn-pig.com', 'cosplaytele.vip', 'hentai-manga.org',
+                'javtele.org'
             ],
             pathPattern: /\/uploads?\/(?!Application\/)/i,
             imageSourceRegExp: /class="fileviewer-file"[\s\S]*?<img src="([^"]+)"/i,
