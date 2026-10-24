@@ -71,9 +71,9 @@ body.modal-open {
     const SITE_CONFIGS = [
         {
             id: 'imagetwist',
-            domains: ['imagetwist.com', 'picturelol.com', 'picshick.com', 'imageshimage.com'],
-            pathPattern: /^https:\/\/imagetwist\.com/i,
-            imageSourceRegExp: /src="([^"]+?\.imagetwist\.com\/i\/[^"]+)"/i,
+            domains: [],
+            pathPattern: /imagetwist\.com\/[a-z0-9]{8,15}\//i,
+            imageSourceSelector: 'img.pic.img.img-responsive[src]',
             getReferer: (url) => url,
             directLoad: false
         },
@@ -130,30 +130,10 @@ body.modal-open {
             directLoad: true
         },
         {
-            id: 'anime-jav',
-            domains: [
-                'anime-jav.com', 'javbee.vip', 'chinese-pics.com', 'chinese-pics.vip',
-                'kin8-jav.com', 'porn-pig.com', 'hentaicovid.org', 's-porn.com',
-                '3minx.com', 'gofile.download', 'hentaicovid.vip', 'fc2ppv.stream', 'hentaicovid.com',
-                'javtele.net', 'hentai4f.com', 'cnpics.org', 'porn-pig.com', 'cosplaytele.vip', 'hentai-manga.org',
-                'javtele.org', 'kin8-av.com', 'sweetie-fox.com'
-            ],
+            id: 'fileviewer',
+            domains: [],
             pathPattern: /\/uploads?\/(?!Application\/)/i,
-            imageSourceRegExp: /class="fileviewer-file"[\s\S]*?<img src="([^"]+)"/i,
-            directLoad: true
-        },
-        {
-            id: '4up',
-            domains: ['4up.pics'],
-            pathPattern: /4up\.pics\/.+\.jpg/i,
-            imageSourceRegExp: /class="fileviewer-file"[\s\S]*?<img src="([^"]+)"/i,
-            directLoad: true
-        },
-        {
-            id: 'javball',
-            domains: ['javball.com'],
-            pathPattern: /\/upload\/(?!Application\/)/i,
-            imageSourceRegExp: /class="fileviewer-file"[\s\S]*?<img src="([^"]+)"/i,
+            imageSourceSelector: '.fileviewer-file img[src], img.fileviewer-file[src]',
             directLoad: true
         },
         {
@@ -170,6 +150,7 @@ body.modal-open {
     // ⚡ 1. getConfig 빠른 조회를 위한 Domain Map 인덱싱 (O(1))
     // ==========================================
     const configDomainMap = new Map();
+    const pathOnlyConfigs = SITE_CONFIGS.filter(cfg => cfg.domains.length === 0);
     SITE_CONFIGS.forEach(cfg => {
         cfg.domains.forEach(domain => {
             const lowerDomain = domain.toLowerCase();
@@ -193,6 +174,8 @@ body.modal-open {
                     if (matchedConfig) return matchedConfig;
                 }
             }
+
+            return pathOnlyConfigs.find(cfg => cfg.pathPattern.test(url)) || null;
         } catch (e) {
             // 잘못된 URL 형태일 경우 예외 처리
             return null;
@@ -202,6 +185,32 @@ body.modal-open {
 
     // 중복 요청 방지를 위한 실행 중인 URL Map
     const activeRequests = new Set();
+    const imageSourceCachePrefix = 'universal-image-previewer:src:';
+
+    function getCachedImageSource(pageUrl) {
+        try {
+            return localStorage.getItem(imageSourceCachePrefix + pageUrl);
+        } catch (error) {
+            console.warn('이미지 URL 캐시를 읽지 못했습니다:', error);
+            return null;
+        }
+    }
+
+    function cacheImageSource(pageUrl, imageSource) {
+        try {
+            localStorage.setItem(imageSourceCachePrefix + pageUrl, imageSource);
+        } catch (error) {
+            console.warn('이미지 URL 캐시를 저장하지 못했습니다:', error);
+        }
+    }
+
+    function removeCachedImageSource(pageUrl) {
+        try {
+            localStorage.removeItem(imageSourceCachePrefix + pageUrl);
+        } catch (error) {
+            console.warn('이미지 URL 캐시를 삭제하지 못했습니다:', error);
+        }
+    }
 
     const skipTags = new Set(['script', 'style', 'textarea', 'code', 'pre']);
     const urlRegex = /https?:\/\/[^\s<>"'\[\]()]+(?:\([^\s<>"'\[\]()]+\)|[^\s<>"'\[\]().,?!:;\"'\]\)])/gi;
@@ -221,6 +230,51 @@ body.modal-open {
 
         // 동일 URL로 이미 진행 중인 network call이 있다면 element 상태만 지정 후 대기
         imgElement.dataset.status = 'loading';
+
+        function displayImageSource(imageSource, fromCache = false) {
+            const handleLoadFailure = () => {
+                imgElement.dataset.status = 'failed';
+                if (fromCache) {
+                    removeCachedImageSource(pageUrl);
+                    imgElement.dataset.status = 'loading';
+                    fetchPage(pageUrl);
+                }
+            };
+
+            imgElement.onload = () => {
+                imgElement.dataset.status = 'done';
+                imgElement.classList.remove('pending-deep-preview');
+                imgElement.style.minHeight = "auto";
+                imgElement.style.background = "none";
+                imgElement.style.opacity = "1";
+            };
+            imgElement.onerror = handleLoadFailure;
+
+            if (config.directLoad) {
+                imgElement.src = imageSource;
+            } else {
+                GM_xmlhttpRequest({
+                    method: "GET",
+                    url: imageSource,
+                    responseType: "blob",
+                    headers: { "Referer": config.getReferer ? config.getReferer(pageUrl) : "" },
+                    onload: function (imgRes) {
+                        if (imgRes.status === 200) {
+                            imgElement.src = URL.createObjectURL(imgRes.response);
+                        } else {
+                            handleLoadFailure();
+                        }
+                    },
+                    onerror: handleLoadFailure
+                });
+            }
+        }
+
+        const cachedImageSource = getCachedImageSource(pageUrl);
+        if (cachedImageSource) {
+            displayImageSource(cachedImageSource, true);
+            return;
+        }
 
         function fetchPage(currentUrl) {
             // 리다이렉트 중복 추적 방지
@@ -259,36 +313,29 @@ body.modal-open {
                         return;
                     }
 
-                    const match = res.responseText.match(config.imageSourceRegExp);
-                    if (match && match[1]) {
-                        const finalUrl = match[1];
-
-                        imgElement.onload = () => {
-                            imgElement.dataset.status = 'done';
-                            imgElement.classList.remove('pending-deep-preview');
-                            imgElement.style.minHeight = "auto";
-                            imgElement.style.background = "none";
-                            imgElement.style.opacity = "1";
-                        };
-
-                        if (config.directLoad) {
-                            imgElement.src = finalUrl;
-                        } else {
-                            GM_xmlhttpRequest({
-                                method: "GET",
-                                url: finalUrl,
-                                responseType: "blob",
-                                headers: { "Referer": config.getReferer ? config.getReferer(pageUrl) : "" },
-                                onload: function (imgRes) {
-                                    if (imgRes.status === 200) {
-                                        imgElement.src = URL.createObjectURL(imgRes.response);
-                                    } else {
-                                        imgElement.dataset.status = 'failed';
-                                    }
-                                },
-                                onerror: () => { imgElement.dataset.status = 'failed'; }
-                            });
+                    let finalUrl;
+                    if (config.imageSourceSelector) {
+                        const responseDocument = new DOMParser().parseFromString(res.responseText, 'text/html');
+                        const image = responseDocument.querySelector(config.imageSourceSelector);
+                        const imageSource = image?.getAttribute('src');
+                        if (imageSource) {
+                            finalUrl = imageSource;
                         }
+                    } else {
+                        const match = res.responseText.match(config.imageSourceRegExp);
+                        if (match && match[1]) finalUrl = match[1];
+                    }
+
+                    if (finalUrl) {
+                        try {
+                            finalUrl = new URL(finalUrl, currentUrl).href;
+                        } catch (error) {
+                            console.error('이미지 URL 변환 실패:', error);
+                            imgElement.dataset.status = 'failed';
+                            return;
+                        }
+                        cacheImageSource(pageUrl, finalUrl);
+                        displayImageSource(finalUrl);
                     } else {
                         imgElement.dataset.status = 'failed';
                         imgElement.classList.remove('pending-deep-preview');
@@ -316,7 +363,7 @@ body.modal-open {
                 }
             }
 
-            if (config.imageSourceRegExp) {
+            if (config.imageSourceRegExp || config.imageSourceSelector) {
                 return `<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
                  class="pending-deep-preview"
                  data-status="pending"
