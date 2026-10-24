@@ -131,10 +131,10 @@ const sameNewTabPatterns = [
 const specializedRulesData = [
     { site: /allasiangirls\.net/, c: el => el.classList.contains('plain'), a: 'NEW_TAB' },
     { site: /pornolab\.net/, c: el => el.classList.contains('tLink'), a: 'NEW_TAB' },
-    { site: /asianscan\.biz/, c: el => el.closest('div.mainf'), a: 'NEW_TAB' },
-    { site: /newtoki\d+\.com/, c: el => el.closest('div.img-item'), a: 'SAME_TAB' },
+    { site: /asianscan\.biz/, c: el => el.closest('div.mainf'), a: 'NEW_TAB' },    
     { site: /bo_table=(AVSubs_E|AVSubs_M|AVSubs_S|AVSubs_C)/, c: el => /bo_table=(AVSubs_E|AVSubs_M|AVSubs_S|AVSubs_C)&wr_id/.test(el.href), a: 'NEW_TAB' },
     { site: /eyny\.com/, c: el => /圖片模式/.test(el.textContent), a: 'SAME_TAB' },
+    { site: /bolixianwei\.net/, c: el => el.closest('.menu-item'), a: 'SAME_TAB' },
     { site: /porndude\.tv/, c: el => el.closest('article.movie-item'), a: 'NEW_TAB' },
     { site: /xchina\.co/, c: el => el.closest('div.list div.item, .group.block'), a: 'NEW_TAB' },
     { site: /thotsbay|cyberleaks/, c: el => el.parentElement.classList.contains('structItem-title'), a: 'NEW_TAB' },
