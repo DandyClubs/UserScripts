@@ -285,14 +285,15 @@ function extractTitles(rule) {
 
     while (walker.nextNode()) {
         const node = walker.currentNode;
-        const raw = node.textContent;
+        const raw = node.textContent;           
+        const titleMatch = raw.match(rule.getTitleRegex);        
         let cleanTitle;
 
         if (useNextTextAsTitle) {
             useNextTextAsTitle = false;
             cleanTitle = raw.trim();
-        } else if (rule.getTitleRegex.test(raw)) {
-            cleanTitle = raw.match(rule.getTitleRegex)[1].replace(/^(:|：)/, '').trim();
+        } else if (titleMatch) {
+            cleanTitle = titleMatch[rule.getTitleMatchPoint]?.trim();
 
             if (!cleanTitle) {
                 useNextTextAsTitle = true;
