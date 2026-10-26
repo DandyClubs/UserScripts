@@ -3818,11 +3818,6 @@ async function CopyLink() {
                                     console.log(`%c[학습 완료] ${prefix} ${learnedRule} 저장됨`, "color: cyan;");
                                 }
                             }
-                            copyIcon.classList.remove('fa-brands');
-                            copyIcon.classList.remove('fa-roblox-creator-studio');
-                            copyIcon.classList.add('far');
-                            copyIcon.classList.add('fa-clone');
-
                             break;
                         }
                         // [추가] 403 국가 제한이나 특정 사유로 차단된 경우 프록시 적용
@@ -3835,6 +3830,11 @@ async function CopyLink() {
                     if (!finalCoverImage) {
                         console.log(`%c[미등록 브랜드 탐색 실패] ${prefix} ${CoverImage || ''}`, "color: #FF9800;");
                     }
+                    
+                    copyIcon.classList.remove('fa-brands');
+                    copyIcon.classList.remove('fa-roblox-creator-studio');
+                    copyIcon.classList.add('far');
+                    copyIcon.classList.add('fa-clone');
                 }
                 // --- 최종 처리: 수집 목록 추가 ---
                 if (!finalCoverImage && CoverImage && !skipFilterImages.some(x => x.test(CoverImage))) {

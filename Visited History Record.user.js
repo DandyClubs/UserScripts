@@ -337,6 +337,7 @@ const SkipWorld = RegexFrom(skipWordsList, 'gi');
 const SkipModelEX = RegexFrom(SkipModel.split(/\r?\n/), 'gi');
 const WarningEX = RegexFrom(WarningText.split(/\r?\n/), 'gi');
 const authorEX = /Avhunter|love69sex|mikkingole|堕落上帝/i;
+const skipClassNames = ['hiddenbox', 'visited', 'Skip' ]
 
 const sis001 = {
     MatchUrl: 'sis001.com',
@@ -772,6 +773,8 @@ function checkVisited(node = Active.root) {
                 el.classList.add('Skip');
                 continue;
             }
+            if (skipClassNames.some(className => el.classList.contains(className))) continue;
+
             if (Active.Get === 'GetID') {
                 linkInfo = GetID(el);
             } else if (Active.Get === 'textContent') {
@@ -816,8 +819,7 @@ const initVisitedListeners = async (node) => {
             if (
                 MatchRegexElement(link, Active.RegexElement, 'href', Active.Class) &&
                 !processedLinks.has(url) && // <--- 중복 방지 로직 추가
-                !link.classList?.contains('visited') &&
-                !link.classList?.contains('Skip')
+                !skipClassNames.some(className => link.classList.contains(className))
             ) {
                 addNodesSet.add(link);
             }
