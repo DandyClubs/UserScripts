@@ -240,7 +240,7 @@ const siteRules = [
         priority: ['3840', '1920', '1280', '720'],
         coverImage: '',
         useResolution: true,
-        getTitleRegex: /(?<=影片名稱】[：:])(.*?)(?=(?:(\(MP4@KF@無碼|【影片大小).*$)?(?:$))/m,
+        getTitleRegex: /(?<=(影片名稱|電子書名稱|檔案名稱|資源格式|影片名称|本片名稱)】[：:])(.*?)(?=(?:(\(MP4@KF@無碼|【影片大小).*$)?(?:$))/m,
         getTitleMatchPoint: 0,
         passwordRegex: /(解壓密碼|解壓縮密碼)】[：:]?(.*?)\s*(.+)/,
         breakPoint: [
@@ -280,8 +280,7 @@ function extractTitles(rule) {
         false
     );
 
-    const titles = [];
-    let useNextTextAsTitle = false;
+    const titles = [];    
 
     while (walker.nextNode()) {
         const node = walker.currentNode;
@@ -289,19 +288,8 @@ function extractTitles(rule) {
         const titleMatch = raw.match(rule.getTitleRegex);        
         let cleanTitle;
 
-        if (useNextTextAsTitle) {
-            useNextTextAsTitle = false;
-            cleanTitle = raw.trim();
-        } else if (titleMatch) {
+        if (titleMatch) {
             cleanTitle = titleMatch[rule.getTitleMatchPoint]?.trim();
-
-            if (!cleanTitle) {
-                useNextTextAsTitle = true;
-                continue;
-            }
-        }
-
-        if (cleanTitle) {
             titles.push({
                 textNode: node,
                 rawText: raw,

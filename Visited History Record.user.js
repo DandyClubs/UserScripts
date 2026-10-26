@@ -350,7 +350,7 @@ const sis001 = {
     OpenTab: true,
     Get: 'GetTitle',
     SaveMode: 'indexedDB',
-    OpenTabCount: 20,
+    OpenTabCount: 50,
 };
 
 const sehuatang = {
@@ -362,7 +362,7 @@ const sehuatang = {
     OpenTab: true,
     Get: 'GetTitle',
     SaveMode: 'indexedDB',
-    OpenTabCount: 20,
+    OpenTabCount: 50,
 };
 
 const t66y = {
@@ -374,7 +374,7 @@ const t66y = {
     OpenTab: true,
     Get: 'GetID',
     SaveMode: 'indexedDB',
-    OpenTabCount: 20,
+    OpenTabCount: 50,
 };
 
 
@@ -387,7 +387,7 @@ const k2sporn = {
     OpenTab: false,
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
-    OpenTabCount: 20,
+    OpenTabCount: 50,
 };
 
 const k2sprn = {
@@ -399,7 +399,7 @@ const k2sprn = {
     OpenTab: false,
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
-    OpenTabCount: 20,
+    OpenTabCount: 50,
 };
 
 const ultoporn = {
@@ -411,7 +411,7 @@ const ultoporn = {
     OpenTab: false,
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
-    OpenTabCount: 20,
+    OpenTabCount: 50,
 };
 
 const hidefporn = {
@@ -426,7 +426,7 @@ const hidefporn = {
     OpenTab: false,
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
-    OpenTabCount: 20,
+    OpenTabCount: 50,
 };
 
 const wetholefans = {
@@ -438,7 +438,7 @@ const wetholefans = {
     OpenTab: false,
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
-    OpenTabCount: 20,
+    OpenTabCount: 50,
 };
 
 const foamgirl = {
@@ -450,7 +450,7 @@ const foamgirl = {
     OpenTab: false,
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
-    OpenTabCount: 20,
+    OpenTabCount: 50,
 };
 
 const everia = {
@@ -462,7 +462,7 @@ const everia = {
     OpenTab: false,
     Get: 'GetTitle',
     SaveMode: 'ScriptStorage',
-    OpenTabCount: 20,
+    OpenTabCount: 50,
 };
 
 const misskon = {
@@ -477,7 +477,7 @@ const misskon = {
     OpenTab: true,
     Get: 'textContent',
     SaveMode: 'indexedDB',
-    OpenTabCount: 20,
+    OpenTabCount: 50,
 };
 
 
