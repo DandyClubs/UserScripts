@@ -3754,7 +3754,7 @@ async function CopyLink() {
                 // --- 1단계: 이미 고화질 주소(awsimgsrc)를 가지고 있는 경우 (즉시 학습 및 확정) ---
                 if (CoverImage && CoverImage.includes('awsimgsrc.dmm')) {
                     finalCoverImage = CoverImage;
-                    if (!DB_PREFIX_RULES[prefix] && !GM_getValue(prefix)) {
+                    if (!DB_PREFIX_RULES[prefix] && !GM_getValue('RULE_' + prefix)) {
                         saveRuleFromUrl(CoverImage, prefix); // URL 파싱 저장 함수 (아래 별도 정의)
                     }
                 }
@@ -3808,8 +3808,8 @@ async function CopyLink() {
                             // 학습 로직 (프록시 사용 여부와 상관없이 원본 URL의 메타데이터로 저장)
                             const learnedRule = candidates._meta?.[url];
                             if (learnedRule && !DB_PREFIX_RULES[prefix]) {
-                                if (!GM_getValue(prefix)) {
-                                    GM_setValue(prefix, learnedRule);
+                                if (!GM_getValue('RULE_' + prefix)) {
+                                    GM_setValue('RULE_' + prefix, learnedRule);
                                     const HQImage = document.createElement('a');
                                     HQImage.style = "display:none !important;";
                                     HQImage.classList.add('HQImage');
