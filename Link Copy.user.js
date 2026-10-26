@@ -3261,7 +3261,7 @@ function getVersionGroupLinks(div) {
             let linksInNode = Array.from(el.querySelectorAll('span.link_archive_innew a'));
 
             // 노드 자체가 <a> 태그인 경우
-            if (el.tagName === 'A' && !el.querySelector('IMG')) {                
+            if (el.tagName === 'A' && !el.querySelector('IMG')) {
                 linksInNode.push(el);
             }
 
@@ -3720,9 +3720,13 @@ function PackageList(LinksDB) {
     }
 }
 
+
+let alreadyCopy = false;
+
 async function CopyLink() {
     //console.log('Step CopyLink:', { CopyTitle, DownloadArea })        
-
+    if (alreadyCopy) return `이미 복사 작업중입니다.`;
+    alreadyCopy = true;
     // Prepare notice text
     let noticeLines = [];
     let allLinks = [];
@@ -3785,6 +3789,14 @@ async function CopyLink() {
                 // --- 3단계: 규칙도 없는 생소한 브랜드인 경우 (후보군 생성 및 이미지 체크) ---
                 if (!finalCoverImage) {
                     console.log(`%c[미등록 브랜드 탐색] ${prefix} 패턴 추론 시작...${CoverImage || ''}`, "color: #FF9800;");
+                    const IconSetBox = document.querySelector(".IconSet");
+                    const copyIcon = IconSetBox.querySelector('.CopyIcon');
+
+                    copyIcon.classList.remove('far');
+                    copyIcon.classList.remove('fa-clone');
+                    copyIcon.classList.add('fa-brands');
+                    copyIcon.classList.add('fa-roblox-creator-studio');
+
                     const candidates = await generateUrlCandidates(code, CoverImage || '');
 
                     for (const url of candidates) {
@@ -3806,6 +3818,11 @@ async function CopyLink() {
                                     console.log(`%c[학습 완료] ${prefix} ${learnedRule} 저장됨`, "color: cyan;");
                                 }
                             }
+                            copyIcon.classList.remove('fa-brands');
+                            copyIcon.classList.remove('fa-roblox-creator-studio');
+                            copyIcon.classList.add('far');
+                            copyIcon.classList.add('fa-clone');
+
                             break;
                         }
                         // [추가] 403 국가 제한이나 특정 사유로 차단된 경우 프록시 적용
@@ -3916,6 +3933,8 @@ async function CopyLink() {
             AutoClose = true;
         }
     }
+
+    alreadyCopy = false;
     return allLinks;
 }
 
