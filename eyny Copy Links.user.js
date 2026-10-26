@@ -273,27 +273,48 @@ const subjectText = document.querySelector('div#postlist a#thread_subject')?.inn
 
 
 function extractTitles(rule) {
-    const walker = document.createTreeWalker(
-        rule.area,
-        NodeFilter.SHOW_TEXT,
-        null,
-        false
-    );
+    const textGroups = [];
+    let currentGroup = [];
 
-    const titles = [];    
+    const flushGroup = () => {
+        if (currentGroup.length > 0) {
+            textGroups.push(currentGroup);
+            currentGroup = [];
+        }
+    };
 
-    while (walker.nextNode()) {
-        const node = walker.currentNode;
-        const raw = node.textContent;           
-        const titleMatch = raw.match(rule.getTitleRegex);        
-        let cleanTitle;
+    const collectTextGroups = (node) => {
+        for (const child of node.childNodes) {
+            if (child.nodeType === Node.TEXT_NODE) {
+                currentGroup.push(child);
+            } else if (child.nodeType === Node.ELEMENT_NODE) {
+                if (child.nodeName === 'BR') {
+                    flushGroup();
+                } else if (child.nodeName === 'P') {
+                    flushGroup();
+                    collectTextGroups(child);
+                    flushGroup();
+                } else {
+                    collectTextGroups(child);
+                }
+            }
+        }
+    };
+
+    collectTextGroups(rule.area);
+    flushGroup();
+
+    const titles = [];
+
+    for (const textNodes of textGroups) {
+        const raw = textNodes.map(node => node.textContent).join('');
+        const titleMatch = raw.match(rule.getTitleRegex);
 
         if (titleMatch) {
-            cleanTitle = titleMatch[rule.getTitleMatchPoint]?.trim();
             titles.push({
-                textNode: node,
+                textNodes,
                 rawText: raw,
-                title: cleanTitle,
+                title: titleMatch[rule.getTitleMatchPoint]?.trim(),
             });
         }
     }
@@ -1070,7 +1091,6 @@ if (titles.length > 0) {
 
         const span = document.createElement('span');
         span.className = 'title-row';
-        span.textContent = item.rawText;
         span.style.position = 'relative';
         span.style.display = 'inline-block';
         span.style.width = '100%';
@@ -1079,7 +1099,13 @@ if (titles.length > 0) {
         span.style.paddingRight = '180px';
         span.style.minHeight = '1.4em';
 
-        item.textNode.parentNode.replaceChild(span, item.textNode);
+        const range = document.createRange();
+        const firstNode = item.textNodes[0];
+        const lastNode = item.textNodes[item.textNodes.length - 1];
+        range.setStart(firstNode, 0);
+        range.setEnd(lastNode, lastNode.textContent.length);
+        span.appendChild(range.extractContents());
+        range.insertNode(span);
 
         span.insertAdjacentHTML('beforeend', `
             <i class="title-ui"
@@ -1121,4 +1147,3 @@ if (titles.length > 0) {
         });
     });
 }
-
