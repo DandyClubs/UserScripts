@@ -715,13 +715,31 @@ const genericHandlers = {
         run: async (link) => { const f = await getUrlFromMetaRefresh(link.href); if (f) link.href = f; }
     },
     'final_url_jumps': {
-        selector: 'a[href*="click.dtiserv2.com/Direct"], a[href*="clear-tv.com/Direct"], a[href*="tiny.cc/"]',
+        selector: 'a[href*="click.dtiserv2.com/Direct"], a[href*="clear-tv.com/Direct"], a[href*="tiny.cc/"], a[href*="go.whitetrafsa.com"]',
         isAsync: true,
         run: async (link) => {
-            if (/https?:\/\/(click\.dtiserv2\.com|clear-tv.com)\/Direct/.test(link.href)) {
+            if (/https?:\/\/(click\.dtiserv2\.com|clear-tv\.com)\/Direct|go\.whitetrafsa\.com/.test(link.href)) {
                 console.log(`[직접 추적] ${link.href} -> useotools.com API로 최종 URL 추적 중...`);
                 withUseotools(link.href).then(finalUrl => {
                     if (finalUrl) link.href = finalUrl;
+                });
+            } else {
+                console.log(`[직접 추적] ${link.href} -> 최종 URL 추적 중...`);
+                const f = await getFinalUrl(link.href);
+                if (f) link.href = f;
+            }
+        }
+    },
+     'blockedDNS': {
+        selector: 'a[href*="go.whitetrafsa.com"]',
+        isAsync: true,
+        run: async (link) => {
+            if (/go\.whitetrafsa\.com/.test(link.href)) {
+                console.log(`[직접 추적] ${link.href} -> useotools.com API로 최종 URL 추적 중...`);
+                withUseotools(link.href).then(finalUrl => {
+                    if (finalUrl) {
+                        link.href = removeUriWithParam(finalUrl, ['affiliateId', 'realDomain']);
+                    }
                 });
             } else {
                 console.log(`[직접 추적] ${link.href} -> 최종 URL 추적 중...`);

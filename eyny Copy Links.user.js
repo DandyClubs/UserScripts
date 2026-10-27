@@ -311,15 +311,11 @@ function extractTitles(rule) {
         const titleMatch = raw.match(rule.getTitleRegex);
 
         if (titleMatch) {
-            titles.push({
-                textNodes,
-                rawText: raw,
-                title: titleMatch[rule.getTitleMatchPoint]?.trim(),
-            });
+            titles.push({ textNodes });
         }
     }
 
-    console.log("추출된 제목 목록:", titles.map(t => t.title), titles);
+    console.log("제목 UI 대상 텍스트 노드 그룹:", titles);
     return titles;
 }
 
@@ -728,15 +724,17 @@ async function CopyItems(titleIndex = null) {
     const copyNotice = document.querySelector('.CopyNotice');
     if (rule) {
         const results = await getAnalysisResults();
-        const selectedTitle = titleIndex === null ? null : titles[titleIndex];
-        const matchingResults = selectedTitle
-            ? results.filter(result => result.title?.trim() === selectedTitle.title.trim())
-            : results;
-
-        if (selectedTitle && !matchingResults.length) {
-            console.warn(`선택한 제목의 분석 결과를 찾을 수 없습니다: ${selectedTitle.title}`);
+        if (titleIndex !== null && results.length !== titles.length) {
+            console.error(`제목 UI와 분석 결과 개수가 달라 개별 복사를 중단합니다. UI: ${titles.length}, 분석 결과: ${results.length}`);
             return;
         }
+
+        const selectedResult = titleIndex === null ? null : results[titleIndex];
+        if (titleIndex !== null && !selectedResult) {
+            console.warn(`해당 인덱스의 분석 결과를 찾을 수 없습니다: ${titleIndex}`);
+            return;
+        }
+        const matchingResults = selectedResult ? [selectedResult] : results;
 
         for (const x of matchingResults) {
             console.log('current Object: ', x)
