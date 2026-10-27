@@ -3627,7 +3627,7 @@ async function RemoveDB(listToDelete) {
 
 async function CheckDB(listTo, fromStep) {
     console.log(`CheckDB:`, listTo, fromStep);
-    indexedDBCache = await indexedDBUpdate();
+    //indexedDBCache = await indexedDBUpdate();
     let isMatchFound = [];
 
     const minusElement = document.querySelector('.Minus');
