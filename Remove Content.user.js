@@ -406,7 +406,9 @@ async function processContent(node, selector, isExtra = false) {
     }
 
     const items = [...node.querySelectorAll(selector)];
+    
     for (const item of items) {
+        if (item.closest('.hiddenbox')) continue;
         const textContent = item.textContent;
 
         // 추가 선택자의 경우 특정 단어로 제거
@@ -455,7 +457,7 @@ async function processContent(node, selector, isExtra = false) {
 
         else if (/hidefporn\.ws|ultoporn\.com|(k2sporn|k2sprn)\.com|wetholefans\.com/.test(PageURL)) {
             const resolutionMatch = textContent.match(/(\d{3,4})p/);
-            const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
+            const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;            
 
             if (resolution) {
 
@@ -595,7 +597,6 @@ function processQueue() {
         if (Active.extraSelector) {
             processContent(item, Active.extraSelector, true);
         }
-
         processContent(item, Active.linkSelector);
     }
     managementWorking = false;
