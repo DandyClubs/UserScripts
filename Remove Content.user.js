@@ -392,10 +392,10 @@ async function ClearTitle() {
 /**
  * 특정 콘텐츠를 포함하는 요소를 찾아 제거하거나 텍스트를 대체합니다.
  * @param {HTMLElement} node - 탐색을 시작할 DOM 요소
- * @param {string} selector - 요소를 찾는 CSS 선택자
- * @param {boolean} isExtra - 추가 선택자인지 여부
+ * @param {string} linkSelector - 링크 요소를 찾는 CSS 선택자
+ * @param {string} extraSelector - 추가 콘텐츠 요소를 찾는 CSS 선택자
  */
-async function processContent(node, selector, isExtra = false) {
+async function processContent(node, linkSelector, extraSelector) {
 
     if (Active.extraRemoveSelector) {
         const extraItems = [...node.querySelectorAll(Active.extraRemoveSelector)];
@@ -405,132 +405,146 @@ async function processContent(node, selector, isExtra = false) {
         }
     }
 
-    const items = [...node.querySelectorAll(selector)];
-    
-    for (const item of items) {
-        if (item.closest('.hiddenbox')) continue;
-        const textContent = item.textContent;
+    const parents = new Map();
+    const addItem = (item, isExtra) => {
+        const parent = item.closest(Active.removeTagSelector);
+        if (!parent) return;
 
-        // 추가 선택자의 경우 특정 단어로 제거
-        if (isExtra) {
-            if (RemoveContentEX.test(textContent) || /femdom/i.test(textContent) || MREX.test(textContent)) {
-                console.log('Extra content removed:', textContent.match(RemoveContentEX) || textContent.match(/femdom/i) || textContent.match(MREX), textContent);
-                const parentElement = item.closest(Active.removeTagSelector);
-                if (parentElement) {
-                    parentElement.classList.add('hiddenbox');
-                    parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
+        let items = parents.get(parent);
+        if (!items) {
+            items = new Map();
+            parents.set(parent, items);
+        }
+        if (!items.has(item) || isExtra) {
+            items.set(item, isExtra);
+        }
+    };
+
+    if (extraSelector) {
+        for (const item of node.querySelectorAll(extraSelector)) {
+            addItem(item, true);
+        }
+    }
+    for (const item of node.querySelectorAll(linkSelector)) {
+        addItem(item, false);
+    }
+
+    for (const [parent, items] of parents) {
+        if (parent.closest('.hiddenbox')) continue;
+
+        for (const [item, isExtra] of items) {
+            if (item.closest('.hiddenbox')) continue;
+            const textContent = item.textContent;
+
+            // 추가 선택자의 경우 특정 단어로 제거
+            if (isExtra) {
+                if (RemoveContentEX.test(textContent) || /femdom/i.test(textContent) || MREX.test(textContent)) {
+                    console.log('Extra content removed:', textContent.match(RemoveContentEX) || textContent.match(/femdom/i) || textContent.match(MREX), textContent);
+                    parent.classList.add('hiddenbox');
+                    parent.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
+                    continue;
                 }
+            }
+            // 일반 링크의 경우 URL 또는 텍스트로 제거
+
+            if (/\/(femdom|transsexuals)\//i.test(item.href)) {
+                console.log('Link content removed:', item.href.match(/\/(femdom|transsexuals)\//i));
+                parent.classList.add('hiddenbox');
+                parent.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
                 continue;
             }
-        }
-        // 일반 링크의 경우 URL 또는 텍스트로 제거
 
-        if (/\/(femdom|transsexuals)\//i.test(item.href)) {
-            console.log('Link content removed:', item.href.match(/\/(femdom|transsexuals)\//i));
-            const parentElement = item.closest(Active.removeTagSelector);
-            if (parentElement) {
-                parentElement.classList.add('hiddenbox');
-                parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
+            if (RemoveContentEX.test(textContent) || MREX.test(textContent)) {
+                console.log('Keyword content removed:', textContent.match(RemoveContentEX) || textContent.match(MREX), textContent);
+                parent.classList.add('hiddenbox');
+                parent.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
+                continue;
             }
-            continue;
-        }
 
-        if (RemoveContentEX.test(textContent) || MREX.test(textContent)) {
-            console.log('Keyword content removed:', textContent.match(RemoveContentEX) || textContent.match(MREX), textContent);
-            const parentElement = item.closest(Active.removeTagSelector);
-            if (parentElement) {
-                parentElement.classList.add('hiddenbox');
-                parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
+            if (/all-voyeur\.net/.test(PageURL)) {
+                console.log('Category content removed:', item, parent);
+                parent.classList.add('hiddenbox');
+                parent.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
+                continue;
             }
-            continue;
-        }
 
-        if (/all-voyeur\.net/.test(PageURL)) {
-            console.log('Category content removed:', item, item.closest(Active.removeTagSelector));
-            const parentElement = item.closest(Active.removeTagSelector);
-            if (parentElement) {
-                parentElement.classList.add('hiddenbox');
-                parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
-            }
-            continue;
-        }
+            else if (/hidefporn\.ws|ultoporn\.com|(k2sporn|k2sprn)\.com|wetholefans\.com/.test(PageURL)) {
+                const resolutionMatch = textContent.match(/(\d{3,4})p/);
+                const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
 
-        else if (/hidefporn\.ws|ultoporn\.com|(k2sporn|k2sprn)\.com|wetholefans\.com/.test(PageURL)) {
-            const resolutionMatch = textContent.match(/(\d{3,4})p/);
-            const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;            
+                if (resolution) {
 
-            if (resolution) {
+                    function cleanTitle(str) {
+                        return str
+                            // 1. S숫자:E숫자 형태가 아닌 일반 '텍스트:' 구분자 패턴만 제거
+                            .replace(/^.*?:/gi, (match) => {
+                                // 매칭된 콜론 영역에 S숫자:E숫자 패턴이 포함되어 있다면 치환하지 않고 유지
+                                if (/s\d{1,2}\s*:\s*e?\d{1,3}/i.test(match)) {
+                                    return match;
+                                }
+                                // 일반 스튜디오/카테고리 구분자 콜론인 경우 삭제
+                                return '';
+                            })
+                            // 2. 끝 부분의 날짜 (- MM/DD/YY) 제거
+                            .replace(/\s*-\s*\d{1,4}[.\-\/]\d{1,2}[.\-\/]\d{1,4}$/gi, '')
+                            .trim();
+                    }
+                    let Title = cleanTitle(textContent).replace(/^Nude\sLeaked\s-/i, '')
+                        .replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '')
+                        .replace(resolutionMatch[0], '')
+                        .trim().toLowerCase();
 
-                function cleanTitle(str) {
-                    return str
-                        // 1. S숫자:E숫자 형태가 아닌 일반 '텍스트:' 구분자 패턴만 제거
-                        .replace(/^.*?:/gi, (match) => {
-                            // 매칭된 콜론 영역에 S숫자:E숫자 패턴이 포함되어 있다면 치환하지 않고 유지
-                            if (/s\d{1,2}\s*:\s*e?\d{1,3}/i.test(match)) {
-                                return match;
+
+
+                    if (Title.split(' ').length >= 2 && Title.length >= 10) {
+
+                        // 캐시에서 동일 Title 검색
+                        const existingIndex = contentCache.findIndex(s => s.K.toLowerCase() === Title);
+                        const existingItem = existingIndex !== -1 ? contentCache[existingIndex] : null;
+
+                        // 공통 제거 함수
+                        const hideElement = (targetItem) => {
+                            const parentElement = targetItem.closest(Active.removeTagSelector);
+                            if (parentElement) {
+                                parentElement.classList.add('hiddenbox');
+                                parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
                             }
-                            // 일반 스튜디오/카테고리 구분자 콜론인 경우 삭제
-                            return '';
-                        })
-                        // 2. 끝 부분의 날짜 (- MM/DD/YY) 제거
-                        .replace(/\s*-\s*\d{1,4}[.\-\/]\d{1,2}[.\-\/]\d{1,4}$/gi, '')
-                        .trim();
-                }
-                let Title = cleanTitle(textContent).replace(/^Nude\sLeaked\s-/i, '')
-                    .replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '')
-                    .replace(resolutionMatch[0], '')
-                    .trim().toLowerCase();
+                        };
 
-
-
-                if (Title.split(' ').length >= 2 && Title.length >= 10) {
-
-                    // 캐시에서 동일 Title 검색
-                    const existingIndex = contentCache.findIndex(s => s.K.toLowerCase() === Title);
-                    const existingItem = existingIndex !== -1 ? contentCache[existingIndex] : null;
-
-                    // 공통 제거 함수
-                    const hideElement = (targetItem) => {
-                        const parentElement = targetItem.closest(Active.removeTagSelector);
-                        if (parentElement) {
-                            parentElement.classList.add('hiddenbox');
-                            parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
-                        }
-                    };
-
-                    if (resolution) {
-                        if (!existingItem) {
-                            // [1. 최초 등록] 해당 타이틀이 없으면 무조건 등록 (해상도 포함)
-                            await contentManager.add(Title, AddDate, resolution);
-                            contentCache.push({ K: Title, D: AddDate, R: resolution, el: item });
-                        }
-                        else if (resolution > (existingItem.R || 0)) {
-
-                            if (existingItem.R < 1080) {
-                                // [2. 더 높은 해상도 발견] DB/캐시 갱신 + 이전에 탐색된 저해상도 DOM 요소 숨김
-                                console.log(`Higher resolution detected (${existingItem.R || 0}p -> ${resolution}p):`, Title, item);
-
+                        if (resolution) {
+                            if (!existingItem) {
+                                // [1. 최초 등록] 해당 타이틀이 없으면 무조건 등록 (해상도 포함)
                                 await contentManager.add(Title, AddDate, resolution);
-                                contentCache[existingIndex] = { K: Title, D: AddDate, R: resolution, el: item };
+                                contentCache.push({ K: Title, D: AddDate, R: resolution, el: item });
+                            }
+                            else if (resolution > (existingItem.R || 0)) {
 
-                                if (existingItem.el) {
-                                    hideElement(existingItem.el);
+                                if (existingItem.R < 1080) {
+                                    // [2. 더 높은 해상도 발견] DB/캐시 갱신 + 이전에 탐색된 저해상도 DOM 요소 숨김
+                                    console.log(`Higher resolution detected (${existingItem.R || 0}p -> ${resolution}p):`, Title, item);
+
+                                    await contentManager.add(Title, AddDate, resolution);
+                                    contentCache[existingIndex] = { K: Title, D: AddDate, R: resolution, el: item };
+
+                                    if (existingItem.el) {
+                                        hideElement(existingItem.el);
+                                    }
                                 }
                             }
-                        }
-                        else if (resolution < (existingItem.R || 0)) {
-                            // [3. 더 낮은 해상도 발견] 현재 들어온 낮은 해상도 요소만 숨김
-                            console.log(`Low resolution content removed (${resolution}p < ${existingItem.R}p):`, Title, item);
-                            hideElement(item);
-                            continue;
+                            else if (resolution < (existingItem.R || 0)) {
+                                // [3. 더 낮은 해상도 발견] 현재 들어온 낮은 해상도 요소만 숨김
+                                console.log(`Low resolution content removed (${resolution}p < ${existingItem.R}p):`, Title, item);
+                                hideElement(item);
+                                continue;
+                            }
                         }
                     }
                 }
+
+                // 제거되지 않은 경우 텍스트 대체
+                replaceText(item);
             }
         }
-
-        // 제거되지 않은 경우 텍스트 대체
-        replaceText(item);
     }
 }
 
@@ -594,10 +608,7 @@ function processQueue() {
     managementWorking = true;
     while (!queue.isEmpty()) {
         const item = queue.dequeue();
-        if (Active.extraSelector) {
-            processContent(item, Active.extraSelector, true);
-        }
-        processContent(item, Active.linkSelector);
+        processContent(item, Active.linkSelector, Active.extraSelector);
     }
     managementWorking = false;
 }
@@ -656,10 +667,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // 1. 초기 페이지 콘텐츠 처리는 각 rootElement별로 진행
     for (const rootElement of rootElements) {
-        if (Active.extraSelector) {
-            processContent(rootElement, Active.extraSelector, true);
-        }
-        processContent(rootElement, Active.linkSelector);
+        processContent(rootElement, Active.linkSelector, Active.extraSelector);
     }
 
     // 2. 동적 콘텐츠 감지용 MutationObserver는 document.body 전체에 1개만 설정
