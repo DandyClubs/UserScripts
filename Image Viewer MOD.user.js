@@ -766,22 +766,33 @@ function bindArrowNavHandlers(viewer) {
 function autoFitImage(viewer, img) {
     const oW = img.naturalWidth, oH = img.naturalHeight;
     const vW = img.offsetParent.clientWidth, vH = img.offsetParent.clientHeight;
+    const isPortrait = oH > oW;
     let ratio;
+    let alignTop = false;
 
     if (oW > vW) {
-        ratio = vW / oW;
-    } else if (oH > 1600 && oW * 3 < oH) {
-        ratio = 0.95;
-    } else if (oH > vH && oW >= 1200) {
+        ratio = isPortrait
+            ? vW / oW
+            : Math.min(vW / oW, vH / oH);
+        alignTop = isPortrait;
+    } else if (isPortrait && oH > 1600 && oW * 3 < oH) {
+        ratio = 0.90;
+        alignTop = true;
+    } else if (isPortrait && oH > vH && oW >= 1200) {
         ratio = 1200 / oW;
+        alignTop = true;
+    } else if (oH > vH) {        
+        ratio = Math.min((vW * 0.90) / oW, (vH * 0.90) / oH);
     } else {
         viewer.scale(1.1, 1.1);
         return;
     }
 
-    // Center vertically if letterboxed
-    const yOffset = (oH * ratio - vH) / 2 + (vH - img.clientHeight) / 4;
-    viewer.zoomTo(ratio).move(0, yOffset);
+    viewer.zoomTo(ratio);
+    if (alignTop) {
+        const yOffset = (oH * ratio - vH) / 2 + (vH - img.clientHeight) / 4;
+        viewer.move(0, yOffset);
+    }
 }
 
 
