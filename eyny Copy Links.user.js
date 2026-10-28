@@ -240,7 +240,7 @@ const siteRules = [
         priority: ['3840', '1920', '1280', '720'],
         coverImage: '',
         useResolution: true,
-        getTitleRegex: /(?<=(影片名稱|電子書名稱|檔案名稱|資源格式|影片名称|本片名稱)】[：:]?)(.*?)(?=(?:(\(MP4@KF@無碼|【影片大小).*$)?(?:$))/m,
+        getTitleRegex: /(?<=(影片名稱|電子書名稱|檔案名稱|資源格式|影片名称|本片名稱)】[：:\s])(.*?)(?=(?:(\(MP4@KF@無碼|【影片大小).*$)?(?:$))/m,
         getTitleMatchPoint: 0,
         passwordRegex: /(解壓密碼|解壓縮密碼)】[：:]?(.*?)\s*(.+)/,
         breakPoint: [
