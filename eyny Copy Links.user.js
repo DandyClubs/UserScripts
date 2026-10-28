@@ -273,6 +273,13 @@ const subjectText = document.querySelector('div#postlist a#thread_subject')?.inn
 
 
 function extractTitles(rule) {
+
+
+    if (!rule.area) {
+        console.error("대상 요소가 유효하지 않습니다.");
+        return [];
+    }
+    
     const textGroups = [];
     let currentGroup = [];
 
