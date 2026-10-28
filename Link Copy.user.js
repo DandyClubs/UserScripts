@@ -1104,10 +1104,12 @@ const siteConfigs = [
                             if (finalDownloadLinks.some(link => /1080p|1080\.mp4|2160p/i.test(link.href))) {
                                 userCopy = true;
                             } else {
+                                console.log(`change userCopy`);
                                 userCopy = false;
                                 userClose = false;
                             }
                         } else {
+                            console.log(`change userCopy`);
                             userCopy = false;
                             userClose = false;
                         }
@@ -3124,6 +3126,7 @@ function CheckSkipTitle(rawTitle) {
         copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
 
         // Set flags indicating skip conditions
+        console.log(`CheckSkipTitle: change userCopy`);
         userClose = false;
         userCopy = false;
 
@@ -3178,6 +3181,7 @@ async function CopyGo(SkipTitle) {
         console.log('No short links detected. Starting copy.');
 
     }
+    console.log({ userCopy });
     if (!userCopy) return;
     Promise.resolve(CopyLink())
         .then(() => {
@@ -3640,10 +3644,14 @@ async function CheckDB(listTo, fromStep) {
         let copyStateEl = document.querySelector('.CopyState');
         let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
         copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
+        copyStateEl.classList.add('innerText');
+        copyStateEl.textContent = 'Link is Empty';
 
         // Set flags indicating skip conditions
+        console.log(`CheckDB: change userCopy`);
         userClose = false;
         userCopy = false;
+
     }
 
     //console.log(indexedDBCache);
@@ -3724,7 +3732,7 @@ function PackageList(LinksDB) {
 let alreadyCopy = false;
 
 async function CopyLink() {
-    console.log('Step CopyLink:', { CopyTitle, DownloadArea, alreadyCopy })        
+    console.log('Step CopyLink:', { CopyTitle, DownloadArea, alreadyCopy })
     if (alreadyCopy) return `이미 복사 작업중입니다.`;
     alreadyCopy = true;
     // Prepare notice text
@@ -3830,7 +3838,7 @@ async function CopyLink() {
                     if (!finalCoverImage) {
                         console.log(`%c[미등록 브랜드 탐색 실패] ${prefix} ${CoverImage || ''}`, "color: #FF9800;");
                     }
-                    
+
                     copyIcon.classList.remove('fa-brands');
                     copyIcon.classList.remove('fa-roblox-creator-studio');
                     copyIcon.classList.add('far');
