@@ -553,10 +553,11 @@ const DomainHandlers = {
             iconSet.style.setProperty('vertical-align', window.getComputedStyle(relativeArea).getPropertyValue('vertical-align'));
             iconSet.style.setProperty('line-height', window.getComputedStyle(relativeArea).getPropertyValue('line-height'));
             iconSet.style.setProperty('top', `${(relativeAreaMetrics.height / 2 - iconSetMetrics.height / 2).toFixed(0)}px`);
-            iconSet.style.setProperty('left', `${(relativeAreaMetrics.width).toFixed(0)}px`);
+            //iconSet.style.setProperty('left', `${(relativeAreaMetrics.width).toFixed(0)}px`);
+            iconSet.style.setProperty('right', `15px`);
         },
         infoSelector: (el) => DomainRules.getPostArea(el).querySelector('.post-text') || '',
-        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('.search-post-subj') || '',
+        relativeSelector: (el) => DomainRules.getPostArea(el).querySelector('.post-info-row') || '',
     },
     'x-idol\\.net': {
         selectors: {
