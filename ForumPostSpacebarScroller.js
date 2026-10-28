@@ -5,6 +5,7 @@
 // @description  offsetTop 기반으로 포럼 게시물 간 스페이스바 이동
 // @author       User
 // @match        https://www.forumophilia.com/*.html
+// @match        https://www.forumophilia.com/search.php*
 // @match        http://www.planetsuzy.org/t*.html
 // @match        https://www.pornbb.org/*
 // @grant        none
@@ -18,7 +19,7 @@
         {
             hostPattern: /forumophilia\.com$/,
             config: {
-                postSelector: 'div.forumline div.row[data-post]',
+                postSelector: 'div.forumline div.row[data-post], div.forumline div.row div.row-wrap',
                 topOffset: 15
             }
         },

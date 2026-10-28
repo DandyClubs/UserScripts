@@ -596,7 +596,7 @@ const DomainHandlers = {
             return parseForumTitle(infoLines, rawTitle, { preferJapanese: true });
         },
         getCopyID: (relativeArea) => {
-            const postdetails = relativeArea?.querySelector('div.post_subj div.postdetails a.[href*="viewtopic.php"]');
+            const postdetails = relativeArea?.querySelector('div.post_subj div.postdetails a[href*="viewtopic.php"]');
             if (postdetails) {                
                 return postdetails.getAttribute('href');
             } else {
