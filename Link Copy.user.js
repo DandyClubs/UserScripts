@@ -3724,7 +3724,7 @@ function PackageList(LinksDB) {
 let alreadyCopy = false;
 
 async function CopyLink() {
-    //console.log('Step CopyLink:', { CopyTitle, DownloadArea })        
+    console.log('Step CopyLink:', { CopyTitle, DownloadArea, alreadyCopy })        
     if (alreadyCopy) return `이미 복사 작업중입니다.`;
     alreadyCopy = true;
     // Prepare notice text
