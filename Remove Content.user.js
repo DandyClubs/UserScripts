@@ -49,8 +49,6 @@
 // ==/UserScript==
 
 
-
-
 class ContentDB {
     constructor() {
         this.dbName = 'ContentManager';
@@ -202,114 +200,114 @@ console.log('RemoveContentEX: ', RemoveContentEX, '\nSkipModelEX: ', SkipModelEX
 const siteConfigs = {
     'blogjav.net': {
         linkSelector: '.entry-title a',
-        removeTagSelector: 'div.col-xs-12',
+        parentTagSelector: 'div.col-xs-12',
     },
     'bestgirlsexy.com': {
         linkSelector: 'div.elementor-post__text h3.elementor-post__title a',
-        removeTagSelector: 'div.elementor-post__card',
+        parentTagSelector: 'div.elementor-post__card',
     },
     'jappydolls.net': {
         linkSelector: 'header.entry-header .entry-title a',
-        removeTagSelector: 'article.hentry',
+        parentTagSelector: 'article.hentry',
     },
     'x-idol.net': {
-        linkSelector: 'div.entry .post-title.entry-title a',
-        removeTagSelector: 'div.entry.item-wrap',
+        linkSelector: '.post-title.entry-title a',
+        parentTagSelector: 'div.entry.item-wrap',
     },
     'eyny.com': {
         linkSelector: 'tr th.common a.xst',
-        removeTagSelector: 'tbody',
+        parentTagSelector: 'tbody',
     },
     'javarchive.com': {
-        linkSelector: 'ul li h3 a',
-        removeTagSelector: 'li',
+        linkSelector: 'h3 a',
+        parentTagSelector: 'ul li',
     },
     'javfree.me': {
         linkSelector: 'h2.entry-title a',
-        removeTagSelector: 'div.hentry',
+        parentTagSelector: 'div.hentry',
     },
     'maxjav': {
-        linkSelector: 'div.post.hentry h2.title a',
-        extraSelector: 'div.post.hentry .entry p:first-child',
-        removeTagSelector: 'div.hentry',
+        linkSelector: 'h2.title a',
+        extraSelector: '.entry p:first-child',
+        parentTagSelector: 'div.post.hentry',
     },
     'k2sporn.com': {
         linkSelector: 'div.story-head h2.title a',
-        removeTagSelector: 'div.story.shortstory',
+        parentTagSelector: 'div.story.shortstory',
     },
     'k2sprn.com': {
         linkSelector: 'div.story-head h2.title a',
-        removeTagSelector: 'div.story.shortstory',
+        parentTagSelector: 'div.story.shortstory',
     },
     'hidefporn.ws': {
         linkSelector: 'div.story-head h2.title a',
-        removeTagSelector: 'div.story.shortstory',
+        parentTagSelector: 'div.story.shortstory',
     },
     'ultoporn.com': {
         linkSelector: 'div.storyhead h3.shead a',
         extraSelector: 'div.storyhead p.link-cat',
-        removeTagSelector: 'div.story.box',
+        parentTagSelector: 'div.story.box',
         extraRemoveSelector: 'div#dle-content div.hsep',
     },
     'wetholefans.com': {
         linkSelector: 'div.short-title a',
-        extraSelector: 'div.short-story div.short-cat',
-        removeTagSelector: 'div.short-story',
+        extraSelector: 'div.short-cat',
+        parentTagSelector: 'div.short-story',
     },
     'naughtyblog.com': {
         linkSelector: 'div.post-header-overview h2.post-title a',
-        removeTagSelector: 'div.post-overview',
+        parentTagSelector: 'div.post-overview',
     },
     '0xxx.ws': {
-        linkSelector: 'table#home-table tbody tr td.title a.screenshot',
-        removeTagSelector: 'tr',
+        linkSelector: 'td.title a.screenshot',
+        parentTagSelector: 'table#home-table tbody tr',
     },
     'pornolab.net': {
         linkSelector: 'div.torTopic a.torTopic, td a.gen, td div a.med.tLink',
-        removeTagSelector: 'tr',
+        parentTagSelector: 'tr',
     },
     'xxxclub.to': {
-        linkSelector: 'div.browsetableinside ul li span a[id^="#"]',
-        removeTagSelector: 'li',
+        linkSelector: 'span a[id^="#"]',
+        parentTagSelector: 'div.browsetableinside ul li',
     },
     'therarbg.com': {
         linkSelector: 'td.cellName div.wrapper a',
-        removeTagSelector: 'tr',
+        parentTagSelector: 'tr',
     },
     'sis001.com': {
         linkSelector: 'th span a[href*="thread"], th span a[href*="viewthread.php?tid"]',
         extraSelector: 'th.lock em a',
-        removeTagSelector: 'tbody',
+        parentTagSelector: 'tbody',
         rootSelector: 'div.mainbox.threadlist form table',
     },
     't66y.com': {
-        linkSelector: 'tr.t_one.tac td.tal h3 a[href*="htm_data"]',
-        extraSelector: 'tr.tr3.t_one.tac td a',
-        removeTagSelector: 'tr',
+        linkSelector: ' td.tal h3 a[href*="htm_data"]',
+        extraSelector: 'td a',
+        parentTagSelector: 'tr.t_one.tac',
     },
     'misskon.com': {
-        linkSelector: 'article.item-list .post-box-title a',
-        removeTagSelector: 'article.item-list',
+        linkSelector: '.post-box-title a',
+        parentTagSelector: 'article.item-list',
     },
     'allasiangirls.net': {
         linkSelector: 'div.box-text.text-center div.box-text-inner.blog-post-inner .post-title a',
-        removeTagSelector: 'div.post-item',
+        parentTagSelector: 'div.post-item',
     },
     'all-voyeur.net': {
-        linkSelector: 'li.post div.info span.info_category a[href*="toilet-hidden-cameras"]',
-        removeTagSelector: 'li.post',
+        linkSelector: 'div.info span.info_category a[href*="toilet-hidden-cameras"]',
+        parentTagSelector: 'li.post',
     },
     'sukebei.nyaa.si': {
-        linkSelector: 'table.torrent-list tbody tr.default td a',
-        removeTagSelector: 'tr.default',
+        linkSelector: 'td a',
+        parentTagSelector: 'table.torrent-list tbody tr.default',
     },
     'xchina.co': {
-        linkSelector: 'div.list div.item div.text div.subs div a',
-        removeTagSelector: 'div.item',
+        linkSelector: 'div.text div.subs div a',
+        parentTagSelector: 'div.list div.item',
     },
     'turbobitxxx.com': {
-        linkSelector: 'article.postBox center h2 a',
-        removeTagSelector: 'article.postBox',
+        linkSelector: 'center h2 a',
+        parentTagSelector: 'article.postBox',
     },
 };
 
@@ -334,6 +332,8 @@ if (!Active) {
     console.log('No matching site configuration found.');
     return;
 }
+
+const contentSelector = `${Active.parentTagSelector}:has(${Active.linkSelector})`;
 
 // ----------------------------------------------------
 // 💡 개선된 부분: Queue 클래스 유지보수
@@ -389,75 +389,69 @@ async function ClearTitle() {
 // 💡 개선된 부분: 함수 역할 분리 및 명확화
 // ----------------------------------------------------
 
+
+const hideElement = (item) => {
+    item.classList.add('hiddenbox');
+    item.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
+};
+
 /**
  * 특정 콘텐츠를 포함하는 요소를 찾아 제거하거나 텍스트를 대체합니다.
  * @param {HTMLElement} node - 탐색을 시작할 DOM 요소
  * @param {string} selector - 요소를 찾는 CSS 선택자
  * @param {boolean} isExtra - 추가 선택자인지 여부
  */
-async function processContent(node, selector, isExtra = false) {
+async function processContent(node, selector) {
 
     if (Active.extraRemoveSelector) {
         const extraItems = [...node.querySelectorAll(Active.extraRemoveSelector)];
         for (const extraItem of extraItems) {
-            extraItem.classList.add('hiddenbox');
-            extraItem.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
+            hideElement(extraItem);
         }
     }
 
-    const items = [...node.querySelectorAll(selector)];
-    
-    for (const item of items) {
-        if (item.closest('.hiddenbox')) continue;
-        const textContent = item.textContent;
+    const parents = [
+        ...(node.matches(selector) ? [node] : []),
+        ...node.querySelectorAll(selector)
+    ];
 
+    for (const parent of parents) {
+        if (parent.classList.contains('hiddenbox')) continue;
+        const isLink = parent.querySelector(Active.linkSelector);
+        const isExtra = parent.querySelector(Active.extraSelector);
+        const textContent = isLink.textContent;
+        const extraTextContent = isExtra ? isExtra.textContent : '';
         // 추가 선택자의 경우 특정 단어로 제거
         if (isExtra) {
-            if (RemoveContentEX.test(textContent) || /femdom/i.test(textContent) || MREX.test(textContent)) {
-                console.log('Extra content removed:', textContent.match(RemoveContentEX) || textContent.match(/femdom/i) || textContent.match(MREX), textContent);
-                const parentElement = item.closest(Active.removeTagSelector);
-                if (parentElement) {
-                    parentElement.classList.add('hiddenbox');
-                    parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
-                }
+            if (RemoveContentEX.test(extraTextContent) || /femdom/i.test(extraTextContent) || MREX.test(extraTextContent)) {
+                console.log('Extra content removed:', extraTextContent.match(RemoveContentEX) || extraTextContent.match(/femdom/i) || extraTextContent.match(MREX), textContent);
+                hideElement(parent);
                 continue;
             }
         }
-        // 일반 링크의 경우 URL 또는 텍스트로 제거
 
-        if (/\/(femdom|transsexuals)\//i.test(item.href)) {
-            console.log('Link content removed:', item.href.match(/\/(femdom|transsexuals)\//i));
-            const parentElement = item.closest(Active.removeTagSelector);
-            if (parentElement) {
-                parentElement.classList.add('hiddenbox');
-                parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
-            }
+        // 일반 링크의 경우 URL 또는 텍스트로 제거
+        if (/\/(femdom|transsexuals)\//i.test(isLink.href)) {
+            console.log('Link content removed:', isLink.href.match(/\/(femdom|transsexuals)\//i));
+            hideElement(parent);
             continue;
         }
 
         if (RemoveContentEX.test(textContent) || MREX.test(textContent)) {
             console.log('Keyword content removed:', textContent.match(RemoveContentEX) || textContent.match(MREX), textContent);
-            const parentElement = item.closest(Active.removeTagSelector);
-            if (parentElement) {
-                parentElement.classList.add('hiddenbox');
-                parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
-            }
+            hideElement(parent);
             continue;
         }
 
         if (/all-voyeur\.net/.test(PageURL)) {
-            console.log('Category content removed:', item, item.closest(Active.removeTagSelector));
-            const parentElement = item.closest(Active.removeTagSelector);
-            if (parentElement) {
-                parentElement.classList.add('hiddenbox');
-                parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
-            }
+            console.log('Category content removed:', item, item.closest(Active.parentTagSelector));
+            hideElement(parent);
             continue;
         }
 
         else if (/hidefporn\.ws|ultoporn\.com|(k2sporn|k2sprn)\.com|wetholefans\.com/.test(PageURL)) {
             const resolutionMatch = textContent.match(/(\d{3,4})p/);
-            const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;            
+            const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : 0;
 
             if (resolution) {
 
@@ -481,37 +475,26 @@ async function processContent(node, selector, isExtra = false) {
                     .replace(resolutionMatch[0], '')
                     .trim().toLowerCase();
 
-
-
                 if (Title.split(' ').length >= 2 && Title.length >= 10) {
 
                     // 캐시에서 동일 Title 검색
                     const existingIndex = contentCache.findIndex(s => s.K.toLowerCase() === Title);
                     const existingItem = existingIndex !== -1 ? contentCache[existingIndex] : null;
 
-                    // 공통 제거 함수
-                    const hideElement = (targetItem) => {
-                        const parentElement = targetItem.closest(Active.removeTagSelector);
-                        if (parentElement) {
-                            parentElement.classList.add('hiddenbox');
-                            parentElement.querySelectorAll('img').forEach(img => img.setAttribute('loading', 'lazy'));
-                        }
-                    };
-
                     if (resolution) {
                         if (!existingItem) {
                             // [1. 최초 등록] 해당 타이틀이 없으면 무조건 등록 (해상도 포함)
                             await contentManager.add(Title, AddDate, resolution);
-                            contentCache.push({ K: Title, D: AddDate, R: resolution, el: item });
+                            contentCache.push({ K: Title, D: AddDate, R: resolution, el: parent });
                         }
                         else if (resolution > (existingItem.R || 0)) {
 
                             if (existingItem.R < 1080) {
                                 // [2. 더 높은 해상도 발견] DB/캐시 갱신 + 이전에 탐색된 저해상도 DOM 요소 숨김
-                                console.log(`Higher resolution detected (${existingItem.R || 0}p -> ${resolution}p):`, Title, item);
+                                console.log(`Higher resolution detected (${existingItem.R || 0}p -> ${resolution}p):`, Title, parent);
 
                                 await contentManager.add(Title, AddDate, resolution);
-                                contentCache[existingIndex] = { K: Title, D: AddDate, R: resolution, el: item };
+                                contentCache[existingIndex] = { K: Title, D: AddDate, R: resolution, el: parent };
 
                                 if (existingItem.el) {
                                     hideElement(existingItem.el);
@@ -520,8 +503,8 @@ async function processContent(node, selector, isExtra = false) {
                         }
                         else if (resolution < (existingItem.R || 0)) {
                             // [3. 더 낮은 해상도 발견] 현재 들어온 낮은 해상도 요소만 숨김
-                            console.log(`Low resolution content removed (${resolution}p < ${existingItem.R}p):`, Title, item);
-                            hideElement(item);
+                            console.log(`Low resolution content removed (${resolution}p < ${existingItem.R}p):`, Title, parent);
+                            hideElement(parent);
                             continue;
                         }
                     }
@@ -530,7 +513,10 @@ async function processContent(node, selector, isExtra = false) {
         }
 
         // 제거되지 않은 경우 텍스트 대체
-        replaceText(item);
+        if (isExtra) {
+            replaceText(isExtra);
+        }
+        replaceText(isLink);
     }
 }
 
@@ -594,10 +580,7 @@ function processQueue() {
     managementWorking = true;
     while (!queue.isEmpty()) {
         const item = queue.dequeue();
-        if (Active.extraSelector) {
-            processContent(item, Active.extraSelector, true);
-        }
-        processContent(item, Active.linkSelector);
+        processContent(item, contentSelector);
     }
     managementWorking = false;
 }
@@ -656,10 +639,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // 1. 초기 페이지 콘텐츠 처리는 각 rootElement별로 진행
     for (const rootElement of rootElements) {
-        if (Active.extraSelector) {
-            processContent(rootElement, Active.extraSelector, true);
-        }
-        processContent(rootElement, Active.linkSelector);
+        processContent(rootElement, contentSelector);
     }
 
     // 2. 동적 콘텐츠 감지용 MutationObserver는 document.body 전체에 1개만 설정
@@ -667,9 +647,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         for (const mutation of mutations) {
             if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
                 for (const node of mutation.addedNodes) {
-                    if (node.nodeType === Node.ELEMENT_NODE && (node.querySelector(Active.linkSelector) || (Active.extraSelector && node.querySelector(Active.extraSelector)))) {
-                        queue.enqueue(node);
+                    if (!(node instanceof Element)) continue;
+
+                    const contentParents = new Set();
+                    const closestContentParent = node.closest(contentSelector);
+                    if (closestContentParent) {
+                        contentParents.add(closestContentParent);
+                    } else {
+                        node.querySelectorAll(contentSelector).forEach(parent => contentParents.add(parent));
                     }
+
+                    for (const parent of contentParents) queue.enqueue(parent);
                 }
             }
         }
