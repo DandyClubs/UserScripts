@@ -240,7 +240,7 @@ const siteRules = [
         priority: ['3840', '1920', '1280', '720'],
         coverImage: '',
         useResolution: true,
-        getTitleRegex: /(?<=(影片名稱|電子書名稱|檔案名稱|資源格式|影片名称|本片名稱)】[：:])(.*?)(?=(?:(\(MP4@KF@無碼|【影片大小).*$)?(?:$))/m,
+        getTitleRegex: /(?<=(影片名稱|電子書名稱|檔案名稱|資源格式|影片名称|本片名稱)】[：:]?)(.*?)(?=(?:(\(MP4@KF@無碼|【影片大小).*$)?(?:$))/m,
         getTitleMatchPoint: 0,
         passwordRegex: /(解壓密碼|解壓縮密碼)】[：:]?(.*?)\s*(.+)/,
         breakPoint: [
@@ -1101,7 +1101,7 @@ if (titles.length > 0) {
         span.style.width = '100%';
         span.style.whiteSpace = 'normal';
         span.style.boxSizing = 'border-box';
-        span.style.paddingRight = '180px';
+        //span.style.paddingRight = '180px';
         span.style.minHeight = '1.4em';
 
         const range = document.createRange();
@@ -1116,7 +1116,7 @@ if (titles.length > 0) {
             <i class="title-ui"
                   data-title-index="${index}"
                   style="position:absolute;
-                         left:85%;
+                         left: 95%;
                          top: 17.6px;
                          transform: translateY(-50%);
                          display:flex;
