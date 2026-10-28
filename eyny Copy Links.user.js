@@ -75,7 +75,7 @@ GM_addStyle(`
     }
 
     .CopyItemBox{
-        right: 30%;
+        right: 25%;
         left: auto;
         top: 40%;
         margin: 0 auto;
