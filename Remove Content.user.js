@@ -484,6 +484,7 @@ async function processContent(node, selector) {
                     if (resolution) {
                         if (!existingItem) {
                             // [1. 최초 등록] 해당 타이틀이 없으면 무조건 등록 (해상도 포함)
+                            console.log(`First find Resolution Detected (${resolution}p):`, Title, parent);
                             await contentManager.add(Title, AddDate, resolution);
                             contentCache.push({ K: Title, D: AddDate, R: resolution, el: parent });
                         }
@@ -491,7 +492,7 @@ async function processContent(node, selector) {
 
                             if (existingItem.R < 1080) {
                                 // [2. 더 높은 해상도 발견] DB/캐시 갱신 + 이전에 탐색된 저해상도 DOM 요소 숨김
-                                console.log(`Higher resolution detected (${existingItem.R || 0}p -> ${resolution}p):`, Title, parent);
+                                console.log(`Higher Resolution Detected (${existingItem.R || 0}p -> ${resolution}p):`, Title, parent);
 
                                 await contentManager.add(Title, AddDate, resolution);
                                 contentCache[existingIndex] = { K: Title, D: AddDate, R: resolution, el: parent };
@@ -503,7 +504,7 @@ async function processContent(node, selector) {
                         }
                         else if (resolution < (existingItem.R || 0)) {
                             // [3. 더 낮은 해상도 발견] 현재 들어온 낮은 해상도 요소만 숨김
-                            console.log(`Low resolution content removed (${resolution}p < ${existingItem.R}p):`, Title, parent);
+                            console.log(`Low Resolution Content Removed (${resolution}p < ${existingItem.R}p):`, Title, parent);
                             hideElement(parent);
                             continue;
                         }
