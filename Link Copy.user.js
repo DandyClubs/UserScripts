@@ -2570,8 +2570,10 @@ async function handleToggle(key, className) {
 
     const isEnabled = JSON.parse(localStorage.getItem(key));
     ev.classList.toggle('On', isEnabled);
-    ev.classList.toggle('Off', !isEnabled);
-
+    ev.classList.toggle('Off', !isEnabled);    
+    if (!copyOffsetArea || !DownloadArea) {
+        throw new Error('No copyOffsetArea or No DownloadArea');
+    }
     if (key === 'AutoCopy') {
         const hasCopied = await CheckDB(listToDo(DownloadArea), 'handleToggle');
         if (hasCopied.length === 0) {
