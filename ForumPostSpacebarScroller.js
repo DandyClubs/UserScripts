@@ -19,7 +19,7 @@
         {
             hostPattern: /forumophilia\.com$/,
             config: {
-                postSelector: 'div.forumline div.row[data-post], div.forumline div.row div.row-wrap',
+                postSelector: 'div.forumline div.row[data-post], div.forumline div.row div.row-wrap:has(.postdetails)',
                 topOffset: 15
             }
         },
