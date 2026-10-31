@@ -885,7 +885,7 @@ async function ClearVisited() {
         const oldData = await VisitedManager.getOldData(oldDay);
 
         for (const data of oldData) {
-            VisitedManager.remove(data.S);
+            await VisitedManager.remove(data.K);
         }
     } else if (Active.SaveMode === 'ScriptStorage') {
         const allKeys = await GM_listValues();

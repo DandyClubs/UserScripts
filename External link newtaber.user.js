@@ -195,6 +195,8 @@ const classBasedNewTabPatterns = {
         /list-row/,
         /torTopic/,
         /structItem-title/,
+        /topic-card/,
+
     ]
 };
 
