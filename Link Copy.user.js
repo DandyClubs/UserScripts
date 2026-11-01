@@ -3791,8 +3791,9 @@ async function CopyLink() {
                             HQImage.classList.add('HQImage');
                             HQImage.href = finalCoverImage;
                             DownloadArea[0].appendChild(HQImage);
+                            console.log(`%c[규칙 기반 확정] ${prefix} → ${category}`, "color: #9E9E9E;");
                         }
-                        console.log(`%c[규칙 기반 확정] ${prefix} → ${category}`, "color: #9E9E9E;");
+                        
                     }
                 }
 
@@ -3811,7 +3812,7 @@ async function CopyLink() {
 
                     for (const url of candidates) {
                         const result = await fetchImageResolution(url);
-                        console.log(`%c[미등록 브랜드 탐색 결과] ${prefix} ${CoverImage || ''} ${result}`, "color: #FF9800;");
+                        console.log(`%c[미등록 브랜드 탐색 결과] ${prefix} ${CoverImage || ''}`, result, "color: #FF9800;");
 
                         if (result.exists) {
                             finalCoverImage = url;
