@@ -453,7 +453,7 @@ function linkifyNodes(root) {
 }
 
 const useWsrvDomains = [
-    'i.11img.com',
+    '11img.com',
     'gifyu.com',
 ];
 
