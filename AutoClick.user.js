@@ -400,7 +400,7 @@ async function initializeTabCommunication() {
             connectionTimer = null;
             return;
         }
-        window.opener.postMessage({ Q: 'parentWindow?', autoClickConnect: true }, '*');
+        window.opener.postMessage({ Q: 'parentWindow?' }, '*');
     };
     connectionTimer = setInterval(requestConnection, 500);
     requestConnection();
