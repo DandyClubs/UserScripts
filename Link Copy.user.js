@@ -3763,7 +3763,6 @@ async function CopyLink() {
             }
 
             if (match) {
-
                 const code = match[0];
                 const prefix = match[1].toUpperCase();
                 const pureNum = match[2];

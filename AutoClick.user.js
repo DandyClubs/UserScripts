@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AutoClick (Refactored)
-// @version      2025.10.01
-// @description  Auto actions and cross-window messaging with maintainable structure
+// @version      2026.11.02
+// @description  Auto actions with persistent cross-tab messaging
 // @author       DandyClubs
 // @include      /^https?:\/\/(cosplayjav|nylons)\.pl\/(download|thumbnails)\/\?forPost=.*$/
 // @include      http://www.ex745.com/*
@@ -36,6 +36,10 @@
 // @grant        GM_getValue
 // @grant        GM_deleteValue
 // @grant        GM_listValues
+// @grant        GM_addValueChangeListener
+// @grant        GM_removeValueChangeListener
+// @grant        GM_getTab
+// @grant        GM_saveTab
 // @grant        window.close
 // @connect      *
 // @noframes
@@ -273,6 +277,151 @@ let GetFileNameElement = null;
 let GetFileName = null;
 let isClicked = false;
 let reloadTimer = null;
+let tabState = null;
+let tabStateReady = new Promise(resolve => {
+    try {
+        GM_getTab(tab => {
+            tabState = tab || {};
+            resolve(tabState);
+        });
+    } catch (error) {
+        console.error('[AutoClick] GM_getTab failed', error);
+        tabState = {};
+        resolve(tabState);
+    }
+});
+let connectionTimer = null;
+let commandListenerId = null;
+const processedChildCommands = new Set();
+
+const FLOW_STATE_KEY = 'AutoClickFlow';
+const flowResultKey = flowId => `AutoClickResult:${flowId}`;
+const flowCommandKey = flowId => `AutoClickCommand:${flowId}`;
+
+function createFlowId() {
+    return globalThis.crypto?.randomUUID?.() ||
+        `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function handleFlowCommand(command) {
+    if (!command) return;
+    if (command.commandId) {
+        if (processedChildCommands.has(command.commandId)) return;
+        processedChildCommands.add(command.commandId);
+    }
+
+    const key = command.flowId ? flowCommandKey(command.flowId) : null;
+    if (command.action === 'closed') {
+        if (key) GM_deleteValue(key);
+        if (command.S) {
+            setTimeout(async () => {
+                JobManager.remove(PageURL);
+                await sleep(2500);
+                self.close();
+            }, 2500);
+        } else {
+            self.close();
+        }
+    } else if (command.action === 'completed') {
+        if (tabState) {
+            delete tabState[FLOW_STATE_KEY];
+            GM_saveTab(tabState);
+        }
+        if (key) GM_deleteValue(key);
+        if (commandListenerId !== null) {
+            GM_removeValueChangeListener(commandListenerId);
+            commandListenerId = null;
+        }
+    } else if (command.link) {
+        if (key) GM_deleteValue(key);
+        location.href = command.link;
+    }
+}
+
+function registerFlowCommandListener(flowId) {
+    if (commandListenerId !== null) {
+        GM_removeValueChangeListener(commandListenerId);
+    }
+
+    const key = flowCommandKey(flowId);
+    commandListenerId = GM_addValueChangeListener(key, (_key, _oldValue, newValue) => {
+        handleFlowCommand(newValue);
+    });
+    handleFlowCommand(GM_getValue(key));
+}
+
+async function saveFlowToTab(flowId, parentUrl) {
+    await tabStateReady;
+    tabState[FLOW_STATE_KEY] = { flowId, parentUrl };
+    GM_saveTab(tabState);
+    registerFlowCommandListener(flowId);
+    if (connectionTimer !== null) {
+        clearInterval(connectionTimer);
+        connectionTimer = null;
+    }
+}
+
+async function getTabFlow() {
+    await tabStateReady;
+    return tabState[FLOW_STATE_KEY] || null;
+}
+
+async function sendChildMessage(data) {
+    const flow = await getTabFlow();
+    const messageId = createFlowId();
+    const message = { ...data, flowId: flow?.flowId, messageId };
+
+    if (window.opener) {
+        window.opener.postMessage(message, '*');
+    }
+    if (flow?.flowId) {
+        const key = flowResultKey(flow.flowId);
+        const previous = GM_getValue(key);
+        const messages = previous?.flowId === flow.flowId ? previous.messages || [] : [];
+        GM_setValue(key, {
+            flowId: flow.flowId,
+            messages: [...messages, { message, origin: location.origin }],
+        });
+    }
+}
+
+async function initializeTabCommunication() {
+    const flow = await getTabFlow();
+    if (flow?.flowId) {
+        registerFlowCommandListener(flow.flowId);
+    }
+
+    if (!window.opener) return;
+
+    const startedAt = Date.now();
+    const requestConnection = () => {
+        if (!window.opener || Date.now() - startedAt > 15000) {
+            clearInterval(connectionTimer);
+            connectionTimer = null;
+            return;
+        }
+        window.opener.postMessage({ Q: 'parentWindow?', autoClickConnect: true }, '*');
+    };
+    connectionTimer = setInterval(requestConnection, 500);
+    requestConnection();
+}
+
+window.addEventListener('message', event => {
+    if (event.data?.commandId &&
+        (event.source === window.opener || event.data.flowId === tabState?.[FLOW_STATE_KEY]?.flowId)) {
+        handleFlowCommand(event.data);
+        return;
+    }
+    if (event.source === window.opener && event.data?.autoClickConnection && event.data.flowId) {
+        void saveFlowToTab(event.data.flowId, event.data.A).catch(error => {
+            console.error('[AutoClick] Failed to save tab flow', error);
+        });
+    }
+});
+
+void initializeTabCommunication().catch(error => {
+    console.error('[AutoClick] Tab communication initialization failed', error);
+});
 
 
 /* ===============================
@@ -541,7 +690,7 @@ function DBResetButton() {
 }
 
 // 작업 시작
-async function startWork(currentLinks) {
+async function startWork(currentLinks, openChild = (url, target) => window.open(url, target)) {
     if (window._isWorking) return;
     const jobs = await queue.list();
     const myIndex = jobs.findIndex(j => j.url === PageURL);
@@ -552,7 +701,7 @@ async function startWork(currentLinks) {
         window._isWorking = true;
         const entry = currentLinks[0];
         console.log(`작업 지시 수신: ${PageURL} (${entry.type}) ${myIndex + 1}/${processCount}`);
-        childWindow = window.open(entry.oldLink, entry.title);
+        childWindow = openChild(entry.oldLink, entry.title);
     } else {
         console.log(`대기중: ${PageURL} 순번: ${myIndex + 1} / ${processCount}`);
     }
@@ -582,7 +731,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
             if (e.data?.type === 'updateState') {
                 updatequeueState();
                 if (!window._isWorking && pendingState) {
-                    startWork(currentLinks);
+                    startWork(currentLinks, openChildWindow);
                 }
             }
         };
@@ -693,7 +842,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
 
         link.addEventListener('click', (e) => {
             e.preventDefault();
-            childWindow = window.open(link.href, title);
+            openChildWindow(link.href, title);
         });
 
         // 그룹별 추가
@@ -707,12 +856,62 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
     pendingState = true;
     let currentTypeIndex = 0;
     let currentLinks = typeGroups.get(types[currentTypeIndex]);
+    let activeFlowId = null;
+    let resultListenerId = null;
+    let resultProcessing = Promise.resolve();
+    const processedMessages = new Set();
+    let handleChildEvent;
+
+    const openChildWindow = (url, targetTitle) => {
+        if (resultListenerId !== null) {
+            GM_removeValueChangeListener(resultListenerId);
+            resultListenerId = null;
+        }
+
+        activeFlowId = createFlowId();
+        const key = flowResultKey(activeFlowId);
+        GM_deleteValue(key);
+        resultListenerId = GM_addValueChangeListener(key, (_key, _oldValue, newValue) => {
+            if (!newValue || newValue.flowId !== activeFlowId || !newValue.messages?.length) return;
+            resultProcessing = resultProcessing.then(async () => {
+                for (const result of newValue.messages) {
+                    await handleChildEvent({
+                        data: result.message,
+                        origin: result.origin,
+                        source: childWindow,
+                        transport: 'gm',
+                    });
+                }
+                const latest = GM_getValue(key);
+                const lastMessageId = newValue.messages[newValue.messages.length - 1].message.messageId;
+                if (latest?.messages?.[latest.messages.length - 1]?.message.messageId === lastMessageId) {
+                    GM_deleteValue(key);
+                }
+            }).catch(error => {
+                console.error('[AutoClick] Failed to process tab message', error);
+            });
+        });
+        childWindow = window.open(url, targetTitle);
+        return childWindow;
+    };
+
+    const sendChildCommand = command => {
+        const message = {
+            ...command,
+            flowId: activeFlowId,
+            commandId: createFlowId(),
+        };
+        childWindow?.postMessage(message, '*');
+        if (activeFlowId) {
+            GM_setValue(flowCommandKey(activeFlowId), message);
+        }
+    };
 
     if (AutoClick === '1') {
         window.addEventListener('beforeunload', taskState);
         await queue.enqueue(PageURL);
         updatequeueState();
-        startWork(currentLinks);
+        startWork(currentLinks, openChildWindow);
         AutoClickBC.postMessage({ type: "updateState" });
     }
 
@@ -721,8 +920,23 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
     /* ===============================
     * 공통 이벤트 핸들러 (중복 등록 방지)
     * =============================== */
-    window.addEventListener('message', async (e) => {
-        if (!/terabox\.com|1024tera\.com|terabox\.app|en\.mrproblogger\.com|drive\.google\.com|mediafire\.com|ouo\.io|ouo\.press|rapidgator\.net/.test(e.origin)) return;
+    handleChildEvent = async (e) => {
+        if (e.transport !== 'gm' && e.source !== childWindow) return;
+        if (!e.data) return;
+        if (e.transport === 'gm' && e.data.flowId !== activeFlowId) return;
+        if (e.data.messageId) {
+            if (processedMessages.has(e.data.messageId)) return;
+            processedMessages.add(e.data.messageId);
+        }
+
+        if (e.data.Q) {
+            e.source.postMessage({
+                A: parentWindow,
+                flowId: activeFlowId,
+                autoClickConnection: true,
+            }, e.origin || '*');
+            return;
+        }
 
         // 토큰 응답 도착
         if (!currentLinks?.length) return;
@@ -732,20 +946,17 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
         if (e.data.code && entry.oldLink) {
             const shortcode = new URL(entry.oldLink).pathname;
             if (shortcode !== e.data.code) {
-                childWindow?.postMessage({ link: entry.oldLink }, e.origin);
+                sendChildCommand({ link: entry.oldLink });
             }
-        } else if (e.data.Q) {
-            // 자식이 부모 정보 요청 → 응답
-            childWindow?.postMessage({ A: parentWindow }, e.origin);
         } else if (e.data.retry) {
-            childWindow.postMessage({ action: 'closed' }, e.origin);
+            sendChildCommand({ action: 'closed' });
             await sleep(250);
             entry = currentLinks[0];
             console.log(`다시 시도 type(${types[currentTypeIndex]}) 링크 시도: ${entry.oldLink}`);
-            childWindow = window.open(entry.oldLink, entry.title);
+            openChildWindow(entry.oldLink, entry.title);
         } else if (e.data.token) {
             if (e.data.token === 'NotFound') {
-                childWindow.postMessage({ action: 'closed' }, e.origin);
+                sendChildCommand({ action: 'closed' });
                 // 현재 type 실패 → 곧바로 다음 type으로 넘어감
                 linkManager.add(entry.oldLink, 'NotFound', 'File Not Found');
                 UIManager.addResetButton(entry.linkEl, entry.oldLink, 'File Not Found');
@@ -757,7 +968,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                     if (currentLinks?.length) {
                         entry = currentLinks[0];
                         console.log(`다음 type(${types[currentTypeIndex]}) 링크 시도: ${entry.oldLink}`);
-                        childWindow = window.open(entry.oldLink, entry.title);
+                        openChildWindow(entry.oldLink, entry.title);
                     }
                 } else {
                     // 모든 type 실패           
@@ -784,7 +995,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                 if (currentLinks?.length) {
                     entry = currentLinks[0];
                     console.log(`다음 type(${types[currentTypeIndex]}) 링크 시도: ${entry.oldLink}`);
-                    childWindow = window.open(entry.oldLink, entry.title);
+                    openChildWindow(entry.oldLink, entry.title);
                 } else {
                     await queue.dequeue(PageURL);
                     updatequeueState();
@@ -793,7 +1004,9 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
 
                     console.log({ autoClose }, entry.type);
                     if (/terabox\.com|1024tera\.com|terabox\.app/.test(e.origin)) {
-                        childWindow?.postMessage({ S: parentWindow, action: 'closed' }, e.origin);
+                        sendChildCommand({ S: parentWindow, action: 'closed' });
+                    } else {
+                        sendChildCommand({ action: 'completed' });
                     }
                     if (autoClose) {
                         await sleep(7500);
@@ -808,11 +1021,13 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
                 }
             }
         }
-    });
+    };
+
+    window.addEventListener('message', handleChildEvent);
 
     window.addEventListener('beforeunload', () => {
         if (childWindow && !childWindow.closed) {
-            childWindow.postMessage({ action: 'closed' }, '*');
+            sendChildCommand({ action: 'closed' });
         }
     });
 }
@@ -876,33 +1091,20 @@ async function handleMissKon() {
 async function handleMrProBlogger() {
     // relay for code -> opener
     const code = new URL(PageURL).pathname;
-    if (window.opener) {
-        window.opener.postMessage({ code: code }, 'https://allasiangirls.net');
-        window.addEventListener('message', function (e) {
-            if (e.data.link) {
-                location.href = e.data.link;
-            }
-        });
-    }
+    await sendChildMessage({ code });
+    childWindowClose();
 }
 
 async function handleOUO() {
-    window.addEventListener('message', function (e) {
-        if (e.data.action === 'closed') {
-            //JobManager.remove(PageURL);
-            self.close();
-        }
-    });
+    childWindowClose();
 
     console.log(PageURL, window.opener);
-    if (window.opener) {
-        if (PageURL === 'https://ouo.io/' || PageURL === 'https://ouo.press/') {
-            window.opener.postMessage({ retry: 'reTryAgain' }, 'https://misskon.com');
-        }
-        const notFound = document.querySelector('div.container .no-found');
-        if (notFound) {
-            window.opener.postMessage({ token: 'NotFound' }, 'https://misskon.com');
-        }
+    if (PageURL === 'https://ouo.io/' || PageURL === 'https://ouo.press/') {
+        await sendChildMessage({ retry: 'reTryAgain' });
+    }
+    const notFound = document.querySelector('div.container .no-found');
+    if (notFound) {
+        await sendChildMessage({ token: 'NotFound' });
     }
 }
 
@@ -910,53 +1112,33 @@ async function handleOUO() {
 
 async function handleMediaFire() {
     await sleep(500);
-    // relay for code -> opener
-    if (window.opener) {
-        if (PageURL.startsWith('https://www.mediafire.com/error.php') || PageURL.startsWith('https://www.mediafire.com/download_repair.php')) {
-            window.opener.postMessage({ token: 'NotFound' }, '*');
-        } else {
-            const GetFileName = document.querySelector('div.dl-btn-label')?.getAttribute('title')?.trim() || null;
-            window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, '*');
-        }
-        window.addEventListener('message', function (e) {
-            if (e.data.action === 'closed') {
-                //JobManager.remove(PageURL);
-                self.close();
-            }
-        });
+    if (PageURL.startsWith('https://www.mediafire.com/error.php') || PageURL.startsWith('https://www.mediafire.com/download_repair.php')) {
+        await sendChildMessage({ token: 'NotFound' });
+    } else {
+        const GetFileName = document.querySelector('div.dl-btn-label')?.getAttribute('title')?.trim() || null;
+        await sendChildMessage({ token: PageURL, FileName: GetFileName, P: parentWindow });
     }
+    childWindowClose();
 }
 
 
 async function handleRapidgator() {
     await sleep(500);
-    // relay for code -> opener
-    if (window.opener) {
-        if (PageURL.startsWith('https://rapidgator.net/error')) {
-            window.opener.postMessage({ token: 'NotFound' }, '*');
-        } else {
-            const GetFileName = document.querySelector('div.in div.text-block.file-descr div.btm p a')?.innerText?.trim() || null;
-            window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, '*');
-        }
-        window.addEventListener('message', function (e) {
-            if (e.data.action === 'closed') {
-                //JobManager.remove(PageURL);
-                self.close();
-            }
-        });
+    if (PageURL.startsWith('https://rapidgator.net/error')) {
+        await sendChildMessage({ token: 'NotFound' });
+    } else {
+        const GetFileName = document.querySelector('div.in div.text-block.file-descr div.btm p a')?.innerText?.trim() || null;
+        await sendChildMessage({ token: PageURL, FileName: GetFileName, P: parentWindow });
     }
+    childWindowClose();
 }
 
 async function handleGoogleDrive() {
     const GetFileName = document.querySelector('head title')?.innerText.replace(' - Google Drive', '');
-    if (window.opener) {
-        window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, '*');
-        window.addEventListener('message', function (e) {
-            if (e.data.action === 'closed') {
-                //JobManager.remove(PageURL);
-                self.close();
-            }
-        });
+    const flow = await getTabFlow();
+    if (window.opener || flow?.flowId) {
+        await sendChildMessage({ token: PageURL, FileName: GetFileName, P: parentWindow });
+        childWindowClose();
     } else {
         JDownloader(PageURL, GetFileName, PageURL);
     }
@@ -965,10 +1147,9 @@ async function handleGoogleDrive() {
 
 function childWindowClose() {
     window.addEventListener('message', function (e) {
-        if (e.data.action === 'closed') {
-            //JobManager.remove(PageURL);
-            self.close();
-        }
+        if (e.source !== window.opener &&
+            e.data?.flowId !== tabState?.[FLOW_STATE_KEY]?.flowId) return;
+        handleFlowCommand(e.data);
     });
 }
 
@@ -1014,15 +1195,16 @@ async function Downloader(el) {
     const messageHandler = async (e) => {
         const origin = new URL(e.origin).origin;
         if (!/bestgirlsexy\.com|allasiangirls\.net|misskon\.com/.test(origin)) return;
+        if (e.data.commandId && processedChildCommands.has(e.data.commandId)) return;
 
         if (e.data.A) {
             parentWindow = e.data.A;
-            if (window.opener && parentWindow && !isClicked) {
+            if (parentWindow && !isClicked) {
                 el.click();
                 isClicked = true;
                 const allowed = ['https://allasiangirls.net', 'https://bestgirlsexy.com', 'https://misskon.com'];
                 if (allowed.includes(origin)) {
-                    window.opener.postMessage({ token: PageURL, FileName: GetFileName, P: parentWindow }, origin);
+                    await sendChildMessage({ token: PageURL, FileName: GetFileName, P: parentWindow });
                 }
             }
         } else if (e.data.S || e.data.action === 'closed') {
@@ -1037,10 +1219,16 @@ async function Downloader(el) {
     if (window.opener) {
         window.opener.postMessage({ Q: 'parentWindow?' }, '*');
     } else {
-        await sleep(5000);
-        el.click();
-        await sleep(5000);
-        self.close();
+        const flow = await getTabFlow();
+        if (flow?.flowId) {
+            el.click();
+            isClicked = true;
+        } else {
+            await sleep(5000);
+            el.click();
+            await sleep(5000);
+            self.close();
+        }
     }
 }
 
