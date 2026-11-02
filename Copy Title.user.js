@@ -745,6 +745,7 @@ const SiteParsers = {
                 .replace(/\|/g, '')
                 .replace(/—/g, '-')
                 .replace(/\.(com|net)/gi, '')
+                .replace(/^-/, '')
                 .split(/\s/)
                 .map(e => e.trim())
                 .filter(Boolean);
