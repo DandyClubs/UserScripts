@@ -3792,9 +3792,9 @@ async function CopyLink() {
 
                         const fileName = `${extraPrefix}${prefix.toLowerCase()}${formattedNum}${extraSuffix}`;
                         const testUrl = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
-                        copyStateEl.innerText = `${prefix} → ${category} 규칙 적용 중...`;
+                        //copyStateEl.innerText = `${prefix} → ${category} 규칙 적용 중...`;
                         const result = await fetchImageResolution(testUrl);
-                        copyStateEl.innerText = `${prefix} → ${category} 규칙 결과: ${result.exists ? '성공' : '실패'}`;
+                        //copyStateEl.innerText = `${prefix} → ${category} 규칙 결과: ${result.exists ? '성공' : '실패'}`;
                         if (result.exists) {
                             finalCoverImage = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
                             const HQImage = document.createElement('a');
@@ -3803,6 +3803,7 @@ async function CopyLink() {
                             HQImage.href = finalCoverImage;
                             DownloadArea[0].appendChild(HQImage);
                             console.log(`%c[규칙 기반 확정] ${prefix} → ${category}`, "color: #9E9E9E;");
+                            copyStateEl.innerText = ``;
                         }
 
                     }
@@ -3825,7 +3826,7 @@ async function CopyLink() {
                     for (const url of candidates) {
                         copyStateEl.innerText = `${prefix} → 후보군 테스트 중: ${url}`;
                         const result = await fetchImageResolution(url);
-
+                        copyStateEl.innerText = `${prefix} → 후보군 테스트 결과: ${result.exists ? '성공' : '실패'} (${url})`;
                         console.log(`%c[미등록 브랜드 탐색 결과] ${prefix} ${CoverImage || ''}`, result, "color: #FF9800;");
 
                         if (result.exists) {
@@ -3841,6 +3842,7 @@ async function CopyLink() {
                                     HQImage.href = finalCoverImage;
                                     DownloadArea[0].appendChild(HQImage);
                                     console.log(`%c[학습 완료] ${prefix} ${learnedRule} 저장됨`, "color: cyan;");
+                                    copyStateEl.innerText = ``;
                                 }
                             }
                             break;
