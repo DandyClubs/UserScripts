@@ -501,18 +501,19 @@ async function Main() {
                     }
                 }
 
-                cleanTitle = cleanTitle
+                const finalTitle = cleanTitle
+                    .replace(/^OSTP\d+/i, '')
                     .replace(/^\d{3,4}[_-]/, '')
                     .replace(/^(?!91YCM)\d{1,2}/, '')
                     .replace(/^\s?\[MP4.*?\]/, '')
                     .replace(/\[[a-zA-Z0-9\.\/]+\]/, '')
                     .trim();
 
-                if (cleanTitle) {
+                if (finalTitle) {
                     titles.push({
                         textNode: currentNode,
                         rawText: raw,
-                        title: cleanTitle
+                        title: finalTitle
                     });
                 }
             }
