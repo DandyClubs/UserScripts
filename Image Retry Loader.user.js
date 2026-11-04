@@ -639,7 +639,7 @@
     function isValidExternalImage(img) {
         if (!img) return false;
         if (img.dataset.isFixing) return false;
-        if (img.closest('.image-masonry')) return false;
+        //if (img.closest('.image-masonry')) return false;
         if (img.closest('.hiddenbox')) return false;
         /*
                 // 🔥 CSS 가시성 확인 (display: none 등 체크)
