@@ -442,7 +442,7 @@
             if (retryCount >= MAX_RETRY_COUNT) {
                 console.warn(`[ImageRetry] 최대 재시도 횟수(${MAX_RETRY_COUNT}회)에 도달했습니다.`, imgElement);
                 return;
-            }            
+            }
 
             const imgElementSrc = imgElement.src;
             if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:') || isProxyUrl(imgElementSrc)) {
@@ -748,7 +748,9 @@
         const finalRawSrc = img.src;
         if (!finalRawSrc || finalRawSrc.trim() === "" || finalRawSrc === window.location.href) {
             return false;
-        }       
+        }
+
+        if (img.complete && img.naturalWidth !== 0) return false;
 
         return true;
     }
