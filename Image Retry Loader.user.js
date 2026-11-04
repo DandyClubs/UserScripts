@@ -28,8 +28,9 @@
     const RETRY_INTERVAL = 10000;
     const MAX_RETRY_COUNT = 3;
     const LOAD_TIMEOUT = 30000; // 30초 타임아웃
+    const PROXY_LOAD_TIMEOUT = 30000;
 
-    const proxy = ['https://proxy.duckduckgo.com/iu/?u=', 'https://wsrv.nl/?url=']
+    const tryProxy = ['https://proxy.duckduckgo.com/iu/?u=', 'https://wsrv.nl/?url=']
 
     class Queue {
         constructor() {
@@ -69,7 +70,7 @@
                 return resolve('skipped');
             }
 
-            if (img.complete && img.naturalWidth > 0) {
+            if (img.complete && img.naturalWidth !== 0) {
                 img.decode()
                     .then(() => {
                         img.dataset.isImageState = "true";
@@ -221,6 +222,38 @@
         });
     }
 
+    function testImageUrl(url, timeout = PROXY_LOAD_TIMEOUT) {
+        return new Promise((resolve) => {
+            const image = new Image();
+            const timer = setTimeout(() => finish(false), timeout);
+
+            function finish(loaded) {
+                clearTimeout(timer);
+                image.onload = null;
+                image.onerror = null;
+                resolve(loaded);
+            }
+
+            image.onload = () => finish(image.naturalWidth > 0);
+            image.onerror = () => finish(false);
+            image.src = url;
+        });
+    }
+
+    async function findWorkingProxy(url) {
+        for (const proxyUrl of tryProxy) {
+            const candidateUrl = `${proxyUrl}${encodeURIComponent(url)}`;
+            if (await testImageUrl(candidateUrl)) {
+                return candidateUrl;
+            }
+        }
+        return null;
+    }
+
+    function isProxyUrl(url) {
+        return tryProxy.some(proxyUrl => url.startsWith(proxyUrl));
+    }
+
     function judgeResponse(responseWrapper, options = {}) {
         const { minSize = 300, forceFinal = false } = options;
 
@@ -274,7 +307,7 @@
             }
 
             return forceFinal
-                ? { final: true, result: { exists: false, reason: 'forbidden' } }
+                ? { final: true, result: { exists: false, reason: 'Region restrictions', status } }
                 : { final: false };
         }
 
@@ -344,11 +377,11 @@
                 return;
             }            
 
-            const imgElementSrc = imgElement.getAttribute('src');
-            if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:') || imgElementSrc.startsWith('https://wsrv.nl')) {
+            const imgElementSrc = imgElement.src;
+            if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:') || isProxyUrl(imgElementSrc)) {
                 return;
             }
-            const { exists, reason, status = null } = await checkImage(imgElement.getAttribute('src'));
+            const { exists, reason, status = null } = await checkImage(imgElementSrc);
             console.log(exists, reason, status);
             if (!exists && (reason === 'client_error' || reason === 'server_error')) {
                 console.warn(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
@@ -358,9 +391,15 @@
                 return;
             }
 
-            if (exists && reason === 'Region restrictions' && !imgElementSrc.startsWith('https://wsrv.nl')) {
-                console.log('지역 제한 wsrv.nl 프록시 서비스 사용', imgElement, reason);
-                imgElement.setAttribute('src', `https://wsrv.nl/?url=${encodeURIComponent(imgElementSrc)}`);
+            let workingProxy = null;
+            if (!exists && reason === 'Region restrictions') {
+                console.log('[ImageRetry] 지역 제한 감지, 프록시 이미지 로드 확인 중:', imgElementSrc);
+                workingProxy = await findWorkingProxy(imgElementSrc);
+                if (workingProxy) {
+                    console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
+                } else {
+                    console.warn('[ImageRetry] 프록시 후보에서 이미지 로드에 실패했습니다:', imgElementSrc);
+                }
             }
 
             imgElement.dataset.retryCount = ++retryCount;
@@ -372,6 +411,9 @@
                 imgElement.removeEventListener('error', retryError);
             }
             imgElement.addEventListener('error', retryError);
+            if (workingProxy) {
+                imgElement.setAttribute('src', workingProxy);
+            }
 
         } finally {
             retryWorkers--;
@@ -419,7 +461,7 @@
     function getPureUrl(url) {
         if (!url) return '';
 
-        if (url.startsWith('https://wsrv.nl')) {
+        if (isProxyUrl(url)) {
             return url;
         }
         try {
@@ -520,6 +562,7 @@
 
     const proxyImageDomainsPattern = `
     gifyu.com
+    11img.com
     `.trim()
         .split('\n')
         .map(d => d.replace(/\./g, '\\.').trim())
@@ -545,9 +588,32 @@
         */
         let rawSrc = img.src;
 
-        if (!rawSrc.startsWith('https://wsrv.nl') && new RegExp(`(${proxyImageDomainsPattern})`, 'i').test(rawSrc)) {
-            img.setAttribute('src', `https://wsrv.nl/?url=${encodeURIComponent(rawSrc)}`);
-            return true;
+        if (!isProxyUrl(rawSrc) &&
+            !img.dataset.proxyTestFailed &&
+            new RegExp(`(${proxyImageDomainsPattern})`, 'i').test(rawSrc)) {
+            if (!img.dataset.isProxyTesting) {
+                img.dataset.isProxyTesting = 'true';
+                findWorkingProxy(rawSrc)
+                    .then(workingProxy => {
+                        delete img.dataset.isProxyTesting;
+                        if (!img.isConnected || img.src !== rawSrc) return;
+
+                        if (workingProxy) {
+                            img.src = workingProxy;
+                        } else {
+                            console.warn('[ImageRetry] 도메인 프록시 후보에서 이미지 로드에 실패했습니다:', rawSrc);
+                            img.dataset.proxyTestFailed = 'true';
+                        }
+                        checkImageVisibility(img);
+                    })
+                    .catch(error => {
+                        delete img.dataset.isProxyTesting;
+                        console.error('[ImageRetry] 도메인 프록시 테스트 실패:', rawSrc, error);
+                        img.dataset.proxyTestFailed = 'true';
+                        checkImageVisibility(img);
+                    });
+            }
+            return false;
         }
 
         else if (rawSrc.startsWith('http://data:image')) {
