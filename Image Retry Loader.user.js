@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Image Retry Loader with GM_xmlhttpRequest
+// @name         Image Retry Loader
 // @namespace    http://tampermonkey.net/
-// @version      2026.05.04
+// @version      2026.11.04
 // @description  Automatically retries loading failed images by checking their existence with GM_xmlhttpRequest.
 // @author       Your Name
 // @match        *://*/*
@@ -31,6 +31,9 @@
     const PROXY_LOAD_TIMEOUT = 30000;
 
     const tryProxy = ['https://proxy.duckduckgo.com/iu/?u=', 'https://wsrv.nl/?url=']
+    const SUCCESSFUL_PROXY_STORAGE_PREFIX = 'successfulProxy:';
+    const STORAGE_EXPIRATION = 24 * 60 * 60 * 1000;
+    const successfulProxyByDomain = new Map();
 
     class Queue {
         constructor() {
@@ -240,14 +243,78 @@
         });
     }
 
-    async function findWorkingProxy(url) {
-        for (const proxyUrl of tryProxy) {
-            const candidateUrl = `${proxyUrl}${encodeURIComponent(url)}`;
-            if (await testImageUrl(candidateUrl)) {
-                return candidateUrl;
+    function findFirstWorkingProxy(url, proxyUrls) {
+        if (proxyUrls.length === 0) return Promise.resolve(null);
+
+        return new Promise((resolve) => {
+            let remaining = proxyUrls.length;
+            let found = false;
+
+            for (const proxyUrl of proxyUrls) {
+                const candidateUrl = `${proxyUrl}${encodeURIComponent(url)}`;
+                testImageUrl(candidateUrl).then(loaded => {
+                    if (loaded && !found) {
+                        found = true;
+                        resolve(candidateUrl);
+                        return;
+                    }
+
+                    remaining--;
+                    if (remaining === 0 && !found) resolve(null);
+                });
             }
+        });
+    }
+
+    function getSuccessfulProxy(imageDomain) {
+        const storageKey = `${SUCCESSFUL_PROXY_STORAGE_PREFIX}${imageDomain}`;
+        const saved = successfulProxyByDomain.get(imageDomain) || GM_getValue(storageKey);
+        if (!saved) return null;
+
+        if (!tryProxy.includes(saved.proxyUrl) ||
+            !Number.isFinite(saved.savedAt) ||
+            Date.now() - saved.savedAt > STORAGE_EXPIRATION) {
+            successfulProxyByDomain.delete(imageDomain);
+            GM_deleteValue(storageKey);
+            return null;
         }
-        return null;
+
+        successfulProxyByDomain.set(imageDomain, saved);
+        return saved.proxyUrl;
+    }
+
+    function saveSuccessfulProxy(imageDomain, proxyUrl) {
+        const saved = {
+            proxyUrl,
+            savedAt: Date.now()
+        };
+        successfulProxyByDomain.set(imageDomain, saved);
+        GM_setValue(`${SUCCESSFUL_PROXY_STORAGE_PREFIX}${imageDomain}`, saved);
+    }
+
+    async function findWorkingProxy(url) {
+        let imageDomain;
+        try {
+            imageDomain = new URL(url).hostname.toLowerCase();
+        } catch {
+            imageDomain = null;
+        }
+
+        const preferredProxy = imageDomain ? getSuccessfulProxy(imageDomain) : null;
+        if (preferredProxy) {
+            const candidateUrl = `${preferredProxy}${encodeURIComponent(url)}`;
+            if (await testImageUrl(candidateUrl)) return candidateUrl;
+            successfulProxyByDomain.delete(imageDomain);
+            GM_deleteValue(`${SUCCESSFUL_PROXY_STORAGE_PREFIX}${imageDomain}`);
+        }
+
+        const fallbackProxies = tryProxy.filter(proxyUrl => proxyUrl !== preferredProxy);
+        const workingProxy = await findFirstWorkingProxy(url, fallbackProxies);
+        if (workingProxy && imageDomain) {
+            const successfulProxy = tryProxy.find(proxyUrl => workingProxy.startsWith(proxyUrl));
+            if (successfulProxy) saveSuccessfulProxy(imageDomain, successfulProxy);
+        }
+        return workingProxy;
     }
 
     function isProxyUrl(url) {
@@ -713,12 +780,18 @@
 
     function cleanOldBadLinks() {
         const now = Date.now();
-        const oneDayLimit = 24 * 60 * 60 * 1000;
         const keys = GM_listValues();
 
         keys.forEach(key => {
             const savedTime = GM_getValue(key);
-            if (now - savedTime > oneDayLimit) {
+            if (key.startsWith(SUCCESSFUL_PROXY_STORAGE_PREFIX)) {
+                if (!savedTime ||
+                    !Number.isFinite(savedTime.savedAt) ||
+                    now - savedTime.savedAt > STORAGE_EXPIRATION) {
+                    GM_deleteValue(key);
+                    console.log(`[Storage] 24시간 경과 프록시 데이터 삭제: ${key}`);
+                }
+            } else if (now - savedTime > STORAGE_EXPIRATION) {
                 GM_deleteValue(key);
                 console.log(`[Storage] 24시간 경과 데이터 삭제: ${key}`);
             }
