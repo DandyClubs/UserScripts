@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Link Copy (indexedDB)
-// @version      2026.10.06
+// @version      2026.11.04
 // @description  링크 복사
 // @author       DandyClubs
 // @include      /naughtyblog\.(org|my|st)/
@@ -544,6 +544,10 @@ let ShortUrl;
 let AllowDirect;
 
 let CenterBoxFontSize, StateFontSize, StateLineHeight, LinkCopyCenterBox;
+let iconSetPositionObserver;
+let iconSetPositionObservedBox;
+let iconSetPositionObservedSet;
+let iconSetPositionFrame = 0;
 
 const SkipClassNames = ['adead_link', 'autohyperlink', 'social-icon', 'offline'];
 //const JapaneseChar = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/g
@@ -2648,10 +2652,7 @@ function RefreshIcon(Run) {
     if (iconSet) {
         const iconSetFontSize = rem(baseScale * 0.95);
         Object.assign(iconSet.style, { fontSize: iconSetFontSize });
-
-        iconSet.style.setProperty('--SetTop', `${Math.floor(LinkCopyCenterBox.offsetTop + (LinkCopyCenterBox.offsetHeight - iconSet.offsetHeight) / 2)}px`);
-        iconSet.style.setProperty('--SetLeft', `${Math.floor(LinkCopyCenterBox.offsetLeft + LinkCopyCenterBox.offsetWidth + LinkCopyCenterBox.offsetHeight)}px`);
-
+        scheduleIconSetPosition();
     }
 
     const searchBox = document.querySelector('div.SearchBox');
@@ -2670,6 +2671,53 @@ function RefreshIcon(Run) {
             favicon.style.height = rem(baseScale * 0.9);
         }
     }
+}
+
+function scheduleIconSetPosition() {
+    const box = LinkCopyCenterBox;
+    const iconSet = document.querySelector('.IconSet');
+    if (!box || !iconSet) return;
+
+    if (!iconSetPositionObserver) {
+        iconSetPositionObserver = new ResizeObserver(() => scheduleIconSetPosition());
+    }
+    if (iconSetPositionObservedBox !== box) {
+        if (iconSetPositionObservedBox) {
+            iconSetPositionObserver.unobserve(iconSetPositionObservedBox);
+        }
+        iconSetPositionObservedBox = box;
+        iconSetPositionObserver.observe(box);
+    }
+    if (iconSetPositionObservedSet !== iconSet) {
+        if (iconSetPositionObservedSet) {
+            iconSetPositionObserver.unobserve(iconSetPositionObservedSet);
+        }
+        iconSetPositionObservedSet = iconSet;
+        iconSetPositionObserver.observe(iconSet);
+    }
+
+    if (iconSetPositionFrame) {
+        cancelAnimationFrame(iconSetPositionFrame);
+    }
+    iconSetPositionFrame = requestAnimationFrame(() => {
+        iconSetPositionFrame = 0;
+        if (!box.isConnected || !iconSet.isConnected) return;
+
+        const boxRect = box.getBoundingClientRect();
+        const iconRect = iconSet.getBoundingClientRect();
+        const iconStyle = getComputedStyle(iconSet);
+        const marginTop = parseFloat(iconStyle.marginTop) || 0;
+        const marginLeft = parseFloat(iconStyle.marginLeft) || 0;
+
+        iconSet.style.setProperty(
+            '--SetTop',
+            `${Math.round(boxRect.top + (boxRect.height - iconRect.height) / 2 - marginTop)}px`
+        );
+        iconSet.style.setProperty(
+            '--SetLeft',
+            `${Math.round(boxRect.right + boxRect.height - marginLeft)}px`
+        );
+    });
 }
 
 
@@ -2941,7 +2989,7 @@ async function SecondProcess() {
 }
 
 
-async function RefreshIconSet() {
+function RefreshIconSet() {
     GetDPI = window.devicePixelRatio;
     DefaultFontSize = getDefaultFontSize();
 
@@ -2955,20 +3003,12 @@ async function RefreshIconSet() {
         const iconSetFontSize = Number(((1 / (GetDPI / 1.5)) * (16 / DefaultFontSize) * 0.95).toFixed(2)) + 'rem';
         Object.assign(iconSet.style, { fontSize: iconSetFontSize });
 
-        // Wait for position info to stabilize (max 1.25 seconds)
-        let waitTime = 0;
-        while (LinkCopyCenterBox.offsetLeft === 0 && waitTime <= 5) {
-            await sleep(250);
-            waitTime++;
+        if (DownloadArea?.length) {
+            const copyIcon = document.querySelector('.CopyIcon');
+            if (copyIcon) copyIcon.style.visibility = "visible";
         }
 
-        iconSet.style.setProperty('--SetTop', `${Math.floor(LinkCopyCenterBox.offsetTop + (LinkCopyCenterBox.offsetHeight - iconSet.offsetHeight) / 2)}px`);
-        iconSet.style.setProperty('--SetLeft', `${Math.floor(LinkCopyCenterBox.offsetLeft + LinkCopyCenterBox.offsetWidth + LinkCopyCenterBox.offsetHeight)}px`);
-    }
-
-    if (DownloadArea?.length && iconSet) {
-        const copyIcon = document.querySelector('.CopyIcon');
-        if (copyIcon) copyIcon.style.visibility = "visible";
+        scheduleIconSetPosition();
     }
 }
 
