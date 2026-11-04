@@ -748,9 +748,7 @@
         const finalRawSrc = img.src;
         if (!finalRawSrc || finalRawSrc.trim() === "" || finalRawSrc === window.location.href) {
             return false;
-        }
-
-        if (img.complete && img.naturalWidth > 0) return false;
+        }       
 
         return true;
     }
