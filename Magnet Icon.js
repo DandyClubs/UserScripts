@@ -452,11 +452,6 @@ function linkifyNodes(root) {
     });
 }
 
-const useWsrvDomains = [
-    '11img.com',
-    'gifyu.com',
-];
-
 async function Main() {
 
     if (/t66y\.com/.test(location.href)) {
@@ -474,19 +469,6 @@ async function Main() {
         if (spanWidth) {
             spanWidth.style.width = '100%';
         }
-
-        const selector = useWsrvDomains
-            .map(domain => `img[ess-data*="${domain}"]:not([ess-data^="https://wsrv.nl/"])`)
-            .join(', ');
-
-        const images = document.querySelectorAll(selector);
-
-        images.forEach(img => {
-            if (!img.src.startsWith('https://wsrv.nl/')) {
-                console.log('지역 제한 wsrv.nl 프록시 서비스 적용:', img.getAttribute('ess-data'));
-                img.setAttribute('ess-data', `https://wsrv.nl/?url=${encodeURIComponent(img.getAttribute('ess-data'))}`);
-            }
-        });
 
         linkifyNodes(container);
 
