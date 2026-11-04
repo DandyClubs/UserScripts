@@ -3746,6 +3746,10 @@ async function CopyLink() {
         LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
     }
 
+    const copyStateEl = document.querySelector('.CopyState');
+        let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
+        copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
+
 
 
     console.log('CopyLink Step: ', { pageLinksDB });
@@ -3767,8 +3771,7 @@ async function CopyLink() {
                 const prefix = match[1].toUpperCase();
                 const pureNum = match[2];
                 const extraSuffix = (match[3] || "").toLowerCase();
-                let finalCoverImage = null;
-                const copyStateEl = document.querySelector('.CopyState');
+                let finalCoverImage = null;                
 
                 // --- 1단계: 이미 고화질 주소(awsimgsrc)를 가지고 있는 경우 (즉시 학습 및 확정) ---
                 if (CoverImage && CoverImage.includes('awsimgsrc.dmm')) {
@@ -3792,9 +3795,9 @@ async function CopyLink() {
 
                         const fileName = `${extraPrefix}${prefix.toLowerCase()}${formattedNum}${extraSuffix}`;
                         const testUrl = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
-                        //copyStateEl.innerText = `${prefix} → ${category} 규칙 적용 중...`;
+                        copyStateEl.innerText = `${prefix} → ${category} 규칙 적용 중...`;
                         const result = await fetchImageResolution(testUrl);
-                        //copyStateEl.innerText = `${prefix} → ${category} 규칙 결과: ${result.exists ? '성공' : '실패'}`;
+                        copyStateEl.innerText = `${prefix} → ${category} 규칙 결과: ${result.exists ? '성공' : '실패'}`;
                         if (result.exists) {
                             finalCoverImage = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
                             const HQImage = document.createElement('a');
@@ -3804,6 +3807,8 @@ async function CopyLink() {
                             DownloadArea[0].appendChild(HQImage);
                             console.log(`%c[규칙 기반 확정] ${prefix} → ${category}`, "color: #9E9E9E;");
                             copyStateEl.innerText = ``;
+                        }else{
+                            copyStateEl.innerText = `${prefix} → ${category} 규칙 결과: 실패`;
                         }
 
                     }
@@ -3850,8 +3855,10 @@ async function CopyLink() {
                         // [추가] 403 국가 제한이나 특정 사유로 차단된 경우 프록시 적용
                         else if (result.reason === 'Region restrictions' || result.status === 403) {
                             console.log(`%c[지역 제한 감지] ${url}`, "color: #FF5722;");
+                            copyStateEl.innerText = `${prefix} → ${category} 규칙 결과: 실패`;
                         } else {
                             console.log(`%c[이미지 주소 오류] ${url}`, "color: #FF5722;");
+                            copyStateEl.innerText = `${prefix} → ${category} 규칙 결과: 실패`;
                         }
                     }
                     if (!finalCoverImage) {
@@ -3919,10 +3926,7 @@ async function CopyLink() {
 
 
     if (allLinks.length === 0) {
-        SkipTitle = ['Link is Empty'];
-        const copyStateEl = document.querySelector('.CopyState');
-        let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
-        copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
+        SkipTitle = ['Link is Empty'];        
         if (copyStateEl) {
             copyStateEl.classList.add('innerText');
             copyStateEl.textContent = 'Link is Empty';
