@@ -3894,11 +3894,11 @@ async function CopyLink() {
                         }
                         // [추가] 403 국가 제한이나 특정 사유로 차단된 경우 프록시 적용
                         else if (result.reason === 'Region restrictions' || result.status === 403) {
-                            console.log(`%c[지역 제한 감지] ${url}`, "color: #FF5722;");
-                            copyStateEl.innerText = `${prefix} ${url} 규칙 결과: 실패`;
+                            console.log(`%c[지역 제한 감지] \n${url}`, "color: #FF5722;");
+                            copyStateEl.innerText = `${prefix} \n${url} 규칙 결과: 실패`;
                         } else {
-                            console.log(`%c[이미지 주소 오류] ${url}`, "color: #FF5722;");
-                            copyStateEl.innerText = `${prefix} ${url} 규칙 결과: 실패`;
+                            console.log(`%c[이미지 주소 오류] \n${url}`, "color: #FF5722;");
+                            copyStateEl.innerText = `${prefix} \n${url} 규칙 결과: 실패`;
                         }
                     }
                     if (!finalCoverImage) {
