@@ -438,10 +438,17 @@
 
             let retryCount = parseInt(imgElement.dataset.retryCount);
 
+            let workingProxy = null;
             // src 유효성 검사 뒤, checkImage() 전에
             if (retryCount >= MAX_RETRY_COUNT) {
                 console.warn(`[ImageRetry] 최대 재시도 횟수(${MAX_RETRY_COUNT}회)에 도달했습니다.`, imgElement);
-                return;
+                workingProxy = await findWorkingProxy(imgElementSrc);
+                if (workingProxy) {
+                    console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
+                } else {
+                    imgElement.dataset.isImageState = "false";
+                    console.warn('[ImageRetry] 프록시 후보에서 이미지 로드에 실패했습니다:', imgElementSrc);
+                }
             }
 
             const imgElementSrc = imgElement.src;
@@ -458,13 +465,13 @@
                 return;
             }
 
-            let workingProxy = null;
             if (!exists && reason === 'Region restrictions') {
                 console.log('[ImageRetry] 지역 제한 감지, 프록시 이미지 로드 확인 중:', imgElementSrc);
                 workingProxy = await findWorkingProxy(imgElementSrc);
                 if (workingProxy) {
                     console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
                 } else {
+                    imgElement.dataset.isImageState = "false";
                     console.warn('[ImageRetry] 프록시 후보에서 이미지 로드에 실패했습니다:', imgElementSrc);
                 }
             }
@@ -480,7 +487,8 @@
             imgElement.addEventListener('error', retryError);
             if (workingProxy) {
                 imgElement.setAttribute('src', workingProxy);
-            }
+                imgElement.dataset.isImageState = "true";
+            } 
 
         } finally {
             retryWorkers--;
@@ -667,9 +675,11 @@
 
                         if (workingProxy) {
                             img.src = workingProxy;
+                            img.dataset.isImageState = "true";
                         } else {
                             console.warn('[ImageRetry] 도메인 프록시 후보에서 이미지 로드에 실패했습니다:', rawSrc);
                             img.dataset.proxyTestFailed = 'true';
+                            img.dataset.isImageState = "false";
                         }
                         checkImageVisibility(img);
                     })
@@ -677,6 +687,7 @@
                         delete img.dataset.isProxyTesting;
                         console.error('[ImageRetry] 도메인 프록시 테스트 실패:', rawSrc, error);
                         img.dataset.proxyTestFailed = 'true';
+                        img.dataset.isImageState = "false";
                         checkImageVisibility(img);
                     });
             }
