@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Forum Post Spacebar Scroller (No Reflow)
 // @namespace    http://tampermonkey.net/
-// @version      1.1
-// @description  offsetTop 기반으로 포럼 게시물 간 스페이스바 이동
+// @version      1.2
+// @description  스페이스바로 게시물 간 이동하고 페이지별 스크롤 위치 복원
 // @author       User
 // @match        https://www.forumophilia.com/*.html
 // @match        https://www.forumophilia.com/search.php*
@@ -43,6 +43,43 @@
         postSelector: '.post, [id^="post-"]',
         topOffset: 10
     };
+
+    const SCROLL_STORAGE_KEY = `ForumPostSpacebarScroller:scroll:${window.location.pathname}${window.location.search}`;
+
+    function setupScrollRestoration() {
+        let saveTimer;
+
+        const saveScrollPosition = () => {
+            try {
+                window.localStorage.setItem(SCROLL_STORAGE_KEY, String(window.pageYOffset));
+            } catch (error) {
+                console.error('Failed to save the scroll position:', error);
+            }
+        };
+
+        window.addEventListener('scroll', () => {
+            window.clearTimeout(saveTimer);
+            saveTimer = window.setTimeout(saveScrollPosition, 200);
+        }, { passive: true });
+        window.addEventListener('pagehide', saveScrollPosition);
+
+        return () => {
+            let savedPosition;
+            try {
+                savedPosition = window.localStorage.getItem(SCROLL_STORAGE_KEY);
+            } catch (error) {
+                console.error('Failed to restore the scroll position:', error);
+                return;
+            }
+
+            if (savedPosition === null) return;
+
+            const scrollPosition = Number(savedPosition);
+            if (Number.isFinite(scrollPosition) && scrollPosition >= 0) {
+                window.scrollTo(0, scrollPosition);
+            }
+        };
+    }
 
     // 문서 최상단 기준 절대 Y 좌표를 구하는 유틸리티 함수 (getBoundingClientRect 대체)
     function getAbsoluteTop(element) {
@@ -177,6 +214,7 @@
 
     function init() {
         const currentHost = window.location.hostname;
+        const restoreScrollPosition = setupScrollRestoration();
         const matched = SITE_CONFIGS.find(site => {
             if (site.hostPattern instanceof RegExp) {
                 return site.hostPattern.test(currentHost);
@@ -189,6 +227,7 @@
         const startScroller = () => {
             if (document.querySelector(finalConfig.postSelector)) {
                 new ForumScroller(finalConfig);
+                restoreScrollPosition();
                 return true;
             }
             return false;
