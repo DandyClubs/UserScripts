@@ -3787,8 +3787,8 @@ async function CopyLink() {
     }
 
     const copyStateEl = document.querySelector('.CopyState');
-        let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
-        copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
+    let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
+    copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
 
 
 
@@ -3800,44 +3800,67 @@ async function CopyLink() {
         console.log('CopyLink', collected);
 
         if (collected.length > 0) {
-            let codePattern, match;
-            if (CoverImage) {
-                codePattern = /(\d{0,2}[a-zA-Z]{1,6}\d{0,2})-?(\d{3})([a-z]*)/i;
-                match = SearchFC2ID.test(CopyTitle) ? null : CopyTitle.match(codePattern);
+            let match = null, contentId = null;
+            if (CoverImage && (CoverImage.includes('dmm.co.jp') || CoverImage.includes('awsimgsrc.dmm'))) {
+                const rawImage = CoverImage?.split('?')[0] || null;
+                const pathSegments = rawImage?.split('/');
+                const contentId = pathSegments?.[pathSegments.length - 2];
+                if (contentId) {
+                    const extractPatterns = [
+                        /(.*)(KT[a-zA-Z]*)(\d{3,5})(v*)/i,
+                        /(.*)(TS[a-zA-Z]*)(\d{3,5})(v*)/i,
+                        /(\d+)(SW[a-zA-Z]*)(\d{3,5})(v*)/i,
+                        /(.*)(\d{2}ID[a-zA-Z]*)(\d{3,})(.*)/i,
+                        /([a-z]*)(dvaj|dvajbx)(\d{3,5})(.*)/i,
+                        /(\d{2})(T0*\d{2}[a-zA-Z]*)(\d{3,5})(.*)/i,
+                        /(\d{2})(T\d{2})(\d{3,5})(.*)/i,
+                        /(h_[h0-9]*)(ss|sy|id)(\d{3,5})([a-z]*)/i,
+                        /(h_[h0-9]*)([a-z]{3,})(\d{3,5})([a-z]*)/i,
+                        /([0-9]*)([a-z]+)(\d{3,5})(.*)/i
+                    ];
+                    for (const regex of extractPatterns) {
+                        match = contentId.match(regex);
+
+                        if (match) break;
+                    }
+                }
             }
 
             if (match) {
-                const code = match[0];
-                const prefix = match[1].toUpperCase();
-                const pureNum = match[2];
-                const extraSuffix = (match[3] || "").toLowerCase();
-                let finalCoverImage = null;                
+                console.log('Match found:', match);
+                const prefix = match[1];
+                const code = match[2].replace(/(T)0?(\d{2})/, '$1$2').toUpperCase();
+                const pureNum = match[3];
+                const suffix = match[4];                
+
+                let finalCoverImage = null;
 
                 // --- 1단계: 이미 고화질 주소(awsimgsrc)를 가지고 있는 경우 (즉시 학습 및 확정) ---
                 if (CoverImage && CoverImage.includes('awsimgsrc.dmm')) {
                     finalCoverImage = CoverImage;
-                    if (!DB_PREFIX_RULES[prefix] && !GM_getValue('CODE_' + prefix)) {
-                        saveRuleFromUrl(CoverImage, prefix); // URL 파싱 저장 함수 (아래 별도 정의)
+                    if (!DB_PREFIX_RULES[code] && !GM_getValue('CODE_' + code)) {
+                        saveRuleFromUrl(CoverImage, code); // URL 파싱 저장 함수 (아래 별도 정의)
                     }
                 }
 
                 // --- 2단계: 고화질 주소는 없지만, 이미 "규칙"을 알고 있는 브랜드인 경우 (즉시 생성) ---
                 if (!finalCoverImage) {
                     const CURRENT_RULES = getMergedRules(); // 정적 + 학습된 규칙 병합 함수
-                    if (CURRENT_RULES[prefix]) {
-                        const [category, extraPrefix] = CURRENT_RULES[prefix];
+                    if (CURRENT_RULES[code]) {
+                        const [category, extraPrefix] = CURRENT_RULES[code];
                         const targetBaseUrl = BASE_URLS[category] || BASE_URLS["FANZA_DIGITAL"];
 
                         // 현재 코드의 대전제: DIGITAL은 5자리, 그 외는 원본
-                        const formattedNum = (category === "FANZA_DIGITAL")
+                        const formattedNum = (category === "FANZA_DIGITAL") || (category === "FANZA_MONO")
                             ? pureNum.padStart(5, '0')
                             : pureNum;
 
-                        const fileName = `${extraPrefix}${prefix.toLowerCase()}${formattedNum}${extraSuffix}`;
+                            
+                        const fileName = `${extraPrefix}${code.toLowerCase()}${formattedNum}${suffix}`;
                         const testUrl = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
-                        copyStateEl.innerText = `${prefix} → ${category} 규칙 적용 중...`;
+                        copyStateEl.innerText = `${code} → ${category} 규칙 적용 중...`;
                         const result = await fetchImageResolution(testUrl);
-                        copyStateEl.innerText = `${prefix} → ${category} 규칙 결과: ${result.exists ? '성공' : '실패'}`;
+                        copyStateEl.innerText = `${code} → ${category} 규칙 결과: ${result.exists ? '성공' : '실패'}`;
                         if (result.exists) {
                             finalCoverImage = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
                             const HQImage = document.createElement('a');
@@ -3845,10 +3868,10 @@ async function CopyLink() {
                             HQImage.classList.add('HQImage');
                             HQImage.href = finalCoverImage;
                             DownloadArea[0].appendChild(HQImage);
-                            console.log(`%c[규칙 기반 확정] ${prefix} → ${category}`, "color: #9E9E9E;");
+                            console.log(`%c[규칙 기반 확정] ${code} → ${category}`, "color: #9E9E9E;");
                             copyStateEl.innerText = ``;
-                        }else{
-                            copyStateEl.innerText = `${prefix} → ${category} 규칙 결과: 실패`;
+                        } else {
+                            copyStateEl.innerText = `${code} → ${category} 규칙 결과: 실패`;
                         }
 
                     }
@@ -3856,8 +3879,8 @@ async function CopyLink() {
 
                 // --- 3단계: 규칙도 없는 생소한 브랜드인 경우 (후보군 생성 및 이미지 체크) ---
                 if (!finalCoverImage) {
-                    console.log(`%c[미등록 브랜드 탐색] ${prefix} 패턴 추론 시작...${CoverImage || ''}`, "color: #FF9800;");
-                    copyStateEl.innerText = `${prefix} → 미등록 브랜드 탐색 중...`;
+                    console.log(`%c[미등록 브랜드 탐색] ${code} 패턴 추론 시작...${CoverImage || ''}`, "color: #FF9800;");
+                    copyStateEl.innerText = `${code} → 미등록 브랜드 탐색 중...`;
                     const IconSetBox = document.querySelector(".IconSet");
                     const copyIcon = IconSetBox.querySelector('.CopyIcon');
 
@@ -3866,27 +3889,28 @@ async function CopyLink() {
                     copyIcon.classList.add('fa-brands');
                     copyIcon.classList.add('fa-roblox-creator-studio');
 
-                    const candidates = await generateUrlCandidates(code, CoverImage || '');
+                    const candidates = await generateUrlCandidates(contentId || SearchIDRegExp(CopyTitle), CoverImage || '');
+                    console.log(candidates);
 
                     for (const url of candidates) {
-                        copyStateEl.innerText = `${prefix} → 후보군 테스트 중: ${url}`;
+                        copyStateEl.innerText = `${code} → 후보군 테스트 중: \n${url}`;
                         const result = await fetchImageResolution(url);
-                        copyStateEl.innerText = `${prefix} → 후보군 테스트 결과: ${result.exists ? '성공' : '실패'} (${url})`;
-                        console.log(`%c[미등록 브랜드 탐색 결과] ${prefix} ${CoverImage || ''}`, result, "color: #FF9800;");
+                        copyStateEl.innerText = `${code} → 후보군 테스트 결과: \n${result.exists ? '성공' : '실패'} \n(${url})`;
+                        console.log(`%c[미등록 브랜드 탐색 결과] ${code} ${CoverImage || ''}`, result, "color: #FF9800;");
 
                         if (result.exists) {
                             finalCoverImage = url;
                             // 학습 로직 (프록시 사용 여부와 상관없이 원본 URL의 메타데이터로 저장)
                             const learnedRule = candidates._meta?.[url];
-                            if (learnedRule && !DB_PREFIX_RULES[prefix]) {
-                                if (!GM_getValue('CODE_' + prefix)) {
-                                    GM_setValue('CODE_' + prefix, learnedRule);
+                            if (learnedRule && !DB_PREFIX_RULES[code]) {
+                                if (!GM_getValue('CODE_' + code)) {
+                                    GM_setValue('CODE_' + code, learnedRule);
                                     const HQImage = document.createElement('a');
                                     HQImage.style = "display:none !important;";
                                     HQImage.classList.add('HQImage');
                                     HQImage.href = finalCoverImage;
                                     DownloadArea[0].appendChild(HQImage);
-                                    console.log(`%c[학습 완료] ${prefix} ${learnedRule} 저장됨`, "color: cyan;");
+                                    console.log(`%c[학습 완료] ${code} ${learnedRule} 저장됨`, "color: cyan;");
                                     copyStateEl.innerText = ``;
                                 }
                             }
@@ -3895,14 +3919,15 @@ async function CopyLink() {
                         // [추가] 403 국가 제한이나 특정 사유로 차단된 경우 프록시 적용
                         else if (result.reason === 'Region restrictions' || result.status === 403) {
                             console.log(`%c[지역 제한 감지] \n${url}`, "color: #FF5722;");
-                            copyStateEl.innerText = `${prefix} \n${url} 규칙 결과: 실패`;
+                            copyStateEl.innerText = `${code} \n${url} \n규칙 결과: 실패`;
                         } else {
                             console.log(`%c[이미지 주소 오류] \n${url}`, "color: #FF5722;");
-                            copyStateEl.innerText = `${prefix} \n${url} 규칙 결과: 실패`;
+                            copyStateEl.innerText = `${code} \n${url} \n규칙 결과: 실패`;
                         }
                     }
                     if (!finalCoverImage) {
-                        console.log(`%c[미등록 브랜드 탐색 실패] ${prefix} ${CoverImage || ''}`, "color: #FF9800;");
+                        console.log(`%c[미등록 브랜드 탐색 실패] ${code} ${CoverImage || ''}`, "color: #FF9800;");
+                        copyStateEl.innerText = `${code} \n${url} \n규칙 결과: 실패`;
                     }
 
                     copyIcon.classList.remove('fa-brands');
@@ -3966,7 +3991,7 @@ async function CopyLink() {
 
 
     if (allLinks.length === 0) {
-        SkipTitle = ['Link is Empty'];        
+        SkipTitle = ['Link is Empty'];
         if (copyStateEl) {
             copyStateEl.classList.add('innerText');
             copyStateEl.textContent = 'Link is Empty';
