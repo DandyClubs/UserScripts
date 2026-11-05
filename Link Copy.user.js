@@ -3820,18 +3820,17 @@ async function CopyLink() {
                     ];
                     for (const regex of extractPatterns) {
                         match = contentId.match(regex);
-
                         if (match) break;
                     }
                 }
             }
-
+            
             if (match) {
                 console.log('Match found:', match);
                 const prefix = match[1];
                 const code = match[2].replace(/(T)0?(\d{2})/, '$1$2').toUpperCase();
                 const pureNum = match[3];
-                const suffix = match[4];                
+                const suffix = match[4];
 
                 let finalCoverImage = null;
 
@@ -3855,7 +3854,7 @@ async function CopyLink() {
                             ? pureNum.padStart(5, '0')
                             : pureNum;
 
-                            
+
                         const fileName = `${extraPrefix}${code.toLowerCase()}${formattedNum}${suffix}`;
                         const testUrl = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
                         copyStateEl.innerText = `${code} → ${category} 규칙 적용 중...`;
