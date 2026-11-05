@@ -649,6 +649,7 @@
         if (img.dataset.isFixing) return false;
         //if (img.closest('.image-masonry')) return false;
         if (img.closest('.hiddenbox')) return false;
+        if (img.closest('.lazyload-preview')) return false;
         /*
                 // 🔥 CSS 가시성 확인 (display: none 등 체크)
                 const isVisible = img.checkVisibility({
