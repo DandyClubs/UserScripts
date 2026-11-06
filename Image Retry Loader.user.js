@@ -715,7 +715,7 @@
                 findWorkingProxy(rawSrc)
                     .then(workingProxy => {
                         delete img.dataset.isProxyTesting;
-                        if (!img.isConnected || img.src !== rawSrc) return false;
+                        //if (!img.isConnected || img.src !== rawSrc) return false;
 
                         if (workingProxy) {
                             img.removeAttribute('loading');

@@ -3857,9 +3857,9 @@ async function CopyLink() {
 
                         const fileName = `${extraPrefix}${code.toLowerCase()}${formattedNum}${suffix}`;
                         const testUrl = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
-                        copyStateEl.innerText = `${code} → ${category} 규칙 적용 중...`;
+                        //copyStateEl.innerText = `${code} → ${category} 규칙 적용 중...`;
                         const result = await fetchImageResolution(testUrl);
-                        copyStateEl.innerText = `${code} → ${category} 규칙 결과: ${result.exists ? '성공' : '실패'}`;
+                        //copyStateEl.innerText = `${code} → ${category} 규칙 결과: ${result.exists ? '성공' : '실패'}`;
                         if (result.exists) {
                             finalCoverImage = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
                             const HQImage = document.createElement('a');
@@ -3867,9 +3867,10 @@ async function CopyLink() {
                             HQImage.classList.add('HQImage');
                             HQImage.href = finalCoverImage;
                             DownloadArea[0].appendChild(HQImage);
-                            console.log(`%c[규칙 기반 확정] ${code} → ${category}`, "color: #9E9E9E;");
-                            copyStateEl.innerText = ``;
+                            console.log(`%c[규칙 기반 확정] ${code} → ${category} \n${testUrl}`, "color: #9E9E9E;");
+                            //copyStateEl.innerText = ``;
                         } else {
+                            console.log(`%c[규칙 기반 실패] ${code} → ${category} \n${testUrl}`, "color: #FF5722;");
                             copyStateEl.innerText = `${code} → ${category} 규칙 결과: 실패`;
                         }
 

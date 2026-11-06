@@ -240,7 +240,7 @@ const siteRules = [
         priority: ['3840', '1920', '1280', '720'],
         coverImage: '',
         useResolution: true,
-        getTitleRegex: /(?<=(影片名稱|電子書名稱|檔案名稱|資源格式|影片名称|本片名稱)】[\s：:])(.*?)(?=(?:(【\d+(M|G)|\(MP4[@＠]KF[@＠]無碼|【影片大小).*$)?(?:$))/m,
+        getTitleRegex: /(?<=(影片名稱|電子書名稱|檔案名稱|資源格式|影片名称|本片名稱)】[\s：:])(.*?)(?=(?:([【\d+(M|G)|[\(\[]MP4[@＠]KF[@＠]無碼|【影片大小).*$)?(?:$))/m,
         getTitleMatchPoint: 0,
         passwordRegex: /(解壓密碼|解壓縮密碼)】[：:]?(.*?)\s*(.+)/,
         breakPoint: [
@@ -312,12 +312,14 @@ function extractTitles(rule) {
     flushGroup();
 
     const titles = [];
+    const seenTitles = new Set();
 
     for (const textNodes of textGroups) {
         const raw = textNodes.map(node => node.textContent).join('');
         const titleMatch = raw.match(rule.getTitleRegex);
 
-        if (titleMatch) {
+        if (titleMatch && !seenTitles.has(titleMatch[0])) {
+            seenTitles.add(titleMatch[0]);
             titles.push({ textNodes });
         }
     }
