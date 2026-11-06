@@ -57,7 +57,7 @@
 
 
     const checkImageVisibility = (img) => {
-        if (isValidExternalImage(img)) {
+        if (isListImage(img)) {
             img.setAttribute('loading', 'lazy');
             lazyImageQueue.enqueue(img);
             startLazyWorkers();
@@ -695,7 +695,7 @@
         .filter(Boolean)
         .join('|');
 
-    function isValidExternalImage(img) {
+    function isListImage(img) {
         if (!img) return false;
         if (img.dataset.isFixing) return false;
         //if (img.closest('.image-masonry')) return false;
