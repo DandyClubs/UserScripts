@@ -70,6 +70,7 @@
             const currentSrc = img.getAttribute('src');
 
             if (!currentSrc || currentSrc === "" || img.src === window.location.href) {
+                img.dataset.isImageState = "false";
                 return resolve('skipped');
             }
 
@@ -86,7 +87,10 @@
                 return;
             }
 
-            if (img.src.startsWith('blob:')) return resolve('loaded');
+            if (img.src.startsWith('blob:')) {
+                img.dataset.isImageState = "true";
+                return resolve('loaded');
+            }
 
             const timer = setTimeout(() => {
                 console.warn(`[ImageRetry] 로딩 타임아웃: ${img.src}`);
@@ -488,7 +492,7 @@
             if (workingProxy) {
                 imgElement.setAttribute('src', workingProxy);
                 imgElement.dataset.isImageState = "true";
-            } 
+            }
 
         } finally {
             retryWorkers--;
@@ -762,7 +766,13 @@
             return false;
         }
 
-        if (img.complete && img.naturalWidth !== 0) return false;
+        if (img.complete && img.naturalWidth !== 0) {
+            img.decode()
+                .then(() => {
+                    img.dataset.isImageState = "true";
+                    return false;
+                })
+        }
 
         return true;
     }
