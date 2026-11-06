@@ -23,6 +23,7 @@
     const retryQueue = [];
     const retrySet = new Set();
     const failedImagesSet = new Set();
+    const imageCheckCache = new WeakMap();
 
     // 재시도 간격 및 횟수
     const RETRY_INTERVAL = 10000;
@@ -439,6 +440,10 @@
 
         try {
             const imgElement = item.imgElement;
+            const imgElementSrc = imgElement.src;
+            if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:') || isProxyUrl(imgElementSrc)) {
+                return;
+            }
 
             let retryCount = parseInt(imgElement.dataset.retryCount);
 
@@ -455,12 +460,19 @@
                 }
             }
 
-            const imgElementSrc = imgElement.src;
-            if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:') || isProxyUrl(imgElementSrc)) {
-                return;
+            let checkResult = imageCheckCache.get(imgElement);
+            if (!checkResult || checkResult.src !== imgElementSrc) {
+                checkResult = {
+                    src: imgElementSrc,
+                    result: await checkImage(imgElementSrc)
+                };
+                imageCheckCache.set(imgElement, checkResult);
             }
-            const { exists, reason, status = null } = await checkImage(imgElementSrc);
+            if (imgElement.src !== imgElementSrc) return;
+
+            const { exists, reason, status = null } = checkResult.result;
             console.log(exists, reason, status);
+
             if (!exists && (reason === 'client_error' || reason === 'server_error')) {
                 console.warn(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
                 failedImagesSet.add(getPureUrl(imgElement.src));
@@ -482,17 +494,40 @@
 
             imgElement.dataset.retryCount = ++retryCount;
             console.warn(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement);
+
+            function removeRetryListeners() {
+                imgElement.removeEventListener('load', retryLoad);
+                imgElement.removeEventListener('error', retryError);
+            }
+
+            function retryLoad() {
+                const loadedSrc = imgElement.currentSrc || imgElement.src;
+                removeRetryListeners();
+                imgElement.decode()
+                    .then(() => {
+                        if ((imgElement.currentSrc || imgElement.src) === loadedSrc) {
+                            imgElement.dataset.isImageState = "true";
+                        }
+                    })
+                    .catch(error => {
+                        console.warn('[ImageRetry] 재시도 이미지 decode 실패:', error);
+                        if ((imgElement.currentSrc || imgElement.src) === loadedSrc) {
+                            imgElement.dataset.isImageState = "false";
+                        }
+                    });
+            }
+
             function retryError() {
+                removeRetryListeners();
+                imgElement.dataset.isImageState = "false";
                 if (!retrySet.has(getPureUrl(this.src))) {
                     enqueueFailedImage(this, 'retry_error');
                 }
-                imgElement.removeEventListener('error', retryError);
             }
+            imgElement.addEventListener('load', retryLoad);
             imgElement.addEventListener('error', retryError);
-            if (workingProxy) {
-                imgElement.setAttribute('src', workingProxy);
-                imgElement.dataset.isImageState = "true";
-            }
+
+            imgElement.setAttribute('src', workingProxy || imgElementSrc);
 
         } finally {
             retryWorkers--;
@@ -681,7 +716,6 @@
 
                         if (workingProxy) {
                             img.src = workingProxy;
-                            img.dataset.isImageState = "true";
                         } else {
                             console.warn('[ImageRetry] 도메인 프록시 후보에서 이미지 로드에 실패했습니다:', rawSrc);
                             img.dataset.proxyTestFailed = 'true';
