@@ -145,16 +145,18 @@
 
         const img = lazyImageQueue.dequeue();
 
-        if (img && img.isConnected) {
-            waitForImage(img, LOAD_TIMEOUT).then(result => {
+        try {
+            if (img && img.isConnected) {
+                const result = await waitForImage(img, LOAD_TIMEOUT);
                 if (result === 'error' || result === 'corrupted' || result === 'timeout') {
                     if (!retrySet.has(getPureUrl(img.src))) {
                         enqueueFailedImage(img, result);
                     }
                 }
-                activeWorkers--;
-                startLazyWorkers();
-            });
+            }
+        } finally {
+            activeWorkers--;
+            startLazyWorkers();
         }
     }
 
@@ -469,10 +471,9 @@
                 };
                 imageCheckCache.set(imgElement, checkResult);
             }
-            if (imgElement.src !== imgElementSrc) return;
+            //if (imgElement.src !== imgElementSrc) return;
 
-            const { exists, reason, status = null } = checkResult.result;
-            console.log(exists, reason, status);
+            const { exists, reason, status = null } = checkResult.result;            
 
             if (!exists && (reason === 'client_error' || reason === 'server_error')) {
                 console.warn(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
