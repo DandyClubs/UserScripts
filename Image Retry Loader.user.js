@@ -34,8 +34,8 @@
     const tryProxy = ['https://proxy.duckduckgo.com/iu/?u=', 'https://wsrv.nl/?url=']
     const SUCCESSFUL_PROXY_STORAGE_PREFIX = 'successfulProxy:';
     const STORAGE_EXPIRATION = 24 * 60 * 60 * 1000;
+    const BAD_URL_PREFIX = 'badUrl:';
     const PROXY_URL_CACHE_PREFIX = 'imageRetryProxyUrl:';
-    const LEGACY_PROXY_URL_CACHE_KEY = 'imageRetryProxyUrls';
     const PROXY_URL_CACHE_EXPIRATION = 48 * 60 * 60 * 1000;
     const successfulProxyByDomain = new Map();
 
@@ -308,46 +308,8 @@
         }
     }
 
-    function migrateLegacyProxyUrlCache() {
-        let serialized;
-        try {
-            serialized = localStorage.getItem(LEGACY_PROXY_URL_CACHE_KEY);
-        } catch (error) {
-            console.error('[ImageRetry] 이전 형식의 프록시 URL 캐시를 읽을 수 없습니다:', error);
-            return;
-        }
-
-        if (!serialized) return;
-
-        try {
-            const legacyCache = JSON.parse(serialized);
-            if (!legacyCache || typeof legacyCache !== 'object' || Array.isArray(legacyCache)) {
-                console.error('[ImageRetry] 이전 형식의 프록시 URL 캐시 형식이 올바르지 않습니다.');
-            } else {
-                for (const [originalUrl, saved] of Object.entries(legacyCache)) {
-                    if (saved &&
-                        typeof saved.proxyUrl === 'string' &&
-                        isProxyUrl(saved.proxyUrl) &&
-                        Number.isFinite(saved.savedAt) &&
-                        Date.now() - saved.savedAt <= PROXY_URL_CACHE_EXPIRATION &&
-                        !getSavedProxyUrl(originalUrl)) {
-                        writeProxyUrlCache(originalUrl, saved);
-                    }
-                }
-            }
-        } catch (error) {
-            console.error('[ImageRetry] 이전 형식의 프록시 URL 캐시를 파싱할 수 없습니다:', error);
-        }
-
-        try {
-            localStorage.removeItem(LEGACY_PROXY_URL_CACHE_KEY);
-        } catch (error) {
-            console.error('[ImageRetry] 이전 형식의 프록시 URL 캐시를 삭제할 수 없습니다:', error);
-        }
-    }
 
     function cleanProxyUrlCache() {
-        migrateLegacyProxyUrlCache();
 
         let cacheKeys;
         try {
@@ -570,7 +532,7 @@
     let retryWorkers = 0;
 
     function enqueueFailedImage(imgElement, reason = '') {
-        if(!imgElement || !imgElement.isConnected) {
+        if (!imgElement || !imgElement.isConnected) {
             return;
         }
         const pureSrc = getPureUrl(imgElement.src);
@@ -884,7 +846,7 @@
 
         if (rawSrc.startsWith('http://data:image')) {
             img.src = rawSrc.replace('http://', '');
-            rawSrc = img.src;            
+            rawSrc = img.src;
         }
 
         for (const attr of img.attributes) {
@@ -895,57 +857,6 @@
                 break;
             }
         }
-
-        const cachedProxyUrl = getSavedProxyUrl(rawSrc);
-        if (cachedProxyUrl) {
-            appliedCachedProxyUrls.set(img, rawSrc);
-            img.src = cachedProxyUrl;
-            rawSrc = cachedProxyUrl;
-        }
-
-        if (rawSrc && !isProxyUrl(rawSrc) &&
-            !img.dataset.proxyTestFailed &&
-            new RegExp(`(${proxyImageDomainsPattern})`, 'i').test(rawSrc)) {
-            if (!img.dataset.isProxyTesting) {
-                img.dataset.isProxyTesting = 'true';
-                findWorkingProxy(rawSrc)
-                    .then(workingProxy => {
-                        delete img.dataset.isProxyTesting;
-                        //if (!img.isConnected || img.src !== rawSrc) return false;
-
-                        if (workingProxy) {
-                            img.removeAttribute('loading');
-                            function Load() {
-                                img.removeEventListener('load', Load);
-                                img.decode()
-                                    .then(() => {
-                                        img.dataset.loaded = "true";
-                                        return false;
-                                    })
-                                    .catch(error => {
-                                        console.warn('[ImageRetry] 재시도 이미지 decode 실패:', error);
-                                        return true;
-                                    });
-                            }
-                            img.addEventListener('load', Load);
-                            img.src = workingProxy;
-                        } else {
-                            console.warn('[ImageRetry] 도메인 프록시 후보에서 이미지 로드에 실패했습니다:', rawSrc);
-                            img.dataset.proxyTestFailed = 'true';
-                            img.dataset.loaded = "false";
-                            return true;
-                        }
-                    })
-                    .catch(error => {
-                        delete img.dataset.isProxyTesting;
-                        console.error('[ImageRetry] 도메인 프록시 테스트 실패:', rawSrc, error);
-                        img.dataset.proxyTestFailed = 'true';
-                        img.dataset.loaded = "false";
-                        return true;
-                    });
-            }
-            return false;
-        }        
 
         if (!rawSrc || rawSrc.startsWith('blob:') || rawSrc.startsWith('data:') || rawSrc.startsWith('https://cm-exchange.toast.com/pixel')) {
             return false;
@@ -966,12 +877,12 @@
             }
             return false;
         }
+
         else if (rawSrc.startsWith('http://')) {
             if (domainRegex.test(rawSrc)) {
                 img.src = rawSrc.replace('http://', 'https://');
                 rawSrc = img.src;
                 console.log(`[HTTPS-Upgrade] 프로토콜 변경 완료: ${img.src}`);
-                return true;
             }
         }
 
@@ -991,8 +902,54 @@
             return false;
         }
 
+        const cachedProxyUrl = getSavedProxyUrl(rawSrc);
+        if (cachedProxyUrl) {
+            appliedCachedProxyUrls.set(img, rawSrc);
+            img.src = cachedProxyUrl;
+            rawSrc = cachedProxyUrl;
+        }
+
+        if (rawSrc && !isProxyUrl(rawSrc) &&
+            !img.dataset.proxyTestFailed &&
+            new RegExp(`(${proxyImageDomainsPattern})`, 'i').test(rawSrc)) {
+            if (!img.dataset.isProxyTesting) {
+                img.dataset.isProxyTesting = 'true';
+                findWorkingProxy(rawSrc)
+                    .then(workingProxy => {
+                        delete img.dataset.isProxyTesting;
+                        //if (!img.isConnected || img.src !== rawSrc) return false;
+
+                        if (workingProxy) {
+                            img.src = workingProxy;
+                            img.decode()
+                                .then(() => {
+                                    img.dataset.loaded = "true";
+                                    return false;
+                                })
+                                .catch(error => {
+                                    console.warn('[ImageRetry] 재시도 이미지 decode 실패:', error);
+                                    return true;
+                                });
+                        } else {
+                            console.warn('[ImageRetry] 도메인 프록시 후보에서 이미지 로드에 실패했습니다:', rawSrc);
+                            img.dataset.proxyTestFailed = 'true';
+                            img.dataset.loaded = "false";
+                            return true;
+                        }
+                    })
+                    .catch(error => {
+                        delete img.dataset.isProxyTesting;
+                        console.error('[ImageRetry] 도메인 프록시 테스트 실패:', rawSrc, error);
+                        img.dataset.proxyTestFailed = 'true';
+                        img.dataset.loaded = "false";
+                        return true;
+                    });
+            }
+            return false;
+        }
 
         const finalRawSrc = img.src;
+
         if (!finalRawSrc || finalRawSrc.trim() === "" || finalRawSrc === window.location.href) {
             return false;
         }
@@ -1004,7 +961,6 @@
                     return false;
                 })
         }
-
         return true;
     }
 
@@ -1023,7 +979,7 @@
 
     function saveBadLink(url) {
         const now = Date.now();
-        GM_setValue(getPureUrl(url), now);
+        GM_setValue(BAD_URL_PREFIX + getPureUrl(url), now);
     }
 
     function isBadLink(url) {

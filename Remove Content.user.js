@@ -444,7 +444,7 @@ async function processContent(node, selector) {
         }
 
         if (/all-voyeur\.net/.test(PageURL)) {
-            console.log('Category content removed:', item, item.closest(Active.parentTagSelector));
+            console.log('Category content removed:', parent);
             hideElement(parent);
             continue;
         }
