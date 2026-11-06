@@ -34,6 +34,8 @@
     const tryProxy = ['https://proxy.duckduckgo.com/iu/?u=', 'https://wsrv.nl/?url=']
     const SUCCESSFUL_PROXY_STORAGE_PREFIX = 'successfulProxy:';
     const STORAGE_EXPIRATION = 24 * 60 * 60 * 1000;
+    const PROXY_URL_CACHE_KEY = 'imageRetryProxyUrls';
+    const PROXY_URL_CACHE_EXPIRATION = 48 * 60 * 60 * 1000;
     const successfulProxyByDomain = new Map();
 
     class Queue {
@@ -55,6 +57,7 @@
 
     const lazyImageQueue = new Queue();
     const queuedLazyImages = new WeakSet();
+    const appliedCachedProxyUrls = new WeakMap();
 
 
     const checkImageVisibility = (img) => {
@@ -153,9 +156,17 @@
             if (img && img.isConnected) {
                 const result = await waitForImage(img, LOAD_TIMEOUT);
                 if (result === 'error' || result === 'corrupted' || result === 'timeout') {
+                    const originalSrc = appliedCachedProxyUrls.get(img);
+                    if (originalSrc) {
+                        appliedCachedProxyUrls.delete(img);
+                        removeProxyUrl(originalSrc);
+                        img.src = originalSrc;
+                    }
                     if (!retrySet.has(getPureUrl(img.src))) {
                         enqueueFailedImage(img, result);
                     }
+                } else {
+                    appliedCachedProxyUrls.delete(img);
                 }
             }
         } finally {
@@ -255,6 +266,110 @@
         });
     }
 
+    function readProxyUrlCache() {
+        let serialized;
+        try {
+            serialized = localStorage.getItem(PROXY_URL_CACHE_KEY);
+        } catch (error) {
+            console.error('[ImageRetry] 프록시 URL 캐시를 읽을 수 없습니다:', error);
+            return {};
+        }
+
+        if (!serialized) return {};
+
+        try {
+            const cache = JSON.parse(serialized);
+            if (cache && typeof cache === 'object' && !Array.isArray(cache)) {
+                return cache;
+            }
+            console.error('[ImageRetry] 프록시 URL 캐시 형식이 올바르지 않습니다.');
+        } catch (error) {
+            console.error('[ImageRetry] 프록시 URL 캐시를 파싱할 수 없습니다:', error);
+        }
+
+        try {
+            localStorage.removeItem(PROXY_URL_CACHE_KEY);
+        } catch (error) {
+            console.error('[ImageRetry] 손상된 프록시 URL 캐시를 삭제할 수 없습니다:', error);
+        }
+        return {};
+    }
+
+    function writeProxyUrlCache(cache) {
+        try {
+            if (Object.keys(cache).length > 0) {
+                localStorage.setItem(PROXY_URL_CACHE_KEY, JSON.stringify(cache));
+            } else {
+                localStorage.removeItem(PROXY_URL_CACHE_KEY);
+            }
+        } catch (error) {
+            console.error('[ImageRetry] 프록시 URL 캐시를 저장할 수 없습니다:', error);
+        }
+    }
+
+    function cleanProxyUrlCache() {
+        const cache = readProxyUrlCache();
+        const now = Date.now();
+        let changed = false;
+
+        for (const [originalUrl, saved] of Object.entries(cache)) {
+            if (!saved ||
+                typeof saved.proxyUrl !== 'string' ||
+                !isProxyUrl(saved.proxyUrl) ||
+                !Number.isFinite(saved.savedAt) ||
+                now - saved.savedAt > PROXY_URL_CACHE_EXPIRATION) {
+                delete cache[originalUrl];
+                changed = true;
+            }
+        }
+
+        if (changed) writeProxyUrlCache(cache);
+    }
+
+    function saveProxyUrl(originalUrl, proxyUrl) {
+        if (!originalUrl || !proxyUrl || !isProxyUrl(proxyUrl)) return;
+
+        const cache = readProxyUrlCache();
+        cache[originalUrl] = {
+            proxyUrl,
+            savedAt: Date.now()
+        };
+        writeProxyUrlCache(cache);
+    }
+
+    function removeProxyUrl(originalUrl) {
+        const cache = readProxyUrlCache();
+        if (Object.prototype.hasOwnProperty.call(cache, originalUrl)) {
+            delete cache[originalUrl];
+            writeProxyUrlCache(cache);
+        }
+    }
+
+    function getSavedProxyUrl(originalUrl) {
+        const saved = readProxyUrlCache()[originalUrl];
+        if (!saved) return null;
+
+        if (typeof saved.proxyUrl !== 'string' ||
+            !isProxyUrl(saved.proxyUrl) ||
+            !Number.isFinite(saved.savedAt) ||
+            Date.now() - saved.savedAt > PROXY_URL_CACHE_EXPIRATION) {
+            removeProxyUrl(originalUrl);
+            return null;
+        }
+
+        return saved.proxyUrl;
+    }
+
+    async function getCachedProxyUrl(originalUrl) {
+        const proxyUrl = getSavedProxyUrl(originalUrl);
+        if (!proxyUrl) return null;
+
+        if (await testImageUrl(proxyUrl)) return proxyUrl;
+
+        removeProxyUrl(originalUrl);
+        return null;
+    }
+
     function findFirstWorkingProxy(url, proxyUrls) {
         if (proxyUrls.length === 0) return Promise.resolve(null);
 
@@ -305,6 +420,9 @@
     }
 
     async function findWorkingProxy(url) {
+        const cachedProxyUrl = await getCachedProxyUrl(url);
+        if (cachedProxyUrl) return cachedProxyUrl;
+
         let imageDomain;
         try {
             imageDomain = new URL(url).hostname.toLowerCase();
@@ -315,7 +433,10 @@
         const preferredProxy = imageDomain ? getSuccessfulProxy(imageDomain) : null;
         if (preferredProxy) {
             const candidateUrl = `${preferredProxy}${encodeURIComponent(url)}`;
-            if (await testImageUrl(candidateUrl)) return candidateUrl;
+            if (await testImageUrl(candidateUrl)) {
+                saveProxyUrl(url, candidateUrl);
+                return candidateUrl;
+            }
             successfulProxyByDomain.delete(imageDomain);
             GM_deleteValue(`${SUCCESSFUL_PROXY_STORAGE_PREFIX}${imageDomain}`);
         }
@@ -326,6 +447,7 @@
             const successfulProxy = tryProxy.find(proxyUrl => workingProxy.startsWith(proxyUrl));
             if (successfulProxy) saveSuccessfulProxy(imageDomain, successfulProxy);
         }
+        if (workingProxy) saveProxyUrl(url, workingProxy);
         return workingProxy;
     }
 
@@ -738,6 +860,13 @@
             }
         }
 
+        const cachedProxyUrl = getSavedProxyUrl(rawSrc);
+        if (cachedProxyUrl) {
+            appliedCachedProxyUrls.set(img, rawSrc);
+            img.src = cachedProxyUrl;
+            rawSrc = cachedProxyUrl;
+        }
+
         if (rawSrc && !isProxyUrl(rawSrc) &&
             !img.dataset.proxyTestFailed &&
             new RegExp(`(${proxyImageDomainsPattern})`, 'i').test(rawSrc)) {
@@ -888,6 +1017,7 @@
 
     document.addEventListener("DOMContentLoaded", () => {
         cleanOldBadLinks();
+        cleanProxyUrlCache();
         document.querySelectorAll('img').forEach(img => {
             checkImageVisibility(img);
         });
