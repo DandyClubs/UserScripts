@@ -659,6 +659,7 @@
         "data-src",
         "data-thumb_url",
         "data-url",
+        "ess-data",
     ];
 
     let lazyAttributesMap = [];
@@ -696,7 +697,7 @@
         .join('|');
 
     function isListImage(img) {
-        if (!img) return false;
+        if (!img || !img.isConnected) return false;
         if (img.dataset.isFixing) return false;
         //if (img.closest('.image-masonry')) return false;
         if (img.closest('.hiddenbox')) return false;
@@ -715,7 +716,21 @@
         */
         let rawSrc = img.src;
 
-        if (!isProxyUrl(rawSrc) &&
+        if (rawSrc.startsWith('http://data:image')) {
+            img.src = rawSrc.replace('http://', '');
+            rawSrc = img.src;            
+        }
+
+        for (const attr of img.attributes) {
+            if (lazyAttributesMap[attr.name]) {
+                img.src = attr.value;
+                img.removeAttribute(attr.name);
+                rawSrc = attr.value;
+                break;
+            }
+        }
+
+        if (rawSrc && !isProxyUrl(rawSrc) &&
             !img.dataset.proxyTestFailed &&
             new RegExp(`(${proxyImageDomainsPattern})`, 'i').test(rawSrc)) {
             if (!img.dataset.isProxyTesting) {
@@ -757,25 +772,7 @@
                     });
             }
             return false;
-        }
-
-        else if (rawSrc.startsWith('http://data:image')) {
-            img.src = rawSrc.replace('http://', '');
-            rawSrc = img.src;
-            return true;
-        }
-
-        else if (rawSrc.startsWith('data:image')) {
-            for (const attr of img.attributes) {
-                if (lazyAttributesMap[attr.name]) {
-                    img.src = attr.value;
-                    img.removeAttribute(attr.name);
-                    rawSrc = attr.value;
-                    break;
-                }
-            }
-            return true;
-        }
+        }        
 
         if (!rawSrc || rawSrc.startsWith('blob:') || rawSrc.startsWith('data:') || rawSrc.startsWith('https://cm-exchange.toast.com/pixel')) {
             return false;
