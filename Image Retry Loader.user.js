@@ -667,7 +667,7 @@
                     return false;
                 }
         */
-        let rawSrc = img.src;
+        let rawSrc = img.src;        
 
         if (!isProxyUrl(rawSrc) &&
             !img.dataset.proxyTestFailed &&
@@ -677,7 +677,7 @@
                 findWorkingProxy(rawSrc)
                     .then(workingProxy => {
                         delete img.dataset.isProxyTesting;
-                        if (!img.isConnected || img.src !== rawSrc) return;
+                        if (!img.isConnected || img.src !== rawSrc) return false;
 
                         if (workingProxy) {
                             img.src = workingProxy;
@@ -686,15 +686,15 @@
                             console.warn('[ImageRetry] 도메인 프록시 후보에서 이미지 로드에 실패했습니다:', rawSrc);
                             img.dataset.proxyTestFailed = 'true';
                             img.dataset.isImageState = "false";
+                            return true;
                         }
-                        checkImageVisibility(img);
                     })
                     .catch(error => {
                         delete img.dataset.isProxyTesting;
                         console.error('[ImageRetry] 도메인 프록시 테스트 실패:', rawSrc, error);
                         img.dataset.proxyTestFailed = 'true';
                         img.dataset.isImageState = "false";
-                        checkImageVisibility(img);
+                        return true;
                     });
             }
             return false;
@@ -821,11 +821,10 @@
         });
     }
 
-    window.addEventListener("load", () => {
+    document.addEventListener("DOMContentLoaded", () => {
         cleanOldBadLinks();
-
-        // 초기 로드시 모든 이미지를 IntersectionObserver에 관찰 등록
         document.querySelectorAll('img').forEach(img => {
+            console.log('[ImageRetry] 초기 이미지 src 확인:', img.src);
             if (!imagesSet.has(getPureUrl(img.src))) {
                 imagesSet.add(getPureUrl(img.src));
                 checkImageVisibility(img);
