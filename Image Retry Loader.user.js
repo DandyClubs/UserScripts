@@ -454,6 +454,7 @@
                 workingProxy = await findWorkingProxy(imgElementSrc);
                 if (workingProxy) {
                     console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
+                    imgElement.removeAttribute('loading');
                 } else {
                     imgElement.dataset.isImageState = "false";
                     console.warn('[ImageRetry] 프록시 후보에서 이미지 로드에 실패했습니다:', imgElementSrc);
@@ -486,6 +487,7 @@
                 workingProxy = await findWorkingProxy(imgElementSrc);
                 if (workingProxy) {
                     console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
+                    imgElement.removeAttribute('loading');
                 } else {
                     imgElement.dataset.isImageState = "false";
                     console.warn('[ImageRetry] 프록시 후보에서 이미지 로드에 실패했습니다:', imgElementSrc);
@@ -545,14 +547,23 @@
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         if (node.tagName === 'IMG') {
-                            if (!imagesSet.has(getPureUrl(node.src))) {
+                            if(node.closest('.image-masonry')) {
+                                console.log(imagesSet.has(getPureUrl(node.src), node.src));
                                 imagesSet.add(getPureUrl(node.src));
                                 checkImageVisibility(node);
                             }
-                            checkImageVisibility(node);
+                            else if (!imagesSet.has(getPureUrl(node.src))) {
+                                imagesSet.add(getPureUrl(node.src));
+                                checkImageVisibility(node);
+                            }                            
                         }
                         node.querySelectorAll('img').forEach(img => {
-                            if (!imagesSet.has(getPureUrl(img.src))) {
+                            if(img.closest('.image-masonry')) {
+                                console.log(imagesSet.has(getPureUrl(node.src), node.src));
+                                imagesSet.add(getPureUrl(img.src));
+                                checkImageVisibility(img);
+                            }
+                            else if (!imagesSet.has(getPureUrl(img.src))) {
                                 imagesSet.add(getPureUrl(img.src));
                                 checkImageVisibility(img);
                             }
@@ -687,7 +698,7 @@
         .filter(Boolean)
         .join('|');
 
-    function isValidExternalImage(img) {
+    function isValidExternalImage(img) {        
         if (!img) return false;
         if (img.dataset.isFixing) return false;
         //if (img.closest('.image-masonry')) return false;
@@ -761,7 +772,8 @@
             for (const attr of img.attributes) {
                 if (lazyAttributesMap[attr.name]) {
                     img.src = attr.value;
-                    rawSrc = attr.value;
+                    img.removeAttribute(attr.name);
+                    rawSrc = attr.value;                    
                     break;
                 }
             }
