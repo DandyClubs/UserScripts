@@ -71,14 +71,14 @@
             const currentSrc = img.getAttribute('src');
 
             if (!currentSrc || currentSrc === "" || img.src === window.location.href) {
-                img.dataset.isImageState = "false";
+                img.dataset.loaded = "false";
                 return resolve('skipped');
             }
 
             if (img.complete && img.naturalWidth !== 0) {
                 img.decode()
                     .then(() => {
-                        img.dataset.isImageState = "true";
+                        img.dataset.loaded = "true";
                         resolve('loaded');
                     })
                     .catch(() => {
@@ -89,7 +89,7 @@
             }
 
             if (img.src.startsWith('blob:')) {
-                img.dataset.isImageState = "true";
+                img.dataset.loaded = "true";
                 return resolve('loaded');
             }
 
@@ -109,7 +109,7 @@
                 cleanup();
                 img.decode()
                     .then(() => {
-                        img.dataset.isImageState = "true";
+                        img.dataset.loaded = "true";
                         resolve('loaded');
                     })
                     .catch(() => {
@@ -483,7 +483,7 @@
                     console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
                     imgElement.removeAttribute('loading');
                 } else {
-                    imgElement.dataset.isImageState = "false";
+                    imgElement.dataset.loaded = "false";
                     console.warn('[ImageRetry] 프록시 후보에서 이미지 로드에 실패했습니다:', imgElementSrc);
                 }
             }
@@ -493,7 +493,7 @@
                 console.warn(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
                 failedImagesSet.add(getPureUrl(imgElement.src));
                 saveBadLink(imgElement.src);
-                imgElement.dataset.isImageState = "false";
+                imgElement.dataset.loaded = "false";
                 return;
             }
 
@@ -503,7 +503,7 @@
                 if (workingProxy) {
                     console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
                 } else {
-                    imgElement.dataset.isImageState = "false";
+                    imgElement.dataset.loaded = "false";
                     console.warn('[ImageRetry] 프록시 후보에서 이미지 로드에 실패했습니다:', imgElementSrc);
                 }
             }
@@ -519,7 +519,7 @@
                 imgElement.decode()
                     .then(() => {
                         if ((imgElement.currentSrc || imgElement.src) === loadedSrc) {
-                            imgElement.dataset.isImageState = "true";
+                            imgElement.dataset.loaded = "true";
                         }
                     })
                     .catch(error => {
@@ -533,7 +533,7 @@
             function retryError() {
                 removeRetryListeners();
                 if (retryCount > MAX_RETRY_COUNT) {
-                    imgElement.dataset.isImageState = "false";
+                    imgElement.dataset.loaded = "false";
                 } else {
                     imgElement.dataset.retryCount = ++retryCount;
                     console.log(`[ImageRetry] 이미지 재시도 (${retryCount}회차): `, imgElement);
@@ -731,7 +731,7 @@
                                 img.removeEventListener('load', Load);
                                 img.decode()
                                     .then(() => {
-                                        img.dataset.isImageState = "true";
+                                        img.dataset.loaded = "true";
                                         return false;
                                     })
                                     .catch(error => {
@@ -744,7 +744,7 @@
                         } else {
                             console.warn('[ImageRetry] 도메인 프록시 후보에서 이미지 로드에 실패했습니다:', rawSrc);
                             img.dataset.proxyTestFailed = 'true';
-                            img.dataset.isImageState = "false";
+                            img.dataset.loaded = "false";
                             return true;
                         }
                     })
@@ -752,7 +752,7 @@
                         delete img.dataset.isProxyTesting;
                         console.error('[ImageRetry] 도메인 프록시 테스트 실패:', rawSrc, error);
                         img.dataset.proxyTestFailed = 'true';
-                        img.dataset.isImageState = "false";
+                        img.dataset.loaded = "false";
                         return true;
                     });
             }
@@ -817,7 +817,7 @@
 
         if (isBadLink(rawSrc)) {
             console.warn(`[Skip] 이미 404로 기록된 링크입니다: ${rawSrc}`);
-            img.dataset.isImageState = "false";
+            img.dataset.loaded = "false";
             return false;
         }
 
@@ -830,7 +830,7 @@
         if (img.complete && img.naturalWidth !== 0) {
             img.decode()
                 .then(() => {
-                    img.dataset.isImageState = "true";
+                    img.dataset.loaded = "true";
                     return false;
                 })
         }
