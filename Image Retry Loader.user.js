@@ -54,10 +54,14 @@
     }
 
     const lazyImageQueue = new Queue();
+    const queuedLazyImages = new WeakSet();
 
 
     const checkImageVisibility = (img) => {
+        if (!img || queuedLazyImages.has(img)) return;
+
         if (isListImage(img)) {
+            queuedLazyImages.add(img);
             img.setAttribute('loading', 'lazy');
             lazyImageQueue.enqueue(img);
             startLazyWorkers();
@@ -155,6 +159,7 @@
                 }
             }
         } finally {
+            queuedLazyImages.delete(img);
             activeWorkers--;
             startLazyWorkers();
         }
@@ -407,6 +412,9 @@
     let retryWorkers = 0;
 
     function enqueueFailedImage(imgElement, reason = '') {
+        if(!imgElement || !imgElement.isConnected) {
+            return;
+        }
         const pureSrc = getPureUrl(imgElement.src);
 
         if (pureSrc.startsWith('blob:') || pureSrc.startsWith('data:')) {
@@ -443,7 +451,7 @@
         try {
             const imgElement = item.imgElement;
             const imgElementSrc = imgElement.src;
-            if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:') || isProxyUrl(imgElementSrc)) {
+            if (!imgElement || !imgElement.isConnected || !imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:') || isProxyUrl(imgElementSrc)) {
                 return;
             }
 
