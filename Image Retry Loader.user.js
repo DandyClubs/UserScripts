@@ -718,15 +718,21 @@
                         if (!img.isConnected || img.src !== rawSrc) return false;
 
                         if (workingProxy) {
+                            img.removeAttribute('loading');
+                            function Load() {                                
+                                img.removeEventListener('load', Load);
+                                img.decode()
+                                    .then(() => {
+                                        img.dataset.isImageState = "true";
+                                        return false;
+                                    })
+                                    .catch(error => {
+                                        console.warn('[ImageRetry] 재시도 이미지 decode 실패:', error);
+                                        return true;
+                                    });
+                            }
+                            img.addEventListener('load', Load);
                             img.src = workingProxy;
-                            img.decode()
-                                .then(() => {
-                                    img.dataset.isImageState = "true";
-                                })
-                                .catch(error => {
-                                    console.warn('[ImageRetry] 재시도 이미지 decode 실패:', error);
-                                    return true;
-                                });
                         } else {
                             console.warn('[ImageRetry] 도메인 프록시 후보에서 이미지 로드에 실패했습니다:', rawSrc);
                             img.dataset.proxyTestFailed = 'true';
@@ -868,7 +874,7 @@
 
     document.addEventListener("DOMContentLoaded", () => {
         cleanOldBadLinks();
-        document.querySelectorAll('img').forEach(img => {            
+        document.querySelectorAll('img').forEach(img => {
             if (!imagesSet.has(getPureUrl(img.src))) {
                 imagesSet.add(getPureUrl(img.src));
                 checkImageVisibility(img);
