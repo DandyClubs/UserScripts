@@ -3888,8 +3888,7 @@ async function CopyLink() {
                     copyIcon.classList.add('fa-brands');
                     copyIcon.classList.add('fa-roblox-creator-studio');
 
-                    const candidates = await generateUrlCandidates(contentId || SearchIDRegExp(CopyTitle), CoverImage || '');
-                    console.log(candidates);
+                    const candidates = await generateUrlCandidates(contentId || SearchIDRegExp(CopyTitle), CoverImage || '');                    
 
                     for (const url of candidates) {
                         copyStateEl.innerText = `${code} → 후보군 테스트 중: \n${url}`;
@@ -3926,7 +3925,7 @@ async function CopyLink() {
                     }
                     if (!finalCoverImage) {
                         console.log(`%c[미등록 브랜드 탐색 실패] ${code} ${CoverImage || ''}`, "color: #FF9800;");
-                        copyStateEl.innerText = `${code} \n${url} \n규칙 결과: 실패`;
+                        copyStateEl.innerText = `${code} \n${CoverImage || ''} \n규칙 결과: 실패`;
                     }
 
                     copyIcon.classList.remove('fa-brands');
