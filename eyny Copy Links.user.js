@@ -11,7 +11,7 @@
 // @grant        GM_setClipboard
 // @grant		 GM_addStyle
 // @grant		 GM_openInTab
-// @run-at       document-end
+// @run-at       document-body
 // @grant		 GM_xmlhttpRequest
 // @connect      localhost
 // @connect      *
@@ -279,7 +279,7 @@ function extractTitles(rule) {
         console.error("대상 요소가 유효하지 않습니다.");
         return [];
     }
-    
+
     const textGroups = [];
     let currentGroup = [];
 
@@ -1078,43 +1078,38 @@ async function init() {
     console.log("모든 렌더링이 완료되었습니다.");
 }
 
+document.addEventListener("DOMContentLoaded", () => {
 
-// 사이트별 특별 규칙 적용
-const rule = siteRules.find((r) => r.regex.test(PageURL));
+    // 사이트별 특별 규칙 적용
+    const rule = siteRules.find((r) => r.regex.test(PageURL));
+    FontAwesomeCSS();
+    MakeIcon();
+    init();
 
-// 폰트어썸 CSS 로드 및 메인 로직 실행
-FontAwesomeCSS();
+    const titles = extractTitles(rule)
 
-MakeIcon();
+    if (titles.length > 0) {
+        titles.forEach((item, index) => {
 
-init();
+            const span = document.createElement('span');
+            span.className = 'title-row';
+            span.style.position = 'relative';
+            span.style.display = 'inline-block';
+            span.style.width = '100%';
+            span.style.whiteSpace = 'normal';
+            span.style.boxSizing = 'border-box';
+            //span.style.paddingRight = '180px';
+            span.style.minHeight = '1.4em';
 
+            const range = document.createRange();
+            const firstNode = item.textNodes[0];
+            const lastNode = item.textNodes[item.textNodes.length - 1];
+            range.setStart(firstNode, 0);
+            range.setEnd(lastNode, lastNode.textContent.length);
+            span.appendChild(range.extractContents());
+            range.insertNode(span);
 
-const titles = extractTitles(rule)
-
-
-if (titles.length > 0) {
-    titles.forEach((item, index) => {
-
-        const span = document.createElement('span');
-        span.className = 'title-row';
-        span.style.position = 'relative';
-        span.style.display = 'inline-block';
-        span.style.width = '100%';
-        span.style.whiteSpace = 'normal';
-        span.style.boxSizing = 'border-box';
-        //span.style.paddingRight = '180px';
-        span.style.minHeight = '1.4em';
-
-        const range = document.createRange();
-        const firstNode = item.textNodes[0];
-        const lastNode = item.textNodes[item.textNodes.length - 1];
-        range.setStart(firstNode, 0);
-        range.setEnd(lastNode, lastNode.textContent.length);
-        span.appendChild(range.extractContents());
-        range.insertNode(span);
-
-        span.insertAdjacentHTML('beforeend', `
+            span.insertAdjacentHTML('beforeend', `
             <i class="title-ui"
                   data-title-index="${index}"
                   style="position:absolute;
@@ -1132,25 +1127,28 @@ if (titles.length > 0) {
                       style="cursor:pointer;color: dodgerblue !important;font-size:16px;"></i>
 
         `);
-    });
-
-
-    document.addEventListener('click', e => {
-        if (!(e.target instanceof Element)) return;
-
-        const copyIcon = e.target.closest('.copy-icon');
-        if (!copyIcon) return;
-
-        const ui = copyIcon.closest('.title-ui');
-        const titleIndex = Number(ui?.dataset.titleIndex);
-        if (!ui || !Number.isInteger(titleIndex) || !titles[titleIndex]) {
-            console.error('개별 제목 복사 대상을 찾을 수 없습니다.');
-            return;
-        }
-
-        copyIcon.style.setProperty('color', 'Orange', 'important');
-        void processCopy(() => CopyItems(titleIndex)).catch(error => {
-            console.error('개별 제목 복사에 실패했습니다.', error);
         });
-    });
-}
+
+
+        document.addEventListener('click', e => {
+            if (!(e.target instanceof Element)) return;
+
+            const copyIcon = e.target.closest('.copy-icon');
+            if (!copyIcon) return;
+
+            const ui = copyIcon.closest('.title-ui');
+            const titleIndex = Number(ui?.dataset.titleIndex);
+            if (!ui || !Number.isInteger(titleIndex) || !titles[titleIndex]) {
+                console.error('개별 제목 복사 대상을 찾을 수 없습니다.');
+                return;
+            }
+
+            copyIcon.style.setProperty('color', 'Orange', 'important');
+            void processCopy(() => CopyItems(titleIndex)).catch(error => {
+                console.error('개별 제목 복사에 실패했습니다.', error);
+            });
+        });
+    }
+
+
+}, { once: true });
