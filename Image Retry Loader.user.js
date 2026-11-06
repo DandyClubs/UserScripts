@@ -451,18 +451,9 @@
 
             let workingProxy = null;
             // src 유효성 검사 뒤, checkImage() 전에
-            if (retryCount >= MAX_RETRY_COUNT) {
-                console.warn(`[ImageRetry] 최대 재시도 횟수(${MAX_RETRY_COUNT}회)에 도달했습니다.`, imgElement);
-                workingProxy = await findWorkingProxy(imgElementSrc);
-                if (workingProxy) {
-                    console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
-                    imgElement.removeAttribute('loading');
-                } else {
-                    imgElement.dataset.isImageState = "false";
-                    console.warn('[ImageRetry] 프록시 후보에서 이미지 로드에 실패했습니다:', imgElementSrc);
-                }
-            }
-
+            console.log(`[ImageRetry] 이미지 재시도 시작 (${retryCount}회차): `, imgElement);
+            
+            
             let checkResult = imageCheckCache.get(imgElement);
             if (!checkResult || checkResult.src !== imgElementSrc) {
                 checkResult = {
@@ -475,6 +466,21 @@
 
             const { exists, reason, status = null } = checkResult.result;            
 
+            if (retryCount >= MAX_RETRY_COUNT) {
+                console.warn(`[ImageRetry] 최대 재시도 횟수(${MAX_RETRY_COUNT}회)에 도달했습니다.`, imgElement);
+                workingProxy = await findWorkingProxy(imgElementSrc);
+                if (workingProxy) {
+                    console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
+                    imgElement.removeAttribute('loading');
+                    return;
+                } else {
+                    imgElement.dataset.isImageState = "false";
+                    console.warn('[ImageRetry] 프록시 후보에서 이미지 로드에 실패했습니다:', imgElementSrc);
+                    return;
+                }
+            }
+
+            
             if (!exists && (reason === 'client_error' || reason === 'server_error')) {
                 console.warn(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
                 failedImagesSet.add(getPureUrl(imgElement.src));
@@ -489,9 +495,11 @@
                 if (workingProxy) {
                     console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
                     imgElement.removeAttribute('loading');
+                    return;
                 } else {
                     imgElement.dataset.isImageState = "false";
                     console.warn('[ImageRetry] 프록시 후보에서 이미지 로드에 실패했습니다:', imgElementSrc);
+                    return;
                 }
             }
 
@@ -509,7 +517,7 @@
                 imgElement.decode()
                     .then(() => {
                         if ((imgElement.currentSrc || imgElement.src) === loadedSrc) {
-                            imgElement.dataset.isImageState = "true";
+                            imgElement.dataset.isImageState = "true";                            
                         }
                     })
                     .catch(error => {
@@ -524,9 +532,12 @@
                 removeRetryListeners();
                 if (retryCount > MAX_RETRY_COUNT) {
                     imgElement.dataset.isImageState = "false";
+                    return;
                 } else {
+                    console.log(`[ImageRetry] 이미지 재시도 (${retryCount}회차): `, imgElement);
                     if (!retrySet.has(getPureUrl(this.src))) {
                         enqueueFailedImage(this, 'retry_error');
+                        return;
                     }
                 }
             }
