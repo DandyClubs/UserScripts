@@ -512,16 +512,19 @@
                     .catch(error => {
                         console.warn('[ImageRetry] 재시도 이미지 decode 실패:', error);
                         if ((imgElement.currentSrc || imgElement.src) === loadedSrc) {
-                            imgElement.dataset.isImageState = "false";
+                            retryError();
                         }
                     });
             }
 
             function retryError() {
                 removeRetryListeners();
-                imgElement.dataset.isImageState = "false";
-                if (!retrySet.has(getPureUrl(this.src))) {
-                    enqueueFailedImage(this, 'retry_error');
+                if (retryCount > MAX_RETRY_COUNT) {
+                    imgElement.dataset.isImageState = "false";
+                } else {
+                    if (!retrySet.has(getPureUrl(this.src))) {
+                        enqueueFailedImage(this, 'retry_error');
+                    }
                 }
             }
             imgElement.addEventListener('load', retryLoad);
@@ -702,7 +705,7 @@
                     return false;
                 }
         */
-        let rawSrc = img.src;        
+        let rawSrc = img.src;
 
         if (!isProxyUrl(rawSrc) &&
             !img.dataset.proxyTestFailed &&
@@ -716,6 +719,14 @@
 
                         if (workingProxy) {
                             img.src = workingProxy;
+                            img.decode()
+                                .then(() => {
+                                    img.dataset.isImageState = "true";
+                                })
+                                .catch(error => {
+                                    console.warn('[ImageRetry] 재시도 이미지 decode 실패:', error);
+                                    return true;
+                                });
                         } else {
                             console.warn('[ImageRetry] 도메인 프록시 후보에서 이미지 로드에 실패했습니다:', rawSrc);
                             img.dataset.proxyTestFailed = 'true';
@@ -857,8 +868,7 @@
 
     document.addEventListener("DOMContentLoaded", () => {
         cleanOldBadLinks();
-        document.querySelectorAll('img').forEach(img => {
-            console.log('[ImageRetry] 초기 이미지 src 확인:', img.src);
+        document.querySelectorAll('img').forEach(img => {            
             if (!imagesSet.has(getPureUrl(img.src))) {
                 imagesSet.add(getPureUrl(img.src));
                 checkImageVisibility(img);
