@@ -642,6 +642,7 @@
     const proxyImageDomainsPattern = `
     gifyu.com
     11img.com
+    imgccc.com
     `.trim()
         .split('\n')
         .map(d => d.replace(/\./g, '\\.').trim())
