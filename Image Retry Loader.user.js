@@ -18,7 +18,7 @@
 (function () {
     'use strict';
 
-    
+
     // 이미지 재시도 큐    
     const retryQueue = [];
     const retrySet = new Set();
@@ -149,7 +149,14 @@
             if (img && img.isConnected) {
                 const result = await waitForImage(img, LOAD_TIMEOUT);
                 if (result === 'error' || result === 'corrupted' || result === 'timeout') {
-                    if (!retrySet.has(getPureUrl(img.src))) {
+                    if (result === 'timeout') {
+                        console.warn(`[ImageRetry] 이미지 로딩 타임아웃: ${img.src}`);
+                        const workingProxy = await findWorkingProxy(img.src);
+                        if (workingProxy) {
+                            console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
+                            img.src = workingProxy;
+                        }
+                    } else if (!retrySet.has(getPureUrl(img.src))) {
                         enqueueFailedImage(img, result);
                     }
                 }
@@ -452,8 +459,8 @@
             let workingProxy = null;
             // src 유효성 검사 뒤, checkImage() 전에
             console.log(`[ImageRetry] 이미지 재시도 시작 (${retryCount}회차): `, imgElement);
-            
-            
+
+
             let checkResult = imageCheckCache.get(imgElement);
             if (!checkResult || checkResult.src !== imgElementSrc) {
                 checkResult = {
@@ -464,7 +471,7 @@
             }
             //if (imgElement.src !== imgElementSrc) return;
 
-            const { exists, reason, status = null } = checkResult.result;            
+            const { exists, reason, status = null } = checkResult.result;
 
             if (retryCount >= MAX_RETRY_COUNT) {
                 console.warn(`[ImageRetry] 최대 재시도 횟수(${MAX_RETRY_COUNT}회)에 도달했습니다.`, imgElement);
@@ -480,7 +487,7 @@
                 }
             }
 
-            
+
             if (!exists && (reason === 'client_error' || reason === 'server_error')) {
                 console.warn(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
                 failedImagesSet.add(getPureUrl(imgElement.src));
@@ -503,9 +510,6 @@
                 }
             }
 
-            imgElement.dataset.retryCount = ++retryCount;
-            console.warn(`[ImageRetry] 이미지 재로딩 시도 (${retryCount}회차): `, imgElement);
-
             function removeRetryListeners() {
                 imgElement.removeEventListener('load', retryLoad);
                 imgElement.removeEventListener('error', retryError);
@@ -517,7 +521,7 @@
                 imgElement.decode()
                     .then(() => {
                         if ((imgElement.currentSrc || imgElement.src) === loadedSrc) {
-                            imgElement.dataset.isImageState = "true";                            
+                            imgElement.dataset.isImageState = "true";
                         }
                     })
                     .catch(error => {
@@ -532,12 +536,11 @@
                 removeRetryListeners();
                 if (retryCount > MAX_RETRY_COUNT) {
                     imgElement.dataset.isImageState = "false";
-                    return;
                 } else {
+                    imgElement.dataset.retryCount = ++retryCount;
                     console.log(`[ImageRetry] 이미지 재시도 (${retryCount}회차): `, imgElement);
                     if (!retrySet.has(getPureUrl(this.src))) {
                         enqueueFailedImage(this, 'retry_error');
-                        return;
                     }
                 }
             }
@@ -882,8 +885,8 @@
 
     document.addEventListener("DOMContentLoaded", () => {
         cleanOldBadLinks();
-        document.querySelectorAll('img').forEach(img => {            
-                checkImageVisibility(img);            
+        document.querySelectorAll('img').forEach(img => {
+            checkImageVisibility(img);
         });
 
         observer.observe(document.body, { childList: true, subtree: true });
