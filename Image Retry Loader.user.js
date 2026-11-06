@@ -417,7 +417,7 @@
             return;
         }
 
-        imgElement.dataset.retryCount = imgElement.dataset.retryCount ? parseInt(imgElement.dataset.retryCount) : 0;
+        imgElement.dataset.retryCount = imgElement.dataset.retryCount ? parseInt(imgElement.dataset.retryCount) : 1;
 
         retryQueue.push({ imgElement });
         retrySet.add(pureSrc);
