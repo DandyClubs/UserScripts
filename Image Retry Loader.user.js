@@ -18,7 +18,7 @@
 (function () {
     'use strict';
 
-    const imagesSet = new Set();
+    
     // 이미지 재시도 큐    
     const retryQueue = [];
     const retrySet = new Set();
@@ -547,26 +547,10 @@
                 mutation.addedNodes.forEach(node => {
                     if (node.nodeType === Node.ELEMENT_NODE) {
                         if (node.tagName === 'IMG') {
-                            if(node.closest('.image-masonry')) {
-                                console.log(imagesSet.has(getPureUrl(node.src), node.src));
-                                imagesSet.add(getPureUrl(node.src));
-                                checkImageVisibility(node);
-                            }
-                            else if (!imagesSet.has(getPureUrl(node.src))) {
-                                imagesSet.add(getPureUrl(node.src));
-                                checkImageVisibility(node);
-                            }                            
+                            checkImageVisibility(node);
                         }
                         node.querySelectorAll('img').forEach(img => {
-                            if(img.closest('.image-masonry')) {
-                                console.log(imagesSet.has(getPureUrl(node.src), node.src));
-                                imagesSet.add(getPureUrl(img.src));
-                                checkImageVisibility(img);
-                            }
-                            else if (!imagesSet.has(getPureUrl(img.src))) {
-                                imagesSet.add(getPureUrl(img.src));
-                                checkImageVisibility(img);
-                            }
+                            checkImageVisibility(img);
                         });
                     }
                 });
@@ -698,7 +682,7 @@
         .filter(Boolean)
         .join('|');
 
-    function isValidExternalImage(img) {        
+    function isValidExternalImage(img) {
         if (!img) return false;
         if (img.dataset.isFixing) return false;
         //if (img.closest('.image-masonry')) return false;
@@ -730,7 +714,7 @@
 
                         if (workingProxy) {
                             img.removeAttribute('loading');
-                            function Load() {                                
+                            function Load() {
                                 img.removeEventListener('load', Load);
                                 img.decode()
                                     .then(() => {
@@ -773,7 +757,7 @@
                 if (lazyAttributesMap[attr.name]) {
                     img.src = attr.value;
                     img.removeAttribute(attr.name);
-                    rawSrc = attr.value;                    
+                    rawSrc = attr.value;
                     break;
                 }
             }
@@ -886,11 +870,8 @@
 
     document.addEventListener("DOMContentLoaded", () => {
         cleanOldBadLinks();
-        document.querySelectorAll('img').forEach(img => {
-            if (!imagesSet.has(getPureUrl(img.src))) {
-                imagesSet.add(getPureUrl(img.src));
-                checkImageVisibility(img);
-            }
+        document.querySelectorAll('img').forEach(img => {            
+                checkImageVisibility(img);            
         });
 
         observer.observe(document.body, { childList: true, subtree: true });
