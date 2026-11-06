@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ADS Remover
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.12
+// @version      2026.11.07
 // @description  try to take over the world!
 // @author       You
 // @include      *
@@ -71,13 +71,30 @@ const defaultADTag = ['.top-banner', 'script[src*="ethecountryw"]', '#popmagicld
 let ADTag = adTagMap[RootDomain] || defaultADTag;
 
 
+// [추가됨] img 태그의 onload 속성에 window.location 등이 포함된 경우 제거 또는 무력화하는 함수
+function removeImgOnloadRedirect(node) {
+    const scope = node.nodeType === Node.ELEMENT_NODE ? node : document;
+    const imgs = scope.querySelectorAll('img[onload]');
+    
+    imgs.forEach(img => {
+        const onloadAttr = img.getAttribute('onload');
+        if (onloadAttr && (onloadAttr.includes('window.location') || onloadAttr.includes('location.href') || onloadAttr.includes('location ='))) {
+            // 방법 1: 위험한 onload 속성 자체를 제거
+            img.removeAttribute('onload');
+            
+            // 방법 2: 만약 이미지 요소 자체를 통째로 날리고 싶다면 아래 주석을 해제하세요.
+            // img.remove();
+        }
+    });
+}
+
+
 function ADChange() {
-    if (window.top !== window.self) return;  // iframe 내에서는 실행 안 하려면 추가 가능
+    if (window.top !== window.self) return;  
 
     const url = window.location.href;
     const scripts = document.querySelectorAll('script');
 
-    // 사이트별 스크립트 내부 문자열 패턴 리스트
     const sitePatterns = [
         { regex: /gm\d+\.xyz/, patterns: ['litespeed'] },
         { regex: /cyberleaks\.org/, patterns: ['crearCookie'] },
@@ -89,25 +106,21 @@ function ADChange() {
         { regex: /javarchive\.com/, patterns: ['//cse.google.com/adsense/search/async-ads.js'] },
         { regex: /bestvideosexy\.com/, patterns: [], iframeSandbox: true },
         { regex: /cosplaytele\.com/, patterns: ['sore-war.com'] },
-
     ];
 
-    // 사이트 매칭 & 처리
     for (const site of sitePatterns) {
         if (site.regex.test(url)) {
-            // bestvideosexy는 iframe sandbox 처리
             if (site.iframeSandbox) {
                 const iframes = document.querySelectorAll('iframe');
                 for (const iframe of iframes) {
                     iframe.setAttribute('sandbox', 'allow-forms allow-pointer-lock allow-same-origin allow-scripts allow-top-navigation');
-                    break;  // 첫번째 iframe만 처리
+                    break;  
                 }
                 return;
             }
             if (site.closestSelectors) {
                 for (const el of scripts) {
                     if (site.patterns.some(pat => el.outerHTML.includes(pat))) {
-                        // console.log(el)
                         el.closest(site.closestSelectors).remove();
                     }
                 }
@@ -116,25 +129,20 @@ function ADChange() {
 
             for (const el of scripts) {
                 if (site.patterns.some(pat => el.outerHTML.includes(pat))) {
-                    // console.log(el)
                     el.remove();
-                    break; // 해당 사이트에서 첫번째 매칭 스크립트만 삭제
+                    break; 
                 }
             }
-            return;  // 사이트 처리 후 종료
+            return;  
         }
     }
 
-
-    // 기본 fallback 처리 (기존 else 부분)
     for (const el of scripts) {
         if (el.outerHTML.includes('puURLstrpcht')) {
-            // console.log(el)
             el.remove();
             break;
         }
         if (el.outerHTML.includes('popCount')) {
-            // console.log(el)
             el.remove();
             break;
         }
@@ -254,7 +262,6 @@ const SiteHandlers = [
             ADLink = document.querySelector('div.promotion_wrap')
             if (ADLink) {
                 ADLink.remove()
-                //ADLink.closest('dynamic-content-outlet.ng-star-inserted') ? ADLink.closest('dynamic-content-outlet.ng-star-inserted').remove() : ''
             }
         }
     },
@@ -271,8 +278,6 @@ const SiteHandlers = [
 
 function ADRemover(node) {
     const url = window.location.href
-    let TextRegex
-    let nodes
 
     for (const { regex, handler } of SiteHandlers) {
         if (regex.test(url)) {
@@ -281,10 +286,11 @@ function ADRemover(node) {
         }
     }
 
+    // [추가됨] DOM 변경 시에도 img 태그의 onload 리다이렉트 검사 실행
+    removeImgOnloadRedirect(node);
 
     const popMagicScripts = node.querySelectorAll('script#popmagicldr');
     for (const el of popMagicScripts) {
-        // console.log(el);
         el.remove();
         break;
     }
@@ -293,17 +299,13 @@ function ADRemover(node) {
         ADTag.forEach(function (item) {
             var removeDoms = [...node.querySelectorAll(item)]
             removeDoms.forEach(function (removeDom) {
-                // console.log('Remove Element: ', removeDom)
                 if (removeDom.closest('div.image-big')) {
-                    // console.log(removeDom)
                     removeDom.closest('div.image-big').remove()
                 }
                 else if (removeDom.tagName === 'A' && removeDom.closest('b')) {
-                    // console.log(removeDom)
                     removeDom.closest('b').remove()
                 }
                 else {
-                    // console.log(removeDom)
                     removeDom.remove()
                 }
             })
@@ -311,8 +313,6 @@ function ADRemover(node) {
     }
 }
 
-// c.f. MutationObserver
-// https://developer.mozilla.org/ja/docs/Web/API/MutationObserver
 const SiteMutationHandlers = [
     {
         regex: /sexy-egirls\.com/,
@@ -388,7 +388,7 @@ const observer = new MutationObserver(mutations => {
     mutations.forEach(mutation => {
         for (const added of mutation.addedNodes) {
             if (added.nodeType === Node.ELEMENT_NODE) {
-                ADRemover(added)  // 기존 광고 제거 함수
+                ADRemover(added)  
             }
         }
     })
@@ -420,17 +420,11 @@ function getElementsByTextContent(node, tag, regex) {
     return results;
 }
 
-
-
-//Match
 function MatchRegex(Area, regex, attributeToSearch) {
-    //// console.log(Area, regex, attributeToSearch)
     const output = [];
     if (attributeToSearch) {
         for (let element of Area.querySelectorAll(`[${attributeToSearch}]`)) {
-            //// console.log(regex.test(element.getAttribute(attributeToSearch)), element)
             if (regex.test(element.getAttribute(attributeToSearch))) {
-                //// console.log(element)
                 output.push(element);
             }
         }
@@ -438,7 +432,6 @@ function MatchRegex(Area, regex, attributeToSearch) {
         for (let element of Area.querySelectorAll('*')) {
             for (let attribute of element.attributes) {
                 if (regex.test(attribute.value)) {
-                    //// console.log(element)
                     output.push(element);
                 }
             }
