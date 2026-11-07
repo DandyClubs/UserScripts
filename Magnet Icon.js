@@ -317,7 +317,7 @@ async function init() {
 
             void wrapper.offsetWidth;
             const columnCount = imgCount > 2 ? 3 : 2;
-            const maxHeight = imgCount > 2 ? 600 : 800;
+            const maxHeight = 600;
             optimizeSingleLayout(wrapper, columnCount, maxHeight);
 
             if (currentLoader) currentLoader.remove();
