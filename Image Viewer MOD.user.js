@@ -550,14 +550,33 @@ let activeWorkerCount = 0; // 현재 작동 중인 워커의 수
 let isSpawning = false; // 워커가 생성 중인지 확인하는 플래그
 
 
+function waitForVisibleTab() {
+    if (!document.hidden) return Promise.resolve();
+
+    return new Promise(resolve => {
+        const onVisibilityChange = () => {
+            if (!document.hidden) {
+                document.removeEventListener('visibilitychange', onVisibilityChange);
+                resolve();
+            }
+        };
+
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        onVisibilityChange();
+    });
+}
+
 async function getFullSizeManagement() {
-    if (isSpawning || activeWorkerCount >= processCount || getFullSizeQueue.isEmpty()) return;
+    if (document.hidden || isSpawning || activeWorkerCount >= processCount || getFullSizeQueue.isEmpty()) return;
 
     isSpawning = true;
 
     async function worker() {
         activeWorkerCount++;
-        while (!getFullSizeQueue.isEmpty()) {
+        while (true) {
+            await waitForVisibleTab();
+            if (getFullSizeQueue.isEmpty()) break;
+
             const linkElement = getFullSizeQueue.dequeue();
             if (!linkElement) continue;
 
@@ -599,7 +618,6 @@ async function getFullSizeManagement() {
     }
     isSpawning = false;
 }
-
 
 let ManagementWorking = false; // should be declared outside
 
@@ -668,7 +686,7 @@ function viewerUpdate() {
         return;
     }
     // viewerList의 크기가 0보다 클 때만 타이머를 설정합니다.    
-    if (viewer.isShown && ViewerList.size > 0) {        
+    if (viewer.isShown && ViewerList.size > 0) {
         if (ViewerList.size >= 10) {
             viewer.update();
             ViewerList.clear();
@@ -682,7 +700,7 @@ function viewerUpdate() {
                 clearTimeout(viewerUpdateTimer);
                 viewerUpdateTimer = null; // 타이머 실행 후 초기화
             }, 5000);
-        }        
+        }
     } else {
         clearTimeout(viewerUpdateTimer);
         viewerUpdateTimer = null; // 타이머 실행 후 초기화
@@ -781,7 +799,7 @@ function autoFitImage(viewer, img) {
     } else if (isPortrait && oH > vH && oW >= 1200) {
         ratio = 1200 / oW;
         alignTop = true;
-    } else if (oH > vH) {        
+    } else if (oH > vH) {
         ratio = Math.min((vW * 0.90) / oW, (vH * 0.90) / oH);
     } else {
         viewer.scale(1.1, 1.1);
@@ -1638,6 +1656,10 @@ async function Start() {
         });
 
 
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) getFullSizeManagement();
+    });
 
     console.log(`Start Logic time: ${performance.now() - startTime} ms`);
 

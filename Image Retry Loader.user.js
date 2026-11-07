@@ -613,6 +613,7 @@
                 } else {
                     imgElement.dataset.loaded = "false";
                     console.warn('[ImageRetry] 프록시 후보에서 이미지 로드에 실패했습니다:', imgElementSrc);
+                    return;
                 }
             }
 
@@ -633,6 +634,7 @@
                 } else {
                     imgElement.dataset.loaded = "false";
                     console.warn('[ImageRetry] 프록시 후보에서 이미지 로드에 실패했습니다:', imgElementSrc);
+                    return;
                 }
             }
 
@@ -660,12 +662,13 @@
 
             function retryError() {
                 removeRetryListeners();
-                if (retryCount > MAX_RETRY_COUNT) {
+                if (retryCount >= MAX_RETRY_COUNT) {
                     imgElement.dataset.loaded = "false";
+                    console.warn(`[ImageRetry] 최대 재시도 횟수(${MAX_RETRY_COUNT}회)에 도달했습니다. 이미지 로드 실패: `, imgElement);
                 } else {
                     imgElement.dataset.retryCount = ++retryCount;
-                    console.log(`[ImageRetry] 이미지 재시도 (${retryCount}회차): `, imgElement);
                     if (!retrySet.has(getPureUrl(imgElement.src))) {
+                        console.log(`[ImageRetry] 이미지 재시도 대기열에 추가 (${retryCount}회차): `, imgElement);
                         enqueueFailedImage(imgElement, 'retry_error');
                     }
                 }
@@ -851,10 +854,13 @@
 
         for (const attr of img.attributes) {
             if (lazyAttributesMap[attr.name]) {
-                img.src = attr.value;
-                img.removeAttribute(attr.name);
-                rawSrc = attr.value;
-                break;
+                if (attr.value && attr.value.trim() !== '') {
+                    console.log(`[Lazy-Attribute] ${attr.name} 속성에서 이미지 URL 발견: ${attr.value}`);
+                    img.src = attr.value;
+                    img.removeAttribute(attr.name);
+                    rawSrc = attr.value;
+                    break;
+                }
             }
         }
 

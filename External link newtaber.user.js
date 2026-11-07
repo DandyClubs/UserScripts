@@ -4,7 +4,7 @@
 // @description     Fully refactored with a rule pipeline for maximum clarity and maintainability.
 // @icon            https://cdn1.iconfinder.com/data/icons/feather-2/24/external-link-32.png
 // @icon64          https://cdn1.iconfinder.com/data/icons/feather-2/24/external-link-128.png
-// @run-at          document-end
+// @run-at          document-body
 // @include         *
 // @exclude         /qqupload.com/
 // @exclude         /drive.google.com/
@@ -131,7 +131,7 @@ const sameNewTabPatterns = [
 const specializedRulesData = [
     { site: /allasiangirls\.net/, c: el => el.classList.contains('plain'), a: 'NEW_TAB' },
     { site: /pornolab\.net/, c: el => el.classList.contains('tLink'), a: 'NEW_TAB' },
-    { site: /asianscan\.biz/, c: el => el.closest('div.mainf'), a: 'NEW_TAB' },    
+    { site: /asianscan\.biz/, c: el => el.closest('div.mainf'), a: 'NEW_TAB' },
     { site: /bo_table=(AVSubs_E|AVSubs_M|AVSubs_S|AVSubs_C)/, c: el => /bo_table=(AVSubs_E|AVSubs_M|AVSubs_S|AVSubs_C)&wr_id/.test(el.href), a: 'NEW_TAB' },
     { site: /eyny\.com/, c: el => /圖片模式/.test(el.textContent), a: 'SAME_TAB' },
     { site: /bolixianwei\.net/, c: el => el.closest('.menu-item'), a: 'SAME_TAB' },
