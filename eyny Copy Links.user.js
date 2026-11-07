@@ -232,6 +232,14 @@ let stateElement = null;
 
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+
+const forumList = document.querySelectorAll('div#wp.wp div#pt.bm.cl div.z a');
+const matchText = [...forumList].some((elem) => elem.textContent === '18+收藏俱樂部');
+
+if (matchText) {
+    return;
+}
+
 const siteRules = [
     {
         regex: /eyny\.com\/(forum\.php\?mod=viewthread|thread.+\.html)/,
@@ -262,14 +270,9 @@ const siteRules = [
     },
 ]
 
-const forumList = document.querySelectorAll('div#wp.wp div#pt.bm.cl div.z a');
-const matchText = [...forumList].some((elem) => elem.textContent === '18+收藏俱樂部');
 
-if (matchText) {
-    return;
-}
-
-const subjectText = document.querySelector('div#postlist a#thread_subject')?.innerText
+// 사이트별 특별 규칙 적용
+const rule = siteRules.find((r) => r.regex.test(PageURL));
 
 
 function extractTitles(rule) {
@@ -328,6 +331,7 @@ function extractTitles(rule) {
     return titles;
 }
 
+const titles = extractTitles(rule);
 
 
 function linkifyNodes(root) {
@@ -1080,13 +1084,12 @@ async function init() {
 
 document.addEventListener("DOMContentLoaded", () => {
 
-    // 사이트별 특별 규칙 적용
-    const rule = siteRules.find((r) => r.regex.test(PageURL));
+
     FontAwesomeCSS();
     MakeIcon();
     init();
 
-    const titles = extractTitles(rule)
+
 
     if (titles.length > 0) {
         titles.forEach((item, index) => {
