@@ -1132,25 +1132,13 @@ const siteConfigs = [
 
                         config.downloadHiddenObserver?.disconnect();
                         config.downloadHiddenObserver = null;
-                        setTimeout(() => {
-                            config.postProcess(config)
-                                .then(() => {
-                                    Start()
-                                        .then((e) => {
-                                            console.log('First Step OK: ', e);
-                                            return SecondProcess();
-                                        })
-                                        .then((result) => {
-                                            console.log('Second Process OK', result);
-                                        })
-                                        .catch((err) => {
-                                            console.error(err.message);
-                                        });
-                                })
-                            .catch(error => {
-                                    console.error('[Link Copy] NaughtyBlog postProcess 재실행 실패:', error);
-                                });
-                        }, 0);
+                        Start()
+                            .then((e) => {
+                                SecondProcess();
+                            })
+                            .catch((err) => {
+                                console.error(err.message);
+                            });
                         return true;
                     };
 
