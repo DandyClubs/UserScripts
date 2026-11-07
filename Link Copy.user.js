@@ -929,11 +929,16 @@ const siteConfigs = [
         config: {
             copyOffsetAreaSelector: '.post-title.entry-title',
             downloadAreaSelector: 'div#download, div#downloadhidden',
+            downloadHiddenObserver: null,
             //coverImageSelector: 'div.post-content-single a > img',
             //coverImageAttribute: 'src',
             postProcess: async (config) => {
                 copyOffsetArea = document.querySelector(config.copyOffsetAreaSelector);
                 if (!copyOffsetArea) return;
+                const hiddenDownloadArea = document.querySelector('div#downloadhidden');
+                const isAwaitingCaptcha = hiddenDownloadArea &&
+                    !hiddenDownloadArea.querySelector('a[href]') &&
+                    hiddenDownloadArea.querySelector('.passster-form, form.hcaptcha-form, .h-captcha');
                 DownloadArea = document.querySelectorAll('div#download, div#downloadhidden, div.DownloadArea');
 
                 //Extracting Text Before Each <br> and the Last Line
@@ -1104,7 +1109,6 @@ const siteConfigs = [
                         console.log('finalDownloadLinks:', finalDownloadLinks);
                         if (finalDownloadLinks.length > 0) {
                             DownloadArea = createDownloadArea(finalDownloadLinks.map(link => link.outerHTML));
-
                             if (finalDownloadLinks.some(link => /1080p|1080\.mp4|2160p/i.test(link.href))) {
                                 userCopy = true;
                             } else {
@@ -1122,6 +1126,45 @@ const siteConfigs = [
 
                 makeSearch();
 
+                if (isAwaitingCaptcha && hiddenDownloadArea.isConnected) {
+                    const reprocessWhenReady = () => {
+                        if (!hiddenDownloadArea.querySelector('a[href]')) return false;
+
+                        config.downloadHiddenObserver?.disconnect();
+                        config.downloadHiddenObserver = null;
+                        setTimeout(() => {
+                            config.postProcess(config)
+                                .then(() => {
+                                    Start()
+                                        .then((e) => {
+                                            console.log('First Step OK: ', e);
+                                            return SecondProcess();
+                                        })
+                                        .then((result) => {
+                                            console.log('Second Process OK', result);
+                                        })
+                                        .catch((err) => {
+                                            console.error(err.message);
+                                        });
+                                })
+                            .catch(error => {
+                                    console.error('[Link Copy] NaughtyBlog postProcess 재실행 실패:', error);
+                                });
+                        }, 0);
+                        return true;
+                    };
+
+                    config.downloadHiddenObserver?.disconnect();
+                    if (!reprocessWhenReady()) {
+                        config.downloadHiddenObserver = new MutationObserver(reprocessWhenReady);
+                        config.downloadHiddenObserver.observe(hiddenDownloadArea, {
+                            attributes: true,
+                            childList: true,
+                            characterData: true,
+                            subtree: true
+                        });
+                    }
+                }
             }
         }
     },
@@ -2629,7 +2672,6 @@ async function FirstStep() {
         .catch((err) => {
             console.error(err.message);
         });
-
 }
 
 
@@ -3677,23 +3719,24 @@ async function CheckDB(listTo, fromStep) {
     let isMatchFound = [];
 
     const minusElement = document.querySelector('.Minus');
+    if (!document.querySelector('.CopyState')) {
+        LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
+    }
+    const copyStateEl = document.querySelector('.CopyState');
+    let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
+    copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
+    copyStateEl.classList.add('innerText');
 
     if (listTo.length === 0) {
         console.warn('No links to check in CheckDB');
-        if (!document.querySelector('.CopyState')) {
-            LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
-        }
-        let copyStateEl = document.querySelector('.CopyState');
-        let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
-        copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
-        copyStateEl.classList.add('innerText');
         copyStateEl.textContent = 'Link is Empty';
 
         // Set flags indicating skip conditions
         console.log(`CheckDB: change userCopy`);
         userClose = false;
         userCopy = false;
-
+    } else {
+        copyStateEl.textContent = '';
     }
 
     //console.log(indexedDBCache);
@@ -3785,11 +3828,10 @@ async function CopyLink() {
     if (!document.querySelector('.CopyState')) {
         LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
     }
-
     const copyStateEl = document.querySelector('.CopyState');
     let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
     copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
-
+    copyStateEl.classList.add('innerText');
 
 
     console.log('CopyLink Step: ', { pageLinksDB });
@@ -3824,7 +3866,7 @@ async function CopyLink() {
                     }
                 }
             }
-            
+
             if (match) {
                 console.log('Match found:', match);
                 const prefix = match[1];
@@ -3889,7 +3931,7 @@ async function CopyLink() {
                     copyIcon.classList.add('fa-brands');
                     copyIcon.classList.add('fa-roblox-creator-studio');
 
-                    const candidates = await generateUrlCandidates(contentId || SearchIDRegExp(CopyTitle), CoverImage || '');                    
+                    const candidates = await generateUrlCandidates(contentId || SearchIDRegExp(CopyTitle), CoverImage || '');
 
                     for (const url of candidates) {
                         copyStateEl.innerText = `${code} → 후보군 테스트 중: \n${url}`;
@@ -3991,16 +4033,10 @@ async function CopyLink() {
 
     if (allLinks.length === 0) {
         SkipTitle = ['Link is Empty'];
-        if (copyStateEl) {
-            copyStateEl.classList.add('innerText');
-            copyStateEl.textContent = 'Link is Empty';
-        }
+        copyStateEl.textContent = 'Link is Empty';
         return allLinks;
-    }else{
-        if (copyStateEl) {
-            copyStateEl.classList.add('innerText');
-            copyStateEl.textContent = '';
-        }
+    } else {
+        copyStateEl.textContent = '';
     }
 
     console.log('CopyLink Step: ', { indexedDBCache });
