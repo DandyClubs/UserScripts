@@ -3996,6 +3996,11 @@ async function CopyLink() {
             copyStateEl.textContent = 'Link is Empty';
         }
         return allLinks;
+    }else{
+        if (copyStateEl) {
+            copyStateEl.classList.add('innerText');
+            copyStateEl.textContent = '';
+        }
     }
 
     console.log('CopyLink Step: ', { indexedDBCache });
