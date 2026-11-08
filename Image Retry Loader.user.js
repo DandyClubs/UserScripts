@@ -80,7 +80,7 @@
 
             if (!currentSrc || currentSrc === "" || img.src === window.location.href) {
                 img.dataset.loaded = "false";
-                return resolve('skipped');
+                resolve('skipped');
             }
 
             if (img.complete && img.naturalWidth !== 0) {
@@ -92,13 +92,12 @@
                     .catch(() => {
                         console.warn('[ImageRetry] decode 실패 → 깨진 이미지 감지:', img.src);
                         resolve('corrupted');
-                    });
-                return;
+                    });                
             }
 
             if (img.src.startsWith('blob:')) {
                 img.dataset.loaded = "true";
-                return resolve('loaded');
+                resolve('loaded');
             }
 
             const timer = setTimeout(() => {
@@ -583,12 +582,10 @@
                 if (workingProxy) {
                     console.log('[ImageRetry] 타임아웃 후 로드 가능한 프록시를 적용합니다:', workingProxy);
                 }
-            }
-            // src 유효성 검사 뒤, checkImage() 전에
-            console.log(`[ImageRetry] 이미지 재시도 시작 (${retryCount}회차): `, imgElement);
-
+            }            
 
             let checkResult = imageCheckCache.get(imgElement);
+
             if (!workingProxy && (!checkResult || checkResult.src !== imgElementSrc)) {
                 checkResult = {
                     src: imgElementSrc,
@@ -604,7 +601,7 @@
 
             const { exists, reason, status = null } = checkResult?.result || {};
 
-            if (!workingProxy && retryCount >= MAX_RETRY_COUNT) {
+            if (exists && !workingProxy && retryCount >= MAX_RETRY_COUNT) {
                 console.warn(`[ImageRetry] 최대 재시도 횟수(${MAX_RETRY_COUNT}회)에 도달했습니다.`, imgElement);
                 workingProxy = await findWorkingProxy(imgElementSrc);
                 if (workingProxy) {
@@ -667,7 +664,7 @@
                     console.warn(`[ImageRetry] 최대 재시도 횟수(${MAX_RETRY_COUNT}회)에 도달했습니다. 이미지 로드 실패: `, imgElement);
                 } else {
                     imgElement.dataset.retryCount = ++retryCount;
-                    if (!retrySet.has(getPureUrl(imgElement.src))) {
+                    if (exists && !retrySet.has(getPureUrl(imgElement.src))) {
                         console.log(`[ImageRetry] 이미지 재시도 대기열에 추가 (${retryCount}회차): `, imgElement);
                         enqueueFailedImage(imgElement, 'retry_error');
                     }
