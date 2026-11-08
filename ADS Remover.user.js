@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         ADS Remover
 // @namespace    http://tampermonkey.net/
-// @version      2026.11.07
-// @description  try to take over the world!
+// @version      2026.11.09
+// @description  Blocks external navigation unless initiated by a mouse click.
 // @author       You
 // @include      *
 // @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
@@ -14,6 +14,77 @@
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const RootDomain = extractRootDomain(PageURL)
 
+const navigationAllowlist = [
+    'cloudflare.com',
+    'cloudflareinsights.com',
+    'imgur.com',
+    'ibb.co',
+    'imgbox.com',
+    'pixhost.to',
+    'imagebam.com',
+    'imagevenue.com',
+    'postimg.cc',
+    'imx.to'
+];
+
+let lastMouseDownAt = 0;
+let mouseNavigationAllowedUntil = 0;
+
+function isExternalSite(url) {
+    try {
+        const destination = new URL(url, window.location.href);
+        if (destination.protocol !== 'http:' && destination.protocol !== 'https:') return false;
+        const hostname = destination.hostname.toLowerCase();
+        if (navigationAllowlist.some(domain => hostname === domain || hostname.endsWith(`.${domain}`))) {
+            return false;
+        }
+        return extractRootDomain(destination.href) !== RootDomain;
+    } catch (error) {
+        return false;
+    }
+}
+
+function hasRecentMouseClick() {
+    return Date.now() <= mouseNavigationAllowedUntil;
+}
+
+document.addEventListener('mousedown', event => {
+    if (event.isTrusted && event.button === 0) {
+        lastMouseDownAt = Date.now();
+    }
+}, true);
+
+document.addEventListener('click', event => {
+    if (event.isTrusted && event.detail > 0 && Date.now() - lastMouseDownAt < 1000) {
+        mouseNavigationAllowedUntil = Date.now() + 1000;
+        setTimeout(() => {
+            mouseNavigationAllowedUntil = 0;
+        }, 0);
+    }
+
+    const target = event.target instanceof Element ? event.target : event.target.parentElement;
+    const link = target && target.closest('a[href]');
+    if (link && isExternalSite(link.href) && !hasRecentMouseClick()) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }
+}, true);
+
+document.addEventListener('submit', event => {
+    const form = event.target;
+    if (form instanceof HTMLFormElement && isExternalSite(form.action) && !hasRecentMouseClick()) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }
+}, true);
+
+if (window.navigation) {
+    window.navigation.addEventListener('navigate', event => {
+        if (isExternalSite(event.destination.url) && !hasRecentMouseClick()) {
+            event.preventDefault();
+        }
+    }, true);
+}
 
 var ADLink = []
 
