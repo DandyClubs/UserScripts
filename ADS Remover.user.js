@@ -208,12 +208,16 @@ function ADChange() {
         }
     }
 
+    const patterns = ['puURLstrpcht', 'popCount', 'ad-provider'];
     for (const el of scripts) {
-        if (el.outerHTML.includes('puURLstrpcht')) {
-            el.remove();
-            break;
+        let matched = false;
+        for (const pattern of patterns) {
+            if (el.outerHTML.includes(pattern)) {
+                matched = true;
+                break;
+            }
         }
-        if (el.outerHTML.includes('popCount')) {
+        if (matched) {
             el.remove();
             break;
         }
