@@ -20,9 +20,10 @@
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/Masonry.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/extractMetaInfoLinks.user.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.js
 // @require      https://code.jquery.com/jquery-4.0.0.min.js
-// @resource     VIEWER_CSS https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.6/viewer.min.css
+
+// @require      https://cdn.jsdelivr.net/npm/viewerjs@1.15.2/dist/viewer.min.js
+// @resource     VIEWER_CSS https://cdn.jsdelivr.net/npm/viewerjs@1.15.2/dist/viewer.min.css
 // @grant        GM_getResourceText
 // @exclude      /www\.eyny\.com\/forum\.php\?mod=viewthread.*dateline$/
 // @noframes
@@ -303,6 +304,8 @@ function extractTitles(rule) {
                     flushGroup();
                     collectTextGroups(child);
                     flushGroup();
+                } else if (child.matches('img, .ignore_js_op, .image-masonry, .image-masonry-item')) {
+                    flushGroup();
                 } else {
                     collectTextGroups(child);
                 }
@@ -533,21 +536,8 @@ function initImageGallery(wrappers) {
         const viewer = new Viewer(wrapper, {
             url: (img) => {
                 // 원본 이미지가 data-src 등에 있다면 해당 주소를 리턴
-                return img.getAttribute("ess-data") || img.getAttribute("data-src") || img.src;
-            },
-            title: true,       // 이미지 제목 표시
-            toolbar: true,     // 하단 툴바 (확대, 축소, 회전 등)
-            navbar: true,      // 하단 썸네일 리스트 (요청하신 미리보기 목록)
-            tooltip: true,     // 확대 비율 표시
-            movable: true,     // 이미지 이동 가능
-            zoomable: true,    // 확대 가능
-            transition: true,  // 부드러운 전환 효과
-            fullscreen: true,  // 전체화면 지원
-            keyboard: true,    // 키보드 화살표 지원
-
-            // 화면보다 큰 경우 자동으로 화면에 맞춤 (기본값)
-            viewed() {
-            }
+                return img.src;
+            },            
         });
 
         // Masonry 아이템 내의 이미지 클릭 시 이벤트 전파를 통해 Viewer 실행
@@ -556,6 +546,7 @@ function initImageGallery(wrappers) {
             img.addEventListener('click', (e) => {
                 // Viewer.js가 내부적으로 클릭을 감지하지만,
                 // 명시적으로 실행하고 싶을 때 사용
+                viewer.view(e.target);
             });
         });
     });
@@ -1020,8 +1011,7 @@ async function init() {
     const loaders = new Map();
 
     for (const wrapper of wrappers) {
-        wrapper.style.visibility = 'visible';
-        const imgCount = wrapper.querySelectorAll("img").length;
+        wrapper.style.visibility = 'visible';        
 
         // 첨부파일 이미지 형태의 로더 생성
         const loader = document.createElement("div");
