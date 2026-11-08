@@ -233,7 +233,7 @@ margin: .25em;
     background-color:transparent !important;
 }
 
-.CopyState {
+.CopyState, .infoState {
 	position: absolute;
 	font-size: 1.5rem;
 	font-weight: bold;
@@ -249,7 +249,7 @@ margin: .25em;
 	left: 25%;
 }
 
-.CopyState.innerText {
+.CopyState.innerText, .infoState.innerText {
     background-color: rgba(0, 0, 0, 0.9) !important;
 }
 
@@ -2994,12 +2994,10 @@ async function SecondProcess() {
     // 5. AutoCopy 조건 검사
     //const SkipTitle = []; // 함수 내 scope 안전성을 위해 선언 추가
     if (/^((?!(sharepornlink|hpav\.tv|pornrips\.cc|naughtyblog)).)*$/.test(PageURL)) {
-        if (document.querySelector(".Minus")?.style.visibility === "hidden" && AutoCopy && JSON.parse(localStorage.getItem('AutoCopy'))) {
-            console.log('CopyGo');
+        if (document.querySelector(".Minus")?.style.visibility === "hidden" && AutoCopy && JSON.parse(localStorage.getItem('AutoCopy'))) {           
             await CopyGo(SkipTitle);
         }
-    } else if (/naughtyblog/.test(PageURL) && AutoCopy && JSON.parse(localStorage.getItem('AutoCopy'))) {
-        console.log('CopyGo');
+    } else if (/naughtyblog/.test(PageURL) && AutoCopy && JSON.parse(localStorage.getItem('AutoCopy'))) {        
         await CopyGo(SkipTitle);
     }
 
@@ -3172,6 +3170,27 @@ function CheckOnline(TargetLink, host) {
 
 
 
+function infoState(message) {
+
+    let infoStateEl = document.querySelector('.infoState');
+    if (!infoStateEl) {
+        LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="infoState"></div>');        
+        const CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
+        infoStateEl = document.querySelector('.infoState');
+        infoStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
+    }
+
+    // Show messages for skip words/models
+    infoStateEl.innerText = message;
+    if (infoStateEl.innerText.trim()) {
+        infoStateEl.classList.add('innerText');
+    } else {
+        infoStateEl.remove();
+    }
+
+}
+
+
 function CheckSkipTitle(rawTitle) {
     console.log(`Check CheckSkipTitle: ${rawTitle}`);
     if (!rawTitle) return false;  // Early exit if no title
@@ -3190,12 +3209,14 @@ function CheckSkipTitle(rawTitle) {
         SkipTitle = [...W, ...M];
 
         // Create or update CopyState div for status
-        if (!document.querySelector('.CopyState')) {
-            LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
+        let copyStateEl = document.querySelector('.CopyState');
+        if (!copyStateEl) {
+            LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');            
+            const CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
+            copyStateEl = document.querySelector('.CopyState');
+            copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
         }
-        const copyStateEl = document.querySelector('.CopyState');
-        let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
-        copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
+
 
         // Set flags indicating skip conditions
         console.log(`CheckSkipTitle: change userCopy`);
@@ -3229,7 +3250,10 @@ async function CopyGo(SkipTitle) {
     if (!Array.isArray(SkipTitle)) {
         throw new Error('No Array SkipTitle');
     }
-    if (Array.isArray(SkipTitle) && SkipTitle.length !== 0) return console.log(`SkipTitle: ${SkipTitle}`);
+    if (Array.isArray(SkipTitle) && SkipTitle.length !== 0) {
+        CheckDB(listToDo(DownloadArea), 'CopyGo SkipTitle');
+        return console.log(`SkipTitle: ${SkipTitle}`);
+    }
 
     const shortUrlExists = () =>
         Array.from(document.querySelectorAll("a")).some(a => WaitChangeLink.test(a.href));
@@ -3710,21 +3734,15 @@ async function CheckDB(listTo, fromStep) {
     if (!document.querySelector('.CopyState')) {
         LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
     }
-    const copyStateEl = document.querySelector('.CopyState');
-    let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
-    copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
-    copyStateEl.classList.add('innerText');
-
+    
     if (listTo.length === 0) {
-        console.warn('No links to check in CheckDB');
-        copyStateEl.textContent = 'Link is Empty';
+        console.warn('No links to check in CheckDB');        
+        infoState('Link is Empty');
 
         // Set flags indicating skip conditions
         console.log(`CheckDB: change userCopy`);
         userClose = false;
         userCopy = false;
-    } else {
-        copyStateEl.textContent = '';
     }
 
     //console.log(indexedDBCache);
@@ -3813,15 +3831,6 @@ async function CopyLink() {
     let allLinks = [];
     SkipTitle = [];
 
-    if (!document.querySelector('.CopyState')) {
-        LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
-    }
-    const copyStateEl = document.querySelector('.CopyState');
-    let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
-    copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
-    copyStateEl.classList.add('innerText');
-
-
     console.log('CopyLink Step: ', { pageLinksDB });
     // 1) If no temporary links waiting, gather fresh links    
     if (pageLinksDB.length === 0) {
@@ -3887,9 +3896,9 @@ async function CopyLink() {
 
                         const fileName = `${extraPrefix}${code.toLowerCase()}${formattedNum}${suffix}`;
                         const testUrl = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
-                        //copyStateEl.innerText = `${code} → ${category} 규칙 적용 중...`;
+                        //infoState(`${code} → ${category} 규칙 적용 중...`);                        
                         const result = await fetchImageResolution(testUrl);
-                        //copyStateEl.innerText = `${code} → ${category} 규칙 결과: ${result.exists ? '성공' : '실패'}`;
+                        //infoState(`${code} → ${category} 규칙 결과: ${result.exists ? '성공' : '실패'}`);
                         if (result.exists) {
                             finalCoverImage = `${targetBaseUrl}/${fileName}/${fileName}pl.jpg`;
                             const HQImage = document.createElement('a');
@@ -3897,11 +3906,10 @@ async function CopyLink() {
                             HQImage.classList.add('HQImage');
                             HQImage.href = finalCoverImage;
                             DownloadArea[0].appendChild(HQImage);
-                            console.log(`%c[규칙 기반 확정] ${code} → ${category} \n${testUrl}`, "color: #9E9E9E;");
-                            //copyStateEl.innerText = ``;
+                            console.log(`%c[규칙 기반 확정] ${code} → ${category} \n${testUrl}`, "color: #9E9E9E;");                            
                         } else {
                             console.log(`%c[규칙 기반 실패] ${code} → ${category} \n${testUrl}`, "color: #FF5722;");
-                            copyStateEl.innerText = `${code} → ${category} 규칙 결과: 실패`;
+                            infoState(`${code} → ${category} 규칙 결과: 실패`);
                         }
 
                     }
@@ -3910,7 +3918,7 @@ async function CopyLink() {
                 // --- 3단계: 규칙도 없는 생소한 브랜드인 경우 (후보군 생성 및 이미지 체크) ---
                 if (!finalCoverImage) {
                     console.log(`%c[미등록 브랜드 탐색] ${code} 패턴 추론 시작...${CoverImage || ''}`, "color: #FF9800;");
-                    copyStateEl.innerText = `${code} → 미등록 브랜드 탐색 중...`;
+                    infoState(`${code} → 미등록 브랜드 탐색 중...`);
                     const IconSetBox = document.querySelector(".IconSet");
                     const copyIcon = IconSetBox.querySelector('.CopyIcon');
 
@@ -3922,9 +3930,9 @@ async function CopyLink() {
                     const candidates = await generateUrlCandidates(contentId || SearchIDRegExp(CopyTitle), CoverImage || '');
 
                     for (const url of candidates) {
-                        copyStateEl.innerText = `${code} → 후보군 테스트 중: \n${url}`;
+                        infoState(`${code} → 후보군 테스트 중: \n${url}`);
                         const result = await fetchImageResolution(url);
-                        copyStateEl.innerText = `${code} → 후보군 테스트 결과: \n${result.exists ? '성공' : '실패'} \n(${url})`;
+                        infoState(`${code} → 후보군 테스트 결과: \n${result.exists ? '성공' : '실패'} \n(${url})`);
                         console.log(`%c[미등록 브랜드 탐색 결과] ${code} ${CoverImage || ''}`, result, "color: #FF9800;");
 
                         if (result.exists) {
@@ -3940,7 +3948,7 @@ async function CopyLink() {
                                     HQImage.href = finalCoverImage;
                                     DownloadArea[0].appendChild(HQImage);
                                     console.log(`%c[학습 완료] ${code} ${learnedRule} 저장됨`, "color: cyan;");
-                                    copyStateEl.innerText = ``;
+                                    infoState('');
                                 }
                             }
                             break;
@@ -3948,15 +3956,15 @@ async function CopyLink() {
                         // [추가] 403 국가 제한이나 특정 사유로 차단된 경우 프록시 적용
                         else if (result.reason === 'Region restrictions' || result.status === 403) {
                             console.log(`%c[지역 제한 감지] \n${url}`, "color: #FF5722;");
-                            copyStateEl.innerText = `${code} \n${url} \n규칙 결과: 실패`;
+                            infoState(`${code} \n${url} \n규칙 결과: 실패`);
                         } else {
                             console.log(`%c[이미지 주소 오류] \n${url}`, "color: #FF5722;");
-                            copyStateEl.innerText = `${code} \n${url} \n규칙 결과: 실패`;
+                            infoState(`${code} \n${url} \n규칙 결과: 실패`);
                         }
                     }
                     if (!finalCoverImage) {
                         console.log(`%c[미등록 브랜드 탐색 실패] ${code} ${CoverImage || ''}`, "color: #FF9800;");
-                        copyStateEl.innerText = `${code} \n${CoverImage || ''} \n규칙 결과: 실패`;
+                        infoState(`${code} \n${CoverImage || ''} \n규칙 결과: 실패`);
                     }
 
                     copyIcon.classList.remove('fa-brands');
@@ -4021,10 +4029,10 @@ async function CopyLink() {
 
     if (allLinks.length === 0) {
         SkipTitle = ['Link is Empty'];
-        copyStateEl.textContent = 'Link is Empty';
+        infoState('Link is Empty');
         return allLinks;
     } else {
-        copyStateEl.textContent = '';
+        infoState('');
     }
 
     console.log('CopyLink Step: ', { indexedDBCache });
@@ -4393,17 +4401,9 @@ async function MutilSubTitle(MatchWeb, MatchWebPoint, InfoAreaCast) {
     }
     if (pageLinksDB.length === 0) {
         SkipTitle = ['Link is Empty'];
-        if (!document.querySelector('.CopyState')) {
-            LinkCopyCenterBox.insertAdjacentHTML('beforeend', '<div class="CopyState"></div>');
-        }
-        const copyStateEl = document.querySelector('.CopyState');
-        let CopyStateFontSize = Number(((1 / (GetDPI / 1.5)) * 0.65 * (16 / DefaultFontSize)).toFixed(2));
-        copyStateEl.style.setProperty('font-size', `${CopyStateFontSize}rem`, 'important');
-        if (copyStateEl) {
-            copyStateEl.classList.add('innerText');
-            copyStateEl.textContent = 'Link is Empty';
-
-        }
+        infoState('Link is Empty');
+    } else {
+        infoState('');
     }
     console.log('MutilSubTitle Final pageLinksDB:', pageLinksDB);
     return pageLinksDB;
