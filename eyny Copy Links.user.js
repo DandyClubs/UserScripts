@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         eyny Copy Links
 // @namespace    http://tampermonkey.net/
-// @version      2025.10.22
+// @version      2026.11.09
 // @description  try to take over the world!
 // @author       You
 // @include      /eyny\.com\/forum\.php\?mod=viewthread/
@@ -21,7 +21,6 @@
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/Masonry.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/extractMetaInfoLinks.user.js
 // @require      https://code.jquery.com/jquery-4.0.0.min.js
-
 // @require      https://cdn.jsdelivr.net/npm/viewerjs@1.15.2/dist/viewer.min.js
 // @resource     VIEWER_CSS https://cdn.jsdelivr.net/npm/viewerjs@1.15.2/dist/viewer.min.css
 // @grant        GM_getResourceText
