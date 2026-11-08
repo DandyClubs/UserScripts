@@ -214,6 +214,7 @@ const SKIP_CLASS_NAMES = ['adead_link', 'autohyperlink', 'social-icon'];
 const TITLE_EXPR = /(影片名稱|電子書名稱|檔案名稱|資源格式|影片名称|本片名稱)(.*)/;
 const SkipTitle = `@KF(無限速，KF更網域,舊檔址 katfile.com 改 katfile.cloud 即可)`;
 const containerSelector = 'div#postlist td[id^="postmessage"]';
+let titles = [];
 
 // 동적으로 할당될 변수들
 let area, infoArea;
@@ -274,9 +275,7 @@ const siteRules = [
 // 사이트별 특별 규칙 적용
 const rule = siteRules.find((r) => r.regex.test(PageURL));
 
-
 function extractTitles(rule) {
-
 
     if (!rule.area) {
         console.error("대상 요소가 유효하지 않습니다.");
@@ -314,7 +313,7 @@ function extractTitles(rule) {
     collectTextGroups(rule.area);
     flushGroup();
 
-    const titles = [];
+    const collectTitles = [];
     const seenTitles = new Set();
 
     for (const textNodes of textGroups) {
@@ -323,16 +322,13 @@ function extractTitles(rule) {
 
         if (titleMatch && !seenTitles.has(titleMatch[0])) {
             seenTitles.add(titleMatch[0]);
-            titles.push({ textNodes });
+            collectTitles.push({ textNodes });
         }
     }
 
-    console.log("제목 UI 대상 텍스트 노드 그룹:", titles);
-    return titles;
+    console.log("제목 UI 대상 텍스트 노드 그룹:", collectTitles);
+    return collectTitles;
 }
-
-const titles = extractTitles(rule);
-
 
 function linkifyNodes(root) {
     // TreeWalker를 사용하여 실제 텍스트 노드만 골라냅니다.
@@ -1087,9 +1083,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     FontAwesomeCSS();
     MakeIcon();
-    init();
 
+    if (!rule) return;
 
+    init();   
+
+    titles = extractTitles(rule);
 
     if (titles.length > 0) {
         titles.forEach((item, index) => {
