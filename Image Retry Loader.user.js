@@ -32,7 +32,7 @@
     const LOAD_TIMEOUT = 30000; // 30초 타임아웃
     const PROXY_LOAD_TIMEOUT = 30000;
 
-    const tryProxy = ['https://proxy.duckduckgo.com/iu/?u=', 'https://wsrv.nl/?url=']
+    const tryProxy = ['https://wsrv.nl/?url=','https://proxy.duckduckgo.com/iu/?u=']
     const SUCCESSFUL_PROXY_STORAGE_PREFIX = 'successfulProxy:';
     const STORAGE_EXPIRATION = 24 * 60 * 60 * 1000;
     const BAD_URL_PREFIX = 'badUrl:';
@@ -415,6 +415,7 @@
         if (preferredProxy) {
             const candidateUrl = `${preferredProxy}${encodeURIComponent(url)}`;
             const result = await checkImage(candidateUrl, { timeout: PROXY_LOAD_TIMEOUT, minSize: 0 });
+            console.log(`[ImageRetry] 도메인 프록시 테스트 결과: ${candidateUrl} => `, result);
             if (result.exists) {
                 saveProxyUrl(url, candidateUrl);
                 return candidateUrl;
@@ -424,7 +425,7 @@
         }
 
         const fallbackProxies = tryProxy.filter(proxyUrl => proxyUrl !== preferredProxy);
-        const workingProxy = await findFirstWorkingProxy(url, fallbackProxies);
+        const workingProxy = await findFirstWorkingProxy(url, fallbackProxies);        
         if (workingProxy && imageDomain) {
             const successfulProxy = tryProxy.find(proxyUrl => workingProxy.startsWith(proxyUrl));
             if (successfulProxy) saveSuccessfulProxy(imageDomain, successfulProxy);
