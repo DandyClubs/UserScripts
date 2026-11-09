@@ -549,7 +549,7 @@
 
         retryQueue.push({ imgElement, reason });
         retrySet.add(pureSrc);
-        console.log(`[ImageRetry] 큐에 이미지 추가됨: \n${imgElement} \n${imgElement.src} \n${reason}`);
+        console.log(`[ImageRetry] 큐에 이미지 추가됨: \n${imgElement.src}\n`, imgElement,  `\n${reason}`);
         startRetryWorkers();
     }
 
@@ -579,10 +579,16 @@
 
             let workingProxy = null;
             if (item.reason === 'timeout' &&
-                getDomainForComparison(new URL(imgElementSrc).hostname) !== getDomainForComparison(window.location.hostname)) {
+                (getDomainForComparison(new URL(imgElementSrc).hostname) !== getDomainForComparison(window.location.hostname) ||
+                    retryCount > 2)) {
+                console.log('[ImageRetry] 타임아웃 후 로드 가능한 프록시를 시도합니다:', imgElementSrc);
                 workingProxy = await findWorkingProxy(imgElementSrc);
                 if (workingProxy) {
                     console.log('[ImageRetry] 타임아웃 후 로드 가능한 프록시를 적용합니다:', workingProxy);
+                } else {
+                    imgElement.dataset.loaded = "false";
+                    console.warn('[ImageRetry] 타임아웃된 이미지의 프록시 후보에서 로드에 실패했습니다:', imgElementSrc);
+                    return;
                 }
             }
 
@@ -642,40 +648,66 @@
                 imgElement.removeEventListener('error', retryError);
             }
 
+            const retrySrc = workingProxy || imgElementSrc;
+            let retryLoadTimer;
+            let retryFinished = false;
+
             function retryLoad() {
+                if (retryFinished) return;
                 const loadedSrc = imgElement.currentSrc || imgElement.src;
                 removeRetryListeners();
                 imgElement.decode()
                     .then(() => {
-                        if ((imgElement.currentSrc || imgElement.src) === loadedSrc) {
+                        if (!retryFinished && (imgElement.currentSrc || imgElement.src) === loadedSrc) {
                             imgElement.dataset.loaded = "true";
                         }
+                        retryFinished = true;
+                        clearTimeout(retryLoadTimer);
                     })
                     .catch(error => {
                         console.warn('[ImageRetry] 재시도 이미지 decode 실패:', error);
                         if ((imgElement.currentSrc || imgElement.src) === loadedSrc) {
                             retryError();
+                        } else {
+                            retryFinished = true;
+                            clearTimeout(retryLoadTimer);
                         }
                     });
             }
 
-            function retryError() {
+            function retryError(reason = 'retry_error') {
+                if (retryFinished) return;
+                if (reason !== 'timeout') reason = 'retry_error';
+                retryFinished = true;
+                clearTimeout(retryLoadTimer);
                 removeRetryListeners();
                 if (retryCount >= MAX_RETRY_COUNT) {
                     imgElement.dataset.loaded = "false";
                     console.warn(`[ImageRetry] 최대 재시도 횟수(${MAX_RETRY_COUNT}회)에 도달했습니다. 이미지 로드 실패: `, imgElement);
+                } else if (isProxyUrl(imgElement.src)) {
+                    imgElement.dataset.loaded = "false";
+                    console.warn('[ImageRetry] 프록시 이미지 로드에 실패했습니다:', imgElement);
                 } else {
                     imgElement.dataset.retryCount = ++retryCount;
                     if (exists && !retrySet.has(getPureUrl(imgElement.src))) {
                         console.log(`[ImageRetry] 이미지 재시도 대기열에 추가 (${retryCount}회차): `, imgElement);
-                        enqueueFailedImage(imgElement, 'retry_error');
+                        enqueueFailedImage(imgElement, reason);
                     }
                 }
             }
+
             imgElement.addEventListener('load', retryLoad);
             imgElement.addEventListener('error', retryError);
-
-            imgElement.setAttribute('src', workingProxy || imgElementSrc);
+            retryLoadTimer = setTimeout(() => {
+                if (imgElement.src !== retrySrc) {
+                    retryFinished = true;
+                    removeRetryListeners();
+                    return;
+                }
+                console.warn(`[ImageRetry] 재시도 이미지 로딩 타임아웃 (${LOAD_TIMEOUT}ms):`, imgElement);
+                retryError('timeout');
+            }, LOAD_TIMEOUT);
+            imgElement.setAttribute('src', retrySrc);
 
         } finally {
             retryWorkers--;
@@ -716,8 +748,6 @@
     function getDomainForComparison(hostname) {
         return tldts.getDomain(hostname, { allowPrivateDomains: true }) || hostname.toLowerCase();
     }
-
-    
 
     function getPureUrl(url) {
         if (!url) return '';
