@@ -5,13 +5,14 @@
 // @description  Blocks external navigation unless initiated by a mouse click.
 // @author       You
 // @include      *
-// @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
 // @grant		 GM_addStyle
 // @run-at       document-start
 // @noframes
 // ==/UserScript==
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
 const RootDomain = extractRootDomain(PageURL)
 
 const navigationAllowlist = [

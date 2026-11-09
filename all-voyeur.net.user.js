@@ -6,7 +6,7 @@
 // @author       You
 // @match        https://all-voyeur.net/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=all-voyeur.net
-// @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
 // @require      https://code.jquery.com/jquery-3.6.1.min.js
 // @grant		 GM_addStyle
@@ -164,6 +164,7 @@ li.post div.article a:visited {
 
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
 const RootDomain = extractRootDomain(PageURL);
 let AutoCopy = false;
 //console.log(RootDomainDB)

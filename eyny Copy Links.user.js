@@ -16,7 +16,7 @@
 // @connect      localhost
 // @connect      *
 // @grant        unsafeWindow
-// @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/Masonry.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/extractMetaInfoLinks.user.js
@@ -206,6 +206,7 @@ GM_addStyle(`
 const getDPI = window.devicePixelRatio;
 const defaultFontSize = getDefaultFontSize();
 const PAGE_URL = window.location.href;
+const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
 const ROOT_DOMAIN = extractRootDomain(PAGE_URL);
 
 // 필터링 및 정규식 상수를 최상위에 정의

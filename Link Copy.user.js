@@ -64,7 +64,7 @@
 // @exclude      https://x-idol.net/
 // @exclude      https://x-idol.net/?paged=*
 // @exclude      https://www.google.com/search*
-// @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/HQImages.js
 // @require      https://raw.githubusercontent.com/DandyClubs/keyvent.js/master/keyvent.js
@@ -444,6 +444,7 @@ let userClose = true;
 let useResolution = true;
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
 const RootDomain = extractRootDomain(PageURL);
 
 const linkEreg = /(?:https|http|ftp|file):\/\/.+?(?=[,.]?(?:\s|$))/gi;

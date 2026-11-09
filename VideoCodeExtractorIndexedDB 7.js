@@ -7,7 +7,7 @@
 // @match        https://video.dmm.co.jp/*
 // @match        https://www.javlibrary.com/*
 // @match        https://www.dmm.co.jp/mono/dvd/*
-// @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/MutilImagesDownloader.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/MakerMap.js
 // @require      https://cdn.jsdelivr.net/npm/sweetalert2@11.26.24/dist/sweetalert2.all.min.js
@@ -282,6 +282,7 @@ div:where(.swal2-container) .swal2-input {
 
 
     const PageURL = () => window.location !== window.parent.location ? document.referrer : document.location.href;
+    const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
     const KEY_PREFIX = (url) => selectKeyPreFixMap[extractRootDomain(url)];
     // --- 모달 크기 저장 및 복원 (수정본) ---
     const STORAGE_KEY = 'vce_modal_size';

@@ -18,7 +18,7 @@
 // @grant		 GM_addStyle
 // @grant		 GM_xmlhttpRequest
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js
-// @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
 // @run-at       document-start
 // @connect      localhost
@@ -296,6 +296,7 @@ CopyLinksTitleDB.bc.onmessage = (event) => {
 };
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
 const RootDomain = extractRootDomain(PageURL);
 
 let GetDPI, DefaultFontSize, elementPosition;

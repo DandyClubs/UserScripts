@@ -21,7 +21,7 @@
 // @grant        unsafeWindow
 // @grant		 GM_xmlhttpRequest
 // @connect      *
-// @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
 // @noframes
@@ -111,6 +111,7 @@ body[data-site="pornolab.net"] {
 let getDPI, defaultFontSize;
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
 const RootDomain = extractRootDomain(PageURL);
 
 let MakerCfg = false;

@@ -12,7 +12,7 @@
 // @exclude         /feimaoyun.com/
 // @exclude         *.jpg
 // @exclude         /bbs\/mypost\.php/
-// @require         https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
+// @require         https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
 // @grant           GM_openInTab
 // ==/UserScript==
 
@@ -41,6 +41,7 @@ window.addEventListener('load', () => {
 
 // --- 전역 변수 ---
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
 const RootDomain = extractRootDomain(PageURL);
 
 // --- 재사용 가능한 행동(Action) 정의 ---

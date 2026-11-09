@@ -24,7 +24,7 @@
 // @grant       GM_deleteValue
 // @grant       GM_listValues
 // @grant       GM_addValueChangeListener
-// @require     https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
+// @require     https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
 // @require     https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
 // @require     https://raw.githubusercontent.com/DandyClubs/Filter/main/Filters.js
 // @noframes
@@ -296,6 +296,7 @@ async function migrateFromLocalStorage() {
 
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
 const RootDomain = extractRootDomain(PageURL);
 
 function escapeRegExp(str) {

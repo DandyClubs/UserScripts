@@ -12,6 +12,7 @@
 // @grant        GM_getValue
 // @grant        GM_deleteValue
 // @grant        GM_listValues
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
 // @noframes
 // ==/UserScript==
 
@@ -548,7 +549,7 @@
 
         retryQueue.push({ imgElement, reason });
         retrySet.add(pureSrc);
-        console.log(`[ImageRetry] 큐에 이미지 추가됨: `, imgElement, reason);
+        console.log(`[ImageRetry] 큐에 이미지 추가됨: \n${imgElement} \n${imgElement.src} \n${reason}`);
         startRetryWorkers();
     }
 
@@ -577,12 +578,13 @@
             let retryCount = parseInt(imgElement.dataset.retryCount);
 
             let workingProxy = null;
-            if (item.reason === 'timeout') {
+            if (item.reason === 'timeout' &&
+                getDomainForComparison(new URL(imgElementSrc).hostname) !== getDomainForComparison(window.location.hostname)) {
                 workingProxy = await findWorkingProxy(imgElementSrc);
                 if (workingProxy) {
                     console.log('[ImageRetry] 타임아웃 후 로드 가능한 프록시를 적용합니다:', workingProxy);
                 }
-            }            
+            }
 
             let checkResult = imageCheckCache.get(imgElement);
 
@@ -710,6 +712,12 @@
             return false;
         }
     }
+
+    function getDomainForComparison(hostname) {
+        return tldts.getDomain(hostname, { allowPrivateDomains: true }) || hostname.toLowerCase();
+    }
+
+    
 
     function getPureUrl(url) {
         if (!url) return '';

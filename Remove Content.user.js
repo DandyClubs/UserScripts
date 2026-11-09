@@ -41,7 +41,7 @@
 // @exclude      /hidefporn\.ws\/\d+/
 // @exclude      /misskon\.com\/\d+/
 // @exclude      https://pornolab.net/forum/viewtopic*
-// @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/Filter/main/Filters.js
 // @run-at       document-body
 // @grant		 GM_addStyle
@@ -170,6 +170,7 @@ function contentDBUpdate() {
 
 // 페이지 URL을 가져오는 부분은 동일합니다.
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
 const RootDomain = extractRootDomain(PageURL);
 
 // 정규식 관련 헬퍼 함수는 그대로 유지합니다.

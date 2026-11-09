@@ -12,7 +12,7 @@
 // @grant       GM_setClipboard
 // @grant       GM_xmlhttpRequest
 // @run-at      document-end
-// @require     https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
 // ==/UserScript==
 
 
@@ -379,6 +379,7 @@ function updateClipboard(CopyData) {
    Main Script
 ----------------------------- */
 const PageURL = location.href;
+const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
 const RootDomain = extractRootDomain(PageURL);
 const config = siteConfigs[RootDomain];
 if (!config) return;  // not supported site

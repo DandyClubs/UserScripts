@@ -21,7 +21,7 @@
 // @grant        GM_getResourceText
 // @require      https://cdn.jsdelivr.net/npm/viewerjs@1.15.2/dist/viewer.min.js
 // @resource     VIEWER_CSS https://cdn.jsdelivr.net/npm/viewerjs@1.15.2/dist/viewer.min.css
-// @require      https://raw.githubusercontent.com/DandyClubs/RootDomain/main/RootDomain.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
 // @noframes
 // ==/UserScript==
 
@@ -456,6 +456,8 @@ siteModules.sort((a, b) => a.name.localeCompare(b.name));
 
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
+const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
+
 const lazyAttributes = [
     "data-actualsrc",
     "data-cover",
