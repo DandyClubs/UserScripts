@@ -249,24 +249,6 @@
         });
     }
 
-    function testImageUrl(url, timeout = PROXY_LOAD_TIMEOUT) {
-        return new Promise((resolve) => {
-            const image = new Image();
-            const timer = setTimeout(() => finish(false), timeout);
-
-            function finish(loaded) {
-                clearTimeout(timer);
-                image.onload = null;
-                image.onerror = null;
-                resolve(loaded);
-            }
-
-            image.onload = () => finish(image.naturalWidth > 0);
-            image.onerror = () => finish(false);
-            image.src = url;
-        });
-    }
-
     function getProxyUrlCacheKey(originalUrl) {
         return `${PROXY_URL_CACHE_PREFIX}${originalUrl}`;
     }
@@ -362,7 +344,8 @@
         const proxyUrl = getSavedProxyUrl(originalUrl);
         if (!proxyUrl) return null;
 
-        if (await testImageUrl(proxyUrl)) return proxyUrl;
+        const result = await checkImage(proxyUrl, { timeout: PROXY_LOAD_TIMEOUT, minSize: 0 });
+        if (result.exists) return proxyUrl;
 
         removeProxyUrl(originalUrl);
         return null;
@@ -377,8 +360,8 @@
 
             for (const proxyUrl of proxyUrls) {
                 const candidateUrl = `${proxyUrl}${encodeURIComponent(url)}`;
-                testImageUrl(candidateUrl).then(loaded => {
-                    if (loaded && !found) {
+                checkImage(candidateUrl, { timeout: PROXY_LOAD_TIMEOUT, minSize: 0 }).then(result => {
+                    if (result.exists && !found) {
                         found = true;
                         resolve(candidateUrl);
                         return;
@@ -431,7 +414,8 @@
         const preferredProxy = imageDomain ? getSuccessfulProxy(imageDomain) : null;
         if (preferredProxy) {
             const candidateUrl = `${preferredProxy}${encodeURIComponent(url)}`;
-            if (await testImageUrl(candidateUrl)) {
+            const result = await checkImage(candidateUrl, { timeout: PROXY_LOAD_TIMEOUT, minSize: 0 });
+            if (result.exists) {
                 saveProxyUrl(url, candidateUrl);
                 return candidateUrl;
             }
@@ -494,6 +478,13 @@
             return {
                 final: true,
                 result: { exists: true, reason: 'ok', size }
+            };
+        }
+
+        if (status === 400) {
+            return {
+                final: true,
+                result: { exists: false, reason: '400' }
             };
         }
 
