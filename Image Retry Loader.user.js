@@ -32,7 +32,7 @@
     const LOAD_TIMEOUT = 30000; // 30초 타임아웃
     const PROXY_LOAD_TIMEOUT = 30000;
 
-    const tryProxy = ['https://wsrv.nl/?url=','https://proxy.duckduckgo.com/iu/?u=']
+    const tryProxy = ['https://wsrv.nl/?url=', 'https://proxy.duckduckgo.com/iu/?u=']
     const SUCCESSFUL_PROXY_STORAGE_PREFIX = 'successfulProxy:';
     const STORAGE_EXPIRATION = 24 * 60 * 60 * 1000;
     const BAD_URL_PREFIX = 'badUrl:';
@@ -93,7 +93,7 @@
                     .catch(() => {
                         console.warn('[ImageRetry] decode 실패 → 깨진 이미지 감지:', img.src);
                         resolve('corrupted');
-                    });                
+                    });
             }
 
             if (img.src.startsWith('blob:')) {
@@ -425,7 +425,7 @@
         }
 
         const fallbackProxies = tryProxy.filter(proxyUrl => proxyUrl !== preferredProxy);
-        const workingProxy = await findFirstWorkingProxy(url, fallbackProxies);        
+        const workingProxy = await findFirstWorkingProxy(url, fallbackProxies);
         if (workingProxy && imageDomain) {
             const successfulProxy = tryProxy.find(proxyUrl => workingProxy.startsWith(proxyUrl));
             if (successfulProxy) saveSuccessfulProxy(imageDomain, successfulProxy);
@@ -541,7 +541,7 @@
 
         retryQueue.push({ imgElement, reason });
         retrySet.add(pureSrc);
-        console.log(`[ImageRetry] 큐에 이미지 추가됨: \n${imgElement.src}\n`, imgElement,  `\n${reason}`);
+        console.log(`[ImageRetry] 큐에 이미지 추가됨: \n${imgElement.src}\n`, imgElement, `\n${reason}`);
         startRetryWorkers();
     }
 
@@ -882,7 +882,7 @@
         for (const attr of img.attributes) {
             if (lazyAttributesMap[attr.name]) {
                 if (attr.value && attr.value.trim() !== '') {
-                    console.log(`[Lazy-Attribute] ${attr.name} 속성에서 이미지 URL 발견: ${attr.value}`);
+                    //console.log(`[Lazy-Attribute] ${attr.name} 속성에서 이미지 URL 발견: ${attr.value}`);
                     img.src = attr.value;
                     img.removeAttribute(attr.name);
                     rawSrc = attr.value;
@@ -950,19 +950,11 @@
                 findWorkingProxy(rawSrc)
                     .then(workingProxy => {
                         delete img.dataset.isProxyTesting;
-                        //if (!img.isConnected || img.src !== rawSrc) return false;
-
+                        
                         if (workingProxy) {
                             img.src = workingProxy;
-                            img.decode()
-                                .then(() => {
-                                    img.dataset.loaded = "true";
-                                    return false;
-                                })
-                                .catch(error => {
-                                    console.warn('[ImageRetry] 재시도 이미지 decode 실패:', error);
-                                    return true;
-                                });
+                            img.dataset.loaded = "true";
+                            return false;
                         } else {
                             console.warn('[ImageRetry] 도메인 프록시 후보에서 이미지 로드에 실패했습니다:', rawSrc);
                             img.dataset.proxyTestFailed = 'true';
