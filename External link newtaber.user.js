@@ -149,6 +149,7 @@ const specializedRulesData = [
     { site: /.*/, c: el => el.closest('.infy-scroll-divider'), a: 'SAME_TAB' },
     { site: /.*/, c: (el, ctx) => !/google\.com\/search/.test(ctx.PageURL) && /\/bbs\/board\.php.*wr_id|category\/movie\/av/.test(el.href), a: 'REMOVE_TARGET' },
     { site: /^https:\/\/section\.cafe\.naver\.com\/ca-fe\/home\/search\/articles/, c: el => /cafe\.naver\.com\/.+\?iframe_url/.test(el.href), a: 'SAME_TAB' },
+    { site: /mypikpak\.kdns\.fr/, c: el => el.closest('article'), a: 'NEW_TAB' },
 ];
 
 const classBasedNewTabPatterns = {
