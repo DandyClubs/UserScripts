@@ -211,9 +211,9 @@
 
     async function checkImage(url, options = {}) {
         const {
-            timeout = 5000,
+            timeout = 10000,
             minSize = 300,
-            retry = 1
+            retry = true
         } = options;
 
         const headResult = await request(url, 'HEAD', timeout);
@@ -223,7 +223,7 @@
             return judged.result;
         }
 
-        if (retry > 0) {
+        if (retry) {
             const getResult = await request(url, 'GET', timeout, {
                 Range: 'bytes=0-1023'
             });
@@ -344,7 +344,7 @@
         const proxyUrl = getSavedProxyUrl(originalUrl);
         if (!proxyUrl) return null;
 
-        const result = await checkImage(proxyUrl, { timeout: PROXY_LOAD_TIMEOUT, minSize: 0 });
+        const result = await checkImage(proxyUrl, { timeout: PROXY_LOAD_TIMEOUT, minSize: 300 });
         if (result.exists) return proxyUrl;
 
         removeProxyUrl(originalUrl);
@@ -360,7 +360,7 @@
 
             for (const proxyUrl of proxyUrls) {
                 const candidateUrl = `${proxyUrl}${encodeURIComponent(url)}`;
-                checkImage(candidateUrl, { timeout: PROXY_LOAD_TIMEOUT, minSize: 0 }).then(result => {
+                checkImage(candidateUrl, { timeout: PROXY_LOAD_TIMEOUT, minSize: 300 }).then(result => {
                     if (result.exists && !found) {
                         found = true;
                         resolve(candidateUrl);
