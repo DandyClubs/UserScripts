@@ -354,8 +354,11 @@ function linkifyNodes(root) {
     // URL 정규식 (http/https로 시작하는 문자열)
     const urlRegex = /(https?:\/\/[^\s()<>]+\b)/gi;
 
-    nodes.forEach(node => {
-        const text = node.textContent.replace(/\[\/?url\]/gi, '');
+    nodes.forEach(node => {        
+        const text = node.textContent.replace(/\[\/?url\]/gi, '').replace(
+        /\[backcolor=rgb\[\s*\d+\s*,\s*\d+\s*,\s*\d+\]\]/gi,
+        ''
+    );
         const parentA = node.parentNode?.closest('a');
         if (parentA) {
             /**
