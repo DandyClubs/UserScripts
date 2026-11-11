@@ -264,6 +264,24 @@ function scrollToTitlePx(target, offset = 80) {
     });
 }
 
+
+function waitForVisibleTab() {
+    if (!document.hidden) return Promise.resolve();
+
+    return new Promise(resolve => {
+        const onVisibilityChange = () => {
+            if (!document.hidden) {
+                document.removeEventListener('visibilitychange', onVisibilityChange);
+                resolve();
+            }
+        };
+
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        onVisibilityChange();
+    });
+}
+
+
 const containerSelector = '.tpc_content.do_not_catch';
 
 async function init() {
@@ -346,9 +364,11 @@ async function init() {
 
     requestAnimationFrame(() => {
         console.log("첫 번째 섹션 처리 완료. 스크롤 위치 조정 중...", firstScrollPos?.element);
-        if (firstScrollPos?.element) {
-            scrollToTitlePx(firstScrollPos.element, 80);
-        }
+        waitForVisibleTab().then(() => {
+            if (firstScrollPos?.element) {
+                scrollToTitlePx(firstScrollPos.element, 80);
+            }
+        })
     });
 
 
