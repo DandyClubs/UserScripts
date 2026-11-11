@@ -618,7 +618,7 @@
             }
 
 
-            if (!workingProxy && !exists && (reason === 'client_error' || reason === 'server_error')) {
+            if (!workingProxy && !exists && (reason === '400' || reason === '404' || reason === 'server_error')) {
                 console.warn(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
                 failedImagesSet.add(getPureUrl(imgElement.src));
                 saveBadLink(imgElement.src);
