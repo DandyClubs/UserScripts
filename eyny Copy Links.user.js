@@ -210,7 +210,7 @@ const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: t
 const ROOT_DOMAIN = extractRootDomain(PAGE_URL);
 
 // 필터링 및 정규식 상수를 최상위에 정의
-const SKIP_FILTER = new RegExp('rapidgator\\.net\\/folder\\/|windfiles\\.com|mypikpak\\.com|pricing\\?aff|mega\\.nz\\/aff|katfile\\..+\\/(free|users\\/)\\d+|developershome|md5file\\.com|attachment|premium|upgrade|javascript|search|SKIP|#$|^\\/|^(?=.*' + DOMAIN + ').*$');
+const SKIP_FILTER = new RegExp('rapidgator\\.net\\/folder\\/|windfiles\\.com|mypikpak\\.com|pricing\\?aff|mega\\.nz\\/aff|katfile\\..+\\/(free|users\\/)\\d+|developershome|md5file\\.com|attachment|premium|upgrade|javascript|search|SKIP|#$|^\\/|^(?=.*' + ROOT_DOMAIN + ').*$');
 const SKIP_CLASS_NAMES = ['adead_link', 'autohyperlink', 'social-icon'];
 const TITLE_EXPR = /(影片名稱|電子書名稱|檔案名稱|資源格式|影片名称|本片名稱)(.*)/;
 const SkipTitle = `@KF(無限速，KF更網域,舊檔址 katfile.com 改 katfile.cloud 即可)`;
@@ -283,7 +283,7 @@ function extractTitles(rule) {
     if (!rule.area) {
         console.error("대상 요소가 유효하지 않습니다.");
         return [];
-    }
+    }    
 
     const textGroups = [];
     let currentGroup = [];
@@ -343,6 +343,7 @@ function linkifyNodes(root) {
     while (walker.nextNode()) {
         const node = walker.currentNode;
         // 이미 <a> 태그 안에 있는 텍스트는 건너뜁니다.
+        cleanContent(node);
         if (node.parentNode.tagName === 'A' || node.parentNode.closest('a')) {
             if (node.textContent.startsWith('[url]http')) {
                 nodes.push(node);
@@ -356,11 +357,8 @@ function linkifyNodes(root) {
     // URL 정규식 (http/https로 시작하는 문자열)
     const urlRegex = /(https?:\/\/[^\s()<>]+\b)/gi;
 
-    nodes.forEach(node => {        
-        const text = node.textContent.replace(/\[\/?url\]/gi, '').replace(
-        /\[backcolor=rgb\[\s*\d+\s*,\s*\d+\s*,\s*\d+\]\]/gi,
-        ''
-    );
+    nodes.forEach(node => {
+        const text = node.textContent.replace(/\[\/?url\]/gi, '');
         const parentA = node.parentNode?.closest('a');
         if (parentA) {
             /**
@@ -422,6 +420,15 @@ function linkifyNodes(root) {
         }
     });
     return root;
+}
+
+function cleanContent(node) {
+    
+        node.textContent = node.textContent.replace(
+            /\[backcolor=rgb\[\s*\d+\s*,\s*\d+\s*,\s*\d+\]\]/gi,
+            ''
+        );
+    
 }
 
 function extractContent(element) {
@@ -542,7 +549,7 @@ function initImageGallery(wrappers) {
             url: (img) => {
                 // 원본 이미지가 data-src 등에 있다면 해당 주소를 리턴
                 return img.src;
-            },            
+            },
         });
 
         // Masonry 아이템 내의 이미지 클릭 시 이벤트 전파를 통해 Viewer 실행
@@ -1016,7 +1023,7 @@ async function init() {
     const loaders = new Map();
 
     for (const wrapper of wrappers) {
-        wrapper.style.visibility = 'visible';        
+        wrapper.style.visibility = 'visible';
 
         // 첨부파일 이미지 형태의 로더 생성
         const loader = document.createElement("div");
@@ -1081,7 +1088,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!rule) return;
 
-    init();   
+    init();
 
     titles = extractTitles(rule);
 
