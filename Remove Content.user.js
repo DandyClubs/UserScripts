@@ -490,7 +490,6 @@ async function processContent(node, selector) {
                             contentCache.push({ K: Title, D: AddDate, R: resolution, el: parent });
                         }
                         else if (resolution > existingItem.R) {
-
                             if (existingItem.R < 1080) {
                                 // [2. 더 높은 해상도 발견] DB/캐시 갱신 + 이전에 탐색된 저해상도 DOM 요소 숨김
                                 console.log(`Higher Resolution Detected (${existingItem.R}p -> ${resolution}p):`, Title, parent);
@@ -503,7 +502,7 @@ async function processContent(node, selector) {
                                 }
                             }
                         }
-                        else if (resolution < (existingItem.R)) {
+                        else if (resolution < existingItem.R) {
                             if (resolution < 1080) {
                                 // [3. 더 낮은 해상도 발견] 현재 들어온 낮은 해상도 요소만 숨김                            
                                 console.log(`Low Resolution Content Removed (${resolution}p < ${existingItem.R}p):`, Title, parent);
