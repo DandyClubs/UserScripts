@@ -209,10 +209,6 @@ const PAGE_URL = window.location.href;
 const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
 const ROOT_DOMAIN = extractRootDomain(PAGE_URL);
 
-const filterLinksRegex = /frdl\.(io|my)\/|filefox\.cc|katfile\.|clicknupload\.click|mega\.nz\/file|drive\.google\.com\/file\/|ddownload\.com|krakenfiles\.com|send\.now|rg\.to|rapidgator\.net|uploadgig\.com/;
-const SKIPFILTER = new RegExp('rapidgator\\.net\\/folder\\/|windfiles\\.com|mypikpak\\.com|pricing\\?aff|mega\\.nz\\/aff|katfile\\.(com|cloud|online)\\/(free|users\\/)|developershome|md5file\\.com|attachment|premium|upgrade|javascript|search|SKIP|#$|^\\/|^(?=.*' + ROOT_DOMAIN + ').*$');
-
-
 // 필터링 및 정규식 상수를 최상위에 정의
 const SKIP_FILTER = new RegExp('rapidgator\\.net\\/folder\\/|windfiles\\.com|mypikpak\\.com|pricing\\?aff|mega\\.nz\\/aff|katfile\\..+\\/(free|users\\/)\\d+|developershome|md5file\\.com|attachment|premium|upgrade|javascript|search|SKIP|#$|^\\/|^(?=.*' + DOMAIN + ').*$');
 const SKIP_CLASS_NAMES = ['adead_link', 'autohyperlink', 'social-icon'];
@@ -273,6 +269,8 @@ const siteRules = [
             '其他精彩主題',
             '其他影片載點'
         ],
+        filterLinksRegex: /frdl\.(io|my)\/|filefox\.cc|katfile\.|clicknupload\.click|mega\.nz\/file|drive\.google\.com\/file\/|ddownload\.com|krakenfiles\.com|send\.now|rg\.to|rapidgator\.net|uploadgig\.com/,
+        SKIPFILTER: new RegExp('rapidgator\\.net\\/folder\\/|windfiles\\.com|mypikpak\\.com|pricing\\?aff|mega\\.nz\\/aff|katfile\\.(com|cloud|online)\\/(free|users\\/)|developershome|md5file\\.com|attachment|premium|upgrade|javascript|search|SKIP|#$|^\\/|^(?=.*' + ROOT_DOMAIN + ').*$'),
     },
 ]
 
