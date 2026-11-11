@@ -949,6 +949,7 @@
             new RegExp(`(${proxyImageDomainsPattern})`, 'i').test(rawSrc)) {
             if (!img.dataset.isProxyTesting) {
                 img.dataset.isProxyTesting = 'true';
+                img.dataset.loaded = "pending";
                 findWorkingProxy(rawSrc)
                     .then(workingProxy => {
                         delete img.dataset.isProxyTesting;
