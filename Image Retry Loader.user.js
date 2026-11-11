@@ -574,6 +574,7 @@
                 (getDomainForComparison(new URL(imgElementSrc).hostname) !== getDomainForComparison(window.location.hostname) ||
                     retryCount > 2)) {
                 console.log('[ImageRetry] 타임아웃 후 로드 가능한 프록시를 시도합니다:', imgElementSrc);
+                imgElement.dataset.loaded = "pending";
                 workingProxy = await findWorkingProxy(imgElementSrc);
                 if (workingProxy) {
                     console.log('[ImageRetry] 타임아웃 후 로드 가능한 프록시를 적용합니다:', workingProxy);
@@ -603,6 +604,7 @@
 
             if (exists && !workingProxy && retryCount >= MAX_RETRY_COUNT) {
                 console.warn(`[ImageRetry] 최대 재시도 횟수(${MAX_RETRY_COUNT}회)에 도달했습니다.`, imgElement);
+                imgElement.dataset.loaded = "pending";
                 workingProxy = await findWorkingProxy(imgElementSrc);
                 if (workingProxy) {
                     console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
@@ -626,6 +628,7 @@
 
             if (!workingProxy && !exists && reason === 'Region restrictions') {
                 console.log('[ImageRetry] 지역 제한 감지, 프록시 이미지 로드 확인 중:', imgElementSrc);
+                imgElement.dataset.loaded = "pending";
                 workingProxy = await findWorkingProxy(imgElementSrc);
                 if (workingProxy) {
                     console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
