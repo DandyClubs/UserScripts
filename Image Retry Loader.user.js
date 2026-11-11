@@ -34,10 +34,10 @@
 
     const tryProxy = ['https://wsrv.nl/?url=', 'https://proxy.duckduckgo.com/iu/?u=']
     const SUCCESSFUL_PROXY_STORAGE_PREFIX = 'successfulProxy:';
-    const STORAGE_EXPIRATION = 24 * 60 * 60 * 1000;
+    const STORAGE_EXPIRATION = 5 * 24 * 60 * 60 * 1000;
     const BAD_URL_PREFIX = 'badUrl:';
     const PROXY_URL_CACHE_PREFIX = 'imageRetryProxyUrl:';
-    const PROXY_URL_CACHE_EXPIRATION = 48 * 60 * 60 * 1000;
+    const PROXY_URL_CACHE_EXPIRATION = 2 * 24 * 60 * 60 * 1000;
     const successfulProxyByDomain = new Map();
 
     class Queue {
