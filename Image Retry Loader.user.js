@@ -344,7 +344,7 @@
         const proxyUrl = getSavedProxyUrl(originalUrl);
         if (!proxyUrl) return null;
 
-        const result = await checkImage(proxyUrl, { timeout: PROXY_LOAD_TIMEOUT, minSize: 300 });
+        const result = await checkImage(proxyUrl, { timeout: PROXY_LOAD_TIMEOUT, minSize: 0 });
         if (result.exists) return proxyUrl;
 
         removeProxyUrl(originalUrl);
@@ -360,7 +360,7 @@
 
             for (const proxyUrl of proxyUrls) {
                 const candidateUrl = `${proxyUrl}${encodeURIComponent(url)}`;
-                checkImage(candidateUrl, { timeout: PROXY_LOAD_TIMEOUT, minSize: 300 }).then(result => {
+                checkImage(candidateUrl, { timeout: PROXY_LOAD_TIMEOUT, minSize: 0 }).then(result => {
                     if (result.exists && !found) {
                         found = true;
                         resolve(candidateUrl);
