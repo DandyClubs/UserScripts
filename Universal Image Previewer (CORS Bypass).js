@@ -217,7 +217,7 @@ body.modal-open {
     const imageRegex = /\.(jpg|jpeg|png|gif|webp|bmp)(?:\?.*)?$/i;
 
     // ==========================================
-    // ⚡ 2. loadDeepPreview 중복 실행 완전 방지
+    // ⚡ 2. console.log(config); 중복 실행 완전 방지
     // ==========================================
     async function loadDeepPreview(pageUrl, imgElement) {
         // 이미 완료되었거나 요청 중인 Element는 즉시 반환
@@ -367,7 +367,7 @@ body.modal-open {
                 return `<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
                  class="pending-deep-preview"
                  data-status="pending"
-                 data-url="${url}">`;
+                 data-loadDeepPreview="${url}">`;
             }
         }
 
@@ -440,7 +440,7 @@ body.modal-open {
 
         // ⚡ pending 상태인 img 태그들만 구별하여 호출
         root.querySelectorAll('.pending-deep-preview[data-status="pending"]').forEach(img => {
-            loadDeepPreview(img.dataset.url, img);
+            loadDeepPreview(img.dataset.loadDeepPreview, img);
         });
     }
 
