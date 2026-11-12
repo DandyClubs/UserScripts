@@ -527,8 +527,11 @@ class Queue {
             this.items.push(item);
         }
     }
-    dequeue() {
-        const item = this.items.shift();
+    dequeue(predicate = () => true) {
+        const index = this.items.findIndex(predicate);
+        if (index === -1) return;
+
+        const [item] = this.items.splice(index, 1);
         if (item) {
             this.keys.delete(item.href || item);
         }
@@ -545,11 +548,37 @@ const getFullSizeQueue = new Queue();
 
 // 중복 처리 방지를 위한 Set 추가
 const processedElements = new Set();
+const offlineImageLinks = new Map();
 
 const TASK_TIMEOUT_MS = 60000;
-const processCount = 5; // 👈 동시에 처리할 최대 작업 수
-let activeWorkerCount = 0; // 현재 작동 중인 워커의 수
-let isSpawning = false; // 워커가 생성 중인지 확인하는 플래그
+const processCount = 5;
+const activeWorkerCounts = new Map();
+let isSpawning = false;
+
+function rememberOfflineImage(link) {
+    const extractorId = link.dataset.ivHost;
+    if (!extractorId) return;
+
+    if (!offlineImageLinks.has(extractorId)) {
+        offlineImageLinks.set(extractorId, new Set());
+    }
+    offlineImageLinks.get(extractorId).add(link);
+}
+
+function retryOfflineImages(extractor) {
+    const links = offlineImageLinks.get(extractor.id);
+    if (!links) return;
+
+    offlineImageLinks.delete(extractor.id);
+    for (const link of links) {
+        if (!link.isConnected) continue;
+
+        processedElements.delete(link.href);
+        image.markAsAvailable(link);
+        const img = link.querySelector('img');
+        if (img) enqueueFullSizeIfNeeded(link, img);
+    }
+}
 
 
 function waitForVisibleTab() {
@@ -568,57 +597,65 @@ function waitForVisibleTab() {
     });
 }
 
-async function getFullSizeManagement() {
-    if (document.hidden || isSpawning || activeWorkerCount >= processCount || getFullSizeQueue.isEmpty()) return;
+function getFullSizeManagement() {
+    if (document.hidden || isSpawning || getFullSizeQueue.isEmpty()) return;
 
     isSpawning = true;
 
-    async function worker() {
-        activeWorkerCount++;
-        while (true) {
-            await waitForVisibleTab();
-            if (getFullSizeQueue.isEmpty()) break;
+    try {
+        while (!document.hidden) {
+            const linkElement = getFullSizeQueue.dequeue(link => {
+                const rootDomain = extractRootDomain(link.href);
+                return (activeWorkerCounts.get(rootDomain) || 0) < processCount;
+            });
+            if (!linkElement) break;
 
-            const linkElement = getFullSizeQueue.dequeue();
-            if (!linkElement) continue;
-
-            const extractor = getExtractor(linkElement.href);
-
-            if (extractor.status === 'offline') {
-                console.warn(`[Image Viewer] Skipped: ${extractor.id} is offline.`, linkElement);
-                image.markAsBroken(linkElement);
-                continue;
-            }
-
-            // 이미 처리 중이거나 완료된 링크 건너뛰기
-            if (processedElements.has(linkElement.href)) continue;
-            processedElements.add(linkElement.href);
-
-            try {
-                // 비동기 작업 레이싱 (타임아웃 적용)
-                await Promise.race([
-                    image.getFullSizeURL(linkElement),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), TASK_TIMEOUT_MS))
-                ]);
-            } catch (error) {
-                console.warn(`[Queue] Failed: ${linkElement.href}`, linkElement, error, error.message);
-                processedElements.delete(linkElement.href); // 실패 시 재시도 가능하도록 제거
-            }
-
-            // UI 스레드 점유 방지 (최소한의 micro-task 지연)
-            await new Promise(resolve => requestAnimationFrame(resolve));
+            const rootDomain = extractRootDomain(linkElement.href);
+            activeWorkerCounts.set(rootDomain, (activeWorkerCounts.get(rootDomain) || 0) + 1);
+            processFullSizeLink(linkElement, rootDomain);
         }
-        activeWorkerCount--;
+    } finally {
+        isSpawning = false;
     }
+}
 
-    // 워커 병렬 가동
-    while (activeWorkerCount < processCount && !getFullSizeQueue.isEmpty()) {
-        worker();
-        if (activeWorkerCount < processCount) {
-            await new Promise(resolve => setTimeout(resolve, 500)); // 워커 간 간격 단축 (1s -> 0.5s)
+async function processFullSizeLink(linkElement, rootDomain) {
+    try {
+        await waitForVisibleTab();
+
+        const extractor = getExtractor(linkElement.href);
+        if (extractor.status === 'offline') {
+            console.warn(`[Image Viewer] Skipped: ${extractor.id} is offline.`, linkElement);
+            rememberOfflineImage(linkElement);
+            image.markAsBroken(linkElement);
+            return;
         }
+
+        if (processedElements.has(linkElement.href)) return;
+        processedElements.add(linkElement.href);
+
+        try {
+            await Promise.race([
+                image.getFullSizeURL(linkElement),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), TASK_TIMEOUT_MS))
+            ]);
+        } catch (error) {
+            console.warn(`[Queue] Failed: ${linkElement.href}`, linkElement, error, error.message);
+            processedElements.delete(linkElement.href);
+        }
+
+        await new Promise(resolve => requestAnimationFrame(resolve));
+    } catch (error) {
+        console.error(`[Queue] Failed: ${linkElement.href}`, linkElement, error);
+    } finally {
+        const activeCount = activeWorkerCounts.get(rootDomain);
+        if (activeCount <= 1) {
+            activeWorkerCounts.delete(rootDomain);
+        } else {
+            activeWorkerCounts.set(rootDomain, activeCount - 1);
+        }
+        getFullSizeManagement();
     }
-    isSpawning = false;
 }
 
 let ManagementWorking = false; // should be declared outside
@@ -910,6 +947,7 @@ async function getURLFromPage(linkData, extractor, requestDetails) {
     // ★ 최초 1회 성공 시 status를 'online'으로 확정
     // 이후 들어오는 동일 호스트 요청은 2번의 점검 키워드 검사(if)를 통과(Skip)하게 됨
     extractor.status = 'online';
+    retryOfflineImages(extractor);
     return url.replace(/&amp;/g, '&');
 
 }
@@ -1174,6 +1212,28 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
     return items;
 }
 
+function enqueueFullSizeIfNeeded(link, img) {
+    if (img.matches('.ClickAbleItem')) return;
+
+    if (img.src.startsWith('blob:')) {
+        link.dataset.ivThumbnail = link.href;
+        return;
+    }
+
+    const enqueueIfEligible = () => {
+        if (ImageExists(img) && !ImageBigSize(img)) {
+            getFullSizeQueue.enqueue(link);
+            getFullSizeManagement();
+        }
+    };
+
+    if (!img.complete) {
+        image.getSize(img).then(enqueueIfEligible).catch(error => console.error(error));
+    } else {
+        enqueueIfEligible();
+    }
+}
+
 
 function CheckViewerList(node) {
     const items = collectImageLinks(node);
@@ -1200,12 +1260,6 @@ async function initViewer(node) {
         link.dataset.ivHost = extractor.id;
         link.dataset.ivThumbnail = thumbnailUrl;
 
-        if (extractor.status === 'offline') {
-            console.warn(`[Image Viewer] Skipped: ${extractor.id} is offline.`);
-            image.markAsBroken(link);
-            continue; // 큐 삽입 및 아래 로직 건너뜀
-        }
-
         const isNewTab = extractor.viewMode === 'new-tab';
 
         link.setAttribute('title', isNewTab ? 'Open in new tab' : 'Open viewer');
@@ -1215,27 +1269,15 @@ async function initViewer(node) {
                 ? [CLASSES.imageLinkOpenInNew, CLASSES.openInNewIcon]
                 : [CLASSES.imageLink])
         );
-        if (!img.matches('.ClickAbleItem')) {
-            if (img.src.startsWith('blob:')) {
-                link.dataset.ivThumbnail = link.href;
-            } else if (!img.complete) {
-                image.getSize(img).then(() => {
-                    if (ImageExists(img) && !ImageBigSize(img)) {
-                        getFullSizeQueue.enqueue(link);
-                        if (!isSpawning) {
-                            getFullSizeManagement();
-                        }
-                    }
-                }).catch(e => console.error(e));
-            } else {
-                if (ImageExists(img) && !ImageBigSize(img)) {
-                    getFullSizeQueue.enqueue(link);
-                    if (!isSpawning) {
-                        getFullSizeManagement();
-                    }
-                }
-            }
+
+        if (extractor.status === 'offline') {
+            console.warn(`[Image Viewer] Skipped: ${extractor.id} is offline.`);
+            image.markAsBroken(link);
+            rememberOfflineImage(link);
+            continue;
         }
+
+        enqueueFullSizeIfNeeded(link, img);
     }
     // 3) Return the items for any further use
     return items;
@@ -1321,6 +1363,7 @@ const image = {
         // ★ offline 상태면 네트워크 및 파싱 진입 전 즉시 종료
         if (extractor && extractor.status === 'offline') {
             image.markAsBroken(link);
+            rememberOfflineImage(link);
             return null;
         }
 
@@ -1351,6 +1394,9 @@ const image = {
 
         if (!imageURL) {
             image.markAsBroken(link);
+            if (extractor && extractor.status === 'offline') {
+                rememberOfflineImage(link);
+            }
             link.classList.remove('ViewerGallery');
             //viewer.update()
             ViewerList.delete(link);
@@ -1469,6 +1515,19 @@ const image = {
         link.classList.remove('js-image-link');
         link.removeAttribute('title');
         link.dataset.status = 'offline';
+    },
+    markAsAvailable(link) {
+        const extractor = urlExtractor.getExtractorByHost(link.dataset.ivHost);
+        const isNewTab = extractor.viewMode === 'new-tab';
+
+        delete link.dataset.status;
+        link.setAttribute('title', isNewTab ? 'Open in new tab' : 'Open viewer');
+        link.classList.add(
+            ...linkCommonClasses,
+            ...(isNewTab
+                ? [CLASSES.imageLinkOpenInNew, CLASSES.openInNewIcon]
+                : [CLASSES.imageLink])
+        );
     },
 };
 
