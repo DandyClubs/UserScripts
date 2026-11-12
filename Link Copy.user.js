@@ -3051,7 +3051,8 @@ const HOST_CONFIG = {
     uploadgig: { selector: 'div.panel-heading span.filename' },
     subyshare: { selector: 'div.container h3' },
     katfile: { selector: 'form#btn_download div.container h2.text-left span, h1.kfd-fname' },
-    ddl: { selector: '.dl-file-name, h2.dk-dl-name' }
+    ddl: { selector: '.dl-file-name, h2.dk-dl-name' },
+    tezfiles: { selector: 'div.container div[data-testid="download-box"]' },
 };
 
 /**
@@ -3066,6 +3067,7 @@ function detectHost(url) {
     if (/mexa\.sh/.test(url)) return 'mexa';
     if (/uploadgig/.test(url)) return 'uploadgig';
     if (/subyshare/.test(url)) return 'subyshare';
+    if (/tezfiles\.com\/file\//.test(url)) return 'tezfiles';
     return null;
 }
 
