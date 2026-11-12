@@ -47,11 +47,18 @@
             this.rear = 0;
         }
         enqueue(item) { this.items[this.rear++] = item; }
-        dequeue() {
-            if (this.isEmpty()) return undefined;
-            const item = this.items[this.front];
-            delete this.items[this.front++];
-            return item;
+        dequeue(predicate = () => true) {
+            for (let index = this.front; index < this.rear; index++) {
+                const item = this.items[index];
+                if (item === undefined || !predicate(item)) continue;
+
+                delete this.items[index];
+                while (this.front < this.rear && !Object.prototype.hasOwnProperty.call(this.items, this.front)) {
+                    this.front++;
+                }
+                return item;
+            }
+            return undefined;
         }
         get size() { return this.rear - this.front; }
         isEmpty() { return this.size === 0; }
@@ -138,21 +145,28 @@
     }
 
     const CONCURRENCY = 5;
-    let activeWorkers = 0;
+    const activeWorkersByDomain = new Map();
 
-    function startLazyWorkers() {
-        while (activeWorkers < CONCURRENCY && !lazyImageQueue.isEmpty()) {
-            runLazyWorker();
+    function getImageDomain(img) {
+        try {
+            return new URL(img.currentSrc || img.src, window.location.href).hostname.toLowerCase();
+        } catch {
+            return window.location.hostname.toLowerCase();
         }
     }
 
-    async function runLazyWorker() {
-        if (lazyImageQueue.isEmpty()) return;
+    function startLazyWorkers() {
+        let img;
+        while ((img = lazyImageQueue.dequeue((queuedImage) =>
+            (activeWorkersByDomain.get(getImageDomain(queuedImage)) || 0) < CONCURRENCY
+        ))) {
+            const domain = getImageDomain(img);
+            activeWorkersByDomain.set(domain, (activeWorkersByDomain.get(domain) || 0) + 1);
+            runLazyWorker(img, domain);
+        }
+    }
 
-        activeWorkers++;
-
-        const img = lazyImageQueue.dequeue();
-
+    async function runLazyWorker(img, domain) {
         try {
             if (img && img.isConnected) {
                 const result = await waitForImage(img, LOAD_TIMEOUT);
@@ -172,7 +186,12 @@
             }
         } finally {
             queuedLazyImages.delete(img);
-            activeWorkers--;
+            const activeWorkers = activeWorkersByDomain.get(domain) - 1;
+            if (activeWorkers === 0) {
+                activeWorkersByDomain.delete(domain);
+            } else {
+                activeWorkersByDomain.set(domain, activeWorkers);
+            }
             startLazyWorkers();
         }
     }
