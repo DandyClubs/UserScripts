@@ -1309,7 +1309,10 @@ function ImageBigSize(image) {
     if (W >= 800) {
         big = true;
     }
-    else if (W >= 600 && H >= 800) {
+    else if (W >= 600 && H >= 600) {
+        big = true;
+    }
+    else if (W >= 500 && H >= 700) {
         big = true;
     }
     return big;
