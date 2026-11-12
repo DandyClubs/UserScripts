@@ -155,18 +155,12 @@ const contentManager = new ContentDB();
 
 let contentCache = [];
 
-function contentDBUpdate() {
-    return new Promise((resolve, reject) => {
-        contentManager.getAll().then((result) => {
-            contentCache = result;
-            resolve(contentCache);
-        }).catch(error => {
-            console.error("Failed get data:", error);
-        });
-    });
+async function contentDBUpdate() {
+    contentCache = await contentManager.getAll();
+    return contentCache;
 }
 
-
+const contentCacheReady = contentManager.init().then(contentDBUpdate);
 
 // 페이지 URL을 가져오는 부분은 동일합니다.
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
@@ -312,7 +306,7 @@ const siteConfigs = {
     },
 };
 
-GM_addStyle(`
+const contentStyles = `
 span.Warning, span.SkipModel {
 	background-color: rgba(138, 43, 226, .5);
 	color: rgba(138, 43, 226, 1);
@@ -322,7 +316,9 @@ span.Warning, span.SkipModel {
 .hiddenbox {
     display: none !important;
 }
-`);
+`;
+
+GM_addStyle(contentStyles);
 
 // 현재 페이지 URL과 일치하는 설정 객체를 찾습니다.
 const activeConfigKey = Object.keys(siteConfigs).find(key => PageURL.includes(key));
@@ -390,6 +386,22 @@ async function ClearTitle() {
 // 💡 개선된 부분: 함수 역할 분리 및 명확화
 // ----------------------------------------------------
 
+function cleanTitle(str) {
+    return str
+        // 1. S숫자:E숫자 형태가 아닌 일반 '텍스트:' 구분자 패턴만 제거
+        .replace(/^.*?:/i, (match, offset, original) => {
+            // S숫자: 뒤에 오는 에피소드 번호가 콜론 매칭에 포함되지 않으므로 원문을 유지
+            if (/s\d{1,2}\s*:\s*$/i.test(match) && /^\s*e?\d{1,3}\b/i.test(original.slice(match.length))) {
+                return match;
+            }
+            // 일반 스튜디오/카테고리 구분자 콜론인 경우 삭제
+            return '';
+        })
+        // 2. 끝 부분의 날짜 (- MM/DD/YY) 제거
+        .replace(/\s*-\s*\d{1,4}[.\-\/]\d{1,2}[.\-\/]\d{1,4}$/gi, '')
+        .trim();
+}
+
 
 const hideElement = (item) => {
     item.classList.add('hiddenbox');
@@ -451,26 +463,15 @@ async function processContent(node, selector) {
         }
 
         else if (/hidefporn\.ws|ultoporn\.com|(k2sporn|k2sprn)\.com|wetholefans\.com/.test(PageURL)) {
-            const resolutionMatch = textContent.match(/(\d{3,4})p/);
-            const resolution = resolutionMatch ? parseInt(resolutionMatch[1]) : null;
+            const resolutionMatch = textContent.match(/(\d{3,4})p|\[(UltraHD|FullHD|HD)\]/i);
+            const resolution = resolutionMatch
+                ? resolutionMatch[1]
+                    ? parseInt(resolutionMatch[1], 10)
+                    : ({ hd: 720, fullhd: 1080, ultrahd: 2160 })[resolutionMatch[2].toLowerCase()]
+                : null;
 
             if (resolution) {
 
-                function cleanTitle(str) {
-                    return str
-                        // 1. S숫자:E숫자 형태가 아닌 일반 '텍스트:' 구분자 패턴만 제거
-                        .replace(/^.*?:/gi, (match) => {
-                            // 매칭된 콜론 영역에 S숫자:E숫자 패턴이 포함되어 있다면 치환하지 않고 유지
-                            if (/s\d{1,2}\s*:\s*e?\d{1,3}/i.test(match)) {
-                                return match;
-                            }
-                            // 일반 스튜디오/카테고리 구분자 콜론인 경우 삭제
-                            return '';
-                        })
-                        // 2. 끝 부분의 날짜 (- MM/DD/YY) 제거
-                        .replace(/\s*-\s*\d{1,4}[.\-\/]\d{1,2}[.\-\/]\d{1,4}$/gi, '')
-                        .trim();
-                }
                 let Title = cleanTitle(textContent).replace(/^Nude\sLeaked\s-/i, '')
                     .replace(/\s[\[|\(].*?[UltraHD|UHD|FullHD|HD|SD|2K 1080p].+$/i, '')
                     .replace(resolutionMatch[0], '')
@@ -481,36 +482,35 @@ async function processContent(node, selector) {
                     // 캐시에서 동일 Title 검색
                     const existingIndex = contentCache.findIndex(s => s.K.toLowerCase() === Title);
                     const existingItem = existingIndex !== -1 ? contentCache[existingIndex] : null;
+                    
+                    if (!existingItem) {
+                        // [1. 최초 등록] 해당 타이틀이 없으면 무조건 등록 (해상도 포함)
+                        console.log(`First find Resolution Detected (${resolution}p):`, Title, parent);
+                        await contentManager.add(Title, AddDate, resolution);
+                        contentCache.push({ K: Title, D: AddDate, R: resolution, el: parent });
+                    }
+                    else if (resolution > existingItem.R) {
+                        if (existingItem.R < 1080) {
+                            // [2. 더 높은 해상도 발견] DB/캐시 갱신 + 이전에 탐색된 저해상도 DOM 요소 숨김
+                            console.log(`Higher Resolution Detected (${existingItem.R}p -> ${resolution}p):`, Title, parent);
 
-                    if (resolution) {
-                        if (!existingItem) {
-                            // [1. 최초 등록] 해당 타이틀이 없으면 무조건 등록 (해상도 포함)
-                            console.log(`First find Resolution Detected (${resolution}p):`, Title, parent);
                             await contentManager.add(Title, AddDate, resolution);
-                            contentCache.push({ K: Title, D: AddDate, R: resolution, el: parent });
-                        }
-                        else if (resolution > existingItem.R) {
-                            if (existingItem.R < 1080) {
-                                // [2. 더 높은 해상도 발견] DB/캐시 갱신 + 이전에 탐색된 저해상도 DOM 요소 숨김
-                                console.log(`Higher Resolution Detected (${existingItem.R}p -> ${resolution}p):`, Title, parent);
+                            contentCache[existingIndex] = { K: Title, D: AddDate, R: resolution, el: parent };
 
-                                await contentManager.add(Title, AddDate, resolution);
-                                contentCache[existingIndex] = { K: Title, D: AddDate, R: resolution, el: parent };
-
-                                if (existingItem.el) {
-                                    hideElement(existingItem.el);
-                                }
-                            }
-                        }
-                        else if (resolution < existingItem.R) {
-                            if (resolution < 1080) {
-                                // [3. 더 낮은 해상도 발견] 현재 들어온 낮은 해상도 요소만 숨김                            
-                                console.log(`Low Resolution Content Removed (${resolution}p < ${existingItem.R}p):`, Title, parent);
-                                hideElement(parent);
-                                continue;
+                            if (existingItem.el) {
+                                hideElement(existingItem.el);
                             }
                         }
                     }
+                    else if (resolution < existingItem.R) {
+                        if (resolution < 1080) {
+                            // [3. 더 낮은 해상도 발견] 현재 들어온 낮은 해상도 요소만 숨김                            
+                            console.log(`Low Resolution Content Removed (${resolution}p < ${existingItem.R}p):`, Title, parent);
+                            hideElement(parent);
+                            continue;
+                        }
+                    }
+
                 }
             }
         }
@@ -566,7 +566,7 @@ function replaceText(node) {
 
     // ✅ DOM 교체는 여기서 한 번에 수행
     for (const { node, replaced } of changed) {
-        const range = document.createRange();
+        const range = node.ownerDocument.createRange();
         range.selectNodeContents(node);
         const fragment = range.createContextualFragment(replaced);
         range.deleteContents();
@@ -579,13 +579,84 @@ function replaceText(node) {
 /**
  * 큐에 있는 모든 작업을 순차적으로 처리합니다.
  */
-function processQueue() {
+async function processQueue() {
     managementWorking = true;
-    while (!queue.isEmpty()) {
-        const item = queue.dequeue();
-        processContent(item, contentSelector);
+    try {
+        while (!queue.isEmpty()) {
+            const item = queue.dequeue();
+            await processContent(item, contentSelector);
+        }
+    } finally {
+        managementWorking = false;
     }
-    managementWorking = false;
+}
+
+const observedDocuments = new WeakSet();
+const observedIframes = new WeakSet();
+
+function startQueue() {
+    if (!managementWorking && !queue.isEmpty()) {
+        processQueue();
+    }
+}
+
+function enqueueContentWithin(node) {
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    const contentParents = new Set();
+    const closestContentParent = node.closest(contentSelector);
+    if (closestContentParent) {
+        contentParents.add(closestContentParent);
+    } else {
+        node.querySelectorAll(contentSelector).forEach(parent => contentParents.add(parent));
+    }
+
+    for (const parent of contentParents) queue.enqueue(parent);
+}
+
+function observeDocument(targetDocument, processExistingContent = false) {
+    if (!targetDocument.body || observedDocuments.has(targetDocument)) return;
+    observedDocuments.add(targetDocument);
+
+    if (targetDocument !== document) {
+        const style = targetDocument.createElement('style');
+        style.textContent = contentStyles;
+        (targetDocument.head || targetDocument.documentElement).appendChild(style);
+    }
+
+    if (processExistingContent) {
+        queue.enqueue(targetDocument.body);
+        startQueue();
+    }
+
+    const observer = new MutationObserver(mutations => {
+        for (const mutation of mutations) {
+            if (mutation.type !== 'childList' || mutation.addedNodes.length === 0) continue;
+
+            for (const node of mutation.addedNodes) {
+                if (node.nodeType !== Node.ELEMENT_NODE) continue;
+
+                if (node.localName === 'iframe') observeIframe(node);
+                node.querySelectorAll('iframe').forEach(observeIframe);
+                enqueueContentWithin(node);
+            }
+        }
+
+        startQueue();
+    });
+
+    observer.observe(targetDocument.body, { childList: true, subtree: true });
+}
+
+function observeIframe(iframe) {
+    if (!observedIframes.has(iframe)) {
+        observedIframes.add(iframe);
+        iframe.addEventListener('load', () => {
+            if (iframe.contentDocument) observeDocument(iframe.contentDocument, true);
+        });
+    }
+
+    if (iframe.contentDocument) observeDocument(iframe.contentDocument, true);
 }
 
 // ----------------------------------------------------
@@ -625,7 +696,8 @@ function getClearTitle(name) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-    await contentManager.init();
+    await contentCacheReady;
+
     console.log('Start Remove Content!');
 
     const rootElements = Active.rootSelector
@@ -638,38 +710,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         setClearTitle("ClearTitle");
     }
 
-    contentCache = await contentDBUpdate();
-
     // 1. 초기 페이지 콘텐츠 처리는 각 rootElement별로 진행
     for (const rootElement of rootElements) {
-        processContent(rootElement, contentSelector);
+        await processContent(rootElement, contentSelector);
     }
 
-    // 2. 동적 콘텐츠 감지용 MutationObserver는 document.body 전체에 1개만 설정
-    const observer = new MutationObserver(mutations => {
-        for (const mutation of mutations) {
-            if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                for (const node of mutation.addedNodes) {
-                    if (!(node instanceof Element)) continue;
-
-                    const contentParents = new Set();
-                    const closestContentParent = node.closest(contentSelector);
-                    if (closestContentParent) {
-                        contentParents.add(closestContentParent);
-                    } else {
-                        node.querySelectorAll(contentSelector).forEach(parent => contentParents.add(parent));
-                    }
-
-                    for (const parent of contentParents) queue.enqueue(parent);
-                }
-            }
-        }
-        if (!managementWorking && !queue.isEmpty()) {
-            processQueue();
-        }
-    });
-
-    // document.body 전체를 단일 옵저버로 관찰
-    observer.observe(document.body, { childList: true, subtree: true });
+    // Main document and same-origin iframe documents need separate observers.
+    observeDocument(document);
+    document.querySelectorAll('iframe').forEach(observeIframe);
 
 }, { once: true });
