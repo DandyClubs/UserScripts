@@ -138,7 +138,7 @@ const adTagMap = {
     "dhlottery.co.kr": ['div.popup-wrap']
 };
 
-const defaultADTag = ['.top-banner', 'script[src*="ethecountryw"]', '#popmagicldr'];
+const defaultADTag = ['script[src*="ethecountryw"]', '#popmagicldr'];
 
 let ADTag = adTagMap[RootDomain] || defaultADTag;
 
@@ -265,10 +265,12 @@ const SiteHandlers = [
         regex: /xchina\.co|1909\.me/,
         handler: function (node) {
             Array.from(node.querySelectorAll('a[clickmode]')).forEach((el) => {
+                console.log('Removing element:', el);
                 el.closest('div.item') ? el.closest('div.item').remove() : el.remove()
             })
 
             Array.from(node.querySelectorAll('div.exoclick_300x250, div.item._300x250')).forEach((el) => {
+                console.log('Removing element:', el);
                 el.closest('div.item') ? el.closest('div.item').remove() : el.remove()
             })
 
@@ -277,6 +279,7 @@ const SiteHandlers = [
 
             const modal = document.querySelector('body')
             if (modal && modal.classList.contains('modal-open')) {
+                console.log('Removing modal-open class from body');
                 modal.classList.remove('modal-open')
             }
         }
@@ -286,6 +289,7 @@ const SiteHandlers = [
         handler: function (node) {
             const MouseOver = [...node.querySelectorAll('img.zoom, span#visitedforums')]
             MouseOver.forEach(function (item) {
+                console.log('Removing onmouseover attribute from:', item);
                 item.removeAttribute('onmouseover')
             })
         }
@@ -367,6 +371,7 @@ function ADRemover(node) {
 
     const popMagicScripts = node.querySelectorAll('script#popmagicldr');
     for (const el of popMagicScripts) {
+        console.log('Removing popmagicldr script:', el);
         el.remove();
         break;
     }
@@ -375,6 +380,7 @@ function ADRemover(node) {
         ADTag.forEach(function (item) {
             var removeDoms = [...node.querySelectorAll(item)]
             removeDoms.forEach(function (removeDom) {
+                console.log('Removing element:', removeDom)
                 if (removeDom.closest('div.image-big')) {
                     removeDom.closest('div.image-big').remove()
                 }
