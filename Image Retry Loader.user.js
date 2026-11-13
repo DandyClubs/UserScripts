@@ -580,9 +580,14 @@
         retrySet.delete(getPureUrl(item.imgElement.src));
 
         try {
-            const imgElement = item.imgElement;
+            const imgElement = item.imgElement;            
+            if (!imgElement || !imgElement.isConnected) {
+                return;
+            }
+
             const imgElementSrc = imgElement.src;
-            if (!imgElement || !imgElement.isConnected || !imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:') || isProxyUrl(imgElementSrc)) {
+
+            if (!imgElementSrc || imgElementSrc.startsWith('blob:') || imgElementSrc.startsWith('data:') || isProxyUrl(imgElementSrc)) {
                 return;
             }
 
