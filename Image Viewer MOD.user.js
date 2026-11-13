@@ -1320,8 +1320,8 @@ function AddEvent(el) {
 function ImageBigSize(image) {
     if (/contents\.fc2\.com|blob:/.test(image.src)) return false;
     let big = false;
-    let W = image.naturalWidth;
-    let H = image.naturalHeight;
+    const W = image.naturalWidth;
+    const H = image.naturalHeight;
 
     if (W >= 800) {
         big = true;
