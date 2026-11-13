@@ -506,6 +506,15 @@ filter: alpha(opacity=80);
     box-shadow: 2px 4px 10px 0 rgba(0, 0, 0, .5);
     border-radius: .5em;
 }
+
+
+    
+.iv-processing {
+    outline: 2px solid #f0ad4e !important;
+    outline-offset: 2px;
+    cursor: progress !important;
+}
+
 `;
 
 function AddStyles(CSS, ID) {
@@ -621,6 +630,9 @@ function getFullSizeManagement() {
 
 async function processFullSizeLink(linkElement, rootDomain) {
     try {
+        linkElement.classList.add(CLASSES.processing);
+        linkElement.setAttribute('aria-busy', 'true');
+
         await waitForVisibleTab();
 
         const extractor = getExtractor(linkElement.href);
@@ -648,6 +660,9 @@ async function processFullSizeLink(linkElement, rootDomain) {
     } catch (error) {
         console.error(`[Queue] Failed: ${linkElement.href}`, linkElement, error);
     } finally {
+        linkElement.classList.remove(CLASSES.processing);
+        linkElement.removeAttribute('aria-busy');
+
         const activeCount = activeWorkerCounts.get(rootDomain);
         if (activeCount <= 1) {
             activeWorkerCounts.delete(rootDomain);
@@ -1053,6 +1068,7 @@ const CLASSES = {
     imageLinkHover: 'iv-icon--hover',
     brokenImageIcon: 'iv-icon--type-image-broken',
     loadingIcon: 'iv-icon--type-loading',
+    processing: 'iv-processing',
     loading: 'iv-image-view__image--loading',
     thumbnail: 'iv-image-view__image--thumbnail',
     open: 'iv-image-view--open',
@@ -1588,7 +1604,6 @@ function sleep(ms) {
 
 window.addEventListener("load", () => {
     const viewerCss = GM_getResourceText("VIEWER_CSS");
-    GM_addStyle(viewerCss);
     Start();
 }, { once: true });
 
