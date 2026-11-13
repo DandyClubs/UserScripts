@@ -86,12 +86,14 @@
 
             const currentSrc = img.getAttribute('src');
 
+            img.removeAttribute('loading');
+
             if (!currentSrc || currentSrc === "" || img.src === window.location.href) {
                 img.dataset.loaded = "false";
                 resolve('skipped');
             }
 
-            if (img.complete && img.naturalWidth !== 0) {
+            if (img.complete && img.naturalWidth > 0) {
                 img.decode()
                     .then(() => {
                         img.dataset.loaded = "true";
@@ -140,7 +142,7 @@
             img.addEventListener('load', onLoad);
             img.addEventListener('error', onError);
 
-            img.removeAttribute('loading');
+            
         });
     }
 
