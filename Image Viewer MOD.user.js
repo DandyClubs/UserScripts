@@ -510,8 +510,7 @@ filter: alpha(opacity=80);
 
     
 .iv-processing {
-    outline: 1px solid #f0ad4e !important;
-    outline-offset: 1px;
+    opacity: .75;
     cursor: progress !important;
 }
 
@@ -1606,7 +1605,7 @@ function sleep(ms) {
 
 window.addEventListener("load", () => {
     const viewerCss = GM_getResourceText("VIEWER_CSS");
-    addStyles(viewerCss, 'ViewerCSS');  
+    AddStyles(viewerCss, 'ViewerCSS');  
     Start();
 }, { once: true });
 
