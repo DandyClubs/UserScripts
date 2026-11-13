@@ -510,8 +510,8 @@ filter: alpha(opacity=80);
 
     
 .iv-processing {
-    outline: 2px solid #f0ad4e !important;
-    outline-offset: 2px;
+    outline: 1px solid #f0ad4e !important;
+    outline-offset: 1px;
     cursor: progress !important;
 }
 
@@ -629,9 +629,11 @@ function getFullSizeManagement() {
 }
 
 async function processFullSizeLink(linkElement, rootDomain) {
+    const progressImage = linkElement.querySelector('img');
+
     try {
-        linkElement.classList.add(CLASSES.processing);
-        linkElement.setAttribute('aria-busy', 'true');
+        progressImage.classList.add(CLASSES.processing);
+        progressImage.setAttribute('aria-busy', 'true');
 
         await waitForVisibleTab();
 
@@ -660,8 +662,8 @@ async function processFullSizeLink(linkElement, rootDomain) {
     } catch (error) {
         console.error(`[Queue] Failed: ${linkElement.href}`, linkElement, error);
     } finally {
-        linkElement.classList.remove(CLASSES.processing);
-        linkElement.removeAttribute('aria-busy');
+        progressImage.classList.remove(CLASSES.processing);
+        progressImage.removeAttribute('aria-busy');
 
         const activeCount = activeWorkerCounts.get(rootDomain);
         if (activeCount <= 1) {
@@ -1604,6 +1606,7 @@ function sleep(ms) {
 
 window.addEventListener("load", () => {
     const viewerCss = GM_getResourceText("VIEWER_CSS");
+    addStyles(viewerCss, 'ViewerCSS');  
     Start();
 }, { once: true });
 
