@@ -209,18 +209,14 @@ function ADChange() {
         }
     }
 
-    const patterns = ['puURLstrpcht', 'popCount', 'ad-provider'];
-    for (const el of scripts) {
-        let matched = false;
+    const patterns = ['puURLstrpcht', 'popCount', 'ad-provider', 'pemsrv', 'exoclick'];
+
+    for (const el of scripts) {        
         for (const pattern of patterns) {
             if (el.outerHTML.includes(pattern)) {
-                matched = true;
+                el.remove();
                 break;
             }
-        }
-        if (matched) {
-            el.remove();
-            break;
         }
     }
 }
@@ -296,9 +292,8 @@ const SiteHandlers = [
     },    
     {
         regex: /eyny\.com\/forum\.php\?mod=forumdisplay/,
-        handler: function (node) {
-        
-            const urlParams = new URLSearchParams(PageURL);
+        handler: function (node) {        
+            
             const displayMode = document.querySelector('div#threadlist.tl div.th table tbody tr td.by a.chked') ? 'yes' : 'no';
             if (displayMode && displayMode === 'yes') {
                 const imageModeItems = [...node.querySelectorAll('div#threadlist div ul li h3.ptn a')]
