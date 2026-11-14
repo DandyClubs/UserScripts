@@ -480,9 +480,9 @@
         }
 
         const isImage = isImageResponse(res);
-        const size = getContentLength(res);
+        const size = getContentLength(res);        
 
-        if (status >= 200 && status < 300) {
+        if (status === 200 || status === 206 || status === 304) {
             if (!isImage) {
                 return {
                     final: true,
@@ -536,6 +536,7 @@
                 : { final: false };
         }
 
+        console.log(isImage, size, status);
         return forceFinal
             ? { final: true, result: { exists: false, reason: 'unknown' } }
             : { final: false };
