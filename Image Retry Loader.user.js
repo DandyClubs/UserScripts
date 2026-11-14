@@ -142,7 +142,7 @@
             img.addEventListener('load', onLoad);
             img.addEventListener('error', onError);
 
-            
+
         });
     }
 
@@ -480,7 +480,7 @@
         }
 
         const isImage = isImageResponse(res);
-        const size = getContentLength(res);        
+        const size = getContentLength(res);
 
         if (status === 200 || status === 206 || status === 304) {
             if (!isImage) {
@@ -583,7 +583,7 @@
         retrySet.delete(getPureUrl(item.imgElement.src));
 
         try {
-            const imgElement = item.imgElement;            
+            const imgElement = item.imgElement;
             if (!imgElement || !imgElement.isConnected) {
                 return;
             }
@@ -967,23 +967,24 @@
             return false;
         }
 
-        const cachedProxyUrl = getSavedProxyUrl(rawSrc);
-        if (cachedProxyUrl) {
-            appliedCachedProxyUrls.set(img, rawSrc);
-            img.src = cachedProxyUrl;
-            rawSrc = cachedProxyUrl;
-        }
-
         if (rawSrc && !isProxyUrl(rawSrc) &&
             !img.dataset.proxyTestFailed &&
             new RegExp(`(${proxyImageDomainsPattern})`, 'i').test(rawSrc)) {
+            const cachedProxyUrl = getSavedProxyUrl(rawSrc);
+            if (cachedProxyUrl) {
+                appliedCachedProxyUrls.set(img, rawSrc);
+                img.src = cachedProxyUrl;
+                rawSrc = cachedProxyUrl;
+                return true;
+            }
+
             if (!img.dataset.isProxyTesting) {
                 img.dataset.isProxyTesting = 'true';
                 img.dataset.loaded = "pending";
                 findWorkingProxy(rawSrc)
                     .then(workingProxy => {
                         delete img.dataset.isProxyTesting;
-                        
+
                         if (workingProxy) {
                             img.src = workingProxy;
                             img.dataset.loaded = "true";
