@@ -19,8 +19,7 @@
 (function () {
     'use strict';
 
-
-    // 이미지 재시도 큐    
+    // 이미지 재시도 큐
     const retryQueue = [];
     const retrySet = new Set();
     const failedImagesSet = new Set();
@@ -29,10 +28,11 @@
     // 재시도 간격 및 횟수
     const RETRY_INTERVAL = 10000;
     const MAX_RETRY_COUNT = 3;
-    const LOAD_TIMEOUT = 60000; // 30초 타임아웃
+    const LOAD_TIMEOUT = 60000;
+    const DECODE_TIMEOUT = 15000; // 디코딩 대기 및 처리 전용 타임아웃
     const PROXY_LOAD_TIMEOUT = 30000;
 
-    const tryProxy = ['https://wsrv.nl/?url=', 'https://proxy.duckduckgo.com/iu/?u=']
+    const tryProxy = ['https://wsrv.nl/?url=', 'https://proxy.duckduckgo.com/iu/?u='];
     const SUCCESSFUL_PROXY_STORAGE_PREFIX = 'successfulProxy:';
     const STORAGE_EXPIRATION = 5 * 24 * 60 * 60 * 1000;
     const BAD_URL_PREFIX = 'badUrl:';
@@ -64,10 +64,70 @@
         isEmpty() { return this.size === 0; }
     }
 
+    // =========================================================================
+    // [개선] img.decode() 전용 전역 순차 처리 큐 (디코딩 타임아웃 안전장치 포함)
+    // =========================================================================
+    const decodeQueue = new Queue();
+    let isDecoding = false;
+
+    function enqueueDecode(img) {
+        return new Promise((resolve) => {
+            if (!img || !img.isConnected) {
+                return resolve(false);
+            }
+            const targetSrc = img.src;
+
+            // 디코딩 큐 대기 시간이나 연산이 너무 지연될 경우 대비한 개별 타임아웃
+            const decodeTimer = setTimeout(() => {
+                console.warn('[ImageRetry] 디코딩 대기 또는 처리 타임아웃:', targetSrc);
+                resolve(false);
+            }, DECODE_TIMEOUT);
+
+            decodeQueue.enqueue({
+                img,
+                targetSrc,
+                resolve: (success) => {
+                    clearTimeout(decodeTimer);
+                    resolve(success);
+                }
+            });
+            processDecodeQueue();
+        });
+    }
+
+    async function processDecodeQueue() {
+        if (isDecoding) return;
+        isDecoding = true;
+
+        while (!decodeQueue.isEmpty()) {
+            const task = decodeQueue.dequeue();
+            if (!task) continue;
+
+            const { img, targetSrc, resolve } = task;
+
+            // 대기 중 DOM에서 제거되었거나 src가 바뀐 경우 스킵
+            if (!img || !img.isConnected || img.src !== targetSrc) {
+                resolve(false);
+                continue;
+            }
+
+            try {
+                if ('decode' in img) {
+                    await img.decode();
+                }
+                resolve(true);
+            } catch (err) {
+                resolve(false);
+            }
+        }
+
+        isDecoding = false;
+    }
+    // =========================================================================
+
     const lazyImageQueue = new Queue();
     const queuedLazyImages = new WeakSet();
     const appliedCachedProxyUrls = new WeakMap();
-
 
     const checkImageVisibility = (img) => {
         if (!img || queuedLazyImages.has(img)) return;
@@ -80,69 +140,70 @@
         }
     };
 
-
     async function waitForImage(img, timeout) {
         return new Promise((resolve) => {
-
             const currentSrc = img.getAttribute('src');
 
             img.removeAttribute('loading');
 
             if (!currentSrc || currentSrc === "" || img.src === window.location.href) {
                 img.dataset.loaded = "false";
-                resolve('skipped');
-            }
-
-            if (img.complete && img.naturalWidth > 0) {
-                img.decode()
-                    .then(() => {
-                        img.dataset.loaded = "true";
-                        resolve('loaded');
-                    })
-                    .catch(() => {
-                        console.warn('[ImageRetry] decode 실패 → 깨진 이미지 감지:', img.src);
-                        resolve('corrupted');
-                    });
+                return resolve('skipped');
             }
 
             if (img.src.startsWith('blob:')) {
                 img.dataset.loaded = "true";
-                resolve('loaded');
+                return resolve('loaded');
             }
 
-            const timer = setTimeout(() => {
-                console.warn(`[ImageRetry] 로딩 타임아웃: ${img.src}`);
+            // 이미 브라우저에 로드된 상태라면 네트워크 타이머 없이 바로 디코드 큐로 진입
+            if (img.complete && img.naturalWidth > 0) {
+                enqueueDecode(img).then((ok) => {
+                    if (ok) {
+                        img.dataset.loaded = "true";
+                        resolve('loaded');
+                    } else {
+                        console.warn('[ImageRetry] decode 실패 → 깨진 이미지 감지:', img.src);
+                        resolve('corrupted');
+                    }
+                });
+                return;
+            }
+
+            // 네트워크 로딩 전용 타임아웃 타이머 설정
+            const networkTimer = setTimeout(() => {
+                console.warn(`[ImageRetry] 네트워크 로딩 타임아웃: ${img.src}`);
                 cleanup();
                 resolve('timeout');
             }, timeout);
 
             function cleanup() {
-                clearTimeout(timer);
+                clearTimeout(networkTimer);
                 img.removeEventListener('load', onLoad);
                 img.removeEventListener('error', onError);
             }
 
             function onLoad() {
-                cleanup();
-                img.decode()
-                    .then(() => {
+                cleanup(); // 네트워크 타이머 해제! 이제 디코딩 큐 대기 시간은 네트워크 타임아웃과 무관함
+                
+                enqueueDecode(img).then((ok) => {
+                    if (ok) {
                         img.dataset.loaded = "true";
                         resolve('loaded');
-                    })
-                    .catch(() => {
-                        console.warn('[ImageRetry] decode 실패 (onLoad 이후)');
+                    } else {
+                        console.warn('[ImageRetry] decode 실패 (onLoad 이후):', img.src);
                         resolve('corrupted');
-                    });
+                    }
+                });
             }
 
             function onError() {
                 cleanup();
                 resolve('error');
             }
+
             img.addEventListener('load', onLoad);
             img.addEventListener('error', onError);
-
-
         });
     }
 
@@ -311,9 +372,7 @@
         }
     }
 
-
     function cleanProxyUrlCache() {
-
         let cacheKeys;
         try {
             cacheKeys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index))
@@ -621,7 +680,6 @@
                 };
                 imageCheckCache.set(imgElement, checkResult);
             }
-            //if (imgElement.src !== imgElementSrc) return;
 
             if (checkResult) {
                 console.log(`[ImageRetry] 이미지 존재 여부 확인 결과: `, checkResult.result, imgElement);
@@ -643,7 +701,6 @@
                     return;
                 }
             }
-
 
             if (!workingProxy && !exists && (reason === '400' || reason === '404' || reason === 'server_error')) {
                 console.warn(`[ImageRetry] 서버에 존재하지 않는 이미지입니다. 재시도하지 않습니다: ${status ? 'HTTP ' + status : ''} => ${reason}`, imgElement);
@@ -680,23 +737,25 @@
                 if (retryFinished) return;
                 const loadedSrc = imgElement.src;
                 removeRetryListeners();
-                imgElement.decode()
-                    .then(() => {
+
+                // 재시도 이미지 역시 순차 디코드 큐에서 1개씩 검증
+                enqueueDecode(imgElement).then((ok) => {
+                    if (ok) {
                         if (!retryFinished && imgElement.src === loadedSrc) {
                             imgElement.dataset.loaded = "true";
                         }
                         retryFinished = true;
                         clearTimeout(retryLoadTimer);
-                    })
-                    .catch(error => {
-                        console.warn('[ImageRetry] 재시도 이미지 decode 실패:', error);
+                    } else {
+                        console.warn('[ImageRetry] 재시도 이미지 decode 실패:', loadedSrc);
                         if (imgElement.src === loadedSrc) {
                             retryError();
                         } else {
                             retryFinished = true;
                             clearTimeout(retryLoadTimer);
                         }
-                    });
+                    }
+                });
             }
 
             function retryError(reason = 'retry_error') {
@@ -889,21 +948,9 @@
     function isListImage(img) {
         if (!img || !img.isConnected) return false;
         if (img.dataset.isFixing) return false;
-        //if (img.closest('.image-masonry')) return false;
         if (img.closest('.hiddenbox')) return false;
         if (img.closest('.lazyload-preview')) return false;
-        /*
-                // 🔥 CSS 가시성 확인 (display: none 등 체크)
-                const isVisible = img.checkVisibility({
-                    checkOpacity: false,
-                    checkVisibilityCSS: false
-                });
-        
-                if (!isVisible) {
-                    console.log('이미지가 화면에 숨겨져 있습니다 (display: none 포함).', img);
-                    return false;
-                }
-        */
+
         let rawSrc = img.src;
 
         if (rawSrc.startsWith('http://data:image')) {
@@ -914,7 +961,6 @@
         for (const attr of img.attributes) {
             if (lazyAttributesMap[attr.name]) {
                 if (attr.value && attr.value.trim() !== '') {
-                    //console.log(`[Lazy-Attribute] ${attr.name} 속성에서 이미지 URL 발견: ${attr.value}`);
                     img.src = attr.value;
                     img.removeAttribute(attr.name);
                     rawSrc = attr.value;
@@ -936,7 +982,7 @@
                 getFixUrl(videoLink.href, rawSrc)
                     .then(realUrl => {
                         img.src = realUrl;
-                        checkImageVisibility(img); // 복구된 URL 적용 후 재관찰
+                        checkImageVisibility(img);
                     })
                     .catch(err => console.warn(`[Fix-Error] ${err}`));
             }
@@ -1014,11 +1060,12 @@
         }
 
         if (img.complete && img.naturalWidth !== 0) {
-            img.decode()
-                .then(() => {
+            enqueueDecode(img).then((ok) => {
+                if (ok) {
                     img.dataset.loaded = "true";
-                    return false;
-                })
+                }
+            });
+            return false;
         }
         return true;
     }
