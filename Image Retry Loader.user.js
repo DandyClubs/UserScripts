@@ -950,8 +950,10 @@
         if (img.dataset.isFixing) return false;
         if (img.closest('.hiddenbox')) return false;
         if (img.closest('.lazyload-preview')) return false;
+        
 
         let rawSrc = img.src;
+        if(/counter\.yadro\.ru/.test(rawSrc)) return false;
 
         if (rawSrc.startsWith('http://data:image')) {
             img.src = rawSrc.replace('http://', '');

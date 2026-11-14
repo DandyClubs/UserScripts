@@ -1768,7 +1768,7 @@ const siteConfigs = [
         regex: /ultoporn\.com\/\d+/,
         config: {
             copyOffsetAreaSelector: 'div.storyhead > .shead',
-            downloadAreaSelector: 'div.quote'
+            downloadAreaSelector: 'div#dle-content div.quote'
         }
     },
     {
