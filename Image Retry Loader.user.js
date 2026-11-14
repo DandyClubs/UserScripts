@@ -29,7 +29,7 @@
     // 재시도 간격 및 횟수
     const RETRY_INTERVAL = 10000;
     const MAX_RETRY_COUNT = 3;
-    const LOAD_TIMEOUT = 30000; // 30초 타임아웃
+    const LOAD_TIMEOUT = 60000; // 30초 타임아웃
     const PROXY_LOAD_TIMEOUT = 30000;
 
     const tryProxy = ['https://wsrv.nl/?url=', 'https://proxy.duckduckgo.com/iu/?u=']
@@ -151,7 +151,7 @@
 
     function getImageDomain(img) {
         try {
-            return new URL(img.currentSrc || img.src, window.location.href).hostname.toLowerCase();
+            return new URL(img.src, window.location.href).hostname.toLowerCase();
         } catch {
             return window.location.hostname.toLowerCase();
         }
@@ -677,11 +677,11 @@
 
             function retryLoad() {
                 if (retryFinished) return;
-                const loadedSrc = imgElement.currentSrc || imgElement.src;
+                const loadedSrc = imgElement.src;
                 removeRetryListeners();
                 imgElement.decode()
                     .then(() => {
-                        if (!retryFinished && (imgElement.currentSrc || imgElement.src) === loadedSrc) {
+                        if (!retryFinished && imgElement.src === loadedSrc) {
                             imgElement.dataset.loaded = "true";
                         }
                         retryFinished = true;
@@ -689,7 +689,7 @@
                     })
                     .catch(error => {
                         console.warn('[ImageRetry] 재시도 이미지 decode 실패:', error);
-                        if ((imgElement.currentSrc || imgElement.src) === loadedSrc) {
+                        if (imgElement.src === loadedSrc) {
                             retryError();
                         } else {
                             retryFinished = true;
