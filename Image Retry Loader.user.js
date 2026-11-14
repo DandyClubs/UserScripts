@@ -146,7 +146,7 @@
         });
     }
 
-    const CONCURRENCY = 5;
+    const CONCURRENCY = 4;
     const activeWorkersByDomain = new Map();
 
     function getImageDomain(img) {
