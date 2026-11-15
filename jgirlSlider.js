@@ -14,24 +14,25 @@
     'use strict';
 
     // 1. 초기화: .lazyload-poster가 포함된 figure를 제외하고 이미지 주소 백업 및 src 제거
-    document.querySelectorAll('.post-item').forEach(post => {
-        const figures = post.querySelectorAll('.preview-container figure');
+    document.querySelectorAll('.post-item .preview-container figure').forEach(figure => {
 
-        figures.forEach((figure) => {
-            // 포스터 figure인 경우 제외
-            const poster = figure.querySelector('.lazyload-poster')
-            if (poster) {
-                poster.classList.remove('lazyload-poster');
-                poster.classList.add('poster');
-                return;
-            }
-            const img = figure.querySelector('img.lazyload-preview');
-            if (!img) return;
+        // 포스터 figure인 경우 제외
+        const poster = figure.querySelector('.lazyload-poster')
+        if (poster) {
+            poster.classList.remove('lazyload-poster');
+            poster.classList.add('poster');
+            return;
+        }
+        const img = figure.querySelector('img.lazyload-preview');
+        if (!img) return;
 
-            img.dataset.slider = img.dataset.src || img.src;
-            img.removeAttribute('src');
-            img.removeAttribute('data-src');
-        });
+        img.classList.remove('lazyload-preview');
+        img.classList.add('preview');
+
+        img.dataset.slider = img.dataset.src || img.src;
+        img.removeAttribute('src');
+        img.removeAttribute('data-src');
+
     });
 
     // 2. opacity가 0에서 1로 바뀐 figure를 큐에 넣고 순차적으로 로드
@@ -43,7 +44,7 @@
         // 이미 완료된 요소이거나 이미 큐에 있는 경우 차단
         if (figure.dataset.observer === 'true' || queuedFigures.has(figure)) return;
 
-        const img = figure.querySelector('img.lazyload-preview');
+        const img = figure.querySelector('img.preview');
         if (!img || !img.dataset.slider || img.getAttribute('src')) return;
 
         queuedFigures.add(figure);
@@ -67,7 +68,7 @@
             // 처리 전 완료 여부 재확인
             if (figure.dataset.observer === 'true') continue;
 
-            const img = figure.querySelector('img.lazyload-preview');
+            const img = figure.querySelector('img.preview');
             if (!img || !img.dataset.slider || img.getAttribute('src')) {
                 figure.dataset.observer = 'true';
                 continue;
