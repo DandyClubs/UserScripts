@@ -710,7 +710,7 @@
                 return;
             }
 
-            if (!workingProxy && !exists && reason === 'Region restrictions') {
+            if (!workingProxy && !exists && (reason === 'Region restrictions' || reason === 'timeout')) {
                 console.log('[ImageRetry] 지역 제한 감지, 프록시 이미지 로드 확인 중:', imgElementSrc);
                 imgElement.dataset.loaded = "pending";
                 workingProxy = await findWorkingProxy(imgElementSrc);
