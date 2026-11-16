@@ -692,8 +692,7 @@
                 imgElement.dataset.loaded = "pending";
                 workingProxy = await findWorkingProxy(imgElementSrc);
                 if (workingProxy) {
-                    console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
-                    imgElement.removeAttribute('loading');                    
+                    console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);                    
                 } else {
                     imgElement.dataset.loaded = "false";
                     console.warn('[ImageRetry] 프록시 후보에서 이미지 로드에 실패했습니다:', imgElementSrc);
@@ -728,7 +727,7 @@
             }
 
             const retrySrc = workingProxy || imgElementSrc;
-                        
+
             let retryLoadTimer;
             let retryFinished = false;
 
