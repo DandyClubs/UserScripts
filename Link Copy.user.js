@@ -2148,7 +2148,7 @@ const waitDownloadArea = [
         handler: async () => {
             copyOffsetArea = document.querySelector('div.storyhead > h1.shead');
             Array.from(document.querySelectorAll('button.click_show')).forEach(element => element.click());
-            const downloadContainer = await waitElement('div.quote');
+            const downloadContainer = await waitElement('div.quote:has(a)');
             console.log('ultoporn DownloadArea:', downloadContainer);
             DownloadArea = [downloadContainer];
         },
