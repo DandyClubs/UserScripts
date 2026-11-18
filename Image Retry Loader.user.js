@@ -596,8 +596,7 @@
                 ? { final: true, result: { exists: false, reason: 'server_error' } }
                 : { final: false };
         }
-
-        console.log(isImage, size, status);
+                
         return forceFinal
             ? { final: true, result: { exists: false, reason: 'unknown' } }
             : { final: false };
