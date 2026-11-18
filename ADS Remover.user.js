@@ -363,13 +363,7 @@ function ADRemover(node) {
     // [추가됨] DOM 변경 시에도 img 태그의 onload 리다이렉트 검사 실행
     removeImgOnloadRedirect(node);
 
-    const popMagicScripts = node.querySelectorAll('script#popmagicldr');
-    for (const el of popMagicScripts) {
-        console.log('Removing popmagicldr script:', el);
-        el.remove();
-        break;
-    }
-
+    
     if (ADTag) {
         ADTag.forEach(function (item) {
             var removeDoms = [...node.querySelectorAll(item)]

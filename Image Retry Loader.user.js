@@ -233,6 +233,7 @@
         try {
             if (img && img.isConnected) {
                 const result = await waitForImage(img, LOAD_TIMEOUT);
+                console.log(result);
                 if (result === 'error' || result === 'corrupted' || result === 'timeout') {
                     const originalSrc = appliedCachedProxyUrls.get(img);
                     if (originalSrc) {
@@ -1037,7 +1038,7 @@
                 rawSrc = cachedProxyUrl;
                 return true;
             }
-
+            
             if (!img.dataset.isProxyTesting) {
                 img.dataset.isProxyTesting = 'true';
                 img.dataset.loaded = "pending";
@@ -1045,21 +1046,19 @@
                     .then(workingProxy => {
                         delete img.dataset.isProxyTesting;
                         if (workingProxy) {
-                            img.src = workingProxy;                            
-                            return true;
+                            img.src = workingProxy;
+                            checkImageVisibility(img);                            
                         } else {
                             console.warn('[ImageRetry] 도메인 프록시 후보에서 이미지 로드에 실패했습니다:', rawSrc);
                             img.dataset.proxyTestFailed = 'true';
-                            img.dataset.loaded = "false";
-                            return true;
+                            img.dataset.loaded = "false";                            
                         }
                     })
                     .catch(error => {
                         delete img.dataset.isProxyTesting;
                         console.error('[ImageRetry] 도메인 프록시 테스트 실패:', rawSrc, error);
                         img.dataset.proxyTestFailed = 'true';
-                        img.dataset.loaded = "false";
-                        return true;
+                        img.dataset.loaded = "false";                        
                     });
             }
             return false;
