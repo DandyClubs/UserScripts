@@ -1038,7 +1038,7 @@
                 rawSrc = cachedProxyUrl;
                 return true;
             }
-            
+
             if (!img.dataset.isProxyTesting) {
                 img.dataset.isProxyTesting = 'true';
                 img.dataset.loaded = "pending";

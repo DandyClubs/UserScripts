@@ -361,14 +361,15 @@ async function init() {
     });
 
     await firstPromise;
-
     requestAnimationFrame(() => {
-        console.log("첫 번째 섹션 처리 완료. 스크롤 위치 조정 중...", firstScrollPos?.element);
-        waitForVisibleTab().then(() => {
-            if (firstScrollPos?.element) {
-                scrollToTitlePx(firstScrollPos.element, 80);
-            }
-        })
+        requestAnimationFrame(() => {
+            console.log("첫 번째 섹션 처리 완료. 스크롤 위치 조정 중...", firstScrollPos?.element);
+            waitForVisibleTab().then(() => {
+                if (firstScrollPos?.element) {
+                    scrollToTitlePx(firstScrollPos.element, 80);
+                }
+            })
+        });
     });
 
 
