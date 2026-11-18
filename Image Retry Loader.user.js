@@ -185,7 +185,7 @@
 
             function onLoad() {
                 cleanup(); // 네트워크 타이머 해제! 이제 디코딩 큐 대기 시간은 네트워크 타임아웃과 무관함
-                
+
                 enqueueDecode(img).then((ok) => {
                     if (ok) {
                         img.dataset.loaded = "true";
@@ -232,7 +232,7 @@
     async function runLazyWorker(img, domain) {
         try {
             if (img && img.isConnected) {
-                const result = await waitForImage(img, LOAD_TIMEOUT);                
+                const result = await waitForImage(img, LOAD_TIMEOUT);
                 if (result === 'error' || result === 'corrupted' || result === 'timeout') {
                     const originalSrc = appliedCachedProxyUrls.get(img);
                     if (originalSrc) {
@@ -445,6 +445,8 @@
                         found = true;
                         resolve(candidateUrl);
                         return;
+                    } else {
+                        console.warn(url, result, candidateUrl);
                     }
 
                     remaining--;
@@ -495,7 +497,7 @@
         if (preferredProxy) {
             const candidateUrl = `${preferredProxy}${encodeURIComponent(url)}`;
             const result = await checkImage(candidateUrl, { timeout: PROXY_LOAD_TIMEOUT, minSize: 0 });
-            console.log(`[ImageRetry] 도메인 프록시 테스트 결과: ${candidateUrl} => `, result);
+            //console.log(`[ImageRetry] 도메인 프록시 테스트 결과: ${candidateUrl} => `, result);
             if (result.exists) {
                 saveProxyUrl(url, candidateUrl);
                 return candidateUrl;
@@ -692,7 +694,7 @@
                 imgElement.dataset.loaded = "pending";
                 workingProxy = await findWorkingProxy(imgElementSrc);
                 if (workingProxy) {
-                    console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);                    
+                    console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
                 } else {
                     imgElement.dataset.loaded = "false";
                     console.warn('[ImageRetry] 프록시 후보에서 이미지 로드에 실패했습니다:', imgElementSrc);
@@ -713,7 +715,7 @@
                 imgElement.dataset.loaded = "pending";
                 workingProxy = await findWorkingProxy(imgElementSrc);
                 if (workingProxy) {
-                    console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);                    
+                    console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
                 } else {
                     imgElement.dataset.loaded = "false";
                     console.warn('[ImageRetry] 프록시 후보에서 이미지 로드에 실패했습니다:', imgElementSrc);
@@ -726,7 +728,7 @@
                 imgElement.dataset.loaded = "pending";
                 workingProxy = await findWorkingProxy(imgElementSrc);
                 if (workingProxy) {
-                    console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);                    
+                    console.log('[ImageRetry] 로드 가능한 프록시를 적용합니다:', workingProxy);
                 } else {
                     imgElement.dataset.loaded = "false";
                     console.warn('[ImageRetry] 프록시 후보에서 이미지 로드에 실패했습니다:', imgElementSrc);
@@ -962,10 +964,10 @@
         if (img.dataset.isFixing) return false;
         if (img.closest('.hiddenbox')) return false;
         if (img.closest('.lazyload-preview')) return false;
-        
+
 
         let rawSrc = img.src;
-        if(/counter\.yadro\.ru/.test(rawSrc)) return false;
+        if (/counter\.yadro\.ru/.test(rawSrc)) return false;
 
         if (rawSrc.startsWith('http://data:image')) {
             img.src = rawSrc.replace('http://', '');
@@ -1046,18 +1048,18 @@
                         delete img.dataset.isProxyTesting;
                         if (workingProxy) {
                             img.src = workingProxy;
-                            checkImageVisibility(img);                            
+                            checkImageVisibility(img);
                         } else {
                             console.warn('[ImageRetry] 도메인 프록시 후보에서 이미지 로드에 실패했습니다:', rawSrc);
                             img.dataset.proxyTestFailed = 'true';
-                            img.dataset.loaded = "false";                            
+                            img.dataset.loaded = "false";
                         }
                     })
                     .catch(error => {
                         delete img.dataset.isProxyTesting;
                         console.error('[ImageRetry] 도메인 프록시 테스트 실패:', rawSrc, error);
                         img.dataset.proxyTestFailed = 'true';
-                        img.dataset.loaded = "false";                        
+                        img.dataset.loaded = "false";
                     });
             }
             return false;
