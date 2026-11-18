@@ -421,11 +421,10 @@ if (/google\.com\/search/.test(location.href)) {
             });
             return
         }
-        ;
         if (linkElement && linkElement.href && !linkElement.href.startsWith(location.href + '#')) {
             applyLinkRules(linkElement);
         }
-    });
+    }, true);
 
 
 }
