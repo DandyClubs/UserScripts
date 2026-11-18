@@ -1044,10 +1044,9 @@
                 findWorkingProxy(rawSrc)
                     .then(workingProxy => {
                         delete img.dataset.isProxyTesting;
-
                         if (workingProxy) {
                             img.src = workingProxy;                            
-                            return false;
+                            return true;
                         } else {
                             console.warn('[ImageRetry] 도메인 프록시 후보에서 이미지 로드에 실패했습니다:', rawSrc);
                             img.dataset.proxyTestFailed = 'true';
