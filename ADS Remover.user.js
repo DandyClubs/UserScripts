@@ -214,8 +214,7 @@ function ADChange() {
     for (const el of scripts) {        
         for (const pattern of patterns) {
             if (el.outerHTML.includes(pattern)) {
-                el.remove();
-                break;
+                el.remove();                
             }
         }
     }
