@@ -25,7 +25,8 @@ const navigationAllowlist = [
     'imagebam.com',
     'imagevenue.com',
     'postimg.cc',
-    'imx.to'
+    'imx.to',
+    'gmarket.co.kr',
 ];
 
 let lastMouseDownAt = 0;

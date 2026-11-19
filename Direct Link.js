@@ -851,7 +851,7 @@ function processLink(link) {
     }
 
     if (!handler) return;
-
+console.log(handler);
     if (handler.isAsync) {
         requestQueue.push({ link, handler });
         startQueueProcessor();
