@@ -617,7 +617,7 @@ const urlHandlers = {
                 link.href = link.href.replace(num, Math.ceil(num));
             }
         }
-    }, 
+    },
     /*   
     'maxjav\\.com/\\d+': {
         // href가 '#'이거나 비어있고, data-key 속성을 가지며 클래스가 s-vlt-link인 요소를 선택
@@ -730,7 +730,7 @@ const genericHandlers = {
             }
         }
     },
-     'blockedDNS': {
+    'blockedDNS': {
         selector: 'a[href*="go.whitetrafsa.com"]',
         isAsync: true,
         run: async (link) => {
@@ -851,7 +851,7 @@ function processLink(link) {
     }
 
     if (!handler) return;
-console.log(handler);
+    
     if (handler.isAsync) {
         requestQueue.push({ link, handler });
         startQueueProcessor();
