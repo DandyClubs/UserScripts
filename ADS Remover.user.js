@@ -11,10 +11,10 @@
 // @noframes
 // ==/UserScript==
 
-const popMagicStub = Object.freeze({
+const blockPopMagic = Object.freeze({
     init: function () {},
     addEvent: function () {},
-    preparePop: function () {},
+    preparePop: function () {},    
 });
 
 const adScriptPatterns = [
@@ -37,8 +37,9 @@ const scriptPattern = new RegExp(
 try {
     Object.defineProperty(window, 'popMagic', {
         configurable: true,
+        enumerable: true,
         get: function () {
-            return popMagicStub;
+            return blockPopMagic;
         },
         set: function () {}
     });
