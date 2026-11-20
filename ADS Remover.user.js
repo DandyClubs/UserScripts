@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         ADS Remover
 // @namespace    http://tampermonkey.net/
-// @version      2026.11.09
-// @description  Blocks external navigation unless initiated by a mouse click.
+// @version      2026.11.20
+// @description  Blocks external navigation unless initiated by a mouse click and removes pop-under ads.
 // @author       You
 // @include      *
 // @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
@@ -10,6 +10,39 @@
 // @run-at       document-start
 // @noframes
 // ==/UserScript==
+
+const popMagicStub = Object.freeze({
+    init: function () {},
+    addEvent: function () {},
+    preparePop: function () {},
+});
+
+const adScriptPatterns = [
+    'puURLstrpcht',
+    'popCount',
+    'ad-provider',
+    'pemsrv',
+    'exoclick',
+    'popcash',
+    'popMagic',
+    'popunder',
+    'adConfig'
+];
+const scriptPattern = new RegExp(
+    adScriptPatterns.map(pattern => pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'),
+    'i'
+);
+
+// Block popMagic/adConfig pop-under initialization before the page scripts run.
+try {
+    Object.defineProperty(window, 'popMagic', {
+        configurable: true,
+        get: function () {
+            return popMagicStub;
+        },
+        set: function () {}
+    });
+} catch (error) {}
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
 const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
@@ -139,7 +172,14 @@ const adTagMap = {
     "dhlottery.co.kr": ['div.popup-wrap']
 };
 
-const defaultADTag = ['script[src*="ethecountryw"]', '#popmagicldr'];
+const defaultADTag = [
+    'script[src*="ethecountryw"]',
+    'script[src*="popmagicldr"]',
+    'script[src*="popcash"]',
+    'script[src*="pemsrv"]',
+    'script[src*="exoclick"]',
+    '#popmagicldr'
+];
 
 let ADTag = adTagMap[RootDomain] || defaultADTag;
 
@@ -210,13 +250,9 @@ function ADChange() {
         }
     }
 
-    const patterns = ['puURLstrpcht', 'popCount', 'ad-provider', 'pemsrv', 'exoclick'];
-
     for (const el of scripts) {        
-        for (const pattern of patterns) {
-            if (el.outerHTML.includes(pattern)) {
-                el.remove();                
-            }
+        if (scriptPattern.test(el.outerHTML)) {
+            el.remove();
         }
     }
 }
@@ -354,6 +390,8 @@ const SiteHandlers = [
 function ADRemover(node) {
     const url = window.location.href
 
+    removeAdScripts(node);
+
     for (const { regex, handler } of SiteHandlers) {
         if (regex.test(url)) {
             handler(node)
@@ -381,6 +419,25 @@ function ADRemover(node) {
                 }
             })
         })
+    }
+}
+
+function removeAdScripts(node) {
+    const scope = node && node.nodeType === Node.ELEMENT_NODE ? node : document;
+    const scripts = scope instanceof HTMLScriptElement
+        ? [scope]
+        : Array.from(scope.querySelectorAll('script'));
+
+    for (const script of scripts) {
+        const signature = `${script.src || ''} ${script.textContent || ''}`;
+        if (scriptPattern.test(signature)) {
+            script.remove();
+        }
+    }
+
+    if (node && node.nodeType === Node.DOCUMENT_NODE) {
+        const popMagicLoader = node.querySelector('#popmagicldr');
+        popMagicLoader?.remove();
     }
 }
 
