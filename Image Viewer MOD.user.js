@@ -21,7 +21,7 @@
 // @grant        GM_getResourceText
 // @require      https://cdn.jsdelivr.net/npm/viewerjs@1.15.2/dist/viewer.min.js
 // @resource     VIEWER_CSS https://cdn.jsdelivr.net/npm/viewerjs@1.15.2/dist/viewer.min.css
-// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.5.5/dist/index.umd.min.js
 // @noframes
 // ==/UserScript==
 

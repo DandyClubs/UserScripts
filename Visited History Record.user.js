@@ -24,7 +24,7 @@
 // @grant       GM_deleteValue
 // @grant       GM_listValues
 // @grant       GM_addValueChangeListener
-// @require     https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.5.5/dist/index.umd.min.js
 // @require     https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
 // @require     https://raw.githubusercontent.com/DandyClubs/Filter/main/Filters.js
 // @noframes

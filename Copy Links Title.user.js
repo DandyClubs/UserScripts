@@ -18,7 +18,7 @@
 // @grant		 GM_addStyle
 // @grant		 GM_xmlhttpRequest
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js
-// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.5.5/dist/index.umd.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
 // @run-at       document-start
 // @connect      localhost

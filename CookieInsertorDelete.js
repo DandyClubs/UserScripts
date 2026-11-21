@@ -31,7 +31,7 @@
 // @run-at       document-start
 // @grant        none
 // @require      https://cdn.jsdelivr.net/npm/js-cookie@3.0.5/dist/js.cookie.min.js
-// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.5.5/dist/index.umd.min.js
 // ==/UserScript==
 
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;

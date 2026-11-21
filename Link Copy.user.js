@@ -64,7 +64,7 @@
 // @exclude      https://x-idol.net/
 // @exclude      https://x-idol.net/?paged=*
 // @exclude      https://www.google.com/search*
-// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.5.5/dist/index.umd.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/HQImages.js
 // @require      https://raw.githubusercontent.com/DandyClubs/keyvent.js/master/keyvent.js

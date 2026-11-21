@@ -10,7 +10,7 @@
 // @include      /1909\.me\/.*\.html/
 // @include      /girlgirlgo\.org/
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
-// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.5.5/dist/index.umd.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
 // @require      https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.min.js
 // @require      https://cdn.jsdelivr.net/npm/streamsaver@2.0.6/StreamSaver.min.js

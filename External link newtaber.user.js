@@ -12,7 +12,7 @@
 // @exclude         /feimaoyun.com/
 // @exclude         *.jpg
 // @exclude         /bbs\/mypost\.php/
-// @require         https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.5.5/dist/index.umd.min.js
 // @grant           GM_openInTab
 // ==/UserScript==
 

@@ -5,7 +5,7 @@
 // @description  Blocks external navigation unless initiated by a mouse click and removes pop-under ads.
 // @author       You
 // @include      *
-// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.5.5/dist/index.umd.min.js
 // @grant		 GM_addStyle
 // @run-at       document-start
 // @noframes

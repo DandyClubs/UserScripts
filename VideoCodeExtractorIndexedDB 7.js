@@ -7,7 +7,7 @@
 // @match        https://video.dmm.co.jp/*
 // @match        https://www.javlibrary.com/*
 // @match        https://www.dmm.co.jp/mono/dvd/*
-// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.5.5/dist/index.umd.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/MutilImagesDownloader.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/MakerMap.js
 // @require      https://cdn.jsdelivr.net/npm/sweetalert2@11.26.24/dist/sweetalert2.all.min.js

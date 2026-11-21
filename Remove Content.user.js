@@ -41,7 +41,7 @@
 // @exclude      /hidefporn\.ws\/\d+/
 // @exclude      /misskon\.com\/\d+/
 // @exclude      https://pornolab.net/forum/viewtopic*
-// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.5.5/dist/index.umd.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/Filter/main/Filters.js
 // @run-at       document-body
 // @grant		 GM_addStyle
