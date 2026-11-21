@@ -25,8 +25,7 @@ const adScriptPatterns = [
     'exoclick',
     'popcash',
     'popMagic',
-    'popunder',
-    'adConfig',
+    'popunder',    
     'syncAdBadgeThemeColor',
     'fapnutExoZoneId',
 ];
