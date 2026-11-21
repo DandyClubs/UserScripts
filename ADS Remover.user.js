@@ -26,7 +26,9 @@ const adScriptPatterns = [
     'popcash',
     'popMagic',
     'popunder',
-    'adConfig'
+    'adConfig',
+    'syncAdBadgeThemeColor',
+    'fapnutExoZoneId',
 ];
 const scriptPattern = new RegExp(
     adScriptPatterns.map(pattern => pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'),
