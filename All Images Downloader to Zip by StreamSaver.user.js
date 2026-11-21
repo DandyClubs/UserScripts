@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         All Images Downloader to Zip
 // @namespace    nature grew
-// @version      2025.09.03
+// @version      2026.11.22
 // @description  All Images Downloader to Zip
 // @author       DandyClubs
 // @include      /everia\.club\//

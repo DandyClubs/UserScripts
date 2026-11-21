@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name         all-voyeur.net
 // @namespace    http://tampermonkey.net/
-// @version      2025.08.20
+// @version      2026.11.22
 // @description  try to take over the world!
 // @author       You
 // @match        https://all-voyeur.net/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=all-voyeur.net
-// @require      https://cdn.jsdelivr.net/npm/tldts@7.4.19/dist/index.umd.min.js
+// @require      https://cdn.jsdelivr.net/npm/tldts@7.5.5/dist/index.umd.min.js
 // @require      https://raw.githubusercontent.com/DandyClubs/CopyLinksCommonJS/main/CopyLinksCommonJS.js
 // @require      https://code.jquery.com/jquery-3.6.1.min.js
 // @grant		 GM_addStyle

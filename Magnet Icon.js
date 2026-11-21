@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Magnet Icon
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+// @version      2026.11.22
 // @description  try to take over the world!
 // @author       You
 // @include      https://www.t66y.com/htm_data/*.html

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Copy Links & Title (indexedDB)
 // @namespace    http://tampermonkey.net/
-// @version      2026.02.17
+// @version      2026.11.22
 // @description  try to take over the world!
 // @author       You
 // @include      /gm\d+.xyz/

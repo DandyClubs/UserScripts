@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         eyny Copy Links
 // @namespace    http://tampermonkey.net/
-// @version      2026.11.09
+// @version      2026.11.22
 // @description  try to take over the world!
 // @author       You
 // @include      /eyny\.com\/forum\.php\?mod=viewthread/

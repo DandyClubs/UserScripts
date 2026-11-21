@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ADS Remover
 // @namespace    http://tampermonkey.net/
-// @version      2026.11.20
+// @version      2026.11.22
 // @description  Blocks external navigation unless initiated by a mouse click and removes pop-under ads.
 // @author       You
 // @include      *

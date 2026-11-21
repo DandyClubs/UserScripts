@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Torrent Sites - add magnet links (Readable CSS)
 // @namespace   DandyClubs
-// @version     2026.02.16
+// @version     2026.11.22
 // @author      DandyClubs
 // @match       https://xxxclub.to/*
 // @match       https://rargb.to/*

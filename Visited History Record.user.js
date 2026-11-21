@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Visited History Record
 // @namespace   DandyClubs
-// @version     2026.01.20
+// @version     2026.11.22
 // @include     https://sis001.com/forum/forum*.html
 // @match       https://sis001.com/forum/forumdisplay.php*
 // @match       https://ultoporn.com/*

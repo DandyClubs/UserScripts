@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Torrent Sites - add magnet links
 // @namespace   DandyClubs
-// @version     2026.02.15
+// @version     2026.11.22
 // @description Adds a column with magnet links in lists (multi-site support)
 // @author      DandyClubs
 // @license     MIT

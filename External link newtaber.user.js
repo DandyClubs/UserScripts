@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            External link newtaber MOD (Pipeline Refactored)
-// @version         2025.08.20
+// @version         2026.11.22
 // @description     Fully refactored with a rule pipeline for maximum clarity and maintainability.
 // @icon            https://cdn1.iconfinder.com/data/icons/feather-2/24/external-link-32.png
 // @icon64          https://cdn1.iconfinder.com/data/icons/feather-2/24/external-link-128.png
@@ -12,7 +12,7 @@
 // @exclude         /feimaoyun.com/
 // @exclude         *.jpg
 // @exclude         /bbs\/mypost\.php/
-// @require      https://cdn.jsdelivr.net/npm/tldts@7.5.5/dist/index.umd.min.js
+// @require         https://cdn.jsdelivr.net/npm/tldts@7.5.5/dist/index.umd.min.js
 // @grant           GM_openInTab
 // ==/UserScript==
 
