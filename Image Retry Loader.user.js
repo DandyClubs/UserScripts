@@ -657,7 +657,7 @@
             let retryCount = parseInt(imgElement.dataset.retryCount);
 
             let workingProxy = null;
-            if (!isProxyUrl(imgElementSrc) || item.reason === 'timeout' &&
+            if (!isProxyUrl(imgElementSrc) && item.reason === 'timeout' &&
                 (getDomainForComparison(new URL(imgElementSrc).hostname) !== getDomainForComparison(window.location.hostname) ||
                     retryCount > 2)) {
                 console.log('[ImageRetry] 타임아웃 후 로드 가능한 프록시를 시도합니다:', imgElementSrc);
