@@ -483,6 +483,8 @@
     }
 
     async function findWorkingProxy(url) {
+
+        
         const cachedProxyUrl = await getCachedProxyUrl(url);
         if (cachedProxyUrl) return cachedProxyUrl;
 
@@ -491,7 +493,7 @@
             imageDomain = new URL(url).hostname.toLowerCase();
         } catch {
             imageDomain = null;
-        }
+        }       
 
         const preferredProxy = imageDomain ? getSuccessfulProxy(imageDomain) : null;
         if (preferredProxy) {
@@ -596,7 +598,7 @@
                 ? { final: true, result: { exists: false, reason: 'server_error' } }
                 : { final: false };
         }
-                
+
         return forceFinal
             ? { final: true, result: { exists: false, reason: 'unknown' } }
             : { final: false };
@@ -646,7 +648,7 @@
             const imgElement = item.imgElement;
             if (!imgElement || !imgElement.isConnected) {
                 return;
-            }
+            }            
 
             const imgElementSrc = imgElement.src;
 
@@ -658,11 +660,13 @@
 
             let workingProxy = null;
 
-            if(isProxyUrl(imgElementSrc)){
+            if (isProxyUrl(imgElementSrc)) {
                 workingProxy = imgElementSrc;
             }
 
-            if (!workingProxy && item.reason === 'timeout' &&
+            const blockProxy = new RegExp(`(${blockTryProxyPattern})`, 'i').test(imgElementSrc);
+
+            if (!blockProxy && !workingProxy && item.reason === 'timeout' &&
                 (getDomainForComparison(new URL(imgElementSrc).hostname) !== getDomainForComparison(window.location.hostname) ||
                     retryCount > 2)) {
                 console.log('[ImageRetry] 타임아웃 후 로드 가능한 프록시를 시도합니다:', imgElementSrc);
@@ -693,7 +697,7 @@
 
             const { exists, reason, status = null } = checkResult?.result || {};
 
-            if (exists && !workingProxy && retryCount >= MAX_RETRY_COUNT) {
+            if (!blockProxy && exists && !workingProxy && retryCount >= MAX_RETRY_COUNT) {
                 console.warn(`[ImageRetry] 최대 재시도 횟수(${MAX_RETRY_COUNT}회)에 도달했습니다.`, imgElement);
                 imgElement.dataset.loaded = "pending";
                 workingProxy = await findWorkingProxy(imgElementSrc);
@@ -714,7 +718,7 @@
                 return;
             }
 
-            if (!workingProxy && !exists && reason === 'Region restrictions') {
+            if (!blockProxy && !workingProxy && !exists && reason === 'Region restrictions') {
                 console.log('[ImageRetry] 지역 제한 감지, 프록시 이미지 로드 확인 중:', imgElementSrc);
                 imgElement.dataset.loaded = "pending";
                 workingProxy = await findWorkingProxy(imgElementSrc);
@@ -727,7 +731,7 @@
                 }
             }
 
-            if (!workingProxy && !exists && reason === 'timeout') {
+            if (!blockProxy && !workingProxy && !exists && reason === 'timeout') {
                 console.log('[ImageRetry] 타임아웃, 프록시 이미지 로드 확인 중:', imgElementSrc);
                 imgElement.dataset.loaded = "pending";
                 workingProxy = await findWorkingProxy(imgElementSrc);
@@ -953,10 +957,18 @@
 
     const domainRegex = new RegExp(`(${domainpattern})`, 'i');
 
-    const proxyImageDomainsPattern = `
+    const tryProxyPattern = `
     gifyu.com
     11img.com
     imgccc.com
+    `.trim()
+        .split('\n')
+        .map(d => d.replace(/\./g, '\\.').trim())
+        .filter(Boolean)
+        .join('|');
+
+    const blockTryProxyPattern = `
+    ymawv.la
     `.trim()
         .split('\n')
         .map(d => d.replace(/\./g, '\\.').trim())
@@ -1035,7 +1047,7 @@
 
         if (rawSrc && !isProxyUrl(rawSrc) &&
             !img.dataset.proxyTestFailed &&
-            new RegExp(`(${proxyImageDomainsPattern})`, 'i').test(rawSrc)) {
+            new RegExp(`(${tryProxyPattern})`, 'i').test(rawSrc)) {
             const cachedProxyUrl = getSavedProxyUrl(rawSrc);
             if (cachedProxyUrl) {
                 appliedCachedProxyUrls.set(img, rawSrc);
