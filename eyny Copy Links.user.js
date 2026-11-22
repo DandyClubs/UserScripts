@@ -1077,7 +1077,7 @@ async function init() {
     const loaders = new Map();
 
     for (const wrapper of wrappers) {
-        wrapper.style.visibility = 'visible';
+        //wrapper.style.visibility = 'visible';
 
         // 첨부파일 이미지 형태의 로더 생성
         const loader = document.createElement("div");
@@ -1111,7 +1111,7 @@ async function init() {
             // 3. UI 정리
             if (currentLoader) currentLoader.remove();
             wrapper.classList.add('layout-done');
-            wrapper.style.visibility = '';
+            //wrapper.style.visibility = '';
         } catch (err) {
             console.error("Layout error:", err);
         }

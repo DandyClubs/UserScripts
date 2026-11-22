@@ -302,7 +302,7 @@ async function init() {
     const loaders = new Map();
 
     for (const wrapper of wrappers) {
-        wrapper.style.visibility = 'visible';
+        //wrapper.style.visibility = 'visible';
         wrapper.insertAdjacentHTML('beforebegin', `<div class="image-loader"><div class="progress-circle" style="--p: 0"></div></div>`);
         const loader = wrapper.previousElementSibling;
         loaders.set(wrapper, loader);
@@ -323,7 +323,7 @@ async function init() {
             if (imgCount === 0) {
                 if (currentLoader) currentLoader.remove();
                 wrapper.classList.add('layout-done');
-                wrapper.style.visibility = '';
+                //wrapper.style.visibility = '';
 
                 if (wrapper === firstWrapper) {
                     resolveFirst();
