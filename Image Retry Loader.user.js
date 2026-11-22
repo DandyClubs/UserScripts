@@ -792,11 +792,14 @@
                 } else if (isProxyUrl(imgElement.src)) {
                     imgElement.dataset.loaded = "false";
                     console.warn('[ImageRetry] 프록시 이미지 로드에 실패했습니다:', imgElement);
-                } else {
-                    imgElement.dataset.retryCount = ++retryCount;
+                } else {                    
                     if (exists && !retrySet.has(getPureUrl(imgElement.src))) {
+                        imgElement.dataset.retryCount = ++retryCount;
                         console.log(`[ImageRetry] 이미지 재시도 대기열에 추가 (${retryCount}회차): `, imgElement);
                         enqueueFailedImage(imgElement, reason);
+                    }else if(!exists && reason !== 'error' ){
+                        console.log(`[ImageRetry] 이미지 로드 실패: `, checkResult.result, imgElement);
+                        imgElement.dataset.loaded = "false";
                     }
                 }
             }
