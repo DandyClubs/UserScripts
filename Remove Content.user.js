@@ -259,7 +259,7 @@ const siteConfigs = {
     },
     'pornolab.net': {
         linkSelector: 'div.torTopic a.torTopic, td a.gen, td div a.med.tLink',
-        parentTagSelector: 'tr',
+        parentTagSelector: 'table.forumline > tbody > tr',
     },
     'xxxclub.to': {
         linkSelector: 'span a[id^="#"]',
