@@ -283,7 +283,7 @@ function extractTitles(rule) {
     if (!rule.area) {
         console.error("대상 요소가 유효하지 않습니다.");
         return [];
-    }    
+    }
 
     const textGroups = [];
     let currentGroup = [];
@@ -423,12 +423,12 @@ function linkifyNodes(root) {
 }
 
 function cleanContent(node) {
-    
-        node.textContent = node.textContent.replace(
-            /\[backcolor=rgb\[\s*\d+\s*,\s*\d+\s*,\s*\d+\]\]/gi,
-            ''
-        );
-    
+
+    node.textContent = node.textContent.replace(
+        /\[backcolor=rgb\[\s*\d+\s*,\s*\d+\s*,\s*\d+\]\]/gi,
+        ''
+    );
+
 }
 
 function extractContent(element) {
@@ -541,6 +541,47 @@ window.addEventListener('storage', (e) => {
     }
 });
 
+function autoFitImage(viewer, img) {
+    const oW = img.naturalWidth, oH = img.naturalHeight;
+    const vW = img.offsetParent.clientWidth, vH = img.offsetParent.clientHeight;
+    const isPortrait = oH > oW;
+    let ratio;
+    let alignTop = false;
+
+    if (isPortrait && oH >= 1600 && oW * 3 <= oH && oW <= 300) {
+        ratio = Math.min(vW / oW, 1);
+        alignTop = true;
+    } else if (oW > vW) {
+        ratio = isPortrait
+            ? vW / oW
+            : Math.min(vW / oW, vH / oH);
+        alignTop = isPortrait;
+    } else if (isPortrait && oH > 1600 && oW * 3 < oH) {
+        ratio = 0.90;
+        alignTop = true;
+    } else if (isPortrait && oH > vH && oW >= 1200) {
+        ratio = 1200 / oW;
+        alignTop = true;
+    } else if (oH > vH) {
+        ratio = Math.min((vW * 0.90) / oW, (vH * 0.90) / oH);
+    } else {
+        viewer.scale(1.1, 1.1);
+        return;
+    }
+
+    viewer.zoomTo(ratio);
+    if (alignTop) {
+        const yOffset = (oH * ratio - vH) / 2 + (vH - img.clientHeight) / 4;
+        viewer.move(0, yOffset);
+    }
+}
+
+function getViewportCenterPivot() {
+    return {
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+    };
+}
 
 function initImageGallery(wrappers) {
     wrappers.forEach(wrapper => {
@@ -550,7 +591,20 @@ function initImageGallery(wrappers) {
                 // 원본 이미지가 data-src 등에 있다면 해당 주소를 리턴
                 return img.src;
             },
+            viewed({ detail: { image } }) {
+                autoFitImage(viewer, image);
+            },
         });
+
+        const zoom = viewer.zoom;
+        viewer.zoom = function (ratio, showTooltip, pivot) {
+            return zoom.call(this, ratio, showTooltip, pivot || getViewportCenterPivot());
+        };
+        viewer.toggle = function () {
+            const ratio = this.imageData.ratio === 1 ? this.imageData.oldRatio : 1;
+            this.zoomTo(ratio, true, getViewportCenterPivot());
+            return this;
+        };
 
         // Masonry 아이템 내의 이미지 클릭 시 이벤트 전파를 통해 Viewer 실행
         wrapper.querySelectorAll('img').forEach(img => {

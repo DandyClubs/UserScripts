@@ -802,6 +802,23 @@ function AddViewer() {
             //bindImagePreloadHandlers(viewer);
         },
     });
+
+    function getViewportCenterPivot() {
+        return {
+            x: window.innerWidth / 2,
+            y: window.innerHeight / 2,
+        };
+    }
+
+    const zoom = viewer.zoom;
+    viewer.zoom = function (ratio, showTooltip, pivot) {
+        return zoom.call(this, ratio, showTooltip, pivot || getViewportCenterPivot());
+    };
+    viewer.toggle = function () {
+        const ratio = this.imageData.ratio === 1 ? this.imageData.oldRatio : 1;
+        this.zoomTo(ratio, true, getViewportCenterPivot());
+        return this;
+    };
 }
 
 // ————— Helpers ————— //
@@ -836,6 +853,17 @@ function bindArrowNavHandlers(viewer) {
     });
 }
 
+
+function getViewerCanvasCenter(viewer) {
+    const viewerRect = viewer.viewer.getBoundingClientRect();
+    const canvasRect = viewer.canvas.getBoundingClientRect();
+
+    return {
+        x: canvasRect.left + canvasRect.width / 2 - viewerRect.left,
+        y: canvasRect.top + canvasRect.height / 2 - viewerRect.top,
+    };
+}
+
 function autoFitImage(viewer, img) {
     const oW = img.naturalWidth, oH = img.naturalHeight;
     const vW = img.offsetParent.clientWidth, vH = img.offsetParent.clientHeight;
@@ -843,7 +871,10 @@ function autoFitImage(viewer, img) {
     let ratio;
     let alignTop = false;
 
-    if (oW > vW) {
+    if (isPortrait && oH >= 1600 && oW * 3 <= oH && oW <= 300) {
+        ratio = Math.min(vW / oW, 1);
+        alignTop = true;
+    } else if (oW > vW) {
         ratio = isPortrait
             ? vW / oW
             : Math.min(vW / oW, vH / oH);
@@ -1605,7 +1636,7 @@ function sleep(ms) {
 
 window.addEventListener("load", () => {
     const viewerCss = GM_getResourceText("VIEWER_CSS");
-    AddStyles(viewerCss, 'ViewerCSS');  
+    AddStyles(viewerCss, 'ViewerCSS');
     Start();
 }, { once: true });
 
