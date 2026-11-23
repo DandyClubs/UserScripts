@@ -548,7 +548,7 @@ function autoFitImage(viewer, img) {
     let ratio;
     let alignTop = false;
 
-    if (isPortrait && oH >= 1600 && oW * 3 <= oH && oW <= 300) {
+    if (isPortrait && oH >= vH * 1.5 && oW * 3 <= oH && oW <= 300) {
         ratio = Math.min(vW / oW, 1);
         alignTop = true;
     } else if (oW > vW) {
@@ -556,21 +556,25 @@ function autoFitImage(viewer, img) {
             ? vW / oW
             : Math.min(vW / oW, vH / oH);
         alignTop = isPortrait;
-    } else if (isPortrait && oH > 1600 && oW * 3 < oH) {
+    } else if (isPortrait && oH >= vH * 1.5 && oW * 3 < oH) {
         ratio = 0.90;
         alignTop = true;
-    } else if (isPortrait && oH > vH && oW >= 1200) {
-        ratio = 1200 / oW;
+    } else if (isPortrait && oH >= vH * 1.5 && oW >= vW / 2) {
+        ratio = vW / 2 / oW;
         alignTop = true;
     } else if (oH > vH) {
-        ratio = Math.min((vW * 0.90) / oW, (vH * 0.90) / oH);
+        ratio = Math.min((vW * 0.90) / oW, (vH * 0.90) / oH);        
     } else {
         viewer.scale(1.1, 1.1);
         return;
     }
 
+    const ratioHundredths = Math.floor(ratio * 100);
+    ratio = (ratioHundredths - (ratioHundredths % 2)) / 100;
+
     viewer.zoomTo(ratio);
     if (alignTop) {
+        console.log(`move Top`);
         const yOffset = (oH * ratio - vH) / 2 + (vH - img.clientHeight) / 4;
         viewer.move(0, yOffset);
     }
