@@ -25,7 +25,7 @@
 // @include      https://peepxx.com/*
 // @include      https://peepxx.net/*
 // @include      https://avruby.com/*
-// @include      https://jgirl.co/*
+// @include      https://jgirl.org/*
 // @include      /sharepornlink\.com\/.*/
 // @include      https://javarchive.com/*
 // @include      /0xxx\.(ws|li)/
@@ -1683,7 +1683,7 @@ const siteConfigs = [
         }
     },
     {
-        regex: /jgirl\.co\/post\//,
+        regex: /jgirl\.org\/post\//,
         config: {
             copyOffsetAreaSelector: 'div.body.container h1',
             downloadAreaSelector: 'body > div:nth-of-type(1) > div.middle.container > div > div.body.container > div > div:nth-of-type(1) > div:nth-of-type(2)',
