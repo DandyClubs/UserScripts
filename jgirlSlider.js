@@ -4,8 +4,8 @@
 // @version      2026-11-13
 // @description  try to take over the world!
 // @author       You
-// @match        https://jgirl.co/*
-// @icon         https://www.google.com/s2/favicons?sz=64&domain=jgirl.co
+// @match        https://jgirl.org/*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=jgirl.org
 // @grant        none
 // @run-at       document-body
 // ==/UserScript==
@@ -19,7 +19,7 @@
         // 포스터 figure인 경우 제외
         const poster = figure.querySelector('.lazyload-poster')
         if (poster) return;
-        
+
         const img = figure.querySelector('img.lazyload-preview');
         if (!img) return;
 
