@@ -18,16 +18,10 @@
 
         // 포스터 figure인 경우 제외
         const poster = figure.querySelector('.lazyload-poster')
-        if (poster) {
-            poster.classList.remove('lazyload-poster');
-            poster.classList.add('poster');
-            return;
-        }
+        if (poster) return;
+        
         const img = figure.querySelector('img.lazyload-preview');
         if (!img) return;
-
-        img.classList.remove('lazyload-preview');
-        img.classList.add('preview');
 
         img.dataset.slider = img.dataset.src || img.src;
         img.removeAttribute('src');
@@ -44,7 +38,7 @@
         // 이미 완료된 요소이거나 이미 큐에 있는 경우 차단
         if (figure.dataset.observer === 'true' || queuedFigures.has(figure)) return;
 
-        const img = figure.querySelector('img.preview');
+        const img = figure.querySelector('img.lazyload-preview');
         if (!img || !img.dataset.slider || img.getAttribute('src')) return;
 
         queuedFigures.add(figure);
@@ -68,7 +62,7 @@
             // 처리 전 완료 여부 재확인
             if (figure.dataset.observer === 'true') continue;
 
-            const img = figure.querySelector('img.preview');
+            const img = figure.querySelector('img.lazyload-preview');
             if (!img || !img.dataset.slider || img.getAttribute('src')) {
                 figure.dataset.observer = 'true';
                 continue;
@@ -109,7 +103,7 @@
     // 4. .lazyload-poster가 아닌 figure 요소들만 관찰 등록
     document.querySelectorAll('.post-item .preview-container figure').forEach(figure => {
         // 포스터 figure인 경우 옵저버 대상에서 제외
-        if (figure.querySelector('.lazyload-poster') || figure.querySelector('.poster')) return;
+        if (figure.querySelector('.lazyload-poster')) return;
 
         const opacity = parseFloat(window.getComputedStyle(figure).opacity);
 
