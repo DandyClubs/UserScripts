@@ -982,7 +982,7 @@
         if (!img || !img.isConnected) return false;
         if (img.dataset.isFixing) return false;
         if (img.closest('.hiddenbox')) return false;
-        if (img.closest('.lazyload-preview')) return false;
+        if (img.closest('div.preview-parent section.preview div.preview-container figure.figure')) return false;
 
 
         let rawSrc = img.src;
