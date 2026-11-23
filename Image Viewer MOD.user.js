@@ -504,7 +504,7 @@ filter: alpha(opacity=80);
 -webkit-box-shadow: 2px 4px 10px 0 rgba(0, 0, 0, .5);
     -moz-box-shadow: 2px 4px 10px 0 rgba(0, 0, 0, .5);
     box-shadow: 2px 4px 10px 0 rgba(0, 0, 0, .5);
-    border-radius: .5em;
+    border-radius: .5em !important;
 }
 
 
@@ -584,6 +584,7 @@ function retryOfflineImages(extractor) {
         processedElements.delete(link.href);
         image.markAsAvailable(link);
         const img = link.querySelector('img');
+        console.log(getFullSizeQueue);
         if (img) enqueueFullSizeIfNeeded(link, img);
     }
 }
