@@ -28,7 +28,7 @@
     // 재시도 간격 및 횟수
     const RETRY_INTERVAL = 10000;
     const MAX_RETRY_COUNT = 3;
-    const LOAD_TIMEOUT = 30000;
+    const LOAD_TIMEOUT = 60000;
     const DECODE_TIMEOUT = 15000; // 디코딩 대기 및 처리 전용 타임아웃
     const PROXY_LOAD_TIMEOUT = 30000;
 
