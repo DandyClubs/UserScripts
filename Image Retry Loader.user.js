@@ -537,7 +537,7 @@
         const res = responseWrapper.res;
         const status = res.status;
 
-        if (isCloudflareChallenge(res)) {
+        if (isCloudflareChallenge(res) && status === 200) {
             return {
                 final: true,
                 result: { exists: false, reason: 'cloudflare_block' }
