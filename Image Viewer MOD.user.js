@@ -1293,7 +1293,7 @@ function enqueueFullSizeIfNeeded(link, img) {
 function CheckViewerList(node) {
     const items = collectImageLinks(node);
     // Filter by extractor availability:
-    console.log('CheckViewerList: ', items)
+    //console.log('CheckViewerList: ', items);
     return items.some(({ link }) => Boolean(getExtractor(link.href)));
 }
 

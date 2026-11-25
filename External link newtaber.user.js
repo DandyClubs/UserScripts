@@ -41,7 +41,7 @@ window.addEventListener('load', () => {
 
 // --- 전역 변수 ---
 const PageURL = window.location !== window.parent.location ? document.referrer : document.location.href;
-const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
+const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true });
 const RootDomain = extractRootDomain(PageURL);
 
 // --- 재사용 가능한 행동(Action) 정의 ---
@@ -312,7 +312,7 @@ const rulePipeline = [
     // 8. 최후 규칙: 도메인이 다를 경우
     {
         name: 'Different Domain',
-        condition: (el, context) => extractRootDomain(el.host) !== context.RootDomain,
+        condition: (el, context) => extractRootDomain(el.href) !== context.RootDomain,
         action: RuleActions.NEW_TAB,
     },
 ];
