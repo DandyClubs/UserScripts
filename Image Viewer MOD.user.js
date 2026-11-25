@@ -887,7 +887,7 @@ function autoFitImage(viewer, img) {
         ratio = vW / 2 / oW;
         alignTop = true;
     } else if (oH > vH) {
-        ratio = Math.min((vW * 0.90) / oW, (vH * 0.90) / oH);        
+        ratio = Math.min((vW * 0.90) / oW, (vH * 0.90) / oH);
     } else {
         viewer.scale(1.1, 1.1);
         return;
@@ -944,7 +944,7 @@ function GetOnline(details) {
     });
 }
 
-async function getURLFromPage(linkData, extractor, requestDetails) {
+async function getURLFromPage(linkData, extractor, requestDetails) {    
 
     const urlObj = new URL(linkData.url);
     const host = urlObj.hostname;
@@ -998,7 +998,10 @@ async function getURLFromPage(linkData, extractor, requestDetails) {
     // ★ 최초 1회 성공 시 status를 'online'으로 확정
     // 이후 들어오는 동일 호스트 요청은 2번의 점검 키워드 검사(if)를 통과(Skip)하게 됨
     extractor.status = 'online';
-    retryOfflineImages(extractor);
+    if (offlineImageLinks.get(extractor.id)) {
+        retryOfflineImages(extractor);
+    }
+
     return url.replace(/&amp;/g, '&');
 
 }
@@ -1546,7 +1549,7 @@ const image = {
     },
 
     getSize(img) {
-        img.removeAttribute('loading'); // 오타 수정 (removetAttribute -> removeAttribute)
+        img.removeAttribute('loading');
         return new Promise((resolve) => {
             if (img.complete) {
                 resolve({ width: img.naturalWidth, height: img.naturalHeight, isLoaded: img.complete });
@@ -1558,7 +1561,7 @@ const image = {
                 };
                 const onImgError = () => {
                     img.removeEventListener('error', onImgError);
-                    console.log('이미지 로딩 에러!');
+                    console.log('이미지 로딩 에러!', img);
                     resolve({ width: 0, height: 0, isLoaded: false }); // 에러 시 처리
                 };
                 img.addEventListener('load', onImgLoad);

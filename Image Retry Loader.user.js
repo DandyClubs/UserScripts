@@ -40,6 +40,8 @@
     const PROXY_URL_CACHE_EXPIRATION = 2 * 24 * 60 * 60 * 1000;
     const successfulProxyByDomain = new Map();
 
+    const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
+
     class Queue {
         constructor() {
             this.items = {};
@@ -212,9 +214,9 @@
 
     function getImageDomain(img) {
         try {
-            return new URL(img.src, window.location.href).hostname.toLowerCase();
+            return extractRootDomain(img.src).toLowerCase();
         } catch {
-            return window.location.hostname.toLowerCase();
+            console.warn(`error ${img.src}`)
         }
     }
 
