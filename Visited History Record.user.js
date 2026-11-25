@@ -338,7 +338,7 @@ const SkipWorld = RegexFrom(skipWordsList, 'gi');
 const SkipModelEX = RegexFrom(SkipModel.split(/\r?\n/), 'gi');
 const WarningEX = RegexFrom(WarningText.split(/\r?\n/), 'gi');
 const authorEX = /Avhunter|love69sex|mikkingole|堕落上帝/i;
-const skipClassNames = ['hiddenbox', 'visited', 'Skip' ]
+const skipClassNames = ['hiddenbox', 'visited', 'Skip']
 
 const sis001 = {
     MatchUrl: 'sis001.com',
@@ -991,11 +991,14 @@ async function Start() {
     Active.root.addEventListener('click', function (e) {
         if (!e.target) return;
 
-        let target = e.target;       
+        let target = e.target;
 
         if (!target.classList.contains('RecordHistory') && Active.extraLink) {
-            if (!e.target.closest(Active.excludeTag) && (target.nodeName === 'IMG' || target.nodeName === 'A')) {
-                console.log(target);
+
+            if (target.nodeName === 'A') {
+                const isExcludeTag = Active.excludeTag ? e.target.closest(Active.excludeTag) : false;
+                target = isExcludeTag ? e.target : e.target.closest(Active.closestTag).querySelector(Active.SearchATag);
+            } else if (target.nodeName === 'IMG') {
                 target = e.target.closest(Active.closestTag).querySelector(Active.SearchATag);
             } else {
                 switch (Active.MatchUrl) {
@@ -1040,7 +1043,7 @@ async function Start() {
             }
         }
 
-        if (target && target.classList.contains('RecordHistory')) {            
+        if (target && target.classList.contains('RecordHistory')) {
             addNodesSet.delete(target);
             SaveVisited(target);
             if (VisitedState) {

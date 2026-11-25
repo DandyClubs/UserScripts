@@ -50,52 +50,6 @@ const PageURL = window.location !== window.parent.location ? document.referrer :
 const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
 const RootDomain = extractRootDomain(PageURL)
 
-let lastMouseDownAt = 0;
-let mouseNavigationAllowedUntil = 0;
-
-
-function hasRecentMouseClick() {
-    return Date.now() <= mouseNavigationAllowedUntil;
-}
-
-document.addEventListener('mousedown', event => {
-    if (event.isTrusted && event.button === 0) {
-        lastMouseDownAt = Date.now();
-    }
-}, true);
-
-document.addEventListener('click', event => {
-    if (event.isTrusted && event.detail > 0 && Date.now() - lastMouseDownAt < 1000) {
-        mouseNavigationAllowedUntil = Date.now() + 1000;
-        setTimeout(() => {
-            mouseNavigationAllowedUntil = 0;
-        }, 0);
-    }
-
-    const target = event.target instanceof Element ? event.target : event.target.parentElement;
-    const link = target && target.closest('a[href]');
-    if (link && !hasRecentMouseClick()) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-    }
-}, true);
-
-document.addEventListener('submit', event => {
-    const form = event.target;
-    if (form instanceof HTMLFormElement && !hasRecentMouseClick()) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-    }
-}, true);
-
-if (window.navigation) {
-    window.navigation.addEventListener('navigate', event => {
-        if (!hasRecentMouseClick()) {
-            event.preventDefault();
-        }
-    }, true);
-}
-
 var ADLink = []
 
 const adTagMap = {
