@@ -1247,9 +1247,9 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
 
 
             // 3) Resolve a “real” thumbnail URL:
-            let thumb = img.src;
+            let thumb = img.src;            
             if (thumb.startsWith('data:image') ||
-                extractRootDomain(thumb) !== extractRootDomain(link.href)) {
+                link.href && thumb && extractRootDomain(thumb) !== extractRootDomain(link.href)) {
                 // look for lazy attributes
                 for (const attr of img.attributes) {
                     if (lazyAttributesMap[attr.name]) {
