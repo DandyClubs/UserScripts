@@ -717,6 +717,7 @@
                 failedImagesSet.add(getPureUrl(imgElement.src));
                 saveBadLink(imgElement.src);
                 imgElement.dataset.loaded = "false";
+                //imgElement.style.display = 'none';
                 return;
             }
 
@@ -1048,6 +1049,7 @@
         if (isBadLink(rawSrc)) {
             console.warn(`[Skip] 이미 404로 기록된 링크입니다: ${rawSrc}`);
             img.dataset.loaded = "false";
+            //img.style.display = 'none';
             return false;
         }
 
@@ -1123,8 +1125,8 @@
     }
 
     function isBadLink(url) {
-        const cleanUrl = getPureUrl(url);
-        return GM_getValue(cleanUrl) !== undefined;
+        const cleanUrl = getPureUrl(url);        
+        return GM_getValue(BAD_URL_PREFIX + cleanUrl) !== undefined;
     }
 
     function cleanOldBadLinks() {
