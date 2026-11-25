@@ -139,7 +139,7 @@ const initVisitedListeners = (node) => {
     } else if (PageURL.includes('home.php?mod=space')) {
         selectors.push('form#delform > table > tbody > tr > th > a');
     }else if (PageURL.includes('eyny.com/search.php?mod=forum')) {
-        selectors.push('tbody tr th.common a.xst');
+        selectors.push('tbody tr th a.xst');
     }
 
     if (selectors.length > 0) {

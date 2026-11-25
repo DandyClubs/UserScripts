@@ -50,36 +50,9 @@ const PageURL = window.location !== window.parent.location ? document.referrer :
 const extractRootDomain = (url) => tldts.getDomain(url, { allowPrivateDomains: true }) || new URL(url).hostname.toLowerCase();
 const RootDomain = extractRootDomain(PageURL)
 
-const navigationAllowlist = [
-    'cloudflare.com',
-    'cloudflareinsights.com',
-    'imgur.com',
-    'ibb.co',
-    'imgbox.com',
-    'pixhost.to',
-    'imagebam.com',
-    'imagevenue.com',
-    'postimg.cc',
-    'imx.to',
-    'gmarket.co.kr',
-];
-
 let lastMouseDownAt = 0;
 let mouseNavigationAllowedUntil = 0;
 
-function isExternalSite(url) {
-    try {
-        const destination = new URL(url, window.location.href);
-        if (destination.protocol !== 'http:' && destination.protocol !== 'https:') return false;
-        const hostname = destination.hostname.toLowerCase();
-        if (navigationAllowlist.some(domain => hostname === domain || hostname.endsWith(`.${domain}`))) {
-            return false;
-        }
-        return extractRootDomain(destination.href) !== RootDomain;
-    } catch (error) {
-        return false;
-    }
-}
 
 function hasRecentMouseClick() {
     return Date.now() <= mouseNavigationAllowedUntil;
@@ -101,7 +74,7 @@ document.addEventListener('click', event => {
 
     const target = event.target instanceof Element ? event.target : event.target.parentElement;
     const link = target && target.closest('a[href]');
-    if (link && isExternalSite(link.href) && !hasRecentMouseClick()) {
+    if (link && !hasRecentMouseClick()) {
         event.preventDefault();
         event.stopImmediatePropagation();
     }
@@ -109,7 +82,7 @@ document.addEventListener('click', event => {
 
 document.addEventListener('submit', event => {
     const form = event.target;
-    if (form instanceof HTMLFormElement && isExternalSite(form.action) && !hasRecentMouseClick()) {
+    if (form instanceof HTMLFormElement && !hasRecentMouseClick()) {
         event.preventDefault();
         event.stopImmediatePropagation();
     }
@@ -117,7 +90,7 @@ document.addEventListener('submit', event => {
 
 if (window.navigation) {
     window.navigation.addEventListener('navigate', event => {
-        if (isExternalSite(event.destination.url) && !hasRecentMouseClick()) {
+        if (!hasRecentMouseClick()) {
             event.preventDefault();
         }
     }, true);
