@@ -471,6 +471,7 @@ const misskon = {
     root: document.querySelector('body:not(.single-post) div#main-content'),
     exlink: 'article.item-list .post-box-title a',
     extraLink: 'article.item-list div.post-thumbnail a img',
+    excludeTag: '.post-meta',
     closestTag: 'article.item-list',
     SearchATag: '.post-box-title a',
     Class: null,
@@ -990,10 +991,11 @@ async function Start() {
     Active.root.addEventListener('click', function (e) {
         if (!e.target) return;
 
-        let target = e.target;
+        let target = e.target;       
 
         if (!target.classList.contains('RecordHistory') && Active.extraLink) {
-            if (target.nodeName === 'IMG' || target.nodeName === 'A') {
+            if (!e.target.closest(Active.excludeTag) && (target.nodeName === 'IMG' || target.nodeName === 'A')) {
+                console.log(target);
                 target = e.target.closest(Active.closestTag).querySelector(Active.SearchATag);
             } else {
                 switch (Active.MatchUrl) {
@@ -1038,7 +1040,7 @@ async function Start() {
             }
         }
 
-        if (target && target.classList.contains('RecordHistory')) {
+        if (target && target.classList.contains('RecordHistory')) {            
             addNodesSet.delete(target);
             SaveVisited(target);
             if (VisitedState) {
