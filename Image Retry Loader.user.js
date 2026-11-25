@@ -966,6 +966,7 @@
     gifyu.com
     11img.com
     imgccc.com
+    casimages.com
     `.trim()
         .split('\n')
         .map(d => d.replace(/\./g, '\\.').trim())
