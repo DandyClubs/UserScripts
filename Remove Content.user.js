@@ -299,6 +299,8 @@ const siteConfigs = {
     'xchina.co': {
         linkSelector: 'div.text div.subs div a',
         parentTagSelector: 'div.list div.item',
+        etcSelector: 'h2.section-title',
+        etcParentTagSelector: 'section',
     },
     'turbobitxxx.com': {
         linkSelector: 'center h2 a',
@@ -482,7 +484,7 @@ async function processContent(node, selector) {
                     // 캐시에서 동일 Title 검색
                     const existingIndex = contentCache.findIndex(s => s.K.toLowerCase() === Title);
                     const existingItem = existingIndex !== -1 ? contentCache[existingIndex] : null;
-                    
+
                     if (!existingItem) {
                         // [1. 최초 등록] 해당 타이틀이 없으면 무조건 등록 (해상도 포함)
                         console.log(`First find Resolution Detected (${resolution}p):`, Title, parent);
@@ -712,8 +714,22 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // 1. 초기 페이지 콘텐츠 처리는 각 rootElement별로 진행
     for (const rootElement of rootElements) {
-        await processContent(rootElement, contentSelector);
+        if (Active.etcSelector) {            
+            const etcItems = [...rootElement.querySelectorAll(Active.etcSelector)];
+
+            for (const etcItem of etcItems) {
+                const textContent = etcItem.textContent;
+                if (RemoveContentEX.test(textContent)) {
+                    const removeItem = etcItem.closest(Active.etcParentTagSelector);
+                    console.log('Etc content removed:', textContent.match(RemoveContentEX), removeItem);
+                    hideElement(removeItem);
+                }
+            }
+        }
+
+        await processContent(rootElement, contentSelector);        
     }
+
 
     // Main document and same-origin iframe documents need separate observers.
     observeDocument(document);
