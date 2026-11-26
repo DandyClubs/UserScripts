@@ -178,7 +178,9 @@
 
     // 3. 기존 전체 요소 스캔 (초기 실행 및 필터 추가 시에만 호출)
     function scanAllExistingCards(addedFilter = null) {
-        const cards = document.querySelectorAll(currentConfig.cardSelector);
+        const safeClass = CSS.escape(currentConfig.className);
+        const selector = `${currentConfig.cardSelector}:not(.${safeClass})`;
+        const cards = document.querySelectorAll(selector);
         cards.forEach(card => processCard(card, addedFilter));
     }
 
@@ -233,6 +235,7 @@
                     filters.channels.push(channelName);
                     popup.remove();
                     saveFilters({ type: 'channel', value: channelName });
+                    hideCard(card);
                 } else {
                     popup.remove();
                     hideCard(card);
@@ -263,6 +266,7 @@
                     filters.titles.push(val);
                     popup.remove();
                     saveFilters({ type: 'title', value: val });
+                    hideCard(card);
                 } else {
                     popup.remove();
                     hideCard(card);

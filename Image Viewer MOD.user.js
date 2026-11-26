@@ -944,7 +944,7 @@ function GetOnline(details) {
     });
 }
 
-async function getURLFromPage(linkData, extractor, requestDetails) {    
+async function getURLFromPage(linkData, extractor, requestDetails) {
 
     const urlObj = new URL(linkData.url);
     const host = urlObj.hostname;
@@ -955,7 +955,14 @@ async function getURLFromPage(linkData, extractor, requestDetails) {
         return null;
     }
 
-    const html = await getPageHtml({ url: linkData.url, ...requestDetails });
+    const response = await getPageResponse({ url: linkData.url, ...requestDetails });
+    const html = response.responseText;
+
+    if (response.status >= 500) {
+        console.warn(`[Image Viewer] Server error ${response.status}; setting status to offline: ${extractor.id}`);
+        extractor.status = 'offline';
+        return null;
+    }
 
     if (!html) {
         console.warn(`[Image Viewer] Empty response from: ${linkData.url}`);
@@ -994,14 +1001,6 @@ async function getURLFromPage(linkData, extractor, requestDetails) {
         return null;
     }
 
-
-    // ★ 최초 1회 성공 시 status를 'online'으로 확정
-    // 이후 들어오는 동일 호스트 요청은 2번의 점검 키워드 검사(if)를 통과(Skip)하게 됨
-    extractor.status = 'online';
-    if (offlineImageLinks.get(extractor.id)) {
-        retryOfflineImages(extractor);
-    }
-
     return url.replace(/&amp;/g, '&');
 
 }
@@ -1030,11 +1029,9 @@ async function getURLFromPage(linkData, extractor, requestDetails) {
 
 
 
-async function getPageHtml(requestDetails) {
+async function getPageResponse(requestDetails) {
     //console.log(requestDetails)
-    const response = await request(requestDetails);
-    //console.log('getPageHtml: ', response)
-    return response.responseText;
+    return request(requestDetails);
 }
 
 
@@ -1247,7 +1244,7 @@ function collectImageLinks(root, processedClass = 'ivChecked') {
 
 
             // 3) Resolve a “real” thumbnail URL:
-            let thumb = img.src;            
+            let thumb = img.src;
             if (thumb.startsWith('data:image') ||
                 link.href && thumb && extractRootDomain(thumb) !== extractRootDomain(link.href)) {
                 // look for lazy attributes
@@ -1431,6 +1428,7 @@ const image = {
         if (imageURL) {
             //link.dataset.ivImgUrl = imageURL;
             link.classList.add('ViewerGallery');
+            link.dataset.status = 'online';
             return imageURL;
         }
 
@@ -1443,24 +1441,39 @@ const image = {
             );
         }
 
-        imageURL = await urlExtractor.getImageURL({
-            url: link.href,
-            thumbnailURL,
-            host: imageHost,
-        });
+        try {
+            imageURL = await urlExtractor.getImageURL({
+                url: link.href,
+                thumbnailURL,
+                host: imageHost,
+            });
+        } catch (error) {
+            if (extractor && extractor.status !== 'online') {
+                rememberOfflineImage(link);
+            }
+            throw error;
+        }
 
 
         if (!imageURL) {
             image.markAsBroken(link);
             console.log(link, extractor.status);
-            if (extractor && extractor.status === 'offline') {
+            if (extractor && extractor.status !== 'online') {
                 rememberOfflineImage(link);
             }
-            link.classList.remove('ViewerGallery');
+            link.classList.remove('ViewerGallery');            
             //viewer.update()
             ViewerList.delete(link);
             viewerUpdate();
             return null;
+        }
+
+        if (extractor && extractor.status !== 'online') {
+            extractor.status = 'online';            
+            if (offlineImageLinks.get(extractor.id)) {
+                console.log(`Retry Offline Images`);
+                retryOfflineImages(extractor);
+            }
         }
 
         try {
@@ -1480,6 +1493,7 @@ const image = {
 
         link.dataset.ivImgUrl = imageURL;
         link.classList.add('ViewerGallery');
+        link.dataset.status = 'online';
         AddEvent(img);
         //viewer.update()
         ViewerList.add(link);
@@ -1571,8 +1585,6 @@ const image = {
         });
     },
     markAsBroken(link) {
-        link.classList.remove('js-image-link');
-        link.removeAttribute('title');
         link.dataset.status = 'offline';
     },
     markAsAvailable(link) {
