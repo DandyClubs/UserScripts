@@ -1452,6 +1452,7 @@ const image = {
 
         if (!imageURL) {
             image.markAsBroken(link);
+            console.log(link, extractor.status);
             if (extractor && extractor.status === 'offline') {
                 rememberOfflineImage(link);
             }
