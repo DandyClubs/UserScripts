@@ -1199,7 +1199,7 @@ function processNextExpandTag() {
         if (typeof Management === 'function') Management();
     }
 
-    ExpandTagTimer = setTimeout(processNextExpandTag, 100);
+    ExpandTagTimer = setTimeout(processNextExpandTag, 50);
 }
 
 const ExpandTag = new IntersectionObserver(entries => {
@@ -1216,7 +1216,7 @@ const ExpandTag = new IntersectionObserver(entries => {
     }
 }, {
     root: null,
-    rootMargin: "0px 0px 500px 0px",
+    rootMargin: "0px 0px 1000px 0px",
     threshold: 0
 });
 
