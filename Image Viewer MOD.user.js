@@ -1199,7 +1199,10 @@ function processNextExpandTag() {
         if (typeof Management === 'function') Management();
     }
 
-    ExpandTagTimer = setTimeout(processNextExpandTag, 50);
+    if (ExpandTagQueue.length) {
+        ExpandTagTimer = setTimeout(processNextExpandTag, 50);
+    }
+
 }
 
 const ExpandTag = new IntersectionObserver(entries => {

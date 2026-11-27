@@ -492,7 +492,7 @@
 
         let imageDomain;
         try {
-            imageDomain = new URL(url).hostname.toLowerCase();
+            imageDomain = extractRootDomain(url).toLowerCase();
         } catch {
             imageDomain = null;
         }       
@@ -1140,7 +1140,7 @@
                     !Number.isFinite(savedTime.savedAt) ||
                     now - savedTime.savedAt > STORAGE_EXPIRATION) {
                     GM_deleteValue(key);
-                    console.log(`[Storage] 24시간 경과 프록시 데이터 삭제: ${key}`);
+                    console.log(`[Storage] 시간 경과 프록시 데이터 삭제: ${key}`);
                 }
             } else if (now - savedTime > STORAGE_EXPIRATION) {
                 GM_deleteValue(key);
