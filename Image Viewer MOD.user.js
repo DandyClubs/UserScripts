@@ -573,10 +573,12 @@ function rememberOfflineImage(link) {
     offlineImageLinks.get(extractorId).add(link);
 }
 
+let retryOffline = false;
+
 function retryOfflineImages(extractor) {
     const links = offlineImageLinks.get(extractor.id);
     if (!links) return;
-
+    retryOffline = true;
     offlineImageLinks.delete(extractor.id);
     for (const link of links) {
         if (!link.isConnected) continue;
@@ -584,9 +586,9 @@ function retryOfflineImages(extractor) {
         processedElements.delete(link.href);
         image.markAsAvailable(link);
         const img = link.querySelector('img');
-        console.log(getFullSizeQueue);
         if (img) enqueueFullSizeIfNeeded(link, img);
     }
+    retryOffline = false;
 }
 
 
@@ -1130,11 +1132,20 @@ const TRANSITION_DURATION = 350;
 let PreLoadDB = [];
 
 
-const ExpandTag = new IntersectionObserver(entries => {
-    for (const entry of entries) {
-        const el = entry.target;
-        if (el.classList.contains('unfolded')) continue;
+const ExpandTagQueue = [];
+const QueuedExpandTags = new Set();
+let ExpandTagTimer = null;
 
+function processNextExpandTag() {
+    const el = ExpandTagQueue.shift();
+    if (!el) {
+        ExpandTagTimer = null;
+        return;
+    }
+
+    QueuedExpandTags.delete(el);
+
+    if (!el.classList.contains('unfolded')) {
         let P = el.nextElementSibling;
         const targetNode = P || el.parentElement;
 
@@ -1186,6 +1197,22 @@ const ExpandTag = new IntersectionObserver(entries => {
 
     if (typeof ManagementWorking !== 'undefined' && typeof queue !== 'undefined' && !ManagementWorking && !queue.isEmpty()) {
         if (typeof Management === 'function') Management();
+    }
+
+    ExpandTagTimer = setTimeout(processNextExpandTag, 100);
+}
+
+const ExpandTag = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+        const el = entry.target;
+        if (!el.classList.contains('unfolded') && !QueuedExpandTags.has(el)) {
+            QueuedExpandTags.add(el);
+            ExpandTagQueue.push(el);
+        }
+    }
+
+    if (ExpandTagTimer === null && ExpandTagQueue.length) {
+        processNextExpandTag();
     }
 }, {
     root: null,
@@ -1461,7 +1488,7 @@ const image = {
             if (extractor && extractor.status !== 'online') {
                 rememberOfflineImage(link);
             }
-            link.classList.remove('ViewerGallery');            
+            link.classList.remove('ViewerGallery');
             //viewer.update()
             ViewerList.delete(link);
             viewerUpdate();
@@ -1469,8 +1496,8 @@ const image = {
         }
 
         if (extractor && extractor.status !== 'online') {
-            extractor.status = 'online';            
-            if (offlineImageLinks.get(extractor.id)) {
+            extractor.status = 'online';
+            if (offlineImageLinks.get(extractor.id) && !retryOffline) {
                 console.log(`Retry Offline Images`);
                 retryOfflineImages(extractor);
             }
