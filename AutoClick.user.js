@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         AutoClick (Refactored)
-// @version      2026.11.02
+// @version      2026.11.28
 // @description  Auto actions with persistent cross-tab messaging
 // @author       DandyClubs
 // @include      /^https?:\/\/(cosplayjav|nylons)\.pl\/(download|thumbnails)\/\?forPost=.*$/
@@ -708,7 +708,7 @@ async function startWork(currentLinks, openChild = (url, target) => window.open(
 }
 
 
-async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJdownloaer = false }) {
+async function handleSite({ copyTitle, linkSelectors, autoClose = false, directJdownloader = false }) {
 
     const JdownloaderData = [];
     const allowHost = /mega\.nz|drive\.google\.com|mediafire\.com/;
@@ -1015,7 +1015,7 @@ async function handleSite({ copyTitle, linkSelectors, autoClose = false, enableJ
 
                     currentLinks = [];
                     currentTypeIndex = types.length;
-                    if (enableJdownloaer && JdownloaderData.length > 0) {
+                    if (directJdownloader && JdownloaderData.length > 0) {
                         JDownloader(JdownloaderData.join('\n'), copyTitle, PageURL);
                     }
                 }
@@ -1042,7 +1042,7 @@ async function handleAllAsianGirls() {
     return handleSite({
         copyTitle: Title,
         linkSelectors: [{ selector: 'a[href^="https://shrinkme"], a[href^="https://ouo"]', text: 'Terabox', type: 'terabox' }],
-        enableJdownloaer: true,
+        directJdownloader: false,
     });
 }
 
@@ -1059,7 +1059,7 @@ async function handleBestGirlSexy() {
             copyTitle: Title,
             linkSelectors: [{ selector: 'a.maxbutton', text: 'TeraBox', type: 'terabox' }],
             autoClose: true,
-            enableJdownloaer: true,
+            directJdownloader: false,
         });
     }
 }
@@ -1084,7 +1084,7 @@ async function handleMissKon() {
             { selector: 'a.shortc-button', text: 'Google Drive', type: 'googleDrive' },
             { selector: 'a.shortc-button', text: 'Terabox', type: 'terabox' }
         ],
-        enableJdownloaer: true,
+        directJdownloader: false,
     });
 }
 
