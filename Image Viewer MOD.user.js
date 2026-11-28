@@ -1132,18 +1132,15 @@ const TRANSITION_DURATION = 350;
 let PreLoadDB = [];
 
 
-const ExpandTagQueue = [];
-const QueuedExpandTags = new Set();
+const ExpandTagQueue = new Queue();
 let ExpandTagTimer = null;
 
 function processNextExpandTag() {
-    const el = ExpandTagQueue.shift();
+    const el = ExpandTagQueue.dequeue();
     if (!el) {
         ExpandTagTimer = null;
         return;
     }
-
-    QueuedExpandTags.delete(el);
 
     if (!el.classList.contains('unfolded')) {
         let P = el.nextElementSibling;
@@ -1199,22 +1196,19 @@ function processNextExpandTag() {
         if (typeof Management === 'function') Management();
     }
 
-
-        ExpandTagTimer = setTimeout(processNextExpandTag, 50);
-
+    ExpandTagTimer = setTimeout(processNextExpandTag, 50);
 
 }
 
 const ExpandTag = new IntersectionObserver(entries => {
     for (const entry of entries) {
         const el = entry.target;
-        if (!el.classList.contains('unfolded') && !QueuedExpandTags.has(el)) {
-            QueuedExpandTags.add(el);
-            ExpandTagQueue.push(el);
+        if (!el.classList.contains('unfolded')) {
+            ExpandTagQueue.enqueue(el);
         }
     }
 
-    if (ExpandTagTimer === null && ExpandTagQueue.length) {
+    if (ExpandTagTimer === null && !ExpandTagQueue.isEmpty()) {
         processNextExpandTag();
     }
 }, {
