@@ -563,14 +563,14 @@ const queued = new WeakSet();
 const getFullSizeQueue = new Queue();
 
 // 중복 처리 방지를 위한 Set 추가
-const processedElements = new Set();
-const processedImageURLs = new Map();
-const processingImageURLs = new Map();
+const areadyElements = new Set(); // 이미 구한 원본 이미지 URL 캐시
+const completedImageURLs = new Map(); // getFullSizeURL 작업 완료.
+const processingImageURLs = new Map(); // 현재 처리 중인 작업의 Promise. 같은 링크가 다시 들어오면 새 작업 대신 기존 작업을 기다림
 const offlineImageLinks = new Map();
 
 const TASK_TIMEOUT_MS = 60000;
 const MAX_FULL_SIZE_RETRIES = 3;
-const processCount = 5;
+const processCount = 8;
 const activeWorkerCounts = new Map();
 let isSpawning = false;
 
@@ -593,8 +593,7 @@ function retryOfflineImages(extractor) {
     offlineImageLinks.delete(extractor.id);
     for (const link of links) {
         if (!link.isConnected) continue;
-
-        processedElements.delete(link.href);
+        areadyElements.delete(link.href);
         image.markAsAvailable(link);
         const img = link.querySelector('img');
         if (img) enqueueFullSizeIfNeeded(link, img);
@@ -659,8 +658,8 @@ async function processFullSizeLink(linkElement, rootDomain) {
             return;
         }
 
-        if (processedElements.has(href)) {
-            const cachedURL = processedImageURLs.get(href) || linkElement.dataset.ivImgUrl;
+        if (areadyElements.has(href)) {
+            const cachedURL = completedImageURLs.get(href) || linkElement.dataset.ivImgUrl;
             const processingURL = processingImageURLs.get(href);
             if (cachedURL || processingURL) {
                 const imageURL = cachedURL || await processingURL;
@@ -678,10 +677,11 @@ async function processFullSizeLink(linkElement, rootDomain) {
                 }
                 return;
             }
-            processedElements.delete(href);
+            //areadyElements.delete(href);
+        } else {
+            //completedImageURLs.delete(href);
+            areadyElements.add(linkElement.href);
         }
-        processedImageURLs.delete(href);
-        processedElements.add(linkElement.href);
 
         const processingURL = (async () => {
             for (let attempt = 1; attempt <= MAX_FULL_SIZE_RETRIES; attempt++) {
@@ -693,12 +693,12 @@ async function processFullSizeLink(linkElement, rootDomain) {
                             timeoutId = setTimeout(() => reject(new Error('Timeout')), TASK_TIMEOUT_MS);
                         })
                     ]);
-                    if (imageURL) processedImageURLs.set(href, imageURL);
+                    if (imageURL) completedImageURLs.set(href, imageURL);
                     return imageURL;
                 } catch (error) {
                     console.warn(`[Queue] Failed (${attempt}/${MAX_FULL_SIZE_RETRIES}): ${href}`, linkElement, error);
                     if (attempt === MAX_FULL_SIZE_RETRIES) {
-                        processedElements.delete(href);
+                        areadyElements.delete(href);
                     } else {
                         await new Promise(resolve => setTimeout(resolve, 1000));
                     }
@@ -708,6 +708,7 @@ async function processFullSizeLink(linkElement, rootDomain) {
             }
             return null;
         })();
+
         processingImageURLs.set(href, processingURL);
         try {
             await processingURL;
@@ -1507,7 +1508,7 @@ const image = {
         let img = link.querySelector('img');
 
         if (imageURL) {
-            processedImageURLs.set(link.href, imageURL);
+            completedImageURLs.set(link.href, imageURL);
             link.classList.add('ViewerGallery');
             link.dataset.status = 'online';
             return imageURL;
@@ -1573,7 +1574,7 @@ const image = {
         }
 
         link.dataset.ivImgUrl = imageURL;
-        processedImageURLs.set(link.href, imageURL);
+        completedImageURLs.set(link.href, imageURL);
         link.classList.add('ViewerGallery');
         link.dataset.status = 'online';
         AddEvent(img);
