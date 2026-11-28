@@ -556,9 +556,12 @@ const getFullSizeQueue = new Queue();
 
 // 중복 처리 방지를 위한 Set 추가
 const processedElements = new Set();
+const processedImageURLs = new Map();
+const processingImageURLs = new Map();
 const offlineImageLinks = new Map();
 
 const TASK_TIMEOUT_MS = 60000;
+const MAX_FULL_SIZE_RETRIES = 3;
 const processCount = 5;
 const activeWorkerCounts = new Map();
 let isSpawning = false;
@@ -632,6 +635,7 @@ function getFullSizeManagement() {
 
 async function processFullSizeLink(linkElement, rootDomain) {
     const progressImage = linkElement.querySelector('img');
+    const href = linkElement.href;
 
     try {
         progressImage.classList.add(CLASSES.processing);
@@ -647,17 +651,62 @@ async function processFullSizeLink(linkElement, rootDomain) {
             return;
         }
 
-        if (processedElements.has(linkElement.href)) return;
+        if (processedElements.has(href)) {
+            const cachedURL = processedImageURLs.get(href) || linkElement.dataset.ivImgUrl;
+            const processingURL = processingImageURLs.get(href);
+            if (cachedURL || processingURL) {
+                const imageURL = cachedURL || await processingURL;
+
+                if (imageURL) {
+                    const needsSetup = !linkElement.classList.contains('ViewerGallery');
+                    linkElement.dataset.ivImgUrl = imageURL;
+                    linkElement.classList.add('ViewerGallery');
+                    linkElement.dataset.status = 'online';
+                    if (needsSetup) {
+                        AddEvent(progressImage);
+                        ViewerList.add(linkElement);
+                        viewerUpdate();
+                    }
+                }
+                return;
+            }
+            processedElements.delete(href);
+        }
+        processedImageURLs.delete(href);
         processedElements.add(linkElement.href);
 
+        const processingURL = (async () => {
+            for (let attempt = 1; attempt <= MAX_FULL_SIZE_RETRIES; attempt++) {
+                let timeoutId;
+                try {
+                    const imageURL = await Promise.race([
+                        image.getFullSizeURL(linkElement),
+                        new Promise((_, reject) => {
+                            timeoutId = setTimeout(() => reject(new Error('Timeout')), TASK_TIMEOUT_MS);
+                        })
+                    ]);
+                    if (imageURL) processedImageURLs.set(href, imageURL);
+                    return imageURL;
+                } catch (error) {
+                    console.warn(`[Queue] Failed (${attempt}/${MAX_FULL_SIZE_RETRIES}): ${href}`, linkElement, error);
+                    if (attempt === MAX_FULL_SIZE_RETRIES) {
+                        processedElements.delete(href);
+                    } else {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+            }
+            return null;
+        })();
+        processingImageURLs.set(href, processingURL);
         try {
-            await Promise.race([
-                image.getFullSizeURL(linkElement),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), TASK_TIMEOUT_MS))
-            ]);
-        } catch (error) {
-            console.warn(`[Queue] Failed: ${linkElement.href}`, linkElement, error, error.message);
-            processedElements.delete(linkElement.href);
+            await processingURL;
+        } finally {
+            if (processingImageURLs.get(href) === processingURL) {
+                processingImageURLs.delete(href);
+            }
         }
 
         await new Promise(resolve => requestAnimationFrame(resolve));
@@ -1450,7 +1499,7 @@ const image = {
         let img = link.querySelector('img');
 
         if (imageURL) {
-            //link.dataset.ivImgUrl = imageURL;
+            processedImageURLs.set(link.href, imageURL);
             link.classList.add('ViewerGallery');
             link.dataset.status = 'online';
             return imageURL;
@@ -1516,6 +1565,7 @@ const image = {
         }
 
         link.dataset.ivImgUrl = imageURL;
+        processedImageURLs.set(link.href, imageURL);
         link.classList.add('ViewerGallery');
         link.dataset.status = 'online';
         AddEvent(img);
