@@ -692,8 +692,7 @@ async function processFullSizeLink(linkElement, rootDomain) {
                         new Promise((_, reject) => {
                             timeoutId = setTimeout(() => reject(new Error('Timeout')), TASK_TIMEOUT_MS);
                         })
-                    ]);
-                    if (imageURL) completedImageURLs.set(href, imageURL);
+                    ]);                    
                     return imageURL;
                 } catch (error) {
                     console.warn(`[Queue] Failed (${attempt}/${MAX_FULL_SIZE_RETRIES}): ${href}`, linkElement, error);
