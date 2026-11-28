@@ -425,7 +425,7 @@ function linkifyNodes(root) {
 function cleanContent(node) {
 
     node.textContent = node.textContent.replace(
-        /\[backcolor=rgb\[\s*\d+\s*,\s*\d+\s*,\s*\d+\]\]/gi,
+        /\[(backcolor|color)=rgb\[\s*\d+\s*,\s*\d+\s*,\s*\d+\]\]/gi,
         ''
     );
 
