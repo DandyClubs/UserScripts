@@ -270,6 +270,14 @@ const siteModules = [
         async getURL(link) { return link.thumbnailURL.replace('-thumb', ''); },
     },
     {
+        id: 'imgpv',
+        name: 'imgpv.com',
+        enabled: true,
+        status: 'unknown',
+        linkRegExp: /imgpv\.com\/.+\.html$/,
+        async getURL(link) { return link.thumbnailURL.replace('_t.', '.'); },
+    },
+    {
         id: 'imgcloud',
         name: 'imgcloud.pw',
         enabled: true,
