@@ -1199,9 +1199,9 @@ function processNextExpandTag() {
         if (typeof Management === 'function') Management();
     }
 
-    if (ExpandTagQueue.length) {
+
         ExpandTagTimer = setTimeout(processNextExpandTag, 50);
-    }
+
 
 }
 
